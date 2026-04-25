@@ -1,34 +1,44 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+.login-bg {
+  background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+  min-height: 100vh;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+.glass-card {
+  backdrop-filter: blur(12px);
+  background: rgba(42, 56, 76, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.5);
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+.admin-table {
+  font-size: 14px;
 }
 
-.App-link {
-    color: #61dafb;
+.admin-table th {
+  position: sticky;
+  top: 0;
+  background: #2A384C;
+  z-index: 10;
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+.map-container {
+  width: 100%;
+  height: 400px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.dark-card {
+  background: #2A384C;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+}
+
+
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
 }

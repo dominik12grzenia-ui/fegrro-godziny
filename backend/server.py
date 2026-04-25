@@ -1,70 +1,63 @@
 from fastapi import FastAPI, APIRouter
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
-from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+from pathlib import Path
 import os
 import logging
-from pathlib import Path
-from pydantic import BaseModel, Field, ConfigDict
-from typing import List
-import uuid
-from datetime import datetime, timezone
+from datetime import datetime
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
+import uuid
+from database import db
+from auth import get_password_hash
+
+# Route modules
+from routes.auth import router as auth_router
+from routes.employees import router as employees_router
+from routes.sites import router as sites_router
+from routes.assignments import router as assignments_router
+from routes.hours import router as hours_router
+from routes.requests import router as requests_router
+from routes.absences import router as absences_router
+from routes.advances import router as advances_router
+from routes.penalties import router as penalties_router
+from routes.reports import router as reports_router
+from routes.sync import router as sync_router, cron_write_hours_previous_month, cron_daily_sync, set_scheduler
+from routes.public import router as public_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Create the main app without a prefix
+# Create the main app
 app = FastAPI()
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
+# Include all route modules
+api_router.include_router(auth_router)
+api_router.include_router(employees_router)
+api_router.include_router(sites_router)
+api_router.include_router(assignments_router)
+api_router.include_router(hours_router)
+api_router.include_router(requests_router)
+api_router.include_router(absences_router)
+api_router.include_router(advances_router)
+api_router.include_router(penalties_router)
+api_router.include_router(reports_router)
+api_router.include_router(sync_router)
+api_router.include_router(public_router)
 
-# Define Models
-class StatusCheck(BaseModel):
-    model_config = ConfigDict(extra="ignore")  # Ignore MongoDB's _id field
-    
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    client_name: str
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class StatusCheckCreate(BaseModel):
-    client_name: str
+# Health check
+@api_router.get("/health")
+async def health_check():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat(), "version": "2026-04-11-v6-monthly-employees"}
 
-# Add your routes to the router instead of directly to app
-@api_router.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-@api_router.post("/status", response_model=StatusCheck)
-async def create_status_check(input: StatusCheckCreate):
-    status_dict = input.model_dump()
-    status_obj = StatusCheck(**status_dict)
-    
-    # Convert to dict and serialize datetime to ISO string for MongoDB
-    doc = status_obj.model_dump()
-    doc['timestamp'] = doc['timestamp'].isoformat()
-    
-    _ = await db.status_checks.insert_one(doc)
-    return status_obj
-
-@api_router.get("/status", response_model=List[StatusCheck])
-async def get_status_checks():
-    # Exclude MongoDB's _id field from the query results
-    status_checks = await db.status_checks.find({}, {"_id": 0}).to_list(1000)
-    
-    # Convert ISO string timestamps back to datetime objects
-    for check in status_checks:
-        if isinstance(check['timestamp'], str):
-            check['timestamp'] = datetime.fromisoformat(check['timestamp'])
-    
-    return status_checks
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -77,13 +70,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# ============= SCHEDULER (CRON) =============
+scheduler = AsyncIOScheduler()
+
+
+@app.on_event("startup")
+async def startup_event():
+    # Create admin user if not exists
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@fegrro.pl")
+    admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    
+    existing_admin = await db.users.find_one({"email": admin_email})
+    if not existing_admin:
+        admin_id = str(uuid.uuid4())
+        admin_doc = {
+            "id": admin_id,
+            "full_name": "Administrator",
+            "email": admin_email,
+            "role": "admin",
+            "hashed_password": get_password_hash(admin_password),
+            "created_at": datetime.now().isoformat()
+        }
+        await db.users.insert_one(admin_doc)
+        logger.info(f"Admin user created: {admin_email}")
+
+    # Start the scheduler for automatic jobs
+    scheduler.add_job(
+        cron_write_hours_previous_month,
+        CronTrigger(day=2, hour=2, minute=0),
+        id="monthly_excel_write",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
+    scheduler.add_job(
+        cron_daily_sync,
+        CronTrigger(hour=6, minute=0),
+        id="daily_excel_sync",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
+    scheduler.start()
+    set_scheduler(scheduler)
+    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00")
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    scheduler.shutdown(wait=False)
+    from database import client
     client.close()

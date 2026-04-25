@@ -1,0 +1,91 @@
+{
+  "theme": "light",
+  "archetype": "Archetype 4 (Swiss & High-Contrast) adapted for Field Service & Construction",
+  "brand_colors": {
+    "primary": "#5F7151",
+    "secondary": "#4A5A41",
+    "accent": "#6E8A3D",
+    "background": "#F9FAFB",
+    "surface": "#FFFFFF",
+    "text_primary": "#111827",
+    "text_secondary": "#4B5563",
+    "border": "#E5E7EB",
+    "warning": "#DC2626",
+    "pending": "#D97706"
+  },
+  "typography": {
+    "heading_font": "Cabinet Grotesk",
+    "body_font": "IBM Plex Sans",
+    "scales": {
+      "h1": "text-4xl sm:text-5xl font-bold tracking-tight",
+      "h2": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3": "text-xl font-semibold",
+      "body": "text-base sm:text-lg",
+      "small": "text-sm text-gray-500 font-medium uppercase tracking-wider"
+    }
+  },
+  "layout_and_spacing": {
+    "mobile_workers_view": {
+      "padding": "p-6",
+      "button_height": "min-h-[56px]",
+      "touch_targets": "extra_large",
+      "gap": "gap-6",
+      "description": "Glove-friendly design. Mobile layout requires 2-3x padding. Controls must be massively enlarged for easy tapping by construction workers on-site."
+    },
+    "admin_dashboard_view": {
+      "padding": "p-4",
+      "grid": "grid-cols-1 md:grid-cols-4 lg:grid-cols-12",
+      "gap": "gap-4",
+      "description": "Spreadsheet-like density (Grid Borders pattern). Admin manages large datasets, so utilize tight spacing and full screen width."
+    }
+  },
+  "component_rules": {
+    "buttons": "Solid brand green for primary actions, large rounded-lg, strong hover states (bg-green-800), must include data-testid. min-h-[56px] for mobile.",
+    "cards": "Flat surfaces with 1px border (border-gray-200), no heavy shadows (shadow-sm max) for structural clarity.",
+    "inputs": "Shadcn UI but enlarged. min-h-[56px] on mobile. Text size 16px minimum to prevent iOS native zoom.",
+    "tables": "Admin only. Dense, border-collapse, sticky header. Text size 14px for maximum data visibility.",
+    "navigation": "Mobile: Bottom tab bar or sticky top header with large tap zones. Admin: Left sidebar (w-64) with dense link list.",
+    "map_pins": "Google Maps integration: large card with 'Otwórz w Google Maps' CTA and location pin icon."
+  },
+  "micro_themes": {
+    "admin": "Grid Borders (The Technical Look) - exposed skeletons, clear data separation. Feels like a modern Excel to smooth their transition.",
+    "mobile": "Functional Neumorphism - tactile but flat, sharp 1px borders to ground it. High contrast for outdoor readability in harsh sunlight."
+  },
+  "animations": {
+    "strategy": "Minimalist functional. Button active state scale down slightly (scale-95). Fast transitions.",
+    "transitions": "transition-all duration-150 ease-in-out"
+  },
+  "accessibility_and_testing": {
+    "contrast": "Ensure text over brand green is pure white. High contrast required for sunlight readability. APCA contrast compliant.",
+    "data_testid": "MANDATORY on all buttons, forms, tabs, inputs (e.g., data-testid='submit-hours-btn')."
+  },
+  "images": {
+    "login_background": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/cc430d6f-af3c-407a-9833-df66078e4f34/images/77bc544b1559a99c1d4be111a08a622b6cf7c77be266271c15055dd52baa5ab3.png",
+      "description": "Abstract architectural blueprint lines, modern construction plans on a subtle green and light gray background",
+      "usage": "Use as a full-cover background image on the login screens (admin and worker) with a white overlay/glassmorphism card on top."
+    },
+    "brand_logo": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/cc430d6f-af3c-407a-9833-df66078e4f34/images/e9a383c17e311820b61b7915735581dbbd1e319085e437d7d73dbf93efbc7770.png",
+      "description": "FeGrro minimalist construction logo green and dark gray",
+      "usage": "Use in header, sidebar, and login screens."
+    }
+  },
+  "feature_specific_instructions": {
+    "hours_entry": "Workers select 'Today' or 'Yesterday' via large Segmented Controls (Shadcn Tabs) - DO NOT use calendar pickers for this. For hour input (1-14), use large custom '+' and '-' stepper buttons next to a readonly display, avoiding native numeric keyboards on site.",
+    "absence_toggle": "Large, unmistakable switch/checkbox for 'Nieobecność'. When toggled on, hours input is completely disabled and faded out.",
+    "admin_approval": "Highlight pending requests (hours > 10, or past days requests) with Amber warning color. Provide inline 1-click 'Zatwierdź' (Approve) or 'Odrzuć' (Reject) buttons in the admin table.",
+    "excel_sync": "Show last sync timestamp prominently in Admin header. Provide a 'Wymuś synchronizację' (Force Sync) button with a spinning loader state.",
+    "map_integration": "Workers see their assigned site with a massive 'Otwórz na mapie' button and Pin icon linking to Google Maps. Admin has an input field to store Google Maps URLs/Coords per construction site."
+  },
+  "instructions_to_main_agent": [
+    "Use Tailwind CSS purely. Install Shadcn UI components but customize spacing based on layout_and_spacing rules above.",
+    "DO NOT use Inter or Roboto fonts. Add `<link href=\"https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500,700,400&display=swap\" rel=\"stylesheet\">` and Google Fonts for IBM Plex Sans in the main HTML.",
+    "Ensure all worker views are exclusively mobile-first with enormous tap targets. Admin view must be dense desktop layout.",
+    "Add 'data-testid' to ALL interactive elements. This is a critical requirement.",
+    "All components must be in .js files, NOT .tsx.",
+    "DO NOT use raw dummy/placeholder image URLs. Use ONLY the image URLs provided in the images object of this JSON.",
+    "The primary action color must be Tailwind green-700 (#15803d) to align with FeGrro branding.",
+    "Install `lucide-react` for iconography (pins, user, calendar, check, x)."
+  ]
+}

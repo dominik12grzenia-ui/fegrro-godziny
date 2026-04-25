@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: fegrro-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: MONGO_URL
+        value: mongodb+srv://fegrro:FeGrro2026db@cluster0.ckrpzlh.mongodb.net/?appName=Cluster0
+      - key: DB_NAME
+        value: fegrro_db
+      - key: JWT_SECRET
+        value: fegrro-secret-key-change-me-2026
+      - key: ADMIN_EMAIL
+        value: admin@fegrro.pl
+      - key: ADMIN_PASSWORD
+        value: Admin123!
+      - key: CORS_ORIGINS
+        value: https://fegrro-godziny.vercel.app,https://godziny.fegrro.pl
+      - key: AZURE_CLIENT_ID
+        sync: false
+      - key: AZURE_TENANT_ID
+        sync: false
+      - key: AZURE_CLIENT_SECRET
+        sync: false
+      - key: ONEDRIVE_EXCEL_FILE
+        value: "Wypłaty  główny.xlsx"
+      - key: ONEDRIVE_FILE_PATH
+        value: "3. Finanse firmowe/Bilans 2026/Wypłaty  główny.xlsx"
+      - key: ONEDRIVE_ARCHIVE_FOLDER
+        value: Archiwizacja
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

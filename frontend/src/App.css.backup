@@ -1,0 +1,69 @@
+.login-bg {
+  background: linear-gradient(135deg, #1E293B 0%, #334155 100%);
+  min-height: 100vh;
+}
+
+.glass-card {
+  backdrop-filter: blur(12px);
+  background: rgba(42, 56, 76, 0.95);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+}
+
+.admin-table {
+  font-size: 14px;
+}
+
+.admin-table th {
+  position: sticky;
+  top: 0;
+  background: #2A384C;
+  z-index: 10;
+}
+
+.map-container {
+  width: 100%;
+  height: 400px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.dark-card {
+  background: #2A384C;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+}
+/* CRITICAL: Force dark background EVERYWHERE */
+[role="tabpanel"],
+[data-state="active"],
+.space-y-4,
+div[class*="space-y"] {
+  background: #1E293B !important;
+}
+
+/* Force dark for specific tabs */
+#budowy-content,
+#sites-content,
+#requests-content {
+  background: #1E293B !important;
+}
+
+/* NUCLEAR OPTION: Kill ALL light backgrounds */
+* {
+  background-color: inherit !important;
+}
+
+body,
+#root,
+.App,
+[role="main"],
+main,
+section,
+article {
+  background: #1E293B !important;
+}
+
+/* Cards must be dark */
+[class*="Card"],
+[class*="card"] {
+  background: #2A384C !important;
+}
