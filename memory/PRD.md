@@ -1,70 +1,82 @@
-# FeGrro - System Rejestracji Godzin Pracy
+# FeGrro Godziny - System Rejestracji Godzin Pracy
 
-## Problem Statement
-Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracowników na budowach.
+## Original Problem Statement
+Użytkownik (`dominik12grzenia-ui`) przypadkowo usunął czat Emergent z projektem **FeGrro Godziny** (system ewidencji godzin pracy dla firmy budowlanej). Pobrał kod jako zip, zrobił deploy (Render + Vercel + MongoDB Atlas), ale aplikacja nie zadziałała poprawnie. Brakowała mu zakładka **SPRZĘT**, którą wcześniej omawialiśmy. Cel sesji: odzyskać projekt z GitHuba i dobudować zakładkę SPRZĘT.
 
-## Core Requirements
-- Pracownicy i budowy synchronizowane z Excel OneDrive
+## Tech Stack
+- Backend: FastAPI + Motor (MongoDB) + APScheduler + python-jose + bcrypt + msal (OneDrive) + reportlab
+- Frontend: React 19 + Tailwind + shadcn/ui + Radix + lucide-react + axios + react-router-dom 7
+- Database: MongoDB (Atlas w prod / local w dev)
+- Deploy target: Render.com (backend) + Vercel (frontend) + domain `godziny.fegrro.pl`
+- Integracje: Microsoft Graph (OneDrive Excel), Google Maps, Outlook Calendar
+
+## Core Requirements (z poprzednich sesji)
+- Pracownicy i budowy synchronizowane z Excel OneDrive (Wypłaty główny.xlsx)
 - Write-back: sumy godzin/zaliczek/kar zapisywane do Excela
 - Brygadziści rejestrują się, admin zatwierdza i przypisuje budowy
-- Publiczne linki dla pracowników do przeglądania godzin, zaliczek, kar i zgłaszania nieobecności
-- Dark mode UI z brandingiem FeGrro
+- Publiczne linki dla pracowników (godziny, zaliczki, kary, nieobecności)
+- Dark mode UI z brandingiem FeGrro (zielony #5F7151, dark #1E293B)
 - PWA (instalacja na ekranie głównym)
 
-## Architecture (po refaktoryzacji 2026-02)
+## Architecture
 ```
 /app/backend/
-├── server.py (~120 linii - setup, CORS, scheduler, route imports)
-├── database.py (MongoDB connection)
-├── utils.py (Polish month maps)
-├── auth.py (JWT, bcrypt, token 365 dni)
-├── models.py (Pydantic models)
-├── onedrive.py (MS Graph API, case-insensitive matching)
+├── server.py (CORS, scheduler, route imports)
+├── database.py, utils.py, auth.py, models.py, onedrive.py
 ├── routes/
-│   ├── auth.py, employees.py (sorted A-Z), sites.py, assignments.py
+│   ├── auth.py, employees.py, sites.py, assignments.py
 │   ├── hours.py, requests.py, absences.py, advances.py
-│   ├── penalties.py, reports.py, sync.py (excel_column mapping), public.py
+│   ├── penalties.py, reports.py, sync.py, public.py
+│   └── equipment.py  ← NOWY (2026-04-25)
 
 /app/frontend/src/components/
-├── AdminDashboard.js (current month employees count)
-├── HoursTable.js (NN/NU, auto-scroll, employee count per site)
-├── WorkerDashboard.js (NN/NU for foremen)
-├── AdminLogin.js (auto-redirect if logged in)
-├── ForemanEntry.js (auto-redirect if logged in)
-├── PublicHours.js, WorkerEntry.js
+├── AdminDashboard.js (5 zakładek: Budowy, Brygadzisci, Prosby, Sprzet, Narzedzia)
+├── HoursTable.js, AssignmentManager.js, WorkerDashboard.js
+├── AdminLogin.js, ForemanEntry.js, WorkerEntry.js
+├── PublicHours.js, SitesMap.js, PWAInstallPrompt.js
+└── EquipmentManager.js  ← NOWY (2026-04-25)
 ```
 
-## Completed Features
-- Login admin / rejestracja brygadzistów
-- Tabela godzin z edycją inline + Bulk hours entry
-- Przypisywanie pracowników do budów + Auto-transfer
-- Excel sync (OneDrive read/write) z excel_column mapping
-- Cron: automatyczny zapis 2. dnia miesiąca + codzienny sync
-- PDF raportów + Publiczne linki
-- Zgłaszanie nieobecności + Outlook Calendar
-- Kary ze zdjęciami (image_data base64)
-- PWA + Google Maps dla budów
-- Powiadomienia >10h
-- Liczba pracowników przy budowie (2026-04)
-- Wyśrodkowany spinner ładowania (2026-04)
-- Sortowanie pracowników A-Z z backendu (2026-04)
-- Dashboard: liczba pracowników z bieżącego miesiąca (2026-04)
-- Auto-logowanie (token 365 dni + auto-redirect) (2026-04)
-- NN/NU w tabeli godzin dla admina i brygadzisty (2026-04)
-- Auto-scroll do wczoraj/dziś w tabeli (2026-04)
-- Węższa kolumna nazwisk na mobile (2026-04)
-- Strona główna → brygadzista, /login → admin (2026-04)
-- Excel write: case-insensitive + excel_column mapping (2026-04)
+## Implemented in this session (2026-04-25)
+- ✅ Odzyskanie projektu z GitHub (https://github.com/dominik12grzenia-ui/fegrro-godziny)
+- ✅ Postawienie aplikacji w środowisku Emergent (backend + frontend + MongoDB lokalne)
+- ✅ Backend: nowy moduł `routes/equipment.py` z modelami i CRUD endpoints:
+  - `GET /api/equipment` (z filtrami: status, employee_id, site_id)
+  - `POST /api/equipment` (admin only, walidacja wymaganej nazwy)
+  - `PUT /api/equipment/{id}` (admin only)
+  - `POST /api/equipment/{id}/assign` (przypisanie/zwrot na magazyn)
+  - `DELETE /api/equipment/{id}` (admin only, 404 dla nieistniejącego)
+- ✅ Frontend: komponent `EquipmentManager.js` z pełnym UI:
+  - Statystyki (Wszystkie / Wydane / Uszkodzone / W serwisie)
+  - Wyszukiwarka po nazwie/kategorii/SN/pracowniku/budowie
+  - Filtr statusu (sprawny/uszkodzony/w_serwisie/wycofany)
+  - Karty sprzętu z badge statusu, kategorią, SN, przypisanym pracownikiem/budową
+  - Modal dodawania/edycji ze wszystkimi polami + upload zdjęcia base64 (max 2MB)
+  - Przyciski Edytuj/Usuń z confirm dialog
+- ✅ Zakładka "Sprzet" dodana do AdminDashboard (5. zakładka, ikona Wrench)
+- ✅ Naprawiono pre-existing bug: JWT_SECRET vs JWT_SECRET_KEY mismatch w `auth.py`
+- ✅ Zaseedowano przykładowe konto admin (admin@fegrro.pl / Admin123!) w lokalnym MongoDB
+- ✅ Testing agent: 30/30 testów backend zaliczonych (CRUD, auth, walidacja, filtry, regression dla istniejących endpointów)
+- ✅ Frontend zweryfikowany screenshotem: zakładka Sprzet wyświetla 9 demo elementów
 
-## Completed (2026-04-20)
-- Fix fakturownia_sync_fast.py UnboundLocalError (usunięty lokalny import datetime wewnątrz sync())
-- Konwersja Excel serial date (46023) → datetime w kolumnie C + Netto/Brutto jako float (SUMIFS działa)
-- Skrypt pisze TYLKO A3:K279 (Wypłaty) i A281:H∞ (Fakturownia) - reszta nietknięta
-- Desktop notifications (osascript) przy błędach sync
-- PWA: dynamiczny manifest dla `/hours/{token}` (start_url = link pracownika), stare kafelki przekierowują do godzin po zapamiętaniu tokenu w localStorage
+## Test Credentials (dev)
+- Admin: `admin@fegrro.pl` / `Admin123!` (patrz /app/memory/test_credentials.md)
+- Database: MongoDB lokalne, DB_NAME=test_database
+- Equipment: 9 demo items zasieded by testing agent
 
-## Backlog
-- P1: Push notifications SMS/Viber dla brygadzistów
-- P2: Refaktoryzacja AdminDashboard.js i HoursTable.js (sub-components)
+## Backlog (z poprzednich sesji + nowe)
+- P0: Zdiagnozować problem deployu na Render.com — user nie podał dokładnie co nie działa
+- P1: SPRZĘT — widoczność dla brygadzistów (obecnie tylko admin)
+- P1: SPRZĘT — historia wydania/zwrotu (audit log)
+- P1: SPRZĘT — eksport listy do PDF/Excel
+- P2: Push notifications SMS/Viber dla brygadzistów
+- P2: Walidacja `assigned_to_employee_id` / `assigned_to_site_id` — sprawdzanie czy istnieje
+- P2: Enum (Literal) dla statusu sprzętu w Pydantic
+- P3: Refaktoryzacja AdminDashboard.js i HoursTable.js (sub-components)
 - P3: Google Maps migrate Marker → AdvancedMarkerElement
-- P3: UptimeRobot ping na /api/health (cold start fix)
+- P3: Pagination /api/equipment (obecnie hard limit 2000)
+
+## Known Pre-existing Issues
+- JWT_SECRET / JWT_SECRET_KEY env name mismatch — zostało naprawione (auth.py czyta oba)
+- W .env brak GOOGLE_MAPS_API_KEY — przez to "This page can't load Google Maps correctly" na zakładce Budowy
+- W .env brak AZURE_* — sync OneDrive nie działa lokalnie
