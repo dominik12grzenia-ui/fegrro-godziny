@@ -7,10 +7,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { 
   Users, Building2, Clock, FileText, LogOut, 
   CheckCircle, XCircle, MapPin, Phone, Calendar,
-  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle
+  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle, Wrench
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SitesMap } from './SitesMap';
+import { EquipmentManager } from './EquipmentManager';
 
 export const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -228,7 +229,7 @@ export const AdminDashboard = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-1 px-1">
-            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-4">
+            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5">
               <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Budowy</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap">
                 Brygadzisci
@@ -245,6 +246,10 @@ export const AdminDashboard = () => {
                     {stats.pendingRequests + notifications.length + absenceRequests.length}
                   </span>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">
+                <Wrench className="h-4 w-4 mr-1 inline" />
+                Sprzet
               </TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
             </TabsList>
@@ -629,6 +634,11 @@ export const AdminDashboard = () => {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Equipment Tab */}
+          <TabsContent value="equipment" className="space-y-4 bg-[#1E293B]">
+            <EquipmentManager employees={employees} sites={sites} />
           </TabsContent>
 
           {/* Tools Tab */}
