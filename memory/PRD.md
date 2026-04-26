@@ -65,12 +65,15 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 
 ## Completed (2026-04-26)
 - Zakladka "Sprzet" w panelu admina + sekcja "Moj sprzet" w panelu brygadzisty
-  - Admin: CRUD sprzetu (nazwa, marka, ilosc, zdjecie, status sprawny/zepsuty/naprawa), matrix przypisan brygadzistom
-  - Brygadzista: lista swojego sprzetu, przekazanie innemu brygadziscie (wymaga akceptacji), zgloszenie usterki ze zdjeciem
-  - Banner powiadomien o oczekujacym przekazaniu w panelu odbiorcy (Akceptuj / Odrzuc)
-  - Walidacja: suma przypisanych nigdy nie przekroczy total_quantity sprzetu
-  - Pelna historia (Utworzono, Edytowano, Przypisano, Przekazanie zlozone/zaakceptowane/odrzucone, Usterka)
-  - 27/27 testow backendu pass
+  - Admin: pojedyncza tabela ze sprzetem i przypisaniami, kolumny:
+    Historia przekazania | Nazwa | Marka | Ilosc dostepnych sztuk | Zdane do magazynu do naprawy | Dostepne w magazynie | <pionowe naglowki brygadzistow z totalami>
+  - Edycja inline: total_quantity, broken_quantity, ilosc per brygadzista
+  - Klik na nazwe sprzetu -> modal edycji (nazwa/marka/status/zdjecie/usun)
+  - Klik "Historia" -> modal z historia danego sprzetu
+  - Brygadzista: lista swojego sprzetu, przekazanie innemu (czerwony baner u odbiorcy z Akceptuj/Odrzuc), zgloszenie usterki ze zdjeciem
+  - Walidacja: assigned + broken_in_warehouse <= total_quantity
+  - Pelna historia (Utworzono/Edytowano/Przypisano/Przekazanie zlozone-zaakceptowane-odrzucone/Usterka)
+  - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
 ## Backlog
 - P1: Push notifications SMS/Viber dla brygadzistów
