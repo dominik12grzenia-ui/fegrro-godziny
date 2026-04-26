@@ -14,7 +14,7 @@ import requests
 import os
 from datetime import datetime, timedelta
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://builder-clockin.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://nostalgic-visvesvaraya-4.preview.emergentagent.com')
 
 # Test employee token from context
 TEST_TOKEN = "evzB6oKirEwBLPoSHWTqJA"  # Jan Kowalski

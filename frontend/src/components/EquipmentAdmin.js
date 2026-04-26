@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Image as ImageIcon } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Image as ImageIcon, QrCode, Printer, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -25,6 +25,7 @@ export const EquipmentAdmin = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEq, setEditingEq] = useState(null);
   const [showHistoryFor, setShowHistoryFor] = useState(null);
+  const [qrModalEq, setQrModalEq] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
 
@@ -207,7 +208,16 @@ export const EquipmentAdmin = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-1">
+                    <div className="flex gap-2 pt-1 flex-wrap">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setQrModalEq(eq)}
+                        className="text-[#5F7151] hover:bg-[#334155] text-xs"
+                        data-testid={`qr-equipment-${eq.id}`}
+                      >
+                        <QrCode className="h-3 w-3 mr-1" /> QR
+                      </Button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -561,6 +571,80 @@ export const EquipmentAdmin = () => {
           </Card>
         </div>
       )}
+      {/* QR Modal */}
+      {qrModalEq && (() => {
+        const publicUrl = `${window.location.origin}/equipment/${qrModalEq.public_token}`;
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(publicUrl)}`;
+        const handlePrint = () => {
+          const win = window.open('', '_blank');
+          if (!win) {
+            toast.error('Popup zablokowany - zezwol na okna');
+            return;
+          }
+          win.document.write(`
+            <html><head><title>QR - ${qrModalEq.name}</title>
+            <style>
+              body{font-family:sans-serif;text-align:center;padding:24px}
+              img{width:400px;height:400px;display:block;margin:16px auto;border:2px solid #000}
+              h1{margin:8px 0;font-size:24px}
+              p{margin:4px 0;font-size:14px;color:#444}
+              .url{font-size:11px;color:#666;word-break:break-all;margin-top:8px}
+              @media print { @page { margin: 1cm; } }
+            </style></head><body>
+              <h1>${qrModalEq.name}</h1>
+              ${qrModalEq.brand ? `<p>${qrModalEq.brand}</p>` : ''}
+              <img src="${qrImageUrl}" alt="QR" />
+              <p><strong>Zeskanuj telefonem aby zobaczyc kto ma sprzet i zglosic usterke</strong></p>
+              <p class="url">${publicUrl}</p>
+              <script>window.onload=()=>{setTimeout(()=>window.print(),500)}</script>
+            </body></html>
+          `);
+          win.document.close();
+        };
+        const handleCopy = () => {
+          navigator.clipboard.writeText(publicUrl).then(() => toast.success('Link skopiowany'));
+        };
+        return (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+            <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-[#CBD5E1]">QR: {qrModalEq.name}</CardTitle>
+                <Button variant="ghost" size="sm" onClick={() => setQrModalEq(null)} data-testid="close-qr-modal">
+                  <X className="h-4 w-4" />
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="bg-white p-4 rounded flex items-center justify-center">
+                  <img src={qrImageUrl} alt="QR" className="w-64 h-64" data-testid="qr-image" />
+                </div>
+                <p className="text-xs text-[#94A3B8] text-center">
+                  Po zeskanowaniu: kto ma sprzet, status, historia, zgloszenie usterki.
+                </p>
+                <div className="bg-[#1E293B] p-2 rounded border border-[#334155] text-xs text-[#94A3B8] break-all" data-testid="qr-public-url">
+                  {publicUrl}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleCopy}
+                    variant="ghost"
+                    className="flex-1 text-[#CBD5E1] hover:bg-[#334155]"
+                    data-testid="qr-copy-btn"
+                  >
+                    <Copy className="h-4 w-4 mr-2" /> Kopiuj link
+                  </Button>
+                  <Button
+                    onClick={handlePrint}
+                    className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid="qr-print-btn"
+                  >
+                    <Printer className="h-4 w-4 mr-2" /> Drukuj
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
     </div>
   );
 };

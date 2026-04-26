@@ -6,6 +6,7 @@ import { AdminDashboard } from './components/AdminDashboard';
 import { AssignmentManager } from './components/AssignmentManager';
 import { HoursTable } from './components/HoursTable';
 import { PublicHours } from './components/PublicHours';
+import { PublicEquipment } from './components/PublicEquipment';
 import { WorkerEntry } from './components/WorkerEntry';
 import { ForemanEntry } from './components/ForemanEntry';
 import { WorkerDashboard } from './components/WorkerDashboard';
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="/worker-entry" element={<WorkerEntry />} />
         <Route path="/foreman" element={<ForemanEntry />} />
         <Route path="/hours/:token" element={<PublicHours />} />
+        <Route path="/equipment/:token" element={<PublicEquipment />} />
         
         {/* Worker Routes */}
         <Route 

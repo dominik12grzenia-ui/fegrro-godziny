@@ -5,11 +5,14 @@ Features:
 - Foreman: list own equipment, transfer equipment to another foreman (requires acceptance),
   report defect, request return
 - Constraint: total assigned across all foremen must never exceed equipment.total_quantity
+- Public: each equipment item has a public_token enabling QR-code labels;
+  scanning shows holders, status, history and an anonymous defect report form.
 """
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from typing import Optional, List
 import uuid
+import secrets
 
 from database import db
 from auth import get_current_user, get_current_admin
@@ -85,9 +88,13 @@ async def _get_user_name(user_id: str) -> str:
 @router.get("/equipment")
 async def list_equipment(current_user: dict = Depends(get_current_user)):
     items = await db.equipment.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
-    # enrich with assigned totals
+    # enrich with assigned totals + ensure public_token exists (lazy migration)
     result = []
     for item in items:
+        if not item.get("public_token"):
+            token = secrets.token_urlsafe(12)
+            await db.equipment.update_one({"id": item["id"]}, {"$set": {"public_token": token}})
+            item["public_token"] = token
         total_assigned = await _get_total_assigned(item["id"])
         result.append({
             **item,
@@ -110,6 +117,7 @@ async def create_equipment(payload: EquipmentCreate,
         "total_quantity": payload.total_quantity,
         "photo": payload.photo,
         "status": "working",
+        "public_token": secrets.token_urlsafe(12),
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
     }
@@ -479,3 +487,86 @@ async def get_history(equipment_id: Optional[str] = None,
 
     items = await db.equipment_history.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return items
+
+
+
+# ============= Public (QR) endpoints — no auth =============
+class PublicDefectReport(BaseModel):
+    reporter_name: str
+    quantity: int
+    description: Optional[str] = None
+    photo: Optional[str] = None  # base64
+
+
+@router.get("/public/equipment/{token}")
+async def public_equipment_view(token: str):
+    """Public view returned after scanning a QR label.
+    Returns equipment summary + current holders + recent history (no PII beyond names).
+    """
+    eq = await db.equipment.find_one({"public_token": token}, {"_id": 0})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Nieznany kod QR")
+
+    total_assigned = await _get_total_assigned(eq["id"])
+    assignments = await db.equipment_assignments.find(
+        {"equipment_id": eq["id"]}, {"_id": 0}
+    ).to_list(1000)
+
+    holders = []
+    for a in assignments:
+        u = await db.users.find_one({"id": a["foreman_id"]}, {"_id": 0, "full_name": 1})
+        holders.append({
+            "foreman_name": u["full_name"] if u else "Nieznany",
+            "quantity": a["quantity"],
+            "assigned_at": a.get("assigned_at"),
+        })
+    holders.sort(key=lambda h: h["foreman_name"])
+
+    history = await db.equipment_history.find(
+        {"equipment_id": eq["id"]}, {"_id": 0}
+    ).sort("created_at", -1).to_list(15)
+
+    return {
+        "id": eq["id"],
+        "name": eq["name"],
+        "brand": eq.get("brand"),
+        "photo": eq.get("photo"),
+        "status": eq.get("status", "working"),
+        "total_quantity": eq["total_quantity"],
+        "assigned_quantity": total_assigned,
+        "available_quantity": max(0, eq["total_quantity"] - total_assigned),
+        "holders": holders,
+        "history": history,
+    }
+
+
+@router.post("/public/equipment/{token}/defect")
+async def public_report_defect(token: str, payload: PublicDefectReport):
+    """Anonymous defect report from QR-scan page. Includes the reporter's typed name."""
+    eq = await db.equipment.find_one({"public_token": token})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Nieznany kod QR")
+    if payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Ilosc musi byc dodatnia")
+    if not payload.reporter_name.strip():
+        raise HTTPException(status_code=400, detail="Podaj swoje imie i nazwisko")
+
+    doc = {
+        "id": str(uuid.uuid4()),
+        "equipment_id": eq["id"],
+        "equipment_name": eq["name"],
+        "foreman_id": None,
+        "foreman_name": payload.reporter_name.strip(),
+        "quantity": payload.quantity,
+        "description": payload.description,
+        "photo": payload.photo,
+        "status": "open",
+        "source": "qr_public",
+        "created_at": datetime.now().isoformat(),
+    }
+    await db.equipment_defects.insert_one(doc)
+    doc.pop("_id", None)
+    await _add_history(eq["id"], "defect_reported", "public", payload.reporter_name.strip(),
+                        {"quantity": payload.quantity, "description": payload.description,
+                         "source": "qr_public"})
+    return {"message": "Usterka zgloszona", "id": doc["id"]}
