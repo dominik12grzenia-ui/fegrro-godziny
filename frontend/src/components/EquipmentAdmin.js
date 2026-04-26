@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Image as ImageIcon, QrCode, Printer, Copy } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -13,6 +13,17 @@ const fileToBase64 = (file) =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+
+const ACTION_LABELS = {
+  created: 'Utworzono',
+  updated: 'Edytowano',
+  deleted: 'Usunieto',
+  assigned: 'Przypisano',
+  transfer_requested: 'Przekazanie zlozone',
+  transfer_accepted: 'Przekazanie zaakceptowane',
+  transfer_rejected: 'Przekazanie odrzucone',
+  defect_reported: 'Zgloszono usterke',
+};
 
 export const EquipmentAdmin = () => {
   const [equipment, setEquipment] = useState([]);
@@ -24,9 +35,7 @@ export const EquipmentAdmin = () => {
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEq, setEditingEq] = useState(null);
-  const [showHistoryFor, setShowHistoryFor] = useState(null);
-  const [qrModalEq, setQrModalEq] = useState(null);
-  const [photoPreview, setPhotoPreview] = useState(null);
+  const [historyModalEq, setHistoryModalEq] = useState(null);
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
 
   const fetchAll = useCallback(async () => {
@@ -59,6 +68,10 @@ export const EquipmentAdmin = () => {
   const getAssigned = (eqId, foremanId) =>
     assignments.find((a) => a.equipment_id === eqId && a.foreman_id === foremanId)?.quantity || 0;
 
+  // Sum of qty assigned per foreman across all equipment
+  const foremanTotal = (foremanId) =>
+    assignments.filter((a) => a.foreman_id === foremanId).reduce((s, a) => s + (a.quantity || 0), 0);
+
   const handleAssignChange = async (eqId, foremanId, value) => {
     const qty = parseInt(value, 10);
     if (Number.isNaN(qty) || qty < 0) {
@@ -70,10 +83,40 @@ export const EquipmentAdmin = () => {
         foreman_id: foremanId,
         quantity: qty,
       });
-      toast.success('Zaktualizowano przypisanie');
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad zapisu');
+      fetchAll();
+    }
+  };
+
+  const handleBrokenChange = async (eqId, value) => {
+    const qty = parseInt(value, 10);
+    if (Number.isNaN(qty) || qty < 0) {
+      toast.error('Ilosc musi byc >= 0');
+      return;
+    }
+    try {
+      await api.put(`/equipment/${eqId}`, { broken_quantity: qty });
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      fetchAll();
+    }
+  };
+
+  const handleTotalChange = async (eqId, value) => {
+    const qty = parseInt(value, 10);
+    if (Number.isNaN(qty) || qty < 0) {
+      toast.error('Ilosc musi byc >= 0');
+      return;
+    }
+    try {
+      await api.put(`/equipment/${eqId}`, { total_quantity: qty });
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      fetchAll();
     }
   };
 
@@ -103,7 +146,6 @@ export const EquipmentAdmin = () => {
       await api.put(`/equipment/${editingEq.id}`, {
         name: editingEq.name,
         brand: editingEq.brand,
-        total_quantity: parseInt(editingEq.total_quantity, 10),
         status: editingEq.status,
         photo: editingEq.photo,
       });
@@ -134,11 +176,8 @@ export const EquipmentAdmin = () => {
       return;
     }
     const b64 = await fileToBase64(file);
-    if (target === 'add') {
-      setForm({ ...form, photo: b64 });
-    } else if (target === 'edit') {
-      setEditingEq({ ...editingEq, photo: b64 });
-    }
+    if (target === 'add') setForm({ ...form, photo: b64 });
+    else if (target === 'edit') setEditingEq({ ...editingEq, photo: b64 });
   };
 
   if (loading) {
@@ -149,20 +188,19 @@ export const EquipmentAdmin = () => {
     );
   }
 
-  const filteredHistory = showHistoryFor
-    ? history.filter((h) => h.equipment_id === showHistoryFor)
-    : history;
-
+  const historyForModal = historyModalEq
+    ? history.filter((h) => h.equipment_id === historyModalEq.id)
+    : [];
   const pendingTransfers = transfers.filter((t) => t.status === 'pending');
 
   return (
     <div className="space-y-4" data-testid="equipment-admin">
-      {/* Header + Add button */}
+      {/* Main table */}
       <Card className="bg-[#2A384C] border-[#334155]">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" />
-            Lista sprzetu
+            Sprzet i przypisania
           </CardTitle>
           <Button
             onClick={() => setShowAddModal(true)}
@@ -176,124 +214,144 @@ export const EquipmentAdmin = () => {
           {equipment.length === 0 ? (
             <p className="text-[#94A3B8] text-center py-6">Brak sprzetu. Kliknij "Dodaj sprzet".</p>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {equipment.map((eq) => (
-                <Card key={eq.id} className="bg-[#1E293B] border-[#334155]" data-testid={`equipment-card-${eq.id}`}>
-                  <CardContent className="pt-4 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div className="flex gap-3 flex-1">
-                        {eq.photo ? (
-                          <img src={eq.photo} alt={eq.name} className="w-16 h-16 object-cover rounded" />
-                        ) : (
-                          <div className="w-16 h-16 rounded bg-[#0F172A] flex items-center justify-center">
-                            <Wrench className="h-7 w-7 text-[#475569]" />
-                          </div>
-                        )}
-                        <div className="flex-1">
-                          <h3 className="font-bold text-[#CBD5E1]">{eq.name}</h3>
-                          {eq.brand && <p className="text-xs text-[#94A3B8]">{eq.brand}</p>}
-                          <p className="text-xs mt-1">
-                            <span className="text-[#94A3B8]">Razem: </span>
-                            <span className="text-[#CBD5E1] font-semibold">{eq.total_quantity}</span>
-                            <span className="text-[#94A3B8]"> · Wolne: </span>
-                            <span className={eq.available_quantity > 0 ? 'text-[#5F7151] font-semibold' : 'text-[#E8836A] font-semibold'}>
-                              {eq.available_quantity}
-                            </span>
-                          </p>
-                          {eq.status && eq.status !== 'working' && (
-                            <span className="inline-block mt-1 text-xs px-2 py-0.5 rounded bg-[#7F2D2D] text-[#FCA5A5]">
-                              {eq.status === 'broken' ? 'Zepsuty' : eq.status === 'maintenance' ? 'Naprawa' : eq.status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 pt-1 flex-wrap">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setQrModalEq(eq)}
-                        className="text-[#5F7151] hover:bg-[#334155] text-xs"
-                        data-testid={`qr-equipment-${eq.id}`}
-                      >
-                        <QrCode className="h-3 w-3 mr-1" /> QR
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setEditingEq({ ...eq, total_quantity: String(eq.total_quantity) })}
-                        className="text-[#94A3B8] hover:bg-[#334155] text-xs"
-                        data-testid={`edit-equipment-${eq.id}`}
-                      >
-                        <Edit className="h-3 w-3 mr-1" /> Edytuj
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setShowHistoryFor(showHistoryFor === eq.id ? null : eq.id)}
-                        className="text-[#94A3B8] hover:bg-[#334155] text-xs"
-                        data-testid={`history-equipment-${eq.id}`}
-                      >
-                        <History className="h-3 w-3 mr-1" /> Historia
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(eq.id)}
-                        className="text-[#E8836A] hover:bg-[#334155] text-xs"
-                        data-testid={`delete-equipment-${eq.id}`}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Assignment matrix */}
-      {equipment.length > 0 && foremen.length > 0 && (
-        <Card className="bg-[#2A384C] border-[#334155]">
-          <CardHeader>
-            <CardTitle className="text-[#CBD5E1]">Przypisanie do brygadzistow</CardTitle>
-          </CardHeader>
-          <CardContent>
             <div className="overflow-x-auto">
-              <table className="w-full text-sm" data-testid="equipment-assignment-table">
+              <table className="border-collapse text-sm" data-testid="equipment-main-table">
                 <thead>
-                  <tr className="border-b border-[#334155] text-left">
-                    <th className="p-2 text-[#CBD5E1]">Brygadzista</th>
-                    {equipment.map((eq) => (
-                      <th key={eq.id} className="p-2 text-[#CBD5E1] text-center min-w-[100px]">
-                        <div>{eq.name}</div>
-                        <div className="text-xs text-[#94A3B8] font-normal">
-                          {eq.assigned_quantity}/{eq.total_quantity}
+                  {/* Top totals row: per-foreman totals */}
+                  <tr>
+                    <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
+                    {foremen.map((f) => (
+                      <th
+                        key={`tot-${f.id}`}
+                        className="border border-[#334155] p-2 bg-[#1E293B] text-center text-[#5F7151] font-bold"
+                        data-testid={`foreman-total-${f.id}`}
+                      >
+                        {foremanTotal(f.id)}
+                      </th>
+                    ))}
+                  </tr>
+                  {/* Headers row */}
+                  <tr className="bg-[#1E293B]">
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                      Historia przekazania
+                    </th>
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[160px]">
+                      Nazwa sprzetu
+                    </th>
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                      Marka
+                    </th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                      Ilosc dostepnych sztuk
+                    </th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">
+                      Zdane do magazynu do naprawy
+                    </th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                      Dostepne w magazynie
+                    </th>
+                    {foremen.map((f) => (
+                      <th
+                        key={f.id}
+                        className="border border-[#334155] p-1 text-center text-[#CBD5E1] align-bottom"
+                        style={{ height: '180px', minWidth: '50px', maxWidth: '50px' }}
+                      >
+                        <div
+                          className="whitespace-nowrap text-xs"
+                          style={{
+                            writingMode: 'vertical-rl',
+                            transform: 'rotate(180deg)',
+                            margin: '0 auto',
+                          }}
+                          title={f.full_name}
+                        >
+                          {f.full_name}
                         </div>
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {foremen.map((f) => (
-                    <tr key={f.id} className="border-b border-[#334155]">
-                      <td className="p-2 text-[#CBD5E1]">{f.full_name}</td>
-                      {equipment.map((eq) => (
-                        <td key={eq.id} className="p-1 text-center">
+                  {equipment.map((eq) => (
+                    <tr key={eq.id} data-testid={`equipment-row-${eq.id}`}>
+                      <td className="border border-[#334155] p-1">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setHistoryModalEq(eq)}
+                          className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
+                          data-testid={`history-btn-${eq.id}`}
+                        >
+                          <History className="h-3 w-3 mr-1" /> Historia
+                        </Button>
+                      </td>
+                      <td className="border border-[#334155] p-2">
+                        <button
+                          onClick={() => setEditingEq({ ...eq })}
+                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
+                          data-testid={`equipment-name-${eq.id}`}
+                        >
+                          {eq.name}
+                        </button>
+                        {eq.status && eq.status !== 'working' && (
+                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[#7F2D2D] text-[#FCA5A5]">
+                            {eq.status === 'broken' ? 'Zepsuty' : eq.status === 'maintenance' ? 'Naprawa' : eq.status}
+                          </span>
+                        )}
+                      </td>
+                      <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
+                      <td className="border border-[#334155] p-1 text-center">
+                        <input
+                          key={`tot-${eq.id}-${eq.total_quantity}`}
+                          type="number"
+                          min="0"
+                          defaultValue={eq.total_quantity}
+                          onBlur={(e) => {
+                            const v = parseInt(e.target.value || '0', 10);
+                            if (v !== eq.total_quantity) handleTotalChange(eq.id, v);
+                          }}
+                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-2 py-1 text-center"
+                          data-testid={`total-input-${eq.id}`}
+                        />
+                      </td>
+                      <td className="border border-[#334155] p-1 text-center">
+                        <input
+                          key={`brk-${eq.id}-${eq.broken_quantity}`}
+                          type="number"
+                          min="0"
+                          defaultValue={eq.broken_quantity || 0}
+                          onBlur={(e) => {
+                            const v = parseInt(e.target.value || '0', 10);
+                            if (v !== (eq.broken_quantity || 0)) handleBrokenChange(eq.id, v);
+                          }}
+                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-2 py-1 text-center"
+                          data-testid={`broken-input-${eq.id}`}
+                        />
+                      </td>
+                      <td className="border border-[#334155] p-2 text-center">
+                        <span
+                          className={
+                            eq.available_quantity > 0
+                              ? 'text-[#5F7151] font-bold text-base'
+                              : 'text-[#E8836A] font-bold text-base'
+                          }
+                          data-testid={`available-${eq.id}`}
+                        >
+                          {eq.available_quantity}
+                        </span>
+                      </td>
+                      {foremen.map((f) => (
+                        <td key={f.id} className="border border-[#334155] p-1 text-center">
                           <input
-                            key={`${eq.id}-${f.id}-${getAssigned(eq.id, f.id)}`}
+                            key={`asg-${eq.id}-${f.id}-${getAssigned(eq.id, f.id)}`}
                             type="number"
                             min="0"
                             defaultValue={getAssigned(eq.id, f.id)}
                             onBlur={(e) => {
-                              const newVal = parseInt(e.target.value || '0', 10);
-                              if (newVal !== getAssigned(eq.id, f.id)) {
-                                handleAssignChange(eq.id, f.id, newVal);
-                              }
+                              const v = parseInt(e.target.value || '0', 10);
+                              if (v !== getAssigned(eq.id, f.id)) handleAssignChange(eq.id, f.id, v);
                             }}
-                            className="w-16 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-2 py-1 text-center"
+                            className="w-12 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-1 py-1 text-center text-xs"
                             data-testid={`assign-input-${eq.id}-${f.id}`}
                           />
                         </td>
@@ -303,12 +361,13 @@ export const EquipmentAdmin = () => {
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-[#94A3B8] mt-3">
-              Suma przypisanych nie moze przekroczyc ilosci dostepnej. Zmiany zapisuja sie po wyjsciu z pola.
-            </p>
-          </CardContent>
-        </Card>
-      )}
+          )}
+          <p className="text-xs text-[#94A3B8] mt-3">
+            Klikaj w nazwe sprzetu, aby edytowac. Zmieniaj ilosci w komorkach — zapis po wyjsciu z pola.
+            Liczby na samej gorze = suma sprzetu u danego brygadzisty.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Pending transfers */}
       {pendingTransfers.length > 0 && (
@@ -319,7 +378,11 @@ export const EquipmentAdmin = () => {
           <CardContent>
             <div className="space-y-2">
               {pendingTransfers.map((t) => (
-                <div key={t.id} className="text-sm p-2 bg-[#1E293B] rounded border border-[#334155]" data-testid={`pending-transfer-${t.id}`}>
+                <div
+                  key={t.id}
+                  className="text-sm p-2 bg-[#1E293B] rounded border border-[#334155]"
+                  data-testid={`pending-transfer-${t.id}`}
+                >
                   <span className="text-[#CBD5E1]">{t.from_foreman_name}</span>
                   <span className="text-[#94A3B8]"> -&gt; </span>
                   <span className="text-[#CBD5E1]">{t.to_foreman_name}</span>
@@ -347,8 +410,12 @@ export const EquipmentAdmin = () => {
           <CardContent>
             <div className="space-y-2">
               {defects.slice(0, 20).map((d) => (
-                <div key={d.id} className="text-sm p-2 bg-[#1E293B] rounded border border-[#334155]" data-testid={`defect-${d.id}`}>
-                  <div className="flex justify-between">
+                <div
+                  key={d.id}
+                  className="text-sm p-2 bg-[#1E293B] rounded border border-[#334155]"
+                  data-testid={`defect-${d.id}`}
+                >
+                  <div className="flex justify-between flex-wrap gap-2">
                     <span>
                       <span className="text-[#E8836A] font-semibold">{d.equipment_name}</span>
                       <span className="text-[#94A3B8]"> x {d.quantity}</span>
@@ -360,68 +427,13 @@ export const EquipmentAdmin = () => {
                     </span>
                   </div>
                   {d.description && <p className="text-xs text-[#94A3B8] mt-1">{d.description}</p>}
-                  {d.photo && (
-                    <img src={d.photo} alt="usterka" className="mt-2 max-h-32 rounded" />
-                  )}
+                  {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-32 rounded" />}
                 </div>
               ))}
             </div>
           </CardContent>
         </Card>
       )}
-
-      {/* History */}
-      <Card className="bg-[#2A384C] border-[#334155]">
-        <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <History className="h-5 w-5 text-[#5F7151]" />
-            Historia
-            {showHistoryFor && (
-              <Button size="sm" variant="ghost" onClick={() => setShowHistoryFor(null)} className="ml-2 text-xs text-[#94A3B8]">
-                Pokaz wszystko <X className="h-3 w-3 ml-1" />
-              </Button>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {filteredHistory.length === 0 ? (
-            <p className="text-[#94A3B8] text-sm">Brak wpisow.</p>
-          ) : (
-            <div className="space-y-1 max-h-96 overflow-y-auto" data-testid="equipment-history">
-              {filteredHistory.slice(0, 100).map((h) => {
-                const eqName = equipment.find((e) => e.id === h.equipment_id)?.name || h.details?.name || '?';
-                let label = h.action;
-                if (h.action === 'created') label = 'Utworzono';
-                if (h.action === 'updated') label = 'Edytowano';
-                if (h.action === 'deleted') label = 'Usunieto';
-                if (h.action === 'assigned') label = 'Przypisano';
-                if (h.action === 'transfer_requested') label = 'Zlozono przekazanie';
-                if (h.action === 'transfer_accepted') label = 'Zaakceptowano przekazanie';
-                if (h.action === 'transfer_rejected') label = 'Odrzucono przekazanie';
-                if (h.action === 'defect_reported') label = 'Zgloszono usterke';
-                return (
-                  <div key={h.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155] flex flex-wrap gap-2">
-                    <span className="text-[#5F7151] font-semibold">{label}</span>
-                    <span className="text-[#CBD5E1]">{eqName}</span>
-                    {h.details?.foreman_name && (
-                      <span className="text-[#94A3B8]">-&gt; {h.details.foreman_name} ({h.details.quantity ?? '?'})</span>
-                    )}
-                    {h.details?.to_foreman_name && (
-                      <span className="text-[#94A3B8]">-&gt; {h.details.to_foreman_name} ({h.details.quantity ?? '?'})</span>
-                    )}
-                    {h.details?.description && (
-                      <span className="text-[#94A3B8]">"{h.details.description}"</span>
-                    )}
-                    <span className="text-[#64748B] ml-auto">
-                      przez {h.actor_name} · {new Date(h.created_at).toLocaleString('pl-PL')}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       {/* Add Modal */}
       {showAddModal && (
@@ -453,7 +465,7 @@ export const EquipmentAdmin = () => {
                 />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc szt. *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc dostepnych sztuk *</label>
                 <Input
                   type="number"
                   min="0"
@@ -472,9 +484,7 @@ export const EquipmentAdmin = () => {
                   className="text-xs text-[#CBD5E1]"
                   data-testid="equipment-photo-input"
                 />
-                {form.photo && (
-                  <img src={form.photo} alt="podglad" className="mt-2 max-h-24 rounded" />
-                )}
+                {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-24 rounded" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setShowAddModal(false)}>
@@ -522,16 +532,6 @@ export const EquipmentAdmin = () => {
                 />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc szt.</label>
-                <Input
-                  type="number"
-                  min="0"
-                  value={editingEq.total_quantity}
-                  onChange={(e) => setEditingEq({ ...editingEq, total_quantity: e.target.value })}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
-                />
-              </div>
-              <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Status</label>
                 <select
                   value={editingEq.status || 'working'}
@@ -551,100 +551,87 @@ export const EquipmentAdmin = () => {
                   onChange={(e) => handlePhotoUpload(e, 'edit')}
                   className="text-xs text-[#CBD5E1]"
                 />
-                {editingEq.photo && (
-                  <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-24 rounded" />
-                )}
+                {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-24 rounded" />}
               </div>
-              <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setEditingEq(null)}>
-                  Anuluj
-                </Button>
+              <div className="flex gap-2 justify-between pt-2">
                 <Button
-                  onClick={handleUpdate}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-                  data-testid="update-equipment-btn"
+                  variant="ghost"
+                  onClick={() => {
+                    handleDelete(editingEq.id);
+                    setEditingEq(null);
+                  }}
+                  className="text-[#E8836A] hover:bg-[#7F2D2D]/30"
+                  data-testid="delete-from-edit-btn"
                 >
-                  Zapisz
+                  <Trash2 className="h-4 w-4 mr-1" /> Usun
                 </Button>
+                <div className="flex gap-2">
+                  <Button variant="ghost" onClick={() => setEditingEq(null)}>
+                    Anuluj
+                  </Button>
+                  <Button
+                    onClick={handleUpdate}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid="update-equipment-btn"
+                  >
+                    Zapisz
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
       )}
-      {/* QR Modal */}
-      {qrModalEq && (() => {
-        const publicUrl = `${window.location.origin}/equipment/${qrModalEq.public_token}`;
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&margin=10&data=${encodeURIComponent(publicUrl)}`;
-        const handlePrint = () => {
-          const win = window.open('', '_blank');
-          if (!win) {
-            toast.error('Popup zablokowany - zezwol na okna');
-            return;
-          }
-          win.document.write(`
-            <html><head><title>QR - ${qrModalEq.name}</title>
-            <style>
-              body{font-family:sans-serif;text-align:center;padding:24px}
-              img{width:400px;height:400px;display:block;margin:16px auto;border:2px solid #000}
-              h1{margin:8px 0;font-size:24px}
-              p{margin:4px 0;font-size:14px;color:#444}
-              .url{font-size:11px;color:#666;word-break:break-all;margin-top:8px}
-              @media print { @page { margin: 1cm; } }
-            </style></head><body>
-              <h1>${qrModalEq.name}</h1>
-              ${qrModalEq.brand ? `<p>${qrModalEq.brand}</p>` : ''}
-              <img src="${qrImageUrl}" alt="QR" />
-              <p><strong>Zeskanuj telefonem aby zobaczyc kto ma sprzet i zglosic usterke</strong></p>
-              <p class="url">${publicUrl}</p>
-              <script>window.onload=()=>{setTimeout(()=>window.print(),500)}</script>
-            </body></html>
-          `);
-          win.document.close();
-        };
-        const handleCopy = () => {
-          navigator.clipboard.writeText(publicUrl).then(() => toast.success('Link skopiowany'));
-        };
-        return (
-          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-            <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-[#CBD5E1]">QR: {qrModalEq.name}</CardTitle>
-                <Button variant="ghost" size="sm" onClick={() => setQrModalEq(null)} data-testid="close-qr-modal">
-                  <X className="h-4 w-4" />
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="bg-white p-4 rounded flex items-center justify-center">
-                  <img src={qrImageUrl} alt="QR" className="w-64 h-64" data-testid="qr-image" />
+
+      {/* History Modal (per equipment) */}
+      {historyModalEq && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1]">
+                Historia: {historyModalEq.name}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setHistoryModalEq(null)} data-testid="close-history-modal">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="overflow-y-auto">
+              {historyForModal.length === 0 ? (
+                <p className="text-[#94A3B8] text-sm">Brak wpisow.</p>
+              ) : (
+                <div className="space-y-1" data-testid="history-modal-list">
+                  {historyForModal.map((h) => (
+                    <div
+                      key={h.id}
+                      className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155] flex flex-wrap gap-2"
+                    >
+                      <span className="text-[#5F7151] font-semibold">
+                        {ACTION_LABELS[h.action] || h.action}
+                      </span>
+                      {h.details?.foreman_name && (
+                        <span className="text-[#94A3B8]">
+                          -&gt; {h.details.foreman_name} ({h.details.quantity ?? '?'})
+                        </span>
+                      )}
+                      {h.details?.to_foreman_name && (
+                        <span className="text-[#94A3B8]">
+                          -&gt; {h.details.to_foreman_name} ({h.details.quantity ?? '?'})
+                        </span>
+                      )}
+                      {h.details?.description && (
+                        <span className="text-[#94A3B8]">"{h.details.description}"</span>
+                      )}
+                      <span className="text-[#64748B] ml-auto">
+                        przez {h.actor_name} · {new Date(h.created_at).toLocaleString('pl-PL')}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-[#94A3B8] text-center">
-                  Po zeskanowaniu: kto ma sprzet, status, historia, zgloszenie usterki.
-                </p>
-                <div className="bg-[#1E293B] p-2 rounded border border-[#334155] text-xs text-[#94A3B8] break-all" data-testid="qr-public-url">
-                  {publicUrl}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleCopy}
-                    variant="ghost"
-                    className="flex-1 text-[#CBD5E1] hover:bg-[#334155]"
-                    data-testid="qr-copy-btn"
-                  >
-                    <Copy className="h-4 w-4 mr-2" /> Kopiuj link
-                  </Button>
-                  <Button
-                    onClick={handlePrint}
-                    className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-                    data-testid="qr-print-btn"
-                  >
-                    <Printer className="h-4 w-4 mr-2" /> Drukuj
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        );
-      })()}
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };

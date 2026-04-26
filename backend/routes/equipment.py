@@ -1,18 +1,14 @@
 """Equipment (Sprzet) management routes.
 
 Features:
-- Admin: full CRUD on equipment, assign quantities to foremen, view history
-- Foreman: list own equipment, transfer equipment to another foreman (requires acceptance),
-  report defect, request return
-- Constraint: total assigned across all foremen must never exceed equipment.total_quantity
-- Public: each equipment item has a public_token enabling QR-code labels;
-  scanning shows holders, status, history and an anonymous defect report form.
+- Admin: full CRUD on equipment, assign quantities to foremen, set broken-in-warehouse count
+- Foreman: list own equipment, transfer to another foreman (requires acceptance), report defect
+- Constraint: assigned + broken_in_warehouse <= total_quantity
 """
 from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from typing import Optional, List
 import uuid
-import secrets
 
 from database import db
 from auth import get_current_user, get_current_admin
@@ -35,6 +31,7 @@ class EquipmentUpdate(BaseModel):
     total_quantity: Optional[int] = None
     photo: Optional[str] = None
     status: Optional[str] = None  # working / broken / maintenance
+    broken_quantity: Optional[int] = None  # number of units returned to warehouse for repair
 
 
 class AssignmentSet(BaseModel):
@@ -88,18 +85,16 @@ async def _get_user_name(user_id: str) -> str:
 @router.get("/equipment")
 async def list_equipment(current_user: dict = Depends(get_current_user)):
     items = await db.equipment.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
-    # enrich with assigned totals + ensure public_token exists (lazy migration)
     result = []
     for item in items:
-        if not item.get("public_token"):
-            token = secrets.token_urlsafe(12)
-            await db.equipment.update_one({"id": item["id"]}, {"$set": {"public_token": token}})
-            item["public_token"] = token
         total_assigned = await _get_total_assigned(item["id"])
+        broken = item.get("broken_quantity", 0) or 0
+        total = item.get("total_quantity", 0)
         result.append({
             **item,
+            "broken_quantity": broken,
             "assigned_quantity": total_assigned,
-            "available_quantity": max(0, item.get("total_quantity", 0) - total_assigned)
+            "available_quantity": max(0, total - total_assigned - broken)
         })
     return result
 
@@ -115,9 +110,9 @@ async def create_equipment(payload: EquipmentCreate,
         "name": payload.name.strip(),
         "brand": (payload.brand or "").strip() or None,
         "total_quantity": payload.total_quantity,
+        "broken_quantity": 0,
         "photo": payload.photo,
         "status": "working",
-        "public_token": secrets.token_urlsafe(12),
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
     }
@@ -145,24 +140,39 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
         update_doc["photo"] = payload.photo
     if payload.status is not None:
         update_doc["status"] = payload.status
+
+    new_total = payload.total_quantity if payload.total_quantity is not None else eq.get("total_quantity", 0)
+    new_broken = payload.broken_quantity if payload.broken_quantity is not None else eq.get("broken_quantity", 0) or 0
+    total_assigned = await _get_total_assigned(equipment_id)
+
     if payload.total_quantity is not None:
         if payload.total_quantity < 0:
             raise HTTPException(status_code=400, detail="Ilosc nie moze byc ujemna")
-        total_assigned = await _get_total_assigned(equipment_id)
-        if payload.total_quantity < total_assigned:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Nie mozesz zmniejszyc do {payload.total_quantity}: aktualnie przypisanych jest {total_assigned} szt."
-            )
+    if payload.broken_quantity is not None:
+        if payload.broken_quantity < 0:
+            raise HTTPException(status_code=400, detail="Ilosc zdana do naprawy nie moze byc ujemna")
+
+    if total_assigned + new_broken > new_total:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Suma przypisanych ({total_assigned}) i zdanych do naprawy ({new_broken}) przekracza ilosc calkowita ({new_total})."
+        )
+
+    if payload.total_quantity is not None:
         update_doc["total_quantity"] = payload.total_quantity
+    if payload.broken_quantity is not None:
+        update_doc["broken_quantity"] = payload.broken_quantity
 
     await db.equipment.update_one({"id": equipment_id}, {"$set": update_doc})
     await _add_history(equipment_id, "updated", current_user["sub"],
                         await _get_user_name(current_user["sub"]), update_doc)
     eq2 = await db.equipment.find_one({"id": equipment_id}, {"_id": 0})
-    total_assigned = await _get_total_assigned(equipment_id)
-    return {**eq2, "assigned_quantity": total_assigned,
-            "available_quantity": max(0, eq2["total_quantity"] - total_assigned)}
+    total_assigned2 = await _get_total_assigned(equipment_id)
+    broken2 = eq2.get("broken_quantity", 0) or 0
+    return {**eq2,
+            "broken_quantity": broken2,
+            "assigned_quantity": total_assigned2,
+            "available_quantity": max(0, eq2["total_quantity"] - total_assigned2 - broken2)}
 
 
 @router.delete("/equipment/{equipment_id}")
@@ -210,11 +220,13 @@ async def set_assignment(payload: AssignmentSet,
     ]
     others = await db.equipment_assignments.aggregate(pipeline).to_list(1)
     other_sum = others[0]["total"] if others else 0
+    broken = eq.get("broken_quantity", 0) or 0
 
-    if other_sum + payload.quantity > eq["total_quantity"]:
+    if other_sum + payload.quantity + broken > eq["total_quantity"]:
+        available = eq["total_quantity"] - other_sum - broken
         raise HTTPException(
             status_code=400,
-            detail=f"Brak wystarczajacej ilosci. Dostepne: {eq['total_quantity'] - other_sum} szt."
+            detail=f"Brak wystarczajacej ilosci. Dostepne w magazynie: {max(0, available)} szt."
         )
 
     if payload.quantity == 0:
@@ -488,85 +500,3 @@ async def get_history(equipment_id: Optional[str] = None,
     items = await db.equipment_history.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return items
 
-
-
-# ============= Public (QR) endpoints — no auth =============
-class PublicDefectReport(BaseModel):
-    reporter_name: str
-    quantity: int
-    description: Optional[str] = None
-    photo: Optional[str] = None  # base64
-
-
-@router.get("/public/equipment/{token}")
-async def public_equipment_view(token: str):
-    """Public view returned after scanning a QR label.
-    Returns equipment summary + current holders + recent history (no PII beyond names).
-    """
-    eq = await db.equipment.find_one({"public_token": token}, {"_id": 0})
-    if not eq:
-        raise HTTPException(status_code=404, detail="Nieznany kod QR")
-
-    total_assigned = await _get_total_assigned(eq["id"])
-    assignments = await db.equipment_assignments.find(
-        {"equipment_id": eq["id"]}, {"_id": 0}
-    ).to_list(1000)
-
-    holders = []
-    for a in assignments:
-        u = await db.users.find_one({"id": a["foreman_id"]}, {"_id": 0, "full_name": 1})
-        holders.append({
-            "foreman_name": u["full_name"] if u else "Nieznany",
-            "quantity": a["quantity"],
-            "assigned_at": a.get("assigned_at"),
-        })
-    holders.sort(key=lambda h: h["foreman_name"])
-
-    history = await db.equipment_history.find(
-        {"equipment_id": eq["id"]}, {"_id": 0}
-    ).sort("created_at", -1).to_list(15)
-
-    return {
-        "id": eq["id"],
-        "name": eq["name"],
-        "brand": eq.get("brand"),
-        "photo": eq.get("photo"),
-        "status": eq.get("status", "working"),
-        "total_quantity": eq["total_quantity"],
-        "assigned_quantity": total_assigned,
-        "available_quantity": max(0, eq["total_quantity"] - total_assigned),
-        "holders": holders,
-        "history": history,
-    }
-
-
-@router.post("/public/equipment/{token}/defect")
-async def public_report_defect(token: str, payload: PublicDefectReport):
-    """Anonymous defect report from QR-scan page. Includes the reporter's typed name."""
-    eq = await db.equipment.find_one({"public_token": token})
-    if not eq:
-        raise HTTPException(status_code=404, detail="Nieznany kod QR")
-    if payload.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Ilosc musi byc dodatnia")
-    if not payload.reporter_name.strip():
-        raise HTTPException(status_code=400, detail="Podaj swoje imie i nazwisko")
-
-    doc = {
-        "id": str(uuid.uuid4()),
-        "equipment_id": eq["id"],
-        "equipment_name": eq["name"],
-        "foreman_id": None,
-        "foreman_name": payload.reporter_name.strip(),
-        "quantity": payload.quantity,
-        "description": payload.description,
-        "photo": payload.photo,
-        "status": "open",
-        "source": "qr_public",
-        "created_at": datetime.now().isoformat(),
-    }
-    await db.equipment_defects.insert_one(doc)
-    doc.pop("_id", None)
-    await _add_history(eq["id"], "defect_reported", "public", payload.reporter_name.strip(),
-                        {"quantity": payload.quantity, "description": payload.description,
-                         "source": "qr_public"})
-    return {"message": "Usterka zgloszona", "id": doc["id"]}
