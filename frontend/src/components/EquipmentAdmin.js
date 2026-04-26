@@ -273,6 +273,7 @@ export const EquipmentAdmin = () => {
                       {equipment.map((eq) => (
                         <td key={eq.id} className="p-1 text-center">
                           <input
+                            key={`${eq.id}-${f.id}-${getAssigned(eq.id, f.id)}`}
                             type="number"
                             min="0"
                             defaultValue={getAssigned(eq.id, f.id)}

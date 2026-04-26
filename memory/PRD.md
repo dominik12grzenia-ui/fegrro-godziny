@@ -63,6 +63,15 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - Desktop notifications (osascript) przy błędach sync
 - PWA: dynamiczny manifest dla `/hours/{token}` (start_url = link pracownika), stare kafelki przekierowują do godzin po zapamiętaniu tokenu w localStorage
 
+## Completed (2026-04-26)
+- Zakladka "Sprzet" w panelu admina + sekcja "Moj sprzet" w panelu brygadzisty
+  - Admin: CRUD sprzetu (nazwa, marka, ilosc, zdjecie, status sprawny/zepsuty/naprawa), matrix przypisan brygadzistom
+  - Brygadzista: lista swojego sprzetu, przekazanie innemu brygadziscie (wymaga akceptacji), zgloszenie usterki ze zdjeciem
+  - Banner powiadomien o oczekujacym przekazaniu w panelu odbiorcy (Akceptuj / Odrzuc)
+  - Walidacja: suma przypisanych nigdy nie przekroczy total_quantity sprzetu
+  - Pelna historia (Utworzono, Edytowano, Przypisano, Przekazanie zlozone/zaakceptowane/odrzucone, Usterka)
+  - 27/27 testow backendu pass
+
 ## Backlog
 - P1: Push notifications SMS/Viber dla brygadzistów
 - P2: Refaktoryzacja AdminDashboard.js i HoursTable.js (sub-components)

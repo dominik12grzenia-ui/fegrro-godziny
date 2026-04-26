@@ -29,13 +29,15 @@ export const EquipmentForeman = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [myRes, forRes, ptRes] = await Promise.all([
+      const [myRes, forRes, ptRes, meRes] = await Promise.all([
         api.get('/equipment/my'),
         api.get('/foremen'),
         api.get('/equipment/transfers/pending'),
+        api.get('/foreman/me').catch(() => ({ data: null })),
       ]);
       setMyEquipment(myRes.data);
-      setForemen(forRes.data || []);
+      const me = meRes.data;
+      setForemen((forRes.data || []).filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
     } catch (e) {
       // silent: foreman may not have any
