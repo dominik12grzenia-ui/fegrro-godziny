@@ -6,16 +6,18 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
+      # All sensitive values must be set in Render Dashboard (Settings -> Environment)
+      # sync: false means: do NOT commit the value, prompt user in Render UI
       - key: MONGO_URL
-        value: mongodb+srv://fegrro:FeGrro2026db@cluster0.ckrpzlh.mongodb.net/?appName=Cluster0
+        sync: false
       - key: DB_NAME
         value: fegrro_db
       - key: JWT_SECRET
-        value: fegrro-secret-key-change-me-2026
+        sync: false
       - key: ADMIN_EMAIL
-        value: admin@fegrro.pl
+        sync: false
       - key: ADMIN_PASSWORD
-        value: Admin123!
+        sync: false
       - key: CORS_ORIGINS
         value: https://fegrro-godziny.vercel.app,https://godziny.fegrro.pl
       - key: AZURE_CLIENT_ID

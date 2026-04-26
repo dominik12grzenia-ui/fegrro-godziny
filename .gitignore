@@ -4,6 +4,17 @@
 .idea/
 .vscode/
 
+# Test files (contain sensitive test credentials - run locally only)
+backend/tests/
+backend_test.py
+test_reports/
+sprzet_patch.zip
+sprzet_patch.tar.gz
+
+# Memory / dev artifacts
+memory/test_credentials.md
+
+
 # Dependencies
 node_modules/
 /node_modules
