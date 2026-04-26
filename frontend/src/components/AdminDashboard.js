@@ -247,7 +247,7 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Sprzet</TabsTrigger>
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Sprzęt</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
@@ -398,6 +398,44 @@ export const AdminDashboard = () => {
                         {site.google_maps_url && (
                           <p className="text-[10px] text-[#64748B] truncate">{site.google_maps_url}</p>
                         )}
+                        {/* Visibility toggle + Delete */}
+                        <div className="flex items-center justify-between pt-2 border-t border-[#334155]">
+                          <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={site.visible_to_foremen !== false}
+                              onChange={async (e) => {
+                                try {
+                                  await api.put(`/sites/${site.id}`, { visible_to_foremen: e.target.checked });
+                                  toast.success(e.target.checked ? 'Widoczna dla brygadzistow' : 'Ukryta');
+                                  fetchData();
+                                } catch (err) {
+                                  toast.error(err.response?.data?.detail || 'Blad');
+                                }
+                              }}
+                              data-testid={`visible-toggle-${site.id}`}
+                            />
+                            <span>Widoczna dla brygadzistow</span>
+                          </label>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={async () => {
+                              if (!window.confirm(`Usunac na stale "${site.name}"? Tej operacji nie mozna cofnac.`)) return;
+                              try {
+                                await api.delete(`/sites/${site.id}?permanent=true`);
+                                toast.success('Usunieto');
+                                fetchData();
+                              } catch (err) {
+                                toast.error(err.response?.data?.detail || 'Blad');
+                              }
+                            }}
+                            className="text-[#E8836A] hover:bg-[#7F2D2D]/30 text-xs h-7"
+                            data-testid={`delete-site-${site.id}`}
+                          >
+                            <Trash2 className="h-3 w-3 mr-1" /> Usun
+                          </Button>
+                        </div>
                       </CardContent>
                     </Card>
                     );

@@ -81,7 +81,8 @@ class ConstructionSite(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now())
     month: Optional[str] = None
     category: Optional[str] = "budowa"  # budowa | sklep | magazyn | inne
-    address: Optional[str] = None  # human-readable address
+    address: Optional[str] = None
+    visible_to_foremen: bool = True
 
 
 class SiteCreate(BaseModel):
@@ -92,6 +93,7 @@ class SiteCreate(BaseModel):
     month: Optional[str] = None
     category: Optional[str] = "budowa"
     address: Optional[str] = None
+    visible_to_foremen: Optional[bool] = True
 
 
 class SiteUpdate(BaseModel):
@@ -102,6 +104,7 @@ class SiteUpdate(BaseModel):
     is_active: Optional[bool] = None
     category: Optional[str] = None
     address: Optional[str] = None
+    visible_to_foremen: Optional[bool] = None
 
 
 # Assignment Models

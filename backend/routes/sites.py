@@ -29,7 +29,8 @@ async def get_sites(
             "_id": 0,
             "id": 1, "name": 1, "location_lat": 1, "location_lng": 1,
             "google_maps_url": 1, "is_active": 1, "month": 1,
-            "excel_column": 1, "created_at": 1, "category": 1, "address": 1
+            "excel_column": 1, "created_at": 1, "category": 1, "address": 1,
+            "visible_to_foremen": 1
         }
     ).to_list(1000)
     return sites
@@ -51,6 +52,7 @@ async def create_site(
         "month": site.month,
         "category": site.category or "budowa",
         "address": site.address,
+        "visible_to_foremen": site.visible_to_foremen if site.visible_to_foremen is not None else True,
         "created_at": datetime.now().isoformat()
     }
     
@@ -85,8 +87,16 @@ async def update_site(
 @router.delete("/sites/{site_id}")
 async def delete_site(
     site_id: str,
+    permanent: bool = False,
     current_user: dict = Depends(get_current_admin)
 ):
+    if permanent:
+        result = await db.construction_sites.delete_one({"id": site_id})
+        if result.deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Site not found")
+        # Also clean up assignments referencing this site
+        await db.assignments.delete_many({"site_id": site_id})
+        return {"message": "Site deleted permanently"}
     result = await db.construction_sites.update_one(
         {"id": site_id},
         {"$set": {"is_active": False}}
