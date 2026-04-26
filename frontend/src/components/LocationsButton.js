@@ -48,10 +48,11 @@ export const LocationsButton = () => {
   }, [open]);
 
   const filtered = sites.filter((s) => {
-    if (s.excel_column) return false; // Excel sites stay in hours table only
+    // Lokalizacje button shows only manual nav sites: sklep/magazyn/inne
+    if (!s.category || s.category === 'budowa') return false;
     if (s.visible_to_foremen === false) return false;
     const matchText = !filter || s.name.toLowerCase().includes(filter.toLowerCase());
-    const matchCat = categoryFilter === 'all' || (s.category || 'budowa') === categoryFilter;
+    const matchCat = categoryFilter === 'all' || s.category === categoryFilter;
     return matchText && matchCat;
   });
 
@@ -128,7 +129,6 @@ export const LocationsButton = () => {
                   data-testid="locations-category-filter"
                 >
                   <option value="all">Wszystkie</option>
-                  <option value="budowa">Budowa</option>
                   <option value="sklep">Sklep</option>
                   <option value="magazyn">Magazyn</option>
                   <option value="inne">Inne</option>

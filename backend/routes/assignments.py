@@ -8,7 +8,7 @@ import logging
 from database import db
 from models import EmployeeAssignment, AssignmentCreate
 from auth import get_current_user, get_current_admin
-from utils import POLISH_MONTHS_UPPER, MONTH_VARIANTS
+from utils import POLISH_MONTHS_UPPER, MONTH_VARIANTS, POLISH_MONTHS_LOWER
 
 logger = logging.getLogger(__name__)
 
@@ -150,3 +150,140 @@ async def unassign_employee(
         # Remove all assignments for the month
         result = await db.assignments.delete_many(query)
         return {"deleted": result.deleted_count, "employee_id": employee_id}
+
+
+
+# Polish month names from number (1-12) -> uppercase nominative Polish name (e.g. KWIECIEŃ)
+_NUM_TO_POLISH_MONTH = {n: name.upper() for n, name in POLISH_MONTHS_LOWER.items()}
+
+
+@router.post("/assignments/restore-from-hours")
+async def restore_assignments_from_hours(
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    dry_run: bool = False,
+    current_user: dict = Depends(get_current_admin)
+):
+    """
+    Recovery endpoint: rebuild employee->site assignments based on existing hour entries.
+    Each hour entry has (employee_id, site_id, work_date) so we can deduce assignments.
+
+    - If `month` and `year` are provided, restore only that month.
+    - If omitted, restore for ALL months that have hour entries.
+    - `dry_run=true` returns what would be created without writing.
+
+    SAFE: only ADDS missing dates to existing assignments or creates new ones.
+    Never deletes or overwrites existing assignment data.
+    """
+    # Build query for hour entries
+    query = {"site_id": {"$ne": None}}
+    if year is not None and month is not None:
+        prefix = f"{year}-{month:02d}-"
+        query["work_date"] = {"$regex": f"^{prefix}"}
+
+    hours = await db.hour_entries.find(
+        query,
+        {"_id": 0, "employee_id": 1, "site_id": 1, "work_date": 1}
+    ).to_list(100000)
+
+    # Group by (employee_id, site_id, year, month)
+    grouped: dict = {}
+    for h in hours:
+        emp_id = h.get("employee_id")
+        site_id = h.get("site_id")
+        wd = h.get("work_date")
+        if not (emp_id and site_id and wd and len(wd) >= 10):
+            continue
+        try:
+            y = int(wd[:4])
+            m = int(wd[5:7])
+        except ValueError:
+            continue
+        key = (emp_id, site_id, y, m)
+        grouped.setdefault(key, set()).add(wd)
+
+    created = 0
+    updated = 0
+    unchanged = 0
+    details = []
+
+    for (emp_id, site_id, y, m), dates in grouped.items():
+        polish_month = _NUM_TO_POLISH_MONTH.get(m)
+        if not polish_month:
+            continue
+
+        variants = MONTH_VARIANTS.get(polish_month, [polish_month])
+        existing = await db.assignments.find_one({
+            "employee_id": emp_id,
+            "site_id": site_id,
+            "month": {"$in": variants},
+            "year": y,
+        })
+
+        sorted_dates = sorted(dates)
+
+        if existing:
+            current_dates = set(existing.get("assigned_dates") or [])
+            missing = sorted(d for d in dates if d not in current_dates)
+            if missing:
+                merged = sorted(current_dates | set(missing))
+                if not dry_run:
+                    await db.assignments.update_one(
+                        {"id": existing["id"]},
+                        {"$set": {"assigned_dates": merged}}
+                    )
+                    # Ensure employee.assigned_sites contains this site
+                    await db.employees.update_one(
+                        {"id": emp_id},
+                        {"$addToSet": {"assigned_sites": site_id}}
+                    )
+                updated += 1
+                details.append({
+                    "employee_id": emp_id, "site_id": site_id,
+                    "month": polish_month, "year": y,
+                    "action": "updated",
+                    "added_dates": missing,
+                })
+            else:
+                unchanged += 1
+        else:
+            assignment_doc = {
+                "id": str(uuid.uuid4()),
+                "employee_id": emp_id,
+                "site_id": site_id,
+                "month": polish_month,
+                "year": y,
+                "assigned_dates": sorted_dates,
+                "created_at": datetime.now().isoformat(),
+                "created_by": current_user.get("sub", "system-restore"),
+            }
+            if not dry_run:
+                await db.assignments.insert_one(assignment_doc)
+                await db.employees.update_one(
+                    {"id": emp_id},
+                    {"$addToSet": {"assigned_sites": site_id}}
+                )
+            created += 1
+            details.append({
+                "employee_id": emp_id, "site_id": site_id,
+                "month": polish_month, "year": y,
+                "action": "created",
+                "dates_count": len(sorted_dates),
+            })
+
+    logger.info(
+        f"Restore assignments dry_run={dry_run}: created={created}, "
+        f"updated={updated}, unchanged={unchanged}, total_groups={len(grouped)}"
+    )
+
+    return {
+        "dry_run": dry_run,
+        "month": month,
+        "year": year,
+        "groups_processed": len(grouped),
+        "created": created,
+        "updated": updated,
+        "unchanged": unchanged,
+        "details": details[:200],  # cap to avoid huge responses
+        "details_truncated": len(details) > 200,
+    }
