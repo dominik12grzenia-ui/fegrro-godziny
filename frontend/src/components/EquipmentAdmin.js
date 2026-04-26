@@ -40,6 +40,7 @@ export const EquipmentAdmin = () => {
   const [historyModalEq, setHistoryModalEq] = useState(null);
   const [warehouseKeeper, setWarehouseKeeper] = useState({ foreman_id: null, foreman_name: null });
   const [pendingReturns, setPendingReturns] = useState([]);
+  const [filterForemanId, setFilterForemanId] = useState('');
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
 
   const fetchAll = useCallback(async () => {
@@ -236,22 +237,54 @@ export const EquipmentAdmin = () => {
     : [];
   const pendingTransfers = transfers.filter((t) => t.status === 'pending');
 
+  // Filter: when foreman selected, show only that column + rows where they have qty > 0
+  const visibleForemen = filterForemanId
+    ? foremen.filter((f) => f.id === filterForemanId)
+    : foremen;
+  const visibleEquipment = filterForemanId
+    ? equipment.filter((eq) => getAssigned(eq.id, filterForemanId) > 0)
+    : equipment;
+
   return (
     <div className="space-y-4" data-testid="equipment-admin">
       {/* Main table */}
       <Card className="bg-[#2A384C] border-[#334155]">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" />
             Sprzet i przypisania
           </CardTitle>
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-            data-testid="add-equipment-btn"
-          >
-            <Plus className="h-4 w-4 mr-2" /> Dodaj sprzet
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select
+              value={filterForemanId}
+              onChange={(e) => setFilterForemanId(e.target.value)}
+              className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+              data-testid="foreman-filter-select"
+            >
+              <option value="">-- pokaz wszystkich --</option>
+              {foremen.map((f) => (
+                <option key={f.id} value={f.id}>{f.full_name}</option>
+              ))}
+            </select>
+            {filterForemanId && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setFilterForemanId('')}
+                className="text-[#94A3B8] hover:bg-[#334155] text-xs"
+                data-testid="clear-filter-btn"
+              >
+                <X className="h-3 w-3 mr-1" /> Wyczysc
+              </Button>
+            )}
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+              data-testid="add-equipment-btn"
+            >
+              <Plus className="h-4 w-4 mr-2" /> Dodaj sprzet
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {equipment.length === 0 ? (
@@ -263,7 +296,7 @@ export const EquipmentAdmin = () => {
                   {/* Top totals row: per-foreman totals */}
                   <tr>
                     <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
-                    {foremen.map((f) => (
+                    {visibleForemen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
                         className="border border-[#334155] p-1 bg-[#1E293B] text-center text-[#5F7151] font-bold"
@@ -293,7 +326,7 @@ export const EquipmentAdmin = () => {
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
                       Dostepne w magazynie
                     </th>
-                    {foremen.map((f) => (
+                    {visibleForemen.map((f) => (
                       <th
                         key={f.id}
                         className="border border-[#334155] p-1 text-center text-[#CBD5E1] align-bottom"
@@ -318,7 +351,7 @@ export const EquipmentAdmin = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {equipment.map((eq) => (
+                  {visibleEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`equipment-row-${eq.id}`}>
                       <td className="border border-[#334155] p-1">
                         <Button
@@ -396,7 +429,7 @@ export const EquipmentAdmin = () => {
                           {eq.available_quantity}
                         </span>
                       </td>
-                      {foremen.map((f) => {
+                      {visibleForemen.map((f) => {
                         const current = getAssigned(eq.id, f.id);
                         const maxVal = maxAssignableFor(eq, f.id);
                         return (

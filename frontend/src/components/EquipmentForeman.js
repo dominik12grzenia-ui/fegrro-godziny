@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon } from 'lucide-react';
+import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon, Warehouse } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -37,21 +37,40 @@ export const EquipmentForeman = () => {
   const [historyModal, setHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState({ transfers: [], events: [] });
   const [pendingReturns, setPendingReturns] = useState([]);
+  const [isWarehouseKeeper, setIsWarehouseKeeper] = useState(false);
+  const [allEquipment, setAllEquipment] = useState([]);
+  const [allAssignments, setAllAssignments] = useState([]);
+  const [allForemen, setAllForemen] = useState([]);
+  const [warehouseModal, setWarehouseModal] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [myRes, forRes, ptRes, meRes, retRes] = await Promise.all([
+      const [myRes, forRes, ptRes, meRes, retRes, wkRes] = await Promise.all([
         api.get('/equipment/my'),
         api.get('/foremen'),
         api.get('/equipment/transfers/pending'),
         api.get('/foreman/me').catch(() => ({ data: null })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
+        api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null } })),
       ]);
       setMyEquipment(myRes.data);
       const me = meRes.data;
-      setForemen((forRes.data || []).filter((f) => !me || f.id !== me.id));
+      const allF = forRes.data || [];
+      setAllForemen(allF);
+      setForemen(allF.filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
       setPendingReturns(retRes.data);
+      const keeperFlag = me && wkRes.data?.foreman_id === me.id;
+      setIsWarehouseKeeper(keeperFlag);
+      // If keeper, also load full equipment + assignments overview
+      if (keeperFlag) {
+        const [eqAll, asgAll] = await Promise.all([
+          api.get('/equipment'),
+          api.get('/equipment/assignments/all'),
+        ]);
+        setAllEquipment(eqAll.data);
+        setAllAssignments(asgAll.data);
+      }
     } catch (e) {
       // silent
     } finally {
@@ -301,10 +320,11 @@ export const EquipmentForeman = () => {
 
       {/* My equipment table */}
       <Card className="bg-[#2A384C] border-[#334155]">
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" /> Moj sprzet
           </CardTitle>
+          <div className="flex gap-2 flex-wrap">
           <Button
             size="sm"
             variant="ghost"
@@ -314,6 +334,17 @@ export const EquipmentForeman = () => {
           >
             <HistoryIcon className="h-4 w-4 mr-1" /> Moja historia
           </Button>
+          {isWarehouseKeeper && (
+            <Button
+              size="sm"
+              onClick={() => setWarehouseModal(true)}
+              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs"
+              data-testid="warehouse-overview-btn"
+            >
+              <Warehouse className="h-4 w-4 mr-1" /> Caly magazyn
+            </Button>
+          )}
+          </div>
         </CardHeader>
         <CardContent>
           {myEquipment.length === 0 ? (
@@ -627,6 +658,80 @@ export const EquipmentForeman = () => {
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      {/* Warehouse Overview Modal (warehouse keeper only) */}
+      {warehouseModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <Warehouse className="h-5 w-5 text-[#5F7151]" /> Caly magazyn — przeglad
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setWarehouseModal(false)} data-testid="close-warehouse-modal">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="overflow-y-auto">
+              {allEquipment.length === 0 ? (
+                <p className="text-[#94A3B8] text-sm">Brak sprzetu.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-xs" data-testid="warehouse-overview-table">
+                    <thead className="sticky top-0 z-10 bg-[#2A384C]">
+                      <tr className="bg-[#1E293B]">
+                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
+                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
+                        <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Razem</th>
+                        <th className="border border-[#334155] p-2 text-center text-[#E8836A]">Naprawa</th>
+                        <th className="border border-[#334155] p-2 text-center text-[#5F7151]">Magazyn</th>
+                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Kto posiada</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allEquipment.map((eq) => {
+                        const holders = allAssignments
+                          .filter((a) => a.equipment_id === eq.id && a.quantity > 0)
+                          .map((a) => {
+                            const f = allForemen.find((x) => x.id === a.foreman_id);
+                            return f ? `${f.full_name} (${a.quantity})` : null;
+                          })
+                          .filter(Boolean);
+                        return (
+                          <tr key={eq.id}>
+                            <td className="border border-[#334155] p-2">
+                              <div className="flex items-center gap-2">
+                                {eq.photo ? (
+                                  <img src={eq.photo} alt={eq.name} className="w-8 h-8 object-cover rounded shrink-0" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded bg-[#1E293B] flex items-center justify-center shrink-0">
+                                    <Wrench className="h-4 w-4 text-[#475569]" />
+                                  </div>
+                                )}
+                                <span className="text-[#CBD5E1] font-semibold">{eq.name}</span>
+                              </div>
+                            </td>
+                            <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
+                            <td className="border border-[#334155] p-2 text-center text-[#CBD5E1] font-bold">{eq.total_quantity}</td>
+                            <td className="border border-[#334155] p-2 text-center text-[#E8836A] font-bold">{eq.broken_quantity || 0}</td>
+                            <td className={`border border-[#334155] p-2 text-center font-bold ${eq.available_quantity > 0 ? 'text-[#5F7151]' : 'text-[#E8836A]'}`}>
+                              {eq.available_quantity}
+                            </td>
+                            <td className="border border-[#334155] p-2 text-[#94A3B8]">
+                              {holders.length === 0 ? <span className="text-[#64748B]">nikt</span> : holders.join(', ')}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              <p className="text-xs text-[#94A3B8] mt-3">
+                Magazynier widzi cale stany sprzetu i kto co posiada. Aby zarzadzac przypisaniami zwroc sie do administratora.
+              </p>
             </CardContent>
           </Card>
         </div>
