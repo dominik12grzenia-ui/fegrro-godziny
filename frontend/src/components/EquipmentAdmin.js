@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -36,17 +36,21 @@ export const EquipmentAdmin = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingEq, setEditingEq] = useState(null);
   const [historyModalEq, setHistoryModalEq] = useState(null);
+  const [warehouseKeeper, setWarehouseKeeper] = useState({ foreman_id: null, foreman_name: null });
+  const [pendingReturns, setPendingReturns] = useState([]);
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
 
   const fetchAll = useCallback(async () => {
     try {
-      const [eqRes, forRes, asgRes, hisRes, defRes, trRes] = await Promise.all([
+      const [eqRes, forRes, asgRes, hisRes, defRes, trRes, wkRes, retRes] = await Promise.all([
         api.get('/equipment'),
         api.get('/foremen'),
         api.get('/equipment/assignments/all'),
         api.get('/equipment/history'),
         api.get('/equipment/defects'),
         api.get('/equipment/transfers/all'),
+        api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null, foreman_name: null } })),
+        api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
       ]);
       setEquipment(eqRes.data);
       setForemen((forRes.data || []).filter((f) => f.status === 'active'));
@@ -54,6 +58,8 @@ export const EquipmentAdmin = () => {
       setHistory(hisRes.data);
       setDefects(defRes.data);
       setTransfers(trRes.data);
+      setWarehouseKeeper(wkRes.data);
+      setPendingReturns(retRes.data);
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
     } finally {
@@ -194,6 +200,26 @@ export const EquipmentAdmin = () => {
     const b64 = await fileToBase64(file);
     if (target === 'add') setForm({ ...form, photo: b64 });
     else if (target === 'edit') setEditingEq({ ...editingEq, photo: b64 });
+  };
+
+  const handleSetWarehouseKeeper = async (foremanId) => {
+    try {
+      await api.put('/settings/warehouse-keeper', { foreman_id: foremanId || null });
+      toast.success(foremanId ? 'Magazynier ustawiony' : 'Magazynier wyczyszczony');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const handleAcknowledgeReturn = async (notifId) => {
+    try {
+      await api.post(`/equipment/returns/${notifId}/acknowledge`);
+      toast.success('Zwrot potwierdzony');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
   };
 
   if (loading) {
@@ -399,6 +425,77 @@ export const EquipmentAdmin = () => {
           </p>
         </CardContent>
       </Card>
+
+      {/* Warehouse keeper setting */}
+      <Card className="bg-[#2A384C] border-[#334155]">
+        <CardHeader>
+          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <UserCog className="h-5 w-5 text-[#5F7151]" />
+            Magazynier (otrzymuje powiadomienia o zwrotach)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-3 flex-wrap">
+            <select
+              value={warehouseKeeper.foreman_id || ''}
+              onChange={(e) => handleSetWarehouseKeeper(e.target.value)}
+              className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
+              data-testid="warehouse-keeper-select"
+            >
+              <option value="">-- tylko admin --</option>
+              {foremen.map((f) => (
+                <option key={f.id} value={f.id}>{f.full_name}</option>
+              ))}
+            </select>
+            <span className="text-xs text-[#94A3B8]">
+              {warehouseKeeper.foreman_id
+                ? `Aktualnie: ${warehouseKeeper.foreman_name}`
+                : 'Powiadomienia trafiaja tylko do admina'}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending returns */}
+      {pendingReturns.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#5F7151]">
+          <CardHeader>
+            <CardTitle className="text-[#5F7151] flex items-center gap-2">
+              <Undo2 className="h-5 w-5" /> Oczekujace zwroty do magazynu ({pendingReturns.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingReturns.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#1E293B] rounded border border-[#334155]"
+                  data-testid={`pending-return-${r.id}`}
+                >
+                  <div className="text-sm">
+                    <span className="text-[#CBD5E1] font-semibold">{r.from_foreman_name}</span>
+                    <span className="text-[#94A3B8]"> zwraca </span>
+                    <span className="text-[#5F7151] font-bold">{r.equipment_name}</span>
+                    <span className="text-[#94A3B8]"> x </span>
+                    <span className="text-white font-bold">{r.quantity}</span>
+                    <span className="text-[#64748B] text-xs ml-2">
+                      ({new Date(r.created_at).toLocaleString('pl-PL')})
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcknowledgeReturn(r.id)}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid={`acknowledge-return-${r.id}`}
+                  >
+                    Potwierdz przyjecie
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pending transfers */}
       {pendingTransfers.length > 0 && (

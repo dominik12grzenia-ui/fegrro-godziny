@@ -35,19 +35,22 @@ export const EquipmentForeman = () => {
   const [returnQty, setReturnQty] = useState('');
   const [historyModal, setHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState({ transfers: [], events: [] });
+  const [pendingReturns, setPendingReturns] = useState([]);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [myRes, forRes, ptRes, meRes] = await Promise.all([
+      const [myRes, forRes, ptRes, meRes, retRes] = await Promise.all([
         api.get('/equipment/my'),
         api.get('/foremen'),
         api.get('/equipment/transfers/pending'),
         api.get('/foreman/me').catch(() => ({ data: null })),
+        api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
       ]);
       setMyEquipment(myRes.data);
       const me = meRes.data;
       setForemen((forRes.data || []).filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
+      setPendingReturns(retRes.data);
     } catch (e) {
       // silent
     } finally {
@@ -164,6 +167,16 @@ export const EquipmentForeman = () => {
     }
   };
 
+  const handleAcknowledgeReturn = async (notifId) => {
+    try {
+      await api.post(`/equipment/returns/${notifId}/acknowledge`);
+      toast.success('Zwrot potwierdzony');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
   const handleDefectPhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -244,6 +257,47 @@ export const EquipmentForeman = () => {
 
   return (
     <div className="space-y-3" data-testid="equipment-foreman">
+      {/* Pending warehouse returns (only visible to designated warehouse keeper) */}
+      {pendingReturns.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#5F7151]" data-testid="warehouse-keeper-section">
+          <CardHeader>
+            <CardTitle className="text-[#5F7151] flex items-center gap-2 text-base">
+              <Undo2 className="h-5 w-5" /> Zwroty do magazynu — do potwierdzenia ({pendingReturns.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {pendingReturns.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#1E293B] rounded border border-[#334155]"
+                  data-testid={`keeper-pending-return-${r.id}`}
+                >
+                  <div className="text-sm">
+                    <span className="text-[#CBD5E1] font-semibold">{r.from_foreman_name}</span>
+                    <span className="text-[#94A3B8]"> zwraca </span>
+                    <span className="text-[#5F7151] font-bold">{r.equipment_name}</span>
+                    <span className="text-[#94A3B8]"> x </span>
+                    <span className="text-white font-bold">{r.quantity}</span>
+                    <span className="text-[#64748B] text-xs ml-2">
+                      ({new Date(r.created_at).toLocaleString('pl-PL')})
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAcknowledgeReturn(r.id)}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid={`keeper-acknowledge-return-${r.id}`}
+                  >
+                    Potwierdz przyjecie
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* My equipment table */}
       <Card className="bg-[#2A384C] border-[#334155]">
         <CardHeader className="flex flex-row items-center justify-between">

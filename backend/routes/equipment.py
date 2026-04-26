@@ -57,6 +57,10 @@ class ReturnToWarehouse(BaseModel):
     quantity: int
 
 
+class WarehouseKeeperSet(BaseModel):
+    foreman_id: Optional[str] = None  # None = clear (only admin gets notifications)
+
+
 # ============= Helpers =============
 async def _get_total_assigned(equipment_id: str) -> int:
     cursor = db.equipment_assignments.aggregate([
@@ -539,11 +543,32 @@ async def return_to_warehouse(payload: ReturnToWarehouse,
         )
 
     actor_name = await _get_user_name(foreman_id)
+    eq_name = eq["name"]
+    # Create a return notification awaiting acknowledgment
+    keeper_setting = await db.app_settings.find_one({"key": "warehouse_keeper"})
+    keeper_id = (keeper_setting or {}).get("foreman_id")
+    notif = {
+        "id": str(uuid.uuid4()),
+        "equipment_id": payload.equipment_id,
+        "equipment_name": eq_name,
+        "from_foreman_id": foreman_id,
+        "from_foreman_name": actor_name,
+        "quantity": payload.quantity,
+        "warehouse_keeper_id": keeper_id,  # if set, this foreman should also see it
+        "status": "pending",
+        "acknowledged_by": None,
+        "acknowledged_at": None,
+        "created_at": datetime.now().isoformat(),
+    }
+    await db.equipment_return_notifications.insert_one(notif)
+    notif.pop("_id", None)
+
     await _add_history(
         payload.equipment_id, "returned_to_warehouse", foreman_id, actor_name,
-        {"quantity": payload.quantity, "equipment_name": eq["name"]}
+        {"quantity": payload.quantity, "equipment_name": eq_name}
     )
-    return {"message": "Sprzet zwrocony do magazynu", "quantity_returned": payload.quantity}
+    return {"message": "Sprzet zwrocony do magazynu", "quantity_returned": payload.quantity,
+            "notification_id": notif["id"]}
 
 
 # ============= My history (foreman) =============
@@ -566,3 +591,79 @@ async def my_history(current_user: dict = Depends(get_current_user)):
     return {"transfers": transfers, "events": extra, "foreman_name": foreman_name}
 
 
+
+
+# ============= Warehouse keeper settings (admin) =============
+@router.get("/settings/warehouse-keeper")
+async def get_warehouse_keeper(current_user: dict = Depends(get_current_user)):
+    s = await db.app_settings.find_one({"key": "warehouse_keeper"}, {"_id": 0})
+    keeper_id = (s or {}).get("foreman_id")
+    keeper_name = None
+    if keeper_id:
+        u = await db.users.find_one({"id": keeper_id}, {"_id": 0, "full_name": 1})
+        keeper_name = u["full_name"] if u else None
+    return {"foreman_id": keeper_id, "foreman_name": keeper_name}
+
+
+@router.put("/settings/warehouse-keeper")
+async def set_warehouse_keeper(payload: WarehouseKeeperSet,
+                                 current_user: dict = Depends(get_current_admin)):
+    if payload.foreman_id:
+        u = await db.users.find_one({"id": payload.foreman_id, "role": "foreman"})
+        if not u:
+            raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
+    await db.app_settings.update_one(
+        {"key": "warehouse_keeper"},
+        {"$set": {"key": "warehouse_keeper", "foreman_id": payload.foreman_id,
+                  "updated_at": datetime.now().isoformat()}},
+        upsert=True
+    )
+    return {"message": "Zaktualizowano magazyniera", "foreman_id": payload.foreman_id}
+
+
+# ============= Pending returns (admin + warehouse keeper) =============
+@router.get("/equipment/returns/pending")
+async def list_pending_returns(current_user: dict = Depends(get_current_user)):
+    """Admin sees all pending returns. Foreman sees only those assigned to them as warehouse keeper."""
+    if current_user.get("role") == "admin":
+        items = await db.equipment_return_notifications.find(
+            {"status": "pending"}, {"_id": 0}
+        ).sort("created_at", -1).to_list(500)
+    else:
+        items = await db.equipment_return_notifications.find(
+            {"status": "pending", "warehouse_keeper_id": current_user["sub"]}, {"_id": 0}
+        ).sort("created_at", -1).to_list(500)
+    return items
+
+
+@router.post("/equipment/returns/{notification_id}/acknowledge")
+async def acknowledge_return(notification_id: str,
+                              current_user: dict = Depends(get_current_user)):
+    notif = await db.equipment_return_notifications.find_one({"id": notification_id})
+    if not notif:
+        raise HTTPException(status_code=404, detail="Zwrot nie znaleziony")
+    if notif["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Zwrot juz potwierdzony")
+
+    # Allow admin OR the assigned warehouse keeper
+    is_admin = current_user.get("role") == "admin"
+    is_keeper = current_user["sub"] == notif.get("warehouse_keeper_id")
+    if not (is_admin or is_keeper):
+        raise HTTPException(status_code=403, detail="Nie masz uprawnien do potwierdzenia")
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.equipment_return_notifications.update_one(
+        {"id": notification_id},
+        {"$set": {
+            "status": "acknowledged",
+            "acknowledged_by": current_user["sub"],
+            "acknowledged_by_name": actor_name,
+            "acknowledged_at": datetime.now().isoformat(),
+        }}
+    )
+    await _add_history(
+        notif["equipment_id"], "return_acknowledged", current_user["sub"], actor_name,
+        {"quantity": notif["quantity"], "from_foreman_name": notif["from_foreman_name"],
+         "equipment_name": notif["equipment_name"]}
+    )
+    return {"message": "Zwrot potwierdzony"}
