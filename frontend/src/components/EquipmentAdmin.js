@@ -231,16 +231,15 @@ export const EquipmentAdmin = () => {
             <p className="text-[#94A3B8] text-center py-6">Brak sprzetu. Kliknij "Dodaj sprzet".</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="border-collapse text-xs" data-testid="equipment-main-table">
+              <table className="border-collapse text-sm" data-testid="equipment-main-table">
                 <thead>
                   {/* Top totals row: per-foreman totals */}
                   <tr>
-                    <th className="border border-[#334155] p-1 bg-[#1E293B]" colSpan={6}></th>
+                    <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
                     {foremen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
                         className="border border-[#334155] p-1 bg-[#1E293B] text-center text-[#5F7151] font-bold"
-                        style={{ minWidth: '38px', maxWidth: '38px' }}
                         data-testid={`foreman-total-${f.id}`}
                       >
                         {foremanTotal(f.id)}
@@ -249,37 +248,39 @@ export const EquipmentAdmin = () => {
                   </tr>
                   {/* Headers row */}
                   <tr className="bg-[#1E293B]">
-                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '80px' }}>
-                      Historia
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                      Historia przekazania
                     </th>
-                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '120px' }}>
-                      Nazwa
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[160px]">
+                      Nazwa sprzetu
                     </th>
-                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '80px' }}>
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
                       Marka
                     </th>
-                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '55px' }}>
-                      Sztuk
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                      Ilosc dostepnych sztuk
                     </th>
-                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '60px' }} title="Zdane do magazynu do naprawy">
-                      Naprawa
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">
+                      Zdane do magazynu do naprawy
                     </th>
-                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '60px' }} title="Dostepne w magazynie">
-                      Magazyn
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                      Dostepne w magazynie
                     </th>
                     {foremen.map((f) => (
                       <th
                         key={f.id}
-                        className="border border-[#334155] p-0.5 text-center text-[#CBD5E1] align-bottom"
-                        style={{ height: '120px', minWidth: '38px', maxWidth: '38px' }}
+                        className="border border-[#334155] p-1 text-center text-[#CBD5E1] align-bottom"
+                        style={{ height: '90px', minWidth: '50px', maxWidth: '50px' }}
                       >
                         <div
-                          className="text-[10px] font-medium leading-tight"
+                          className="whitespace-nowrap"
                           style={{
                             writingMode: 'vertical-rl',
                             transform: 'rotate(180deg)',
                             margin: '0 auto',
-                            whiteSpace: 'nowrap',
+                            fontSize: '9px',
+                            fontWeight: 600,
+                            letterSpacing: '0.02em',
                           }}
                           title={f.full_name}
                         >
@@ -292,28 +293,28 @@ export const EquipmentAdmin = () => {
                 <tbody>
                   {equipment.map((eq) => (
                     <tr key={eq.id} data-testid={`equipment-row-${eq.id}`}>
-                      <td className="border border-[#334155] p-0.5">
+                      <td className="border border-[#334155] p-1">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setHistoryModalEq(eq)}
-                          className="text-[#5F7151] hover:bg-[#334155] text-xs h-6 px-2"
+                          className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
                           data-testid={`history-btn-${eq.id}`}
                         >
                           <History className="h-3 w-3 mr-1" /> Historia
                         </Button>
                       </td>
-                      <td className="border border-[#334155] p-1">
+                      <td className="border border-[#334155] p-2">
                         <button
                           onClick={() => setEditingEq({ ...eq })}
-                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left text-xs"
+                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
                           data-testid={`equipment-name-${eq.id}`}
                         >
                           {eq.name}
                         </button>
                       </td>
-                      <td className="border border-[#334155] p-1 text-[#94A3B8] text-xs">{eq.brand || '-'}</td>
-                      <td className="border border-[#334155] p-0.5 text-center">
+                      <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
+                      <td className="border border-[#334155] p-1 text-center">
                         <input
                           key={`tot-${eq.id}-${eq.total_quantity}`}
                           type="number"
@@ -323,11 +324,11 @@ export const EquipmentAdmin = () => {
                             const v = parseInt(e.target.value || '0', 10);
                             if (v !== eq.total_quantity) handleTotalChange(eq.id, v);
                           }}
-                          className="w-12 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-1 py-0.5 text-center text-xs"
+                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-2 py-1 text-center"
                           data-testid={`total-input-${eq.id}`}
                         />
                       </td>
-                      <td className="border border-[#334155] p-0.5 text-center">
+                      <td className="border border-[#334155] p-1 text-center">
                         <input
                           key={`brk-${eq.id}-${eq.broken_quantity}`}
                           type="number"
@@ -338,16 +339,16 @@ export const EquipmentAdmin = () => {
                             const v = parseInt(e.target.value || '0', 10);
                             if (v !== (eq.broken_quantity || 0)) handleBrokenChange(eq.id, v);
                           }}
-                          className="w-12 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-1 py-0.5 text-center text-xs"
+                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-2 py-1 text-center"
                           data-testid={`broken-input-${eq.id}`}
                         />
                       </td>
-                      <td className="border border-[#334155] p-1 text-center">
+                      <td className="border border-[#334155] p-2 text-center">
                         <span
                           className={
                             eq.available_quantity > 0
-                              ? 'text-[#5F7151] font-bold text-sm'
-                              : 'text-[#E8836A] font-bold text-sm'
+                              ? 'text-[#5F7151] font-bold text-base'
+                              : 'text-[#E8836A] font-bold text-base'
                           }
                           data-testid={`available-${eq.id}`}
                         >
@@ -358,7 +359,7 @@ export const EquipmentAdmin = () => {
                         const current = getAssigned(eq.id, f.id);
                         const maxVal = maxAssignableFor(eq, f.id);
                         return (
-                          <td key={f.id} className="border border-[#334155] p-0.5 text-center">
+                          <td key={f.id} className="border border-[#334155] p-1 text-center">
                             <input
                               key={`asg-${eq.id}-${f.id}-${current}-${maxVal}`}
                               type="number"
@@ -381,7 +382,7 @@ export const EquipmentAdmin = () => {
                                   e.target.value = String(maxVal);
                                 }
                               }}
-                              className="w-9 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-0.5 py-0.5 text-center text-xs"
+                              className="w-12 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-1 py-1 text-center text-xs"
                               data-testid={`assign-input-${eq.id}-${f.id}`}
                             />
                           </td>
@@ -394,7 +395,7 @@ export const EquipmentAdmin = () => {
             </div>
           )}
           <p className="text-xs text-[#94A3B8] mt-3">
-            Klikaj w nazwe aby edytowac. Wpisz ilosc - inputy maja ograniczenie do dostepnej liczby. Liczby na gorze = suma sprzetu u brygadzisty.
+            Klikaj w nazwe sprzetu, aby edytowac. Wpisz ilosc - inputy maja ograniczenie do dostepnej liczby. Liczby na samej gorze = suma sprzetu u danego brygadzisty.
           </p>
         </CardContent>
       </Card>
