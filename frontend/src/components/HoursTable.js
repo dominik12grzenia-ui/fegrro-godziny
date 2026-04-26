@@ -71,13 +71,10 @@ export const HoursTable = () => {
         api.get(`/absences?month=${monthNum}&year=${year}`)
       ]);
       setEmployees(employeesRes.data);
-      // HoursTable shows ONLY budowy (category=budowa or undefined for legacy Excel-imported sites).
-      // Sklep/magazyn/inne are NOT included here - they live only in the Lokalizacje tab.
-      const onlyBudowy = (sitesRes.data || []).filter((s) => {
-        const cat = s.category;
-        return !cat || cat === 'budowa';
-      });
-      setSites(onlyBudowy);
+      // Hours table shows ONLY Excel-imported budowy (sites with excel_column).
+      // Manual locations from "Lokalizacje" tab are completely separate.
+      const onlyExcelBudowy = (sitesRes.data || []).filter((s) => s.excel_column);
+      setSites(onlyExcelBudowy);
       setAssignments(assignmentsRes.data);
       setHolidays(holidaysRes.data.holidays || []);
       setAdvanceSummary(advSummaryRes.data);
