@@ -75,6 +75,15 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - Pelna historia (Utworzono/Edytowano/Przypisano/Przekazanie zlozone-zaakceptowane-odrzucone/Usterka)
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
+## Completed (2026-02-XX, ten fork)
+- Lokalizacje (manualne) calkowicie oddzielone od Budow z Excela:
+  - Discriminator: `excel_column` (truthy = Excel-synced, falsy = manualna)
+  - Admin "Lokalizacje" tab + SitesMap pokazuja TYLKO manualne (`!s.excel_column`)
+  - HoursTable + AssignmentManager + WorkerDashboard pokazuja TYLKO Excel (`s.excel_column`)
+  - Foreman LocationsButton pokazuje TYLKO manualne + `visible_to_foremen`
+  - Stats counter "Budowy" liczy tylko Excel sites
+  - Test agent verified end-to-end (iteration_18.json, 4/4 assertions pass)
+
 ## Backlog
 - P1: Push notifications SMS/Viber dla brygadzistów
 - P2: Refaktoryzacja AdminDashboard.js i HoursTable.js (sub-components)
