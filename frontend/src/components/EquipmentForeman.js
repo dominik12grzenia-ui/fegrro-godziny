@@ -16,6 +16,7 @@ const fileToBase64 = (file) =>
 
 const ACTION_LABELS = {
   returned_to_warehouse: 'Zwrot do magazynu',
+  return_acknowledged: 'Potwierdzono zwrot',
   defect_reported: 'Zgloszono usterke',
 };
 
@@ -320,7 +321,7 @@ export const EquipmentForeman = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm" data-testid="my-equipment-table">
-                <thead>
+                <thead className="sticky top-0 z-30 bg-[#2A384C]">
                   <tr className="bg-[#1E293B]">
                     <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
                     <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
@@ -331,7 +332,22 @@ export const EquipmentForeman = () => {
                 <tbody>
                   {myEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
-                      <td className="border border-[#334155] p-2 text-[#CBD5E1] font-semibold">{eq.name}</td>
+                      <td className="border border-[#334155] p-2">
+                        <div className="flex items-center gap-2">
+                          {eq.photo ? (
+                            <img
+                              src={eq.photo}
+                              alt={eq.name}
+                              className="w-10 h-10 object-cover rounded border border-[#334155] shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
+                              <Wrench className="h-5 w-5 text-[#475569]" />
+                            </div>
+                          )}
+                          <span className="text-[#CBD5E1] font-semibold">{eq.name}</span>
+                        </div>
+                      </td>
                       <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
                       <td className="border border-[#334155] p-2 text-center text-[#5F7151] font-bold">{eq.quantity}</td>
                       <td className="border border-[#334155] p-1">

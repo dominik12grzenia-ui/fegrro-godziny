@@ -23,6 +23,8 @@ const ACTION_LABELS = {
   transfer_accepted: 'Przekazanie zaakceptowane',
   transfer_rejected: 'Przekazanie odrzucone',
   defect_reported: 'Zgloszono usterke',
+  returned_to_warehouse: 'Zwrot do magazynu',
+  return_acknowledged: 'Potwierdzono zwrot',
 };
 
 export const EquipmentAdmin = () => {
@@ -168,7 +170,6 @@ export const EquipmentAdmin = () => {
       await api.put(`/equipment/${editingEq.id}`, {
         name: editingEq.name,
         brand: editingEq.brand,
-        status: editingEq.status,
         photo: editingEq.photo,
       });
       toast.success('Zaktualizowano');
@@ -258,7 +259,7 @@ export const EquipmentAdmin = () => {
           ) : (
             <div className="overflow-x-auto">
               <table className="border-collapse text-sm" data-testid="equipment-main-table">
-                <thead>
+                <thead className="sticky top-0 z-30 bg-[#2A384C]">
                   {/* Top totals row: per-foreman totals */}
                   <tr>
                     <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
@@ -331,13 +332,27 @@ export const EquipmentAdmin = () => {
                         </Button>
                       </td>
                       <td className="border border-[#334155] p-2">
-                        <button
-                          onClick={() => setEditingEq({ ...eq })}
-                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
-                          data-testid={`equipment-name-${eq.id}`}
-                        >
-                          {eq.name}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          {eq.photo ? (
+                            <img
+                              src={eq.photo}
+                              alt={eq.name}
+                              className="w-10 h-10 object-cover rounded border border-[#334155] shrink-0"
+                              data-testid={`equipment-thumb-${eq.id}`}
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
+                              <Wrench className="h-5 w-5 text-[#475569]" />
+                            </div>
+                          )}
+                          <button
+                            onClick={() => setEditingEq({ ...eq })}
+                            className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
+                            data-testid={`equipment-name-${eq.id}`}
+                          >
+                            {eq.name}
+                          </button>
+                        </div>
                       </td>
                       <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
                       <td className="border border-[#334155] p-1 text-center">
@@ -658,18 +673,6 @@ export const EquipmentAdmin = () => {
                   onChange={(e) => setEditingEq({ ...editingEq, brand: e.target.value })}
                   className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
                 />
-              </div>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Status</label>
-                <select
-                  value={editingEq.status || 'working'}
-                  onChange={(e) => setEditingEq({ ...editingEq, status: e.target.value })}
-                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
-                >
-                  <option value="working">Sprawny</option>
-                  <option value="broken">Zepsuty</option>
-                  <option value="maintenance">W naprawie</option>
-                </select>
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Zdjecie</label>
