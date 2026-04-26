@@ -52,6 +52,11 @@ class DefectReport(BaseModel):
     photo: Optional[str] = None  # base64
 
 
+class ReturnToWarehouse(BaseModel):
+    equipment_id: str
+    quantity: int
+
+
 # ============= Helpers =============
 async def _get_total_assigned(equipment_id: str) -> int:
     cursor = db.equipment_assignments.aggregate([
@@ -499,4 +504,65 @@ async def get_history(equipment_id: Optional[str] = None,
 
     items = await db.equipment_history.find(query, {"_id": 0}).sort("created_at", -1).to_list(1000)
     return items
+
+
+# ============= Return to warehouse (foreman) =============
+@router.post("/equipment/return")
+async def return_to_warehouse(payload: ReturnToWarehouse,
+                                current_user: dict = Depends(get_current_user)):
+    """Foreman returns equipment back to warehouse (decreases their assignment)."""
+    if current_user.get("role") != "foreman":
+        raise HTTPException(status_code=403, detail="Tylko brygadzista moze zwrocic sprzet")
+    if payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Ilosc musi byc dodatnia")
+
+    foreman_id = current_user["sub"]
+    eq = await db.equipment.find_one({"id": payload.equipment_id})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+
+    own = await db.equipment_assignments.find_one(
+        {"equipment_id": payload.equipment_id, "foreman_id": foreman_id}
+    )
+    if not own or own["quantity"] < payload.quantity:
+        raise HTTPException(status_code=400, detail="Nie posiadasz wystarczajacej ilosci")
+
+    new_qty = own["quantity"] - payload.quantity
+    if new_qty == 0:
+        await db.equipment_assignments.delete_one(
+            {"equipment_id": payload.equipment_id, "foreman_id": foreman_id}
+        )
+    else:
+        await db.equipment_assignments.update_one(
+            {"equipment_id": payload.equipment_id, "foreman_id": foreman_id},
+            {"$set": {"quantity": new_qty}}
+        )
+
+    actor_name = await _get_user_name(foreman_id)
+    await _add_history(
+        payload.equipment_id, "returned_to_warehouse", foreman_id, actor_name,
+        {"quantity": payload.quantity, "equipment_name": eq["name"]}
+    )
+    return {"message": "Sprzet zwrocony do magazynu", "quantity_returned": payload.quantity}
+
+
+# ============= My history (foreman) =============
+@router.get("/equipment/my-history")
+async def my_history(current_user: dict = Depends(get_current_user)):
+    """Foreman's transfer history: outgoing + incoming + returns + defects (their own only)."""
+    foreman_id = current_user["sub"]
+    foreman_name = await _get_user_name(foreman_id)
+    # Find transfers where foreman is sender or receiver
+    transfers = await db.equipment_transfers.find(
+        {"$or": [{"from_foreman_id": foreman_id}, {"to_foreman_id": foreman_id}]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    # Find returns and defects from history
+    extra = await db.equipment_history.find(
+        {"actor_id": foreman_id,
+         "action": {"$in": ["returned_to_warehouse", "defect_reported"]}},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    return {"transfers": transfers, "events": extra, "foreman_name": foreman_name}
+
 

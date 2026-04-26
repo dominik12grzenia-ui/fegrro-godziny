@@ -72,6 +72,22 @@ export const EquipmentAdmin = () => {
   const foremanTotal = (foremanId) =>
     assignments.filter((a) => a.foreman_id === foremanId).reduce((s, a) => s + (a.quantity || 0), 0);
 
+  // For a given equipment+foreman, what's the max we can assign?
+  // = total - broken - sum(other foremen)
+  const maxAssignableFor = (eq, foremanId) => {
+    const sumOthers = assignments
+      .filter((a) => a.equipment_id === eq.id && a.foreman_id !== foremanId)
+      .reduce((s, a) => s + (a.quantity || 0), 0);
+    return Math.max(0, eq.total_quantity - (eq.broken_quantity || 0) - sumOthers);
+  };
+
+  const maxBrokenFor = (eq) => {
+    const totalAssigned = assignments
+      .filter((a) => a.equipment_id === eq.id)
+      .reduce((s, a) => s + (a.quantity || 0), 0);
+    return Math.max(0, eq.total_quantity - totalAssigned);
+  };
+
   const handleAssignChange = async (eqId, foremanId, value) => {
     const qty = parseInt(value, 10);
     if (Number.isNaN(qty) || qty < 0) {
@@ -215,15 +231,16 @@ export const EquipmentAdmin = () => {
             <p className="text-[#94A3B8] text-center py-6">Brak sprzetu. Kliknij "Dodaj sprzet".</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="border-collapse text-sm" data-testid="equipment-main-table">
+              <table className="border-collapse text-xs" data-testid="equipment-main-table">
                 <thead>
                   {/* Top totals row: per-foreman totals */}
                   <tr>
-                    <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
+                    <th className="border border-[#334155] p-1 bg-[#1E293B]" colSpan={6}></th>
                     {foremen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
-                        className="border border-[#334155] p-2 bg-[#1E293B] text-center text-[#5F7151] font-bold"
+                        className="border border-[#334155] p-1 bg-[#1E293B] text-center text-[#5F7151] font-bold"
+                        style={{ minWidth: '38px', maxWidth: '38px' }}
                         data-testid={`foreman-total-${f.id}`}
                       >
                         {foremanTotal(f.id)}
@@ -232,36 +249,37 @@ export const EquipmentAdmin = () => {
                   </tr>
                   {/* Headers row */}
                   <tr className="bg-[#1E293B]">
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
-                      Historia przekazania
+                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '80px' }}>
+                      Historia
                     </th>
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[160px]">
-                      Nazwa sprzetu
+                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '120px' }}>
+                      Nazwa
                     </th>
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                    <th className="border border-[#334155] p-1 text-left text-[#CBD5E1] font-semibold" style={{ minWidth: '80px' }}>
                       Marka
                     </th>
-                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
-                      Ilosc dostepnych sztuk
+                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '55px' }}>
+                      Sztuk
                     </th>
-                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">
-                      Zdane do magazynu do naprawy
+                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '60px' }} title="Zdane do magazynu do naprawy">
+                      Naprawa
                     </th>
-                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
-                      Dostepne w magazynie
+                    <th className="border border-[#334155] p-1 text-center text-[#CBD5E1] font-semibold" style={{ minWidth: '60px' }} title="Dostepne w magazynie">
+                      Magazyn
                     </th>
                     {foremen.map((f) => (
                       <th
                         key={f.id}
-                        className="border border-[#334155] p-1 text-center text-[#CBD5E1] align-bottom"
-                        style={{ height: '180px', minWidth: '50px', maxWidth: '50px' }}
+                        className="border border-[#334155] p-0.5 text-center text-[#CBD5E1] align-bottom"
+                        style={{ height: '120px', minWidth: '38px', maxWidth: '38px' }}
                       >
                         <div
-                          className="whitespace-nowrap text-xs"
+                          className="text-[10px] font-medium leading-tight"
                           style={{
                             writingMode: 'vertical-rl',
                             transform: 'rotate(180deg)',
                             margin: '0 auto',
+                            whiteSpace: 'nowrap',
                           }}
                           title={f.full_name}
                         >
@@ -274,33 +292,28 @@ export const EquipmentAdmin = () => {
                 <tbody>
                   {equipment.map((eq) => (
                     <tr key={eq.id} data-testid={`equipment-row-${eq.id}`}>
-                      <td className="border border-[#334155] p-1">
+                      <td className="border border-[#334155] p-0.5">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setHistoryModalEq(eq)}
-                          className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
+                          className="text-[#5F7151] hover:bg-[#334155] text-xs h-6 px-2"
                           data-testid={`history-btn-${eq.id}`}
                         >
                           <History className="h-3 w-3 mr-1" /> Historia
                         </Button>
                       </td>
-                      <td className="border border-[#334155] p-2">
+                      <td className="border border-[#334155] p-1">
                         <button
                           onClick={() => setEditingEq({ ...eq })}
-                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
+                          className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left text-xs"
                           data-testid={`equipment-name-${eq.id}`}
                         >
                           {eq.name}
                         </button>
-                        {eq.status && eq.status !== 'working' && (
-                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-[#7F2D2D] text-[#FCA5A5]">
-                            {eq.status === 'broken' ? 'Zepsuty' : eq.status === 'maintenance' ? 'Naprawa' : eq.status}
-                          </span>
-                        )}
                       </td>
-                      <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
-                      <td className="border border-[#334155] p-1 text-center">
+                      <td className="border border-[#334155] p-1 text-[#94A3B8] text-xs">{eq.brand || '-'}</td>
+                      <td className="border border-[#334155] p-0.5 text-center">
                         <input
                           key={`tot-${eq.id}-${eq.total_quantity}`}
                           type="number"
@@ -310,52 +323,70 @@ export const EquipmentAdmin = () => {
                             const v = parseInt(e.target.value || '0', 10);
                             if (v !== eq.total_quantity) handleTotalChange(eq.id, v);
                           }}
-                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-2 py-1 text-center"
+                          className="w-12 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-1 py-0.5 text-center text-xs"
                           data-testid={`total-input-${eq.id}`}
                         />
                       </td>
-                      <td className="border border-[#334155] p-1 text-center">
+                      <td className="border border-[#334155] p-0.5 text-center">
                         <input
                           key={`brk-${eq.id}-${eq.broken_quantity}`}
                           type="number"
                           min="0"
+                          max={maxBrokenFor(eq) + (eq.broken_quantity || 0)}
                           defaultValue={eq.broken_quantity || 0}
                           onBlur={(e) => {
                             const v = parseInt(e.target.value || '0', 10);
                             if (v !== (eq.broken_quantity || 0)) handleBrokenChange(eq.id, v);
                           }}
-                          className="w-16 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-2 py-1 text-center"
+                          className="w-12 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-1 py-0.5 text-center text-xs"
                           data-testid={`broken-input-${eq.id}`}
                         />
                       </td>
-                      <td className="border border-[#334155] p-2 text-center">
+                      <td className="border border-[#334155] p-1 text-center">
                         <span
                           className={
                             eq.available_quantity > 0
-                              ? 'text-[#5F7151] font-bold text-base'
-                              : 'text-[#E8836A] font-bold text-base'
+                              ? 'text-[#5F7151] font-bold text-sm'
+                              : 'text-[#E8836A] font-bold text-sm'
                           }
                           data-testid={`available-${eq.id}`}
                         >
                           {eq.available_quantity}
                         </span>
                       </td>
-                      {foremen.map((f) => (
-                        <td key={f.id} className="border border-[#334155] p-1 text-center">
-                          <input
-                            key={`asg-${eq.id}-${f.id}-${getAssigned(eq.id, f.id)}`}
-                            type="number"
-                            min="0"
-                            defaultValue={getAssigned(eq.id, f.id)}
-                            onBlur={(e) => {
-                              const v = parseInt(e.target.value || '0', 10);
-                              if (v !== getAssigned(eq.id, f.id)) handleAssignChange(eq.id, f.id, v);
-                            }}
-                            className="w-12 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-1 py-1 text-center text-xs"
-                            data-testid={`assign-input-${eq.id}-${f.id}`}
-                          />
-                        </td>
-                      ))}
+                      {foremen.map((f) => {
+                        const current = getAssigned(eq.id, f.id);
+                        const maxVal = maxAssignableFor(eq, f.id);
+                        return (
+                          <td key={f.id} className="border border-[#334155] p-0.5 text-center">
+                            <input
+                              key={`asg-${eq.id}-${f.id}-${current}-${maxVal}`}
+                              type="number"
+                              min="0"
+                              max={maxVal}
+                              defaultValue={current}
+                              onBlur={(e) => {
+                                let v = parseInt(e.target.value || '0', 10);
+                                if (Number.isNaN(v) || v < 0) v = 0;
+                                if (v > maxVal) {
+                                  toast.error(`Max dla tego sprzetu: ${maxVal}`);
+                                  v = maxVal;
+                                  e.target.value = String(maxVal);
+                                }
+                                if (v !== current) handleAssignChange(eq.id, f.id, v);
+                              }}
+                              onChange={(e) => {
+                                const v = parseInt(e.target.value || '0', 10);
+                                if (v > maxVal) {
+                                  e.target.value = String(maxVal);
+                                }
+                              }}
+                              className="w-9 bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-0.5 py-0.5 text-center text-xs"
+                              data-testid={`assign-input-${eq.id}-${f.id}`}
+                            />
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))}
                 </tbody>
@@ -363,8 +394,7 @@ export const EquipmentAdmin = () => {
             </div>
           )}
           <p className="text-xs text-[#94A3B8] mt-3">
-            Klikaj w nazwe sprzetu, aby edytowac. Zmieniaj ilosci w komorkach — zapis po wyjsciu z pola.
-            Liczby na samej gorze = suma sprzetu u danego brygadzisty.
+            Klikaj w nazwe aby edytowac. Wpisz ilosc - inputy maja ograniczenie do dostepnej liczby. Liczby na gorze = suma sprzetu u brygadzisty.
           </p>
         </CardContent>
       </Card>

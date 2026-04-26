@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Send, AlertTriangle, Bell, Check, X } from 'lucide-react';
+import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -13,6 +13,11 @@ const fileToBase64 = (file) =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+
+const ACTION_LABELS = {
+  returned_to_warehouse: 'Zwrot do magazynu',
+  defect_reported: 'Zgloszono usterke',
+};
 
 export const EquipmentForeman = () => {
   const [myEquipment, setMyEquipment] = useState([]);
@@ -26,6 +31,10 @@ export const EquipmentForeman = () => {
   const [defectQty, setDefectQty] = useState('');
   const [defectDesc, setDefectDesc] = useState('');
   const [defectPhoto, setDefectPhoto] = useState(null);
+  const [returnModal, setReturnModal] = useState(null);
+  const [returnQty, setReturnQty] = useState('');
+  const [historyModal, setHistoryModal] = useState(false);
+  const [historyData, setHistoryData] = useState({ transfers: [], events: [] });
 
   const fetchAll = useCallback(async () => {
     try {
@@ -40,7 +49,7 @@ export const EquipmentForeman = () => {
       setForemen((forRes.data || []).filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
     } catch (e) {
-      // silent: foreman may not have any
+      // silent
     } finally {
       setLoading(false);
     }
@@ -48,7 +57,22 @@ export const EquipmentForeman = () => {
 
   useEffect(() => {
     fetchAll();
+    // Poll for new pending transfers every 30s
+    const id = setInterval(() => {
+      api.get('/equipment/transfers/pending').then((r) => setPendingTransfers(r.data)).catch(() => {});
+    }, 30000);
+    return () => clearInterval(id);
   }, [fetchAll]);
+
+  const openHistory = async () => {
+    try {
+      const r = await api.get('/equipment/my-history');
+      setHistoryData(r.data);
+      setHistoryModal(true);
+    } catch (err) {
+      toast.error('Blad pobierania historii');
+    }
+  };
 
   const handleTransfer = async () => {
     const qty = parseInt(transferQty, 10);
@@ -56,8 +80,8 @@ export const EquipmentForeman = () => {
       toast.error('Wybierz brygadziste');
       return;
     }
-    if (Number.isNaN(qty) || qty <= 0) {
-      toast.error('Podaj poprawna ilosc');
+    if (Number.isNaN(qty) || qty <= 0 || qty > transferModal.quantity) {
+      toast.error(`Ilosc musi byc 1-${transferModal.quantity}`);
       return;
     }
     try {
@@ -98,8 +122,8 @@ export const EquipmentForeman = () => {
 
   const handleDefect = async () => {
     const qty = parseInt(defectQty, 10);
-    if (Number.isNaN(qty) || qty <= 0) {
-      toast.error('Podaj poprawna ilosc');
+    if (Number.isNaN(qty) || qty <= 0 || qty > defectModal.quantity) {
+      toast.error(`Ilosc musi byc 1-${defectModal.quantity}`);
       return;
     }
     try {
@@ -114,6 +138,26 @@ export const EquipmentForeman = () => {
       setDefectQty('');
       setDefectDesc('');
       setDefectPhoto(null);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const handleReturn = async () => {
+    const qty = parseInt(returnQty, 10);
+    if (Number.isNaN(qty) || qty <= 0 || qty > returnModal.quantity) {
+      toast.error(`Ilosc musi byc 1-${returnModal.quantity}`);
+      return;
+    }
+    try {
+      await api.post('/equipment/return', {
+        equipment_id: returnModal.id,
+        quantity: qty,
+      });
+      toast.success(`Zwrocono ${qty} szt. do magazynu`);
+      setReturnModal(null);
+      setReturnQty('');
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -135,125 +179,150 @@ export const EquipmentForeman = () => {
     return <div className="text-[#94A3B8] text-sm">Wczytywanie sprzetu...</div>;
   }
 
-  // Hide section entirely if user has nothing AND no pending transfers
-  if (myEquipment.length === 0 && pendingTransfers.length === 0) {
+  // BLOCKING modal: if there are pending transfers, force foreman to respond before doing anything else
+  if (pendingTransfers.length > 0) {
+    const t = pendingTransfers[0];
     return (
-      <Card className="bg-[#2A384C] border-[#334155]" data-testid="equipment-foreman-empty">
-        <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-[#5F7151]" /> Moj sprzet
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-[#94A3B8] text-sm">
-            Nie masz przypisanego sprzetu. Skontaktuj sie z administratorem.
-          </p>
-        </CardContent>
-      </Card>
+      <>
+        <div
+          className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+          data-testid="blocking-transfer-modal"
+        >
+          <Card className="bg-[#2A384C] border-2 border-[#7F2D2D] w-full max-w-md shadow-2xl">
+            <CardHeader>
+              <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
+                <Bell className="h-6 w-6 animate-pulse" />
+                Oczekujace przekazanie sprzetu
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-[#1E293B] border border-[#334155] rounded-lg p-4">
+                <p className="text-[#CBD5E1] text-base">
+                  <span className="font-bold text-white">{t.from_foreman_name}</span> chce przekazac Ci:
+                </p>
+                <p className="text-2xl font-bold text-[#5F7151] mt-2">
+                  {t.equipment_name}
+                </p>
+                <p className="text-[#CBD5E1] text-lg mt-1">
+                  Ilosc: <span className="font-bold text-white">{t.quantity} szt.</span>
+                </p>
+                <p className="text-xs text-[#64748B] mt-2">
+                  {new Date(t.created_at).toLocaleString('pl-PL')}
+                </p>
+              </div>
+              <p className="text-xs text-[#94A3B8] text-center">
+                Musisz zaakceptowac lub odrzucic przekazanie aby kontynuowac.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => handleReject(t.id)}
+                  variant="ghost"
+                  className="flex-1 text-[#FCA5A5] hover:bg-[#7F2D2D] border border-[#7F2D2D]"
+                  data-testid={`reject-transfer-${t.id}`}
+                >
+                  <X className="h-4 w-4 mr-2" /> Odrzuc
+                </Button>
+                <Button
+                  onClick={() => handleAccept(t.id)}
+                  className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid={`accept-transfer-${t.id}`}
+                >
+                  <Check className="h-4 w-4 mr-2" /> Akceptuj
+                </Button>
+              </div>
+              {pendingTransfers.length > 1 && (
+                <p className="text-xs text-[#FCA5A5] text-center">
+                  Masz {pendingTransfers.length - 1} kolejnych przekazan do rozpatrzenia po tym
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </>
     );
   }
 
   return (
     <div className="space-y-3" data-testid="equipment-foreman">
-      {/* Pending transfer banners */}
-      {pendingTransfers.map((t) => (
-        <div
-          key={t.id}
-          className="p-3 bg-[#7F2D2D]/30 border-2 border-[#7F2D2D] rounded-lg flex flex-wrap items-center gap-3"
-          data-testid={`pending-transfer-banner-${t.id}`}
-        >
-          <Bell className="h-6 w-6 text-[#FCA5A5] shrink-0" />
-          <div className="flex-1 min-w-[200px]">
-            <p className="text-[#FCA5A5] font-bold text-sm">
-              {t.from_foreman_name} chce przekazac Ci{' '}
-              <span className="text-white">{t.equipment_name}</span> x {t.quantity} szt.
-            </p>
-            <p className="text-[#94A3B8] text-xs">
-              {new Date(t.created_at).toLocaleString('pl-PL')}
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              onClick={() => handleAccept(t.id)}
-              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-              data-testid={`accept-transfer-${t.id}`}
-            >
-              <Check className="h-4 w-4 mr-1" /> Akceptuj
-            </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleReject(t.id)}
-              className="text-[#FCA5A5] hover:bg-[#7F2D2D]"
-              data-testid={`reject-transfer-${t.id}`}
-            >
-              <X className="h-4 w-4 mr-1" /> Odrzuc
-            </Button>
-          </div>
-        </div>
-      ))}
-
-      {/* My equipment */}
+      {/* My equipment table */}
       <Card className="bg-[#2A384C] border-[#334155]">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" /> Moj sprzet
           </CardTitle>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={openHistory}
+            className="text-[#5F7151] hover:bg-[#334155] text-xs"
+            data-testid="my-history-btn"
+          >
+            <HistoryIcon className="h-4 w-4 mr-1" /> Moja historia
+          </Button>
         </CardHeader>
         <CardContent>
           {myEquipment.length === 0 ? (
             <p className="text-[#94A3B8] text-sm">Nie masz przypisanego sprzetu.</p>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {myEquipment.map((eq) => (
-                <Card key={eq.id} className="bg-[#1E293B] border-[#334155]" data-testid={`my-equipment-${eq.id}`}>
-                  <CardContent className="pt-4">
-                    <div className="flex gap-3">
-                      {eq.photo ? (
-                        <img src={eq.photo} alt={eq.name} className="w-16 h-16 object-cover rounded" />
-                      ) : (
-                        <div className="w-16 h-16 rounded bg-[#0F172A] flex items-center justify-center">
-                          <Wrench className="h-7 w-7 text-[#475569]" />
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm" data-testid="my-equipment-table">
+                <thead>
+                  <tr className="bg-[#1E293B]">
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
+                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Ilosc</th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Akcje</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {myEquipment.map((eq) => (
+                    <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
+                      <td className="border border-[#334155] p-2 text-[#CBD5E1] font-semibold">{eq.name}</td>
+                      <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
+                      <td className="border border-[#334155] p-2 text-center text-[#5F7151] font-bold">{eq.quantity}</td>
+                      <td className="border border-[#334155] p-1">
+                        <div className="flex gap-1 flex-wrap justify-center">
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              setTransferModal(eq);
+                              setTransferQty(String(Math.min(1, eq.quantity)));
+                            }}
+                            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7"
+                            data-testid={`transfer-btn-${eq.id}`}
+                          >
+                            <Send className="h-3 w-3 mr-1" /> Przekaz
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setReturnModal(eq);
+                              setReturnQty(String(eq.quantity));
+                            }}
+                            className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
+                            data-testid={`return-btn-${eq.id}`}
+                          >
+                            <Undo2 className="h-3 w-3 mr-1" /> Zwrot
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setDefectModal(eq);
+                              setDefectQty('1');
+                            }}
+                            className="text-[#E8836A] hover:bg-[#334155] text-xs h-7"
+                            data-testid={`defect-btn-${eq.id}`}
+                          >
+                            <AlertTriangle className="h-3 w-3 mr-1" /> Usterka
+                          </Button>
                         </div>
-                      )}
-                      <div className="flex-1">
-                        <h3 className="font-bold text-[#CBD5E1]">{eq.name}</h3>
-                        {eq.brand && <p className="text-xs text-[#94A3B8]">{eq.brand}</p>}
-                        <p className="text-sm mt-1">
-                          <span className="text-[#94A3B8]">Posiadasz: </span>
-                          <span className="text-[#5F7151] font-bold">{eq.quantity} szt.</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          setTransferModal(eq);
-                          setTransferQty(String(Math.min(1, eq.quantity)));
-                        }}
-                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs flex-1"
-                        data-testid={`transfer-btn-${eq.id}`}
-                      >
-                        <Send className="h-3 w-3 mr-1" /> Przekaz
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setDefectModal(eq);
-                          setDefectQty('1');
-                        }}
-                        className="text-[#E8836A] hover:bg-[#334155] text-xs flex-1"
-                        data-testid={`defect-btn-${eq.id}`}
-                      >
-                        <AlertTriangle className="h-3 w-3 mr-1" /> Zglos usterke
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
         </CardContent>
@@ -283,9 +352,7 @@ export const EquipmentForeman = () => {
                 >
                   <option value="">-- wybierz --</option>
                   {foremen.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.full_name}
-                    </option>
+                    <option key={f.id} value={f.id}>{f.full_name}</option>
                   ))}
                 </select>
               </div>
@@ -302,18 +369,57 @@ export const EquipmentForeman = () => {
                 />
               </div>
               <p className="text-xs text-[#94A3B8]">
-                Drugi brygadzista musi zaakceptowac przekazanie. Admin zobaczy je w historii.
+                Drugi brygadzista musi zaakceptowac przekazanie.
               </p>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setTransferModal(null)}>
-                  Anuluj
-                </Button>
+                <Button variant="ghost" onClick={() => setTransferModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleTransfer}
                   className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                   data-testid="confirm-transfer-btn"
                 >
                   Wyslij
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Return Modal */}
+      {returnModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1]">Zwrot do magazynu: {returnModal.name}</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setReturnModal(null)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-[#94A3B8]">
+                Posiadasz: <span className="text-[#CBD5E1] font-semibold">{returnModal.quantity} szt.</span>
+              </p>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc do zwrotu *</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={returnModal.quantity}
+                  value={returnQty}
+                  onChange={(e) => setReturnQty(e.target.value)}
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  data-testid="return-qty-input"
+                />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="ghost" onClick={() => setReturnModal(null)}>Anuluj</Button>
+                <Button
+                  onClick={handleReturn}
+                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid="confirm-return-btn"
+                >
+                  Zwroc do magazynu
                 </Button>
               </div>
             </CardContent>
@@ -359,6 +465,7 @@ export const EquipmentForeman = () => {
                 <input
                   type="file"
                   accept="image/*"
+                  capture="environment"
                   onChange={handleDefectPhotoUpload}
                   className="text-xs text-[#CBD5E1]"
                   data-testid="defect-photo-input"
@@ -366,9 +473,7 @@ export const EquipmentForeman = () => {
                 {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-24 rounded" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setDefectModal(null)}>
-                  Anuluj
-                </Button>
+                <Button variant="ghost" onClick={() => setDefectModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleDefect}
                   className="bg-[#E8836A] hover:bg-[#C56A52] text-white"
@@ -377,6 +482,81 @@ export const EquipmentForeman = () => {
                   Zglos
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* My History Modal */}
+      {historyModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1]">Moja historia sprzetu</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setHistoryModal(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="overflow-y-auto space-y-3">
+              {/* Transfers */}
+              <div>
+                <h4 className="text-[#5F7151] font-bold text-sm mb-2">Przekazania</h4>
+                {historyData.transfers.length === 0 ? (
+                  <p className="text-[#94A3B8] text-xs">Brak przekazan.</p>
+                ) : (
+                  <div className="space-y-1" data-testid="my-history-transfers">
+                    {historyData.transfers.map((t) => {
+                      const isOutgoing = t.from_foreman_name === historyData.foreman_name;
+                      return (
+                        <div key={t.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155]">
+                          <span className={isOutgoing ? 'text-[#E8836A]' : 'text-[#5F7151]'}>
+                            {isOutgoing ? '-> Wyslane do' : '<- Otrzymane od'}
+                          </span>{' '}
+                          <span className="text-[#CBD5E1] font-semibold">
+                            {isOutgoing ? t.to_foreman_name : t.from_foreman_name}
+                          </span>{' '}
+                          <span className="text-[#94A3B8]">·</span>{' '}
+                          <span className="text-[#CBD5E1]">{t.equipment_name} x {t.quantity}</span>{' '}
+                          <span className="text-[#94A3B8]">·</span>{' '}
+                          <span className={t.status === 'accepted' ? 'text-[#5F7151]' :
+                                            t.status === 'rejected' ? 'text-[#E8836A]' :
+                                            'text-[#FCA5A5]'}>
+                            {t.status === 'pending' ? 'Oczekuje' :
+                             t.status === 'accepted' ? 'Zaakceptowane' : 'Odrzucone'}
+                          </span>{' '}
+                          <span className="text-[#64748B]">
+                            · {new Date(t.created_at).toLocaleString('pl-PL')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {/* Other events */}
+              {historyData.events.length > 0 && (
+                <div>
+                  <h4 className="text-[#5F7151] font-bold text-sm mb-2 mt-3">Zwroty i usterki</h4>
+                  <div className="space-y-1">
+                    {historyData.events.map((e) => (
+                      <div key={e.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155]">
+                        <span className="text-[#5F7151] font-semibold">
+                          {ACTION_LABELS[e.action] || e.action}
+                        </span>{' '}
+                        <span className="text-[#CBD5E1]">
+                          {e.details?.equipment_name || ''} x {e.details?.quantity || '?'}
+                        </span>
+                        {e.details?.description && (
+                          <span className="text-[#94A3B8]"> · "{e.details.description}"</span>
+                        )}{' '}
+                        <span className="text-[#64748B]">
+                          · {new Date(e.created_at).toLocaleString('pl-PL')}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>
