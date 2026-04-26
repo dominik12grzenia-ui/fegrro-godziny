@@ -34,6 +34,7 @@ export const AssignmentManager = () => {
       return;
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, navigate, currentMonth]);
 
   const fetchData = async () => {
