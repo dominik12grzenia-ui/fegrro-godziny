@@ -183,7 +183,7 @@ export const AdminDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Lokalizacje</p>
+                  <p className="text-sm text-[#94A3B8]">Budowy</p>
                   <p className="text-3xl font-bold text-[#6B8E4E]">{stats.totalSites}</p>
                 </div>
                 <Building2 className="h-12 w-12 text-[#6B8E4E] opacity-20" />
