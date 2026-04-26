@@ -63,7 +63,10 @@ export const WorkerDashboard = () => {
       setHolidays(holidaysRes.data.holidays || []);
       
       setSites(sitesRes.data);
-      setMySites(sitesRes.data.filter(s => foremanSiteIds.includes(s.id)));
+      // Foreman sees only assigned sites that are budowy (sklep/magazyn/inne dont appear in hours table)
+      const allAssignedSites = sitesRes.data.filter(s => foremanSiteIds.includes(s.id));
+      const onlyBudowy = allAssignedSites.filter(s => !s.category || s.category === 'budowa');
+      setMySites(onlyBudowy);
 
       // Filter assignments to only my sites
       const allAssignments = assignmentsRes.data;

@@ -71,10 +71,12 @@ export const AdminDashboard = () => {
       setAbsenceRequests(absencesRes.data);
       setSyncLogs(syncLogsRes.data);
       setAssignments(assignmentsRes.data);
-      
+
+      // Stats counter shows only construction sites (budowy), not sklep/magazyn/inne
+      const budowyCount = (sitesRes.data || []).filter((s) => !s.category || s.category === 'budowa').length;
       setStats({
         totalEmployees: employeesRes.data.length,
-        totalSites: sitesRes.data.length,
+        totalSites: budowyCount,
         pendingRequests: requestsRes.data.length,
         todayHours: 0
       });
@@ -344,9 +346,25 @@ export const AdminDashboard = () => {
                       <CardContent className="pt-4 space-y-3">
                         <div className="flex items-start justify-between gap-2">
                           <h3 className="font-bold text-base text-[#CBD5E1] flex-1">{site.name}</h3>
-                          <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${catColor}`} data-testid={`site-category-${site.id}`}>
-                            {catLabel}
-                          </span>
+                          <select
+                            value={cat}
+                            onChange={async (e) => {
+                              try {
+                                await api.put(`/sites/${site.id}`, { category: e.target.value });
+                                toast.success('Kategoria zaktualizowana');
+                                fetchData();
+                              } catch (err) {
+                                toast.error(err.response?.data?.detail || 'Blad');
+                              }
+                            }}
+                            className={`text-[10px] px-2 py-0.5 rounded font-semibold border-0 cursor-pointer ${catColor}`}
+                            data-testid={`site-category-select-${site.id}`}
+                          >
+                            <option value="budowa">Budowa</option>
+                            <option value="sklep">Sklep</option>
+                            <option value="magazyn">Magazyn</option>
+                            <option value="inne">Inne</option>
+                          </select>
                         </div>
                         {site.location_lat && site.location_lng ? (
                           <p className="text-xs text-[#5F7151]">
@@ -478,7 +496,7 @@ export const AdminDashboard = () => {
                         <div className="mb-3">
                           <p className="text-xs text-[#94A3B8] mb-2">Przypisane budowy:</p>
                           <div className="flex flex-wrap gap-2">
-                            {sites.map(site => {
+                            {sites.filter(s => !s.category || s.category === 'budowa').map(site => {
                               const isSelected = currentSiteIds.includes(site.id);
                               return (
                                 <button
