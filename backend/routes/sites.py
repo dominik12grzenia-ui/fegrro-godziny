@@ -29,7 +29,7 @@ async def get_sites(
             "_id": 0,
             "id": 1, "name": 1, "location_lat": 1, "location_lng": 1,
             "google_maps_url": 1, "is_active": 1, "month": 1,
-            "excel_column": 1, "created_at": 1
+            "excel_column": 1, "created_at": 1, "category": 1, "address": 1
         }
     ).to_list(1000)
     return sites
@@ -49,6 +49,8 @@ async def create_site(
         "google_maps_url": site.google_maps_url,
         "is_active": True,
         "month": site.month,
+        "category": site.category or "budowa",
+        "address": site.address,
         "created_at": datetime.now().isoformat()
     }
     

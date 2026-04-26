@@ -183,7 +183,7 @@ export const AdminDashboard = () => {
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Budowy</p>
+                  <p className="text-sm text-[#94A3B8]">Lokalizacje</p>
                   <p className="text-3xl font-bold text-[#6B8E4E]">{stats.totalSites}</p>
                 </div>
                 <Building2 className="h-12 w-12 text-[#6B8E4E] opacity-20" />
@@ -230,7 +230,7 @@ export const AdminDashboard = () => {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-1 px-1">
             <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5">
-              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Budowy</TabsTrigger>
+              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Lokalizacje</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap">
                 Brygadzisci
                 {foremen.filter(f => f.status === 'pending').length > 0 && (
@@ -259,7 +259,7 @@ export const AdminDashboard = () => {
               <CardHeader className="pb-2">
                 <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-[#5F7151]" />
-                  Mapa budow
+                  Mapa lokalizacji
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-0">
@@ -269,17 +269,85 @@ export const AdminDashboard = () => {
               </CardContent>
             </Card>
 
+            {/* Add Location Form */}
+            <Card className="bg-[#2A384C] border-[#334155]">
+              <CardHeader>
+                <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-[#5F7151]" />
+                  Dodaj nowa lokalizacje
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                  <input
+                    type="text"
+                    id="new-site-name"
+                    placeholder="Nazwa (np. Budowa Krakow, Sklep Castorama)"
+                    className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] text-sm rounded px-3 py-2 placeholder:text-[#64748B] md:col-span-2"
+                    data-testid="new-site-name"
+                  />
+                  <select
+                    id="new-site-category"
+                    defaultValue="budowa"
+                    className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] text-sm rounded px-3 py-2"
+                    data-testid="new-site-category"
+                  >
+                    <option value="budowa">Budowa</option>
+                    <option value="sklep">Sklep</option>
+                    <option value="magazyn">Magazyn</option>
+                    <option value="inne">Inne</option>
+                  </select>
+                  <Button
+                    onClick={async () => {
+                      const name = document.getElementById('new-site-name').value.trim();
+                      const category = document.getElementById('new-site-category').value;
+                      if (!name) { toast.error('Podaj nazwe'); return; }
+                      try {
+                        await api.post('/sites', { name, category });
+                        toast.success(`Dodano: ${name}`);
+                        document.getElementById('new-site-name').value = '';
+                        fetchData();
+                      } catch (err) {
+                        toast.error(err.response?.data?.detail || 'Blad');
+                      }
+                    }}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid="add-site-btn"
+                  >
+                    Dodaj
+                  </Button>
+                </div>
+                <p className="text-xs text-[#94A3B8] mt-2">
+                  Po dodaniu wpisz adres ponizej karty by ustawic lokalizacje na mapie.
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Sites List */}
             <Card className="bg-[#2A384C] border-[#334155]">
               <CardHeader>
-                <CardTitle className="text-[#CBD5E1]">Budowy</CardTitle>
+                <CardTitle className="text-[#CBD5E1]">Lokalizacje</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {sites.map((site) => (
-                    <Card key={site.id} className="bg-[#1E293B] border-[#334155]">
+                  {sites.map((site) => {
+                    const cat = site.category || 'budowa';
+                    const catLabel = { budowa: 'Budowa', sklep: 'Sklep', magazyn: 'Magazyn', inne: 'Inne' }[cat] || cat;
+                    const catColor = {
+                      budowa: 'bg-[#5F7151] text-white',
+                      sklep: 'bg-[#92400E] text-[#FED7AA]',
+                      magazyn: 'bg-[#1E40AF] text-[#BFDBFE]',
+                      inne: 'bg-[#475569] text-[#CBD5E1]',
+                    }[cat] || 'bg-[#475569] text-[#CBD5E1]';
+                    return (
+                    <Card key={site.id} className="bg-[#1E293B] border-[#334155]" data-testid={`site-card-${site.id}`}>
                       <CardContent className="pt-4 space-y-3">
-                        <h3 className="font-bold text-lg text-[#CBD5E1]">{site.name}</h3>
+                        <div className="flex items-start justify-between gap-2">
+                          <h3 className="font-bold text-base text-[#CBD5E1] flex-1">{site.name}</h3>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${catColor}`} data-testid={`site-category-${site.id}`}>
+                            {catLabel}
+                          </span>
+                        </div>
                         {site.location_lat && site.location_lng ? (
                           <p className="text-xs text-[#5F7151]">
                             <MapPin className="h-3 w-3 inline mr-1" />
@@ -291,7 +359,7 @@ export const AdminDashboard = () => {
                             <div className="flex gap-2">
                               <input
                                 type="text"
-                                placeholder="Wpisz adres budowy..."
+                                placeholder="Wpisz adres..."
                                 className="flex-1 bg-[#0F172A] border border-[#334155] text-[#CBD5E1] text-xs rounded px-2 py-1.5 placeholder:text-[#64748B]"
                                 data-testid={`address-input-${site.id}`}
                                 id={`addr-${site.id}`}
@@ -306,7 +374,8 @@ export const AdminDashboard = () => {
                                     await api.put(`/sites/${site.id}`, {
                                       location_lat: res.data.lat,
                                       location_lng: res.data.lng,
-                                      google_maps_url: res.data.formatted_address
+                                      google_maps_url: res.data.formatted_address,
+                                      address: res.data.formatted_address
                                     });
                                     toast.success(`Lokalizacja ustawiona: ${res.data.formatted_address}`);
                                     fetchData();
@@ -331,10 +400,11 @@ export const AdminDashboard = () => {
                         )}
                       </CardContent>
                     </Card>
-                  ))}
+                    );
+                  })}
                   {sites.length === 0 && (
                     <div className="col-span-full text-center p-8 text-[#94A3B8]">
-                      Brak budow
+                      Brak lokalizacji - dodaj pierwsza powyzej.
                     </div>
                   )}
                 </div>

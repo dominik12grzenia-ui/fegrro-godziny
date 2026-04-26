@@ -80,6 +80,8 @@ class ConstructionSite(BaseModel):
     excel_column: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now())
     month: Optional[str] = None
+    category: Optional[str] = "budowa"  # budowa | sklep | magazyn | inne
+    address: Optional[str] = None  # human-readable address
 
 
 class SiteCreate(BaseModel):
@@ -88,6 +90,8 @@ class SiteCreate(BaseModel):
     location_lng: Optional[float] = None
     google_maps_url: Optional[str] = None
     month: Optional[str] = None
+    category: Optional[str] = "budowa"
+    address: Optional[str] = None
 
 
 class SiteUpdate(BaseModel):
@@ -96,6 +100,8 @@ class SiteUpdate(BaseModel):
     location_lng: Optional[float] = None
     google_maps_url: Optional[str] = None
     is_active: Optional[bool] = None
+    category: Optional[str] = None
+    address: Optional[str] = None
 
 
 # Assignment Models

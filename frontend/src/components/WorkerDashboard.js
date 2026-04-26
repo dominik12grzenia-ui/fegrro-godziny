@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { EquipmentForeman } from './EquipmentForeman';
+import { LocationsButton } from './LocationsButton';
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
@@ -376,6 +377,7 @@ export const WorkerDashboard = () => {
               Budowy: {mySites.map(s => s.name).join(', ')} | {monthLabel}
             </p>
           </div>
+          <LocationsButton />
           <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#334155]" data-testid="logout-btn">
             <LogOut className="h-5 w-5" />
           </Button>
