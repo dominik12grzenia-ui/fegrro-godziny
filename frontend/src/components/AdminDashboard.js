@@ -72,8 +72,8 @@ export const AdminDashboard = () => {
       setSyncLogs(syncLogsRes.data);
       setAssignments(assignmentsRes.data);
 
-      // Stats counter shows only construction sites (budowy), not sklep/magazyn/inne
-      const budowyCount = (sitesRes.data || []).filter((s) => !s.category || s.category === 'budowa').length;
+      // Stats counter shows only Excel-synced budowy (manual locations are separate)
+      const budowyCount = (sitesRes.data || []).filter((s) => s.excel_column).length;
       setStats({
         totalEmployees: employeesRes.data.length,
         totalSites: budowyCount,
@@ -266,7 +266,7 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[400px] rounded-b-lg overflow-hidden" data-testid="sites-map">
-                  <SitesMap sites={sites} employees={employees} assignments={assignments} />
+                  <SitesMap sites={sites.filter(s => !s.excel_column)} employees={employees} assignments={assignments} />
                 </div>
               </CardContent>
             </Card>
@@ -332,7 +332,7 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {sites.map((site) => {
+                  {sites.filter(s => !s.excel_column).map((site) => {
                     const cat = site.category || 'budowa';
                     const catLabel = { budowa: 'Budowa', sklep: 'Sklep', magazyn: 'Magazyn', inne: 'Inne' }[cat] || cat;
                     const catColor = {
@@ -458,7 +458,7 @@ export const AdminDashboard = () => {
                     </Card>
                     );
                   })}
-                  {sites.length === 0 && (
+                  {sites.filter(s => !s.excel_column).length === 0 && (
                     <div className="col-span-full text-center p-8 text-[#94A3B8]">
                       Brak lokalizacji - dodaj pierwsza powyzej.
                     </div>
@@ -496,7 +496,7 @@ export const AdminDashboard = () => {
                         <div className="mb-3">
                           <p className="text-xs text-[#94A3B8] mb-2">Przypisane budowy:</p>
                           <div className="flex flex-wrap gap-2">
-                            {sites.filter(s => !s.category || s.category === 'budowa').map(site => {
+                            {sites.filter(s => s.excel_column).map(site => {
                               const isSelected = currentSiteIds.includes(site.id);
                               return (
                                 <button

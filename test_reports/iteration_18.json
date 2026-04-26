@@ -1,0 +1,28 @@
+{
+  "summary": "Verified strict separation between Excel-synced Budowy (sites with excel_column) and manual Lokalizacje (sites without excel_column) across AdminDashboard, HoursTable, AssignmentManager, Foremen tab and LocationsButton. Code review of all 6 filter call-sites passed. Live UI smoke test executed: seeded a fake Excel site (TEST_ExcelBudowa_X, excel_column='X') directly into MongoDB, logged in as admin, and confirmed (a) Budowy stats counter = 1, (b) Lokalizacje tab list + SitesMap exclude the Excel site (only 2 manual cards rendered), (c) Brygadzisci tab assignment buttons include TEST_ExcelBudowa_X, (d) HoursTable shows TEST_ExcelBudowa_X as a column and no manual sites. Backend GET /api/sites correctly returns excel_column field. Seeded doc cleaned up after test.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/dashboard", "issues": ["Pre-existing Google Maps ApiProjectMapError on dashboard load (unrelated to this feature)"]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Filter logic uses truthy check on s.excel_column consistently across all 6 sites - if backend ever returns excel_column as empty string '' (some Excel imports could) it would still be falsy and the site would slip into Lokalizacje. Recommend explicit `Boolean(s.excel_column) && s.excel_column.length > 0` or backend guarantee non-empty.",
+    "AdminDashboard.js renders sites.filter(s => !s.excel_column) twice (L335 list, L461 empty-state); consider extracting `const manualSites = useMemo(()=>sites.filter(s=>!s.excel_column),[sites])` to avoid double iteration and keep DRY.",
+    "HoursTable.js setSites(onlyExcelBudowy) overwrites sites state with filtered list - any future feature needing the full list from the same component would have to re-fetch. Consider keeping full list and deriving filtered with useMemo.",
+    "LocationsButton.js filters both excel_column AND visible_to_foremen=false correctly, but uses `if (s.excel_column) return false` then `if (s.visible_to_foremen === false) return false` - merging into a single boolean expression would be cleaner.",
+    "Stats card 'Budowy' label is ambiguous - it now counts only Excel sites but the same dashboard has a 'Lokalizacje' tab; consider relabeling to 'Budowy (Excel)' for clarity to the admin user."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (api returns excel_column)", "frontend": "100% (4/4 separation assertions passed)"},
+  "test_credentials": "Admin: admin@fegrro.pl / admin123",
+  "seed_data_creation": "Seeded site TEST_ExcelBudowa_X (excel_column='X') into construction_sites collection for the test, then deleted at end. No residual test data left.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Excel-vs-Manual separation verified end-to-end. Frontend filter is `s.excel_column` truthy check. Backend GET /api/sites returns excel_column field on Site documents. Foreman dashboard hours table filtering (WorkerDashboard.js L68) and foreman LocationsButton modal (only manual + visible_to_foremen=true) were code-reviewed but not exercised live with a foreman session - admin paths fully validated. Sprzet (Equipment) tab was not re-tested but separation feature does not touch it. Pre-existing Google Maps ApiProjectMapError persists; unrelated.",
+  "rca of the issue": "N/A - feature works as designed. The discriminator `excel_column` is correctly applied in all six call-sites (HoursTable, AssignmentManager, AdminDashboard stats/SitesMap/Lokalizacje list/Foremen assign, LocationsButton)."
+}

@@ -48,6 +48,7 @@ export const LocationsButton = () => {
   }, [open]);
 
   const filtered = sites.filter((s) => {
+    if (s.excel_column) return false; // Excel sites stay in hours table only
     if (s.visible_to_foremen === false) return false;
     const matchText = !filter || s.name.toLowerCase().includes(filter.toLowerCase());
     const matchCat = categoryFilter === 'all' || (s.category || 'budowa') === categoryFilter;
