@@ -706,9 +706,9 @@ export const EquipmentForeman = () => {
                             <td className="border border-[#334155] p-2">
                               <div className="flex items-center gap-2">
                                 {eq.photo ? (
-                                  <img src={eq.photo} alt={eq.name} className="w-10 h-10 object-contain rounded shrink-0 bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
+                                  <img src={eq.photo} alt={eq.name} className="w-12 h-12 object-contain rounded shrink-0 bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
                                 ) : (
-                                  <div className="w-8 h-8 rounded bg-[#1E293B] flex items-center justify-center shrink-0">
+                                  <div className="w-12 h-12 rounded bg-[#1E293B] flex items-center justify-center shrink-0">
                                     <Wrench className="h-4 w-4 text-[#475569]" />
                                   </div>
                                 )}
