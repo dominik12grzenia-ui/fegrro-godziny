@@ -352,49 +352,49 @@ export const EquipmentForeman = () => {
             <p className="text-[#94A3B8] text-sm">Nie masz przypisanego sprzetu.</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-sm" data-testid="my-equipment-table">
+              <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
                 <thead className="sticky top-0 z-30 bg-[#2A384C]">
                   <tr className="bg-[#1E293B]">
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
-                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Ilosc</th>
-                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Akcje</th>
+                    <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
+                    <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
+                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilosc</th>
+                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
-                      <td className="border border-[#334155] p-2">
+                      <td className="border border-[#334155] p-1 sm:p-2 align-middle">
                         <div className="flex items-center gap-2">
                           {eq.photo ? (
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-12 h-12 object-contain rounded border border-[#334155] shrink-0 bg-[#0F172A] cursor-zoom-in"
+                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded border border-[#334155] shrink-0 bg-[#0F172A] cursor-zoom-in"
                               onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
                               <Wrench className="h-5 w-5 text-[#475569]" />
                             </div>
                           )}
-                          <span className="text-[#CBD5E1] font-semibold">{eq.name}</span>
+                          <span className="text-[#CBD5E1] font-semibold text-[11px] sm:text-sm leading-tight break-words normal-case">{eq.name}</span>
                         </div>
                       </td>
-                      <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
-                      <td className="border border-[#334155] p-2 text-center text-[#5F7151] font-bold">{eq.quantity}</td>
-                      <td className="border border-[#334155] p-1">
-                        <div className="flex gap-1 flex-wrap justify-center">
+                      <td className="border border-[#334155] p-1 sm:p-2 text-[#94A3B8] text-[11px] sm:text-sm align-middle">{eq.brand || '-'}</td>
+                      <td className="border border-[#334155] p-1 sm:p-2 text-center text-[#5F7151] font-bold align-middle">{eq.quantity}</td>
+                      <td className="border border-[#334155] p-1 align-middle">
+                        <div className="flex gap-1 flex-col sm:flex-row sm:flex-wrap items-stretch sm:justify-center">
                           <Button
                             size="sm"
                             onClick={() => {
                               setTransferModal(eq);
                               setTransferQty(String(Math.min(1, eq.quantity)));
                             }}
-                            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7"
+                            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7 px-2"
                             data-testid={`transfer-btn-${eq.id}`}
                           >
-                            <Send className="h-3 w-3 mr-1" /> Przekaz
+                            <Send className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Przekaz</span>
                           </Button>
                           <Button
                             size="sm"
@@ -403,10 +403,10 @@ export const EquipmentForeman = () => {
                               setReturnModal(eq);
                               setReturnQty(String(eq.quantity));
                             }}
-                            className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
+                            className="text-[#5F7151] hover:bg-[#334155] text-xs h-7 px-2"
                             data-testid={`return-btn-${eq.id}`}
                           >
-                            <Undo2 className="h-3 w-3 mr-1" /> Zwrot do magazynu
+                            <Undo2 className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Zwrot do magazynu</span>
                           </Button>
                           <Button
                             size="sm"
@@ -415,10 +415,10 @@ export const EquipmentForeman = () => {
                               setDefectModal(eq);
                               setDefectQty('1');
                             }}
-                            className="text-[#E8836A] hover:bg-[#334155] text-xs h-7"
+                            className="text-[#E8836A] hover:bg-[#334155] text-xs h-7 px-2"
                             data-testid={`defect-btn-${eq.id}`}
                           >
-                            <AlertTriangle className="h-3 w-3 mr-1" /> Usterka
+                            <AlertTriangle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Usterka</span>
                           </Button>
                         </div>
                       </td>
