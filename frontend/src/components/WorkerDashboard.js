@@ -63,9 +63,9 @@ export const WorkerDashboard = () => {
       setHolidays(holidaysRes.data.holidays || []);
       
       setSites(sitesRes.data);
-      // Foreman sees all budowa-category sites (manual sklep/magazyn/inne live in Lokalizacje button)
+      // Foreman sees only Excel-synced budowy (manual budowy and Lokalizacje are filtered out)
       const allAssignedSites = sitesRes.data.filter(s => foremanSiteIds.includes(s.id));
-      const onlyBudowy = allAssignedSites.filter(s => !s.category || s.category === 'budowa');
+      const onlyBudowy = allAssignedSites.filter(s => s.excel_column);
       setMySites(onlyBudowy);
 
       // Filter assignments to only my sites

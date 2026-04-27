@@ -46,8 +46,8 @@ export const AssignmentManager = () => {
       ]);
       
       setEmployees(employeesRes.data);
-      // Show all budowa-category sites (sklep/magazyn/inne live only in Lokalizacje tab)
-      const onlyBudowy = (sitesRes.data || []).filter((s) => !s.category || s.category === 'budowa');
+      // Show only Excel-synced budowy (manual budowy and sklep/magazyn/inne are filtered out)
+      const onlyBudowy = (sitesRes.data || []).filter((s) => s.excel_column);
       setSites(onlyBudowy);
       
       // Process existing assignments

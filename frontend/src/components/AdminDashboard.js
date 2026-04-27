@@ -72,8 +72,8 @@ export const AdminDashboard = () => {
       setSyncLogs(syncLogsRes.data);
       setAssignments(assignmentsRes.data);
 
-      // Stats counter shows all budowy (Excel + manual budowa-category), excluding sklep/magazyn/inne
-      const budowyCount = (sitesRes.data || []).filter((s) => !s.category || s.category === 'budowa').length;
+      // Stats counter shows only Excel-synced budowy
+      const budowyCount = (sitesRes.data || []).filter((s) => s.excel_column).length;
       setStats({
         totalEmployees: employeesRes.data.length,
         totalSites: budowyCount,
@@ -266,7 +266,7 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="h-[400px] rounded-b-lg overflow-hidden" data-testid="sites-map">
-                  <SitesMap sites={sites.filter(s => s.category && s.category !== 'budowa')} employees={employees} assignments={assignments} />
+                  <SitesMap sites={sites.filter(s => !s.excel_column)} employees={employees} assignments={assignments} />
                 </div>
               </CardContent>
             </Card>
@@ -331,7 +331,7 @@ export const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {sites.filter(s => s.category && s.category !== 'budowa').map((site) => {
+                  {sites.filter(s => !s.excel_column).map((site) => {
                     const cat = site.category || 'budowa';
                     const catLabel = { budowa: 'Budowa', sklep: 'Sklep', magazyn: 'Magazyn', inne: 'Inne' }[cat] || cat;
                     const catColor = {
@@ -359,6 +359,7 @@ export const AdminDashboard = () => {
                             className={`text-[10px] px-2 py-0.5 rounded font-semibold border-0 cursor-pointer ${catColor}`}
                             data-testid={`site-category-select-${site.id}`}
                           >
+                            <option value="budowa">Budowa</option>
                             <option value="sklep">Sklep</option>
                             <option value="magazyn">Magazyn</option>
                             <option value="inne">Inne</option>
@@ -456,7 +457,7 @@ export const AdminDashboard = () => {
                     </Card>
                     );
                   })}
-                  {sites.filter(s => s.category && s.category !== 'budowa').length === 0 && (
+                  {sites.filter(s => !s.excel_column).length === 0 && (
                     <div className="col-span-full text-center p-8 text-[#94A3B8]">
                       Brak lokalizacji - dodaj pierwsza powyzej.
                     </div>
@@ -494,7 +495,7 @@ export const AdminDashboard = () => {
                         <div className="mb-3">
                           <p className="text-xs text-[#94A3B8] mb-2">Przypisane budowy:</p>
                           <div className="flex flex-wrap gap-2">
-                            {sites.filter(s => !s.category || s.category === 'budowa').map(site => {
+                            {sites.filter(s => s.excel_column).map(site => {
                               const isSelected = currentSiteIds.includes(site.id);
                               return (
                                 <button
@@ -764,90 +765,6 @@ export const AdminDashboard = () => {
 
           {/* Tools Tab */}
           <TabsContent value="tools" className="space-y-4 bg-[#1E293B]">
-            {/* Restore Assignments from Hours */}
-            <Card className="bg-[#2A384C] border-[#334155]">
-              <CardHeader>
-                <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                  <Users className="h-5 w-5 text-[#5F7151]" />
-                  Odtworz przypisania z godzin
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-[#94A3B8] mb-3">
-                  Jezeli w tabeli godzin pracownicy maja wpisane godziny, ale komorki sa szare (brak koloru budowy),
-                  uzyj tego przycisku - na podstawie istniejacych godzin (kazdy wpis ma site_id) odtworzy brakujace przypisania.
-                  Bezpieczne: tylko dodaje brakujace dane, niczego nie kasuje.
-                </p>
-                <div className="flex flex-wrap items-center gap-3 mb-3">
-                  <select
-                    id="restore-month"
-                    className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
-                    defaultValue={new Date().getMonth() + 1}
-                    data-testid="restore-month-select"
-                  >
-                    <option value="">Wszystkie miesiace</option>
-                    {[
-                      'Styczen', 'Luty', 'Marzec', 'Kwiecien', 'Maj', 'Czerwiec',
-                      'Lipiec', 'Sierpien', 'Wrzesien', 'Pazdziernik', 'Listopad', 'Grudzien'
-                    ].map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
-                  </select>
-                  <select
-                    id="restore-year"
-                    className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
-                    defaultValue={new Date().getFullYear()}
-                    data-testid="restore-year-select"
-                  >
-                    {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                  </select>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button
-                    onClick={async () => {
-                      const month = document.getElementById('restore-month').value;
-                      const year = document.getElementById('restore-year').value;
-                      const params = new URLSearchParams({ dry_run: 'true' });
-                      if (month) params.set('month', month);
-                      if (year) params.set('year', year);
-                      try {
-                        const res = await api.post(`/assignments/restore-from-hours?${params.toString()}`);
-                        const d = res.data;
-                        toast.info(`Podglad: stworzy ${d.created}, uzupelni ${d.updated}, bez zmian ${d.unchanged}`);
-                      } catch (err) {
-                        toast.error(err.response?.data?.detail || 'Blad podgladu');
-                      }
-                    }}
-                    variant="outline"
-                    className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
-                    data-testid="restore-dry-run-btn"
-                  >
-                    Podglad (bez zapisu)
-                  </Button>
-                  <Button
-                    onClick={async () => {
-                      if (!window.confirm('Odtworzyc przypisania na podstawie istniejacych godzin? Operacja bezpieczna - tylko dodaje brakujace dane.')) return;
-                      const month = document.getElementById('restore-month').value;
-                      const year = document.getElementById('restore-year').value;
-                      const params = new URLSearchParams();
-                      if (month) params.set('month', month);
-                      if (year) params.set('year', year);
-                      try {
-                        const res = await api.post(`/assignments/restore-from-hours?${params.toString()}`);
-                        const d = res.data;
-                        toast.success(`Stworzono ${d.created}, uzupelniono ${d.updated} przypisan`);
-                        fetchData();
-                      } catch (err) {
-                        toast.error(err.response?.data?.detail || 'Blad odtwarzania');
-                      }
-                    }}
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-                    data-testid="restore-assignments-btn"
-                  >
-                    Odtworz przypisania
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* OneDrive Excel Sync */}
             <Card className="bg-[#2A384C] border-[#334155]">
               <CardHeader>
