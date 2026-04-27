@@ -42,6 +42,7 @@ export const EquipmentAdmin = () => {
   const [pendingReturns, setPendingReturns] = useState([]);
   const [filterForemanId, setFilterForemanId] = useState('');
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
+  const [previewPhoto, setPreviewPhoto] = useState(null);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -370,11 +371,12 @@ export const EquipmentAdmin = () => {
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-10 h-10 object-cover rounded border border-[#334155] shrink-0"
+                              className="w-12 h-12 object-contain rounded border border-[#334155] shrink-0 bg-[#0F172A] cursor-zoom-in"
                               data-testid={`equipment-thumb-${eq.id}`}
+                              onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
+                            <div className="w-12 h-12 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
                               <Wrench className="h-5 w-5 text-[#475569]" />
                             </div>
                           )}
@@ -603,7 +605,7 @@ export const EquipmentAdmin = () => {
                     </span>
                   </div>
                   {d.description && <p className="text-xs text-[#94A3B8] mt-1">{d.description}</p>}
-                  {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-32 rounded" />}
+                  {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(d.photo)} />}
                 </div>
               ))}
             </div>
@@ -660,7 +662,7 @@ export const EquipmentAdmin = () => {
                   className="text-xs text-[#CBD5E1]"
                   data-testid="equipment-photo-input"
                 />
-                {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-24 rounded" />}
+                {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setShowAddModal(false)}>
@@ -715,7 +717,7 @@ export const EquipmentAdmin = () => {
                   onChange={(e) => handlePhotoUpload(e, 'edit')}
                   className="text-xs text-[#CBD5E1]"
                 />
-                {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-24 rounded" />}
+                {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
               </div>
               <div className="flex gap-2 justify-between pt-2">
                 <Button
@@ -794,6 +796,17 @@ export const EquipmentAdmin = () => {
               )}
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Photo lightbox */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setPreviewPhoto(null)}
+          data-testid="photo-lightbox"
+        >
+          <img src={previewPhoto} alt="Podglad" className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
         </div>
       )}
     </div>

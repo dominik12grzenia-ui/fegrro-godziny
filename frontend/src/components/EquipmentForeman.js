@@ -40,6 +40,7 @@ export const EquipmentForeman = () => {
   const [isWarehouseKeeper, setIsWarehouseKeeper] = useState(false);
   const [allEquipment, setAllEquipment] = useState([]);
   const [allAssignments, setAllAssignments] = useState([]);
+  const [previewPhoto, setPreviewPhoto] = useState(null);
   const [allForemen, setAllForemen] = useState([]);
   const [warehouseModal, setWarehouseModal] = useState(false);
 
@@ -369,10 +370,11 @@ export const EquipmentForeman = () => {
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-10 h-10 object-cover rounded border border-[#334155] shrink-0"
+                              className="w-12 h-12 object-contain rounded border border-[#334155] shrink-0 bg-[#0F172A] cursor-zoom-in"
+                              onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-10 h-10 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
+                            <div className="w-12 h-12 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
                               <Wrench className="h-5 w-5 text-[#475569]" />
                             </div>
                           )}
@@ -571,7 +573,7 @@ export const EquipmentForeman = () => {
                   className="text-xs text-[#CBD5E1]"
                   data-testid="defect-photo-input"
                 />
-                {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-24 rounded" />}
+                {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setDefectModal(null)}>Anuluj</Button>
@@ -704,7 +706,7 @@ export const EquipmentForeman = () => {
                             <td className="border border-[#334155] p-2">
                               <div className="flex items-center gap-2">
                                 {eq.photo ? (
-                                  <img src={eq.photo} alt={eq.name} className="w-8 h-8 object-cover rounded shrink-0" />
+                                  <img src={eq.photo} alt={eq.name} className="w-10 h-10 object-contain rounded shrink-0 bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
                                 ) : (
                                   <div className="w-8 h-8 rounded bg-[#1E293B] flex items-center justify-center shrink-0">
                                     <Wrench className="h-4 w-4 text-[#475569]" />
@@ -734,6 +736,17 @@ export const EquipmentForeman = () => {
               </p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Photo lightbox */}
+      {previewPhoto && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[60] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setPreviewPhoto(null)}
+          data-testid="photo-lightbox"
+        >
+          <img src={previewPhoto} alt="Podglad" className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
         </div>
       )}
     </div>
