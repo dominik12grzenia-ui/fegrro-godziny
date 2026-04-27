@@ -294,6 +294,7 @@ export const AdminDashboard = () => {
                     className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] text-sm rounded px-3 py-2"
                     data-testid="new-site-category"
                   >
+                    <option value="budowa">Budowa</option>
                     <option value="sklep">Sklep</option>
                     <option value="magazyn">Magazyn</option>
                     <option value="inne">Inne</option>

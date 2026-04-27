@@ -404,7 +404,7 @@ export const EquipmentForeman = () => {
                             className="text-[#5F7151] hover:bg-[#334155] text-xs h-7"
                             data-testid={`return-btn-${eq.id}`}
                           >
-                            <Undo2 className="h-3 w-3 mr-1" /> Zwrot
+                            <Undo2 className="h-3 w-3 mr-1" /> Zwrot do magazynu
                           </Button>
                           <Button
                             size="sm"
