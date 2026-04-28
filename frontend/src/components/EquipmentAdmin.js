@@ -27,7 +27,7 @@ const ACTION_LABELS = {
   return_acknowledged: 'Potwierdzono zwrot',
 };
 
-export const EquipmentAdmin = () => {
+export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarzedzia' }) => {
   const [equipment, setEquipment] = useState([]);
   const [foremen, setForemen] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -47,7 +47,7 @@ export const EquipmentAdmin = () => {
   const fetchAll = useCallback(async () => {
     try {
       const [eqRes, forRes, asgRes, hisRes, defRes, trRes, wkRes, retRes] = await Promise.all([
-        api.get('/equipment'),
+        api.get(`/equipment?category=${encodeURIComponent(category)}`),
         api.get('/foremen'),
         api.get('/equipment/assignments/all'),
         api.get('/equipment/history'),
@@ -69,7 +69,7 @@ export const EquipmentAdmin = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     fetchAll();
@@ -157,6 +157,7 @@ export const EquipmentAdmin = () => {
         brand: form.brand.trim() || null,
         total_quantity: parseInt(form.total_quantity, 10),
         photo: form.photo,
+        category,
       });
       toast.success('Sprzet dodany');
       setShowAddModal(false);
@@ -253,7 +254,7 @@ export const EquipmentAdmin = () => {
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" />
-            Sprzet i przypisania
+            {title} - przypisania
           </CardTitle>
           <div className="flex items-center gap-2 flex-wrap">
             <select

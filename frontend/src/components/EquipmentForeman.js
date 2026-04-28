@@ -20,7 +20,7 @@ const ACTION_LABELS = {
   defect_reported: 'Zgloszono usterke',
 };
 
-export const EquipmentForeman = () => {
+export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elektronarzedzia' }) => {
   const [myEquipment, setMyEquipment] = useState([]);
   const [foremen, setForemen] = useState([]);
   const [pendingTransfers, setPendingTransfers] = useState([]);
@@ -47,7 +47,7 @@ export const EquipmentForeman = () => {
   const fetchAll = useCallback(async () => {
     try {
       const [myRes, forRes, ptRes, meRes, retRes, wkRes] = await Promise.all([
-        api.get('/equipment/my'),
+        api.get(`/equipment/my?category=${encodeURIComponent(category)}`),
         api.get('/foremen'),
         api.get('/equipment/transfers/pending'),
         api.get('/foreman/me').catch(() => ({ data: null })),
@@ -63,10 +63,10 @@ export const EquipmentForeman = () => {
       setPendingReturns(retRes.data);
       const keeperFlag = me && wkRes.data?.foreman_id === me.id;
       setIsWarehouseKeeper(keeperFlag);
-      // If keeper, also load full equipment + assignments overview
+      // If keeper, also load full equipment + assignments overview (filtered by category)
       if (keeperFlag) {
         const [eqAll, asgAll] = await Promise.all([
-          api.get('/equipment'),
+          api.get(`/equipment?category=${encodeURIComponent(category)}`),
           api.get('/equipment/assignments/all'),
         ]);
         setAllEquipment(eqAll.data);
@@ -77,7 +77,7 @@ export const EquipmentForeman = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [category]);
 
   useEffect(() => {
     fetchAll();
@@ -323,7 +323,7 @@ export const EquipmentForeman = () => {
       <Card className="bg-[#2A384C] border-[#334155]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-[#5F7151]" /> Moj sprzet
+            <Wrench className="h-5 w-5 text-[#5F7151]" /> {title}
           </CardTitle>
           <div className="flex gap-2 flex-wrap">
           <Button

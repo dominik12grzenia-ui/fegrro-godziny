@@ -38,6 +38,7 @@ export const WorkerDashboard = () => {
   const [bulkSelected, setBulkSelected] = useState(new Set());
   const [bulkSaving, setBulkSaving] = useState(false);
   const [absences, setAbsences] = useState([]);
+  const [eqTab, setEqTab] = useState('electronics');
   const [dismissedAbsences, setDismissedAbsences] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dismissed_absences') || '[]'); } catch { return []; }
   });
@@ -388,9 +389,29 @@ export const WorkerDashboard = () => {
       </div>
 
       <div className="shrink-0 p-4 pb-0 overflow-x-auto">
-        {/* Equipment section (transfers banner + my equipment) */}
-        <div className="mb-4">
-          <EquipmentForeman />
+        {/* Equipment section: two sub-tabs (Elektronarzędzia / Akcesoria) */}
+        <div className="mb-4 space-y-3">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEqTab('electronics')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="foreman-tab-electronics"
+            >
+              Elektronarzędzia
+            </button>
+            <button
+              onClick={() => setEqTab('accessories')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'accessories' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="foreman-tab-accessories"
+            >
+              Akcesoria
+            </button>
+          </div>
+          {eqTab === 'electronics' ? (
+            <EquipmentForeman category="electronics" title="Moje elektronarzedzia" />
+          ) : (
+            <EquipmentForeman category="accessories" title="Moje akcesoria" />
+          )}
         </div>
 
         {/* Absence alerts for foreman */}

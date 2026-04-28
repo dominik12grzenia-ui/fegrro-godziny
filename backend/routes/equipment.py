@@ -23,6 +23,7 @@ class EquipmentCreate(BaseModel):
     brand: Optional[str] = None
     total_quantity: int
     photo: Optional[str] = None  # base64 encoded
+    category: Optional[str] = "electronics"  # electronics | accessories
 
 
 class EquipmentUpdate(BaseModel):
@@ -32,6 +33,7 @@ class EquipmentUpdate(BaseModel):
     photo: Optional[str] = None
     status: Optional[str] = None  # working / broken / maintenance
     broken_quantity: Optional[int] = None  # number of units returned to warehouse for repair
+    category: Optional[str] = None
 
 
 class AssignmentSet(BaseModel):
@@ -92,8 +94,18 @@ async def _get_user_name(user_id: str) -> str:
 
 # ============= Equipment CRUD (admin) =============
 @router.get("/equipment")
-async def list_equipment(current_user: dict = Depends(get_current_user)):
-    items = await db.equipment.find({}, {"_id": 0}).sort("name", 1).to_list(1000)
+async def list_equipment(
+    category: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
+    query = {}
+    if category:
+        # Treat missing field as 'electronics' for backward compatibility
+        if category == "electronics":
+            query = {"$or": [{"category": "electronics"}, {"category": {"$exists": False}}, {"category": None}]}
+        else:
+            query = {"category": category}
+    items = await db.equipment.find(query, {"_id": 0}).sort("name", 1).to_list(1000)
     result = []
     for item in items:
         total_assigned = await _get_total_assigned(item["id"])
@@ -101,6 +113,7 @@ async def list_equipment(current_user: dict = Depends(get_current_user)):
         total = item.get("total_quantity", 0)
         result.append({
             **item,
+            "category": item.get("category") or "electronics",
             "broken_quantity": broken,
             "assigned_quantity": total_assigned,
             "available_quantity": max(0, total - total_assigned - broken)
@@ -122,6 +135,7 @@ async def create_equipment(payload: EquipmentCreate,
         "broken_quantity": 0,
         "photo": payload.photo,
         "status": "working",
+        "category": payload.category or "electronics",
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
     }
@@ -149,6 +163,8 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
         update_doc["photo"] = payload.photo
     if payload.status is not None:
         update_doc["status"] = payload.status
+    if payload.category is not None:
+        update_doc["category"] = payload.category
 
     new_total = payload.total_quantity if payload.total_quantity is not None else eq.get("total_quantity", 0)
     new_broken = payload.broken_quantity if payload.broken_quantity is not None else eq.get("broken_quantity", 0) or 0
@@ -267,7 +283,10 @@ async def set_assignment(payload: AssignmentSet,
 
 # ============= Foreman view =============
 @router.get("/equipment/my")
-async def my_equipment(current_user: dict = Depends(get_current_user)):
+async def my_equipment(
+    category: Optional[str] = None,
+    current_user: dict = Depends(get_current_user),
+):
     """Equipment assigned to the current foreman."""
     foreman_id = current_user["sub"]
     assignments = await db.equipment_assignments.find(
@@ -276,8 +295,12 @@ async def my_equipment(current_user: dict = Depends(get_current_user)):
     result = []
     for a in assignments:
         eq = await db.equipment.find_one({"id": a["equipment_id"]}, {"_id": 0})
-        if eq:
-            result.append({**eq, "quantity": a["quantity"], "assigned_at": a.get("assigned_at")})
+        if not eq:
+            continue
+        eq_cat = eq.get("category") or "electronics"
+        if category and eq_cat != category:
+            continue
+        result.append({**eq, "category": eq_cat, "quantity": a["quantity"], "assigned_at": a.get("assigned_at")})
     return result
 
 

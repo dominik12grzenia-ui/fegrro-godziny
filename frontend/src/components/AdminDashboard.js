@@ -249,7 +249,8 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Sprzęt</TabsTrigger>
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Elektronarzędzia</TabsTrigger>
+              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap">Akcesoria</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
@@ -761,7 +762,11 @@ export const AdminDashboard = () => {
 
           {/* Equipment Tab */}
           <TabsContent value="equipment" className="space-y-4 bg-[#1E293B]">
-            <EquipmentAdmin />
+            <EquipmentAdmin category="electronics" title="Elektronarzedzia" />
+          </TabsContent>
+
+          <TabsContent value="accessories" className="space-y-4 bg-[#1E293B]">
+            <EquipmentAdmin category="accessories" title="Akcesoria" />
           </TabsContent>
 
           {/* Tools Tab */}
