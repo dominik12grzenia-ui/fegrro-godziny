@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { SitesMap } from './SitesMap';
 import { EquipmentAdmin } from './EquipmentAdmin';
+import { ClothingAdmin } from './ClothingAdmin';
 
 export const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -251,6 +252,7 @@ export const AdminDashboard = () => {
               </TabsTrigger>
               <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Elektronarzędzia</TabsTrigger>
               <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap">Akcesoria</TabsTrigger>
+              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap">Ubrania</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
@@ -767,6 +769,10 @@ export const AdminDashboard = () => {
 
           <TabsContent value="accessories" className="space-y-4 bg-[#1E293B]">
             <EquipmentAdmin category="accessories" title="Akcesoria" />
+          </TabsContent>
+
+          <TabsContent value="clothing" className="space-y-4 bg-[#1E293B]">
+            <ClothingAdmin />
           </TabsContent>
 
           {/* Tools Tab */}

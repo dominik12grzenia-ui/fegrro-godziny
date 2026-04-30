@@ -26,6 +26,7 @@ from routes.reports import router as reports_router
 from routes.sync import router as sync_router, cron_write_hours_previous_month, cron_daily_sync, set_scheduler
 from routes.public import router as public_router
 from routes.equipment import router as equipment_router
+from routes.clothing import router as clothing_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -53,6 +54,7 @@ api_router.include_router(reports_router)
 api_router.include_router(sync_router)
 api_router.include_router(public_router)
 api_router.include_router(equipment_router)
+api_router.include_router(clothing_router)
 
 
 # Health check

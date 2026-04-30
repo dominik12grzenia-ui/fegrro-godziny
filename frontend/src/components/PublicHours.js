@@ -7,6 +7,7 @@ import { format, getDaysInMonth, getDay, addDays } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import axios from 'axios';
 import { toast } from 'sonner';
+import { ClothingOrderPublic } from './ClothingOrderPublic';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -519,6 +520,9 @@ export const PublicHours = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Clothing orders */}
+        <ClothingOrderPublic token={token} />
 
         {/* PWA Install Instructions */}
         {!window.matchMedia('(display-mode: standalone)').matches && (
