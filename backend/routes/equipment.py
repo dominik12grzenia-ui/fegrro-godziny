@@ -485,12 +485,38 @@ async def report_defect(payload: DefectReport,
     if payload.quantity <= 0:
         raise HTTPException(status_code=400, detail="Ilosc musi byc dodatnia")
 
-    actor_name = await _get_user_name(current_user["sub"])
+    foreman_id = current_user["sub"]
+    own = await db.equipment_assignments.find_one(
+        {"equipment_id": payload.equipment_id, "foreman_id": foreman_id}
+    )
+    if not own or own["quantity"] < payload.quantity:
+        raise HTTPException(status_code=400, detail="Nie posiadasz wystarczajacej ilosci")
+
+    # 1. Decrement foreman's assignment by q (item moves from foreman to "in repair")
+    new_qty = own["quantity"] - payload.quantity
+    if new_qty == 0:
+        await db.equipment_assignments.delete_one(
+            {"equipment_id": payload.equipment_id, "foreman_id": foreman_id}
+        )
+    else:
+        await db.equipment_assignments.update_one(
+            {"equipment_id": payload.equipment_id, "foreman_id": foreman_id},
+            {"$set": {"quantity": new_qty}}
+        )
+
+    # 2. Increment equipment.broken_quantity by q (visible in "Zdane do magazynu do naprawy" column)
+    await db.equipment.update_one(
+        {"id": payload.equipment_id},
+        {"$inc": {"broken_quantity": payload.quantity},
+         "$set": {"updated_at": datetime.now().isoformat()}}
+    )
+
+    actor_name = await _get_user_name(foreman_id)
     doc = {
         "id": str(uuid.uuid4()),
         "equipment_id": payload.equipment_id,
         "equipment_name": eq["name"],
-        "foreman_id": current_user["sub"],
+        "foreman_id": foreman_id,
         "foreman_name": actor_name,
         "quantity": payload.quantity,
         "description": payload.description,
@@ -500,7 +526,7 @@ async def report_defect(payload: DefectReport,
     }
     await db.equipment_defects.insert_one(doc)
     doc.pop("_id", None)
-    await _add_history(payload.equipment_id, "defect_reported", current_user["sub"], actor_name,
+    await _add_history(payload.equipment_id, "defect_reported", foreman_id, actor_name,
                         {"quantity": payload.quantity, "description": payload.description})
     return doc
 
@@ -514,6 +540,139 @@ async def list_defects(current_user: dict = Depends(get_current_user)):
             {"foreman_id": current_user["sub"]}, {"_id": 0}
         ).sort("created_at", -1).to_list(500)
     return items
+
+
+class ResolveDefect(BaseModel):
+    disposition: str  # 'repaired' | 'scrapped'
+    destination: Optional[str] = None  # 'warehouse' | 'foreman' (only when disposition='repaired')
+    foreman_id: Optional[str] = None  # required when destination='foreman'
+
+
+@router.post("/equipment/defects/{defect_id}/resolve")
+async def resolve_defect(defect_id: str,
+                          payload: ResolveDefect,
+                          current_user: dict = Depends(get_current_admin)):
+    """Admin marks a defect as repaired (and chooses destination) or scrapped."""
+    defect = await db.equipment_defects.find_one({"id": defect_id})
+    if not defect:
+        raise HTTPException(status_code=404, detail="Usterka nie znaleziona")
+    if defect.get("status") in ("resolved", "scrapped"):
+        raise HTTPException(status_code=400, detail="Usterka juz rozpatrzona")
+
+    qty = int(defect.get("quantity") or 0)
+    eq_id = defect["equipment_id"]
+    eq = await db.equipment.find_one({"id": eq_id})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+    cur_broken = int(eq.get("broken_quantity") or 0)
+
+    if payload.disposition == "scrapped":
+        # Remove from inventory: broken -= qty, total -= qty
+        new_broken = max(0, cur_broken - qty)
+        new_total = max(0, int(eq.get("total_quantity") or 0) - qty)
+        await db.equipment.update_one(
+            {"id": eq_id},
+            {"$set": {"broken_quantity": new_broken, "total_quantity": new_total,
+                       "updated_at": datetime.now().isoformat()}}
+        )
+        actor_name = await _get_user_name(current_user["sub"])
+        await db.equipment_defects.update_one(
+            {"id": defect_id},
+            {"$set": {
+                "status": "scrapped",
+                "resolved_by": current_user["sub"],
+                "resolved_by_name": actor_name,
+                "resolved_at": datetime.now().isoformat(),
+                "disposition": "scrapped",
+            }}
+        )
+        await _add_history(eq_id, "defect_scrapped", current_user["sub"], actor_name,
+                            {"quantity": qty, "equipment_name": defect.get("equipment_name")})
+        return {"message": "Sprzet przeniesiony na zlom"}
+
+    if payload.disposition != "repaired":
+        raise HTTPException(status_code=400, detail="Nieznana dyspozycja")
+
+    # repaired: decrement broken_quantity by qty
+    new_broken = max(0, cur_broken - qty)
+    await db.equipment.update_one(
+        {"id": eq_id},
+        {"$set": {"broken_quantity": new_broken,
+                   "updated_at": datetime.now().isoformat()}}
+    )
+
+    target_foreman_name = None
+    if payload.destination == "foreman":
+        if not payload.foreman_id:
+            raise HTTPException(status_code=400, detail="Wybierz brygadziste")
+        target = await db.users.find_one({"id": payload.foreman_id, "role": "foreman"})
+        if not target:
+            raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
+        target_foreman_name = target["full_name"]
+        await db.equipment_assignments.update_one(
+            {"equipment_id": eq_id, "foreman_id": payload.foreman_id},
+            {"$inc": {"quantity": qty},
+             "$setOnInsert": {
+                 "id": str(uuid.uuid4()),
+                 "equipment_id": eq_id,
+                 "foreman_id": payload.foreman_id,
+                 "assigned_at": datetime.now().isoformat(),
+                 "assigned_by": current_user["sub"],
+             }},
+            upsert=True
+        )
+    elif payload.destination not in (None, "warehouse"):
+        raise HTTPException(status_code=400, detail="Nieznane miejsce przekazania")
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.equipment_defects.update_one(
+        {"id": defect_id},
+        {"$set": {
+            "status": "resolved",
+            "resolved_by": current_user["sub"],
+            "resolved_by_name": actor_name,
+            "resolved_at": datetime.now().isoformat(),
+            "disposition": "repaired",
+            "destination": payload.destination or "warehouse",
+            "destination_foreman_id": payload.foreman_id,
+            "destination_foreman_name": target_foreman_name,
+        }}
+    )
+    await _add_history(eq_id, "defect_resolved", current_user["sub"], actor_name,
+                        {"quantity": qty, "equipment_name": defect.get("equipment_name"),
+                         "destination": payload.destination or "warehouse",
+                         "foreman_name": target_foreman_name})
+    return {"message": "Usterka oznaczona jako naprawiona"}
+
+
+@router.get("/equipment/scrapped")
+async def list_scrapped(category: Optional[str] = None,
+                          current_user: dict = Depends(get_current_admin)):
+    """Returns defects with status='scrapped' optionally filtered by equipment category."""
+    defects = await db.equipment_defects.find(
+        {"status": "scrapped"}, {"_id": 0}
+    ).sort("resolved_at", -1).to_list(500)
+    if category:
+        result = []
+        for d in defects:
+            eq = await db.equipment.find_one(
+                {"id": d["equipment_id"]}, {"_id": 0, "category": 1}
+            )
+            eq_cat = (eq or {}).get("category") or "electronics"
+            if eq_cat == category:
+                result.append(d)
+        return result
+    return defects
+
+
+@router.delete("/equipment/defects/{defect_id}")
+async def delete_defect(defect_id: str,
+                         current_user: dict = Depends(get_current_admin)):
+    defect = await db.equipment_defects.find_one({"id": defect_id})
+    if not defect:
+        raise HTTPException(status_code=404, detail="Usterka nie znaleziona")
+    await db.equipment_defects.delete_one({"id": defect_id})
+    return {"message": "Usterka usunieta"}
 
 
 # ============= History =============

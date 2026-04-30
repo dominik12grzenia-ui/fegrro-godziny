@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -23,6 +23,8 @@ const ACTION_LABELS = {
   transfer_accepted: 'Przekazanie zaakceptowane',
   transfer_rejected: 'Przekazanie odrzucone',
   defect_reported: 'Zgloszono usterke',
+  defect_resolved: 'Usterka naprawiona',
+  defect_scrapped: 'Sprzet na zlomie',
   returned_to_warehouse: 'Zwrot do magazynu',
   return_acknowledged: 'Potwierdzono zwrot',
 };
@@ -43,10 +45,15 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const [filterForemanId, setFilterForemanId] = useState('');
   const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
   const [previewPhoto, setPreviewPhoto] = useState(null);
+  const [resolveModal, setResolveModal] = useState(null); // defect being resolved
+  const [resolveDest, setResolveDest] = useState('warehouse'); // 'warehouse' | 'foreman'
+  const [resolveForemanId, setResolveForemanId] = useState('');
+  const [scrapped, setScrapped] = useState([]);
+  const [showScrapped, setShowScrapped] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const [eqRes, forRes, asgRes, hisRes, defRes, trRes, wkRes, retRes] = await Promise.all([
+      const [eqRes, forRes, asgRes, hisRes, defRes, trRes, wkRes, retRes, scrRes] = await Promise.all([
         api.get(`/equipment?category=${encodeURIComponent(category)}`),
         api.get('/foremen'),
         api.get('/equipment/assignments/all'),
@@ -55,6 +62,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         api.get('/equipment/transfers/all'),
         api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null, foreman_name: null } })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
+        api.get(`/equipment/scrapped?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
       ]);
       setEquipment(eqRes.data);
       setForemen((forRes.data || []).filter((f) => f.status === 'active'));
@@ -64,6 +72,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setTransfers(trRes.data);
       setWarehouseKeeper(wkRes.data);
       setPendingReturns(retRes.data);
+      setScrapped(scrRes.data);
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
     } finally {
@@ -588,18 +597,23 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {defects.slice(0, 20).map((d) => (
+              {defects.slice(0, 20).map((d) => {
+                const resolved = d.status === 'resolved';
+                return (
                 <div
                   key={d.id}
-                  className="text-sm p-2 bg-[#1E293B] rounded border border-[#334155]"
+                  className={`text-sm p-2 rounded border ${resolved ? 'bg-[#1E293B] border-[#5F7151]/40 opacity-70' : 'bg-[#1E293B] border-[#334155]'}`}
                   data-testid={`defect-${d.id}`}
                 >
                   <div className="flex justify-between flex-wrap gap-2">
                     <span>
-                      <span className="text-[#E8836A] font-semibold">{d.equipment_name}</span>
+                      <span className={`font-semibold ${resolved ? 'text-[#5F7151] line-through' : 'text-[#E8836A]'}`}>{d.equipment_name}</span>
                       <span className="text-[#94A3B8]"> x {d.quantity}</span>
                       <span className="text-[#94A3B8]"> · </span>
                       <span className="text-[#CBD5E1]">{d.foreman_name}</span>
+                      {resolved && (
+                        <span className="ml-2 text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase">Naprawione</span>
+                      )}
                     </span>
                     <span className="text-[#64748B] text-xs">
                       {new Date(d.created_at).toLocaleString('pl-PL')}
@@ -607,8 +621,73 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                   </div>
                   {d.description && <p className="text-xs text-[#94A3B8] mt-1">{d.description}</p>}
                   {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(d.photo)} />}
+                  {resolved && d.resolved_by_name && (
+                    <p className="text-[11px] text-[#64748B] mt-1">
+                      Naprawione przez {d.resolved_by_name} · {d.resolved_at ? new Date(d.resolved_at).toLocaleString('pl-PL') : ''}
+                      {d.destination === 'foreman' && d.destination_foreman_name && (
+                        <span> → przekazano do <span className="text-[#6B8E4E] font-semibold">{d.destination_foreman_name}</span></span>
+                      )}
+                      {d.destination === 'warehouse' && (
+                        <span> → wrocil do magazynu</span>
+                      )}
+                    </p>
+                  )}
+                  <div className="flex gap-2 mt-2 flex-wrap">
+                    {!resolved && d.status !== 'scrapped' && (
+                      <>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setResolveModal(d);
+                            setResolveDest('warehouse');
+                            setResolveForemanId('');
+                          }}
+                          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7"
+                          data-testid={`resolve-defect-${d.id}`}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Naprawione
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            if (!window.confirm(`Przeniesc "${d.equipment_name}" (${d.quantity} szt.) na zlom? Operacja zmniejszy ilosc calkowita.`)) return;
+                            try {
+                              await api.post(`/equipment/defects/${d.id}/resolve`, { disposition: 'scrapped' });
+                              toast.success('Przeniesiono na zlom');
+                              fetchAll();
+                            } catch (err) {
+                              toast.error(err.response?.data?.detail || 'Blad');
+                            }
+                          }}
+                          className="bg-[#7F2D2D] hover:bg-[#5C1F1F] text-white text-xs h-7"
+                          data-testid={`scrap-defect-${d.id}`}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" /> Zlom
+                        </Button>
+                      </>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={async () => {
+                        if (!window.confirm('Usunac to zgloszenie usterki na stale?')) return;
+                        try {
+                          await api.delete(`/equipment/defects/${d.id}`);
+                          toast.success('Zgloszenie usuniete');
+                          fetchAll();
+                        } catch (err) {
+                          toast.error(err.response?.data?.detail || 'Blad');
+                        }
+                      }}
+                      className="text-[#E8836A] hover:bg-[#7F2D2D]/30 text-xs h-7"
+                      data-testid={`delete-defect-${d.id}`}
+                    >
+                      <Trash2 className="h-3 w-3 mr-1" /> Usun
+                    </Button>
+                  </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>
@@ -795,6 +874,134 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                   ))}
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Scrapped equipment list */}
+      {scrapped.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#334155]">
+          <CardHeader className="cursor-pointer" onClick={() => setShowScrapped((v) => !v)}>
+            <CardTitle className="text-[#CBD5E1] flex items-center gap-2 justify-between">
+              <span className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-[#E8836A]" /> Zlom i zaginiecia ({scrapped.length})
+              </span>
+              <span className="text-xs text-[#94A3B8]">{showScrapped ? 'Ukryj' : 'Pokaz'}</span>
+            </CardTitle>
+          </CardHeader>
+          {showScrapped && (
+            <CardContent>
+              <div className="space-y-2">
+                {scrapped.map((d) => (
+                  <div
+                    key={d.id}
+                    className="text-sm p-2 rounded border bg-[#1E293B] border-[#7F2D2D]/40"
+                    data-testid={`scrap-${d.id}`}
+                  >
+                    <div className="flex justify-between flex-wrap gap-2">
+                      <span>
+                        <span className="text-[#E8836A] font-semibold line-through">{d.equipment_name}</span>
+                        <span className="text-[#94A3B8]"> x {d.quantity}</span>
+                        <span className="text-[#94A3B8]"> · zglosil </span>
+                        <span className="text-[#CBD5E1]">{d.foreman_name}</span>
+                      </span>
+                      <span className="text-[#64748B] text-xs">
+                        {d.resolved_at ? new Date(d.resolved_at).toLocaleString('pl-PL') : new Date(d.created_at).toLocaleString('pl-PL')}
+                      </span>
+                    </div>
+                    {d.description && <p className="text-xs text-[#94A3B8] mt-1">{d.description}</p>}
+                    {d.resolved_by_name && (
+                      <p className="text-[11px] text-[#64748B] mt-1">Zezlomowal {d.resolved_by_name}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
+
+      {/* Resolve defect modal */}
+      {resolveModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1]">Naprawione: {resolveModal.equipment_name} ({resolveModal.quantity} szt.)</CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setResolveModal(null)} data-testid="close-resolve-modal">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-[#94A3B8]">Gdzie przekazac naprawiony sprzet?</p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resolve-dest"
+                    checked={resolveDest === 'warehouse'}
+                    onChange={() => setResolveDest('warehouse')}
+                    data-testid="resolve-dest-warehouse"
+                  />
+                  Do magazynu (dostepny w magazynie)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
+                  <input
+                    type="radio"
+                    name="resolve-dest"
+                    checked={resolveDest === 'foreman'}
+                    onChange={() => setResolveDest('foreman')}
+                    data-testid="resolve-dest-foreman"
+                  />
+                  Przekaz brygadziscie:
+                </label>
+                {resolveDest === 'foreman' && (
+                  <select
+                    value={resolveForemanId}
+                    onChange={(e) => setResolveForemanId(e.target.value)}
+                    className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                    data-testid="resolve-foreman-select"
+                  >
+                    <option value="">-- Wybierz brygadziste --</option>
+                    {foremen.map((f) => (
+                      <option key={f.id} value={f.id}>{f.full_name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+              <div className="flex gap-2 pt-2">
+                <Button
+                  onClick={async () => {
+                    if (resolveDest === 'foreman' && !resolveForemanId) {
+                      toast.error('Wybierz brygadziste');
+                      return;
+                    }
+                    try {
+                      await api.post(`/equipment/defects/${resolveModal.id}/resolve`, {
+                        disposition: 'repaired',
+                        destination: resolveDest,
+                        foreman_id: resolveDest === 'foreman' ? resolveForemanId : null,
+                      });
+                      toast.success('Oznaczono jako naprawione');
+                      setResolveModal(null);
+                      fetchAll();
+                    } catch (err) {
+                      toast.error(err.response?.data?.detail || 'Blad');
+                    }
+                  }}
+                  className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid="confirm-resolve-btn"
+                >
+                  Zatwierdz
+                </Button>
+                <Button
+                  onClick={() => setResolveModal(null)}
+                  variant="outline"
+                  className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
+                >
+                  Anuluj
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
