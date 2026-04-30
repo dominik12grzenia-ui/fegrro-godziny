@@ -105,7 +105,7 @@ export const AdminLogin = () => {
               className="text-[#6B8E4E] hover:underline text-sm font-medium"
               data-testid="worker-entry-link"
             >
-              Jestem pracownikiem →
+              Jestem brygadzistą →
             </button>
           </div>
         </CardContent>
