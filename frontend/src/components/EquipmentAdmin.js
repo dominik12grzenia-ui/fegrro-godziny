@@ -362,8 +362,8 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                   </tr>
                 </thead>
                 <tbody>
-                  {visibleEquipment.map((eq) => (
-                    <tr key={eq.id} data-testid={`equipment-row-${eq.id}`}>
+                  {visibleEquipment.map((eq, idx) => (
+                    <tr key={eq.id} data-testid={`equipment-row-${eq.id}`} className={idx % 2 === 0 ? 'bg-[#1E293B]/40' : 'bg-[#2A384C]'}>
                       <td className="border border-[#334155] p-1">
                         <Button
                           size="sm"

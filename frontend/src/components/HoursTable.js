@@ -27,6 +27,7 @@ export const HoursTable = () => {
   const [editingCell, setEditingCell] = useState(null);
   const [tempValue, setTempValue] = useState('');
   const [selectedSiteForAssignment, setSelectedSiteForAssignment] = useState(null);
+  const [expandedNameId, setExpandedNameId] = useState(null);
   const [pendingAssignments, setPendingAssignments] = useState({});
   const [holidays, setHolidays] = useState([]);
   const [hoveredCell, setHoveredCell] = useState(null);
@@ -907,27 +908,41 @@ export const HoursTable = () => {
                         <td className="border border-[#334155] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#1E293B] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                           {filteredEmployees.indexOf(employee) + 1}
                         </td>
-                        {/* Name - always neutral dark bg, no site color */}
+                        {/* Name - always neutral dark bg, no site color. Click to toggle full name on mobile. */}
                         <td className="border border-[#334155] p-1 sm:p-2 text-[#CBD5E1] font-medium bg-[#1E293B] sticky left-[35px] z-[15] max-w-[100px] sm:max-w-none" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
-                          <div className="flex items-center gap-1 sm:gap-2">
-                            <span className="truncate text-xs sm:text-sm">{employee.full_name}</span>
-                            {selectedSiteForAssignment && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleSelectFullMonth(employee.id); }}
-                                className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white transition-colors whitespace-nowrap border border-[#5F7151]/50"
-                                data-testid={`full-month-${employee.id}`}
-                              >
-                                Caly m-c
-                              </button>
-                            )}
-                            {isAdmin && selectedSiteForAssignment && (
-                              <button
-                                onClick={(e) => { e.stopPropagation(); handleUnassign(employee.id, employee.full_name); }}
-                                className="shrink-0 text-[10px] px-1.5 py-1 rounded font-semibold bg-[#4A2020] text-red-400 hover:bg-red-800 hover:text-white transition-colors whitespace-nowrap border border-red-800/50"
-                                data-testid={`unassign-${employee.id}`}
-                              >
-                                Odpisz
-                              </button>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedNameId((prev) => prev === employee.id ? null : employee.id);
+                              }}
+                              className={`text-left text-[#CBD5E1] hover:text-white text-xs sm:text-sm leading-tight ${expandedNameId === employee.id ? 'whitespace-normal break-words' : 'truncate'}`}
+                              data-testid={`emp-name-toggle-${employee.id}`}
+                            >
+                              {employee.full_name}
+                            </button>
+                            {(selectedSiteForAssignment || (isAdmin && selectedSiteForAssignment)) && (
+                              <div className="flex gap-1 shrink-0 self-start sm:self-auto">
+                                {selectedSiteForAssignment && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleSelectFullMonth(employee.id); }}
+                                    className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white transition-colors whitespace-nowrap border border-[#5F7151]/50"
+                                    data-testid={`full-month-${employee.id}`}
+                                  >
+                                    Caly m-c
+                                  </button>
+                                )}
+                                {isAdmin && selectedSiteForAssignment && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleUnassign(employee.id, employee.full_name); }}
+                                    className="shrink-0 text-[10px] px-1.5 py-1 rounded font-semibold bg-[#4A2020] text-red-400 hover:bg-red-800 hover:text-white transition-colors whitespace-nowrap border border-red-800/50"
+                                    data-testid={`unassign-${employee.id}`}
+                                  >
+                                    Odpisz
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </td>
