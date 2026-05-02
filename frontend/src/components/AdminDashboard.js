@@ -219,9 +219,9 @@ export const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-[#94A3B8]">Zamówienia</p>
-                  <p className="text-3xl font-bold text-[#E8B76A]">{stats.pendingClothing}</p>
+                  <p className="text-3xl font-bold text-[#5F7151]">{stats.pendingClothing}</p>
                 </div>
-                <Shirt className="h-12 w-12 text-[#E8B76A] opacity-20" />
+                <Shirt className="h-12 w-12 text-[#5F7151] opacity-20" />
               </div>
             </CardContent>
           </Card>
