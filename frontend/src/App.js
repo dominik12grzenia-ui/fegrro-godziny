@@ -53,17 +53,7 @@ const ProtectedWorkerRoute = ({ children }) => {
   return children;
 };
 
-const Home = () => {
-  // Stary PWA kafelek pracownika prowadzi do / - przekieruj do jego godzin,
-  // ALE tylko gdy uzytkownik NIE jest zalogowany jako brygadzista/admin (ma JWT).
-  if (typeof window !== 'undefined') {
-    const isStandalone = window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone;
-    const workerToken = localStorage.getItem('fegrro_worker_token');
-    const authToken = localStorage.getItem('token');
-    if (isStandalone && workerToken && !authToken) return <Navigate to={`/hours/${workerToken}`} replace />;
-  }
-  return <Navigate to="/foreman" />;
-};
+const Home = () => <Navigate to="/foreman" replace />;
 
 function AppRoutes() {
   return (

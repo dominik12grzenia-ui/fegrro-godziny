@@ -797,6 +797,79 @@ export const AdminDashboard = () => {
 
           {/* Tools Tab */}
           <TabsContent value="tools" className="space-y-4 bg-[#1E293B]">
+            {/* Shareable system links */}
+            <Card className="bg-[#2A384C] border-[#334155]">
+              <CardHeader>
+                <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                  <Link className="h-5 w-5 text-[#5F7151]" />
+                  Linki dostępowe
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { label: 'Link administratora', path: '/login', testid: 'copy-admin-link' },
+                  { label: 'Link brygadzisty / magazyniera', path: '/foreman', testid: 'copy-foreman-link' },
+                ].map((item) => {
+                  const fullUrl = `${window.location.origin}${item.path}`;
+                  return (
+                    <div key={item.path} className="bg-[#1E293B] p-3 rounded-lg border border-[#334155]">
+                      <p className="text-[#CBD5E1] font-semibold text-sm mb-2">{item.label}</p>
+                      <div className="flex gap-2 items-center">
+                        <code className="flex-1 text-xs text-[#94A3B8] bg-[#0F172A] p-2 rounded break-all">{fullUrl}</code>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            navigator.clipboard.writeText(fullUrl);
+                            toast.success('Skopiowano');
+                          }}
+                          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                          data-testid={item.testid}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="text-[11px] text-[#64748B]">
+                  Te linki są stałe. Każdy brygadzista logujący się przez swój link zobaczy tylko panel brygadzisty - nie ma przełącznika do panelu admina.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Rotate worker tokens */}
+            <Card className="bg-[#2A384C] border-[#334155]">
+              <CardHeader>
+                <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-[#E8836A]" />
+                  Unieważnij wszystkie linki pracowników
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-[#94A3B8] mb-3">
+                  Wygeneruje nowe tokeny dla <strong>wszystkich</strong> pracowników. Stare linki natychmiast przestaną działać.
+                  Po tym wejdź w zakładkę Pracownicy i wyślij nowe linki wybranym osobom.
+                </p>
+                <Button
+                  onClick={async () => {
+                    if (!window.confirm('Unieważnic wszystkie aktualne linki pracowników? Tej operacji nie da się cofnąć - stare linki staną się nieaktywne, trzeba będzie wysłać nowe.')) return;
+                    try {
+                      const res = await api.post('/employees/rotate-tokens');
+                      toast.success(res.data.message);
+                      fetchData();
+                    } catch (err) {
+                      toast.error(err.response?.data?.detail || 'Blad');
+                    }
+                  }}
+                  className="bg-[#7F2D2D] hover:bg-[#5C1F1F] text-white"
+                  data-testid="rotate-worker-tokens-btn"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  Unieważnij i wygeneruj nowe tokeny
+                </Button>
+              </CardContent>
+            </Card>
+
             {/* OneDrive Excel Sync */}
             <Card className="bg-[#2A384C] border-[#334155]">
               <CardHeader>

@@ -148,6 +148,23 @@ async def generate_all_links(
     return results
 
 
+@router.post("/employees/rotate-tokens")
+async def rotate_all_public_tokens(
+    current_user: dict = Depends(get_current_admin)
+):
+    """Regenerate public_token for ALL employees - invalidates every existing link."""
+    employees = await db.employees.find({}, {"_id": 0, "id": 1, "full_name": 1}).to_list(5000)
+    updated = 0
+    for emp in employees:
+        new_token = secrets.token_urlsafe(16)
+        await db.employees.update_one(
+            {"id": emp["id"]},
+            {"$set": {"public_token": new_token}}
+        )
+        updated += 1
+    return {"rotated": updated, "message": f"Zrotowano {updated} tokenow - stare linki pracownikow sa juz nieaktywne"}
+
+
 @router.post("/employees/cleanup-duplicates")
 async def cleanup_duplicate_employees(
     current_user: dict = Depends(get_current_admin)

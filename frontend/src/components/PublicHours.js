@@ -56,11 +56,11 @@ export const PublicHours = () => {
     fetchData();
   }, [token, selectedMonth]);
 
-  // Dynamiczny manifest PWA + zapamietanie tokenu dla starych kafelkow
+  // Dynamiczny manifest PWA dla pracownika
   useEffect(() => {
     if (!token) return;
-    // Zapamietaj worker token - uzywany gdy PWA otworzy sie na /login lub / (stare kafelki)
-    try { localStorage.setItem('fegrro_worker_token', token); } catch {}
+    // Wyczysc stary marker worker_token aby nie kolidowal z kafelkami admin/brygadzisty
+    try { localStorage.removeItem('fegrro_worker_token'); } catch {}
 
     if (!data?.employee_name) return;
 
