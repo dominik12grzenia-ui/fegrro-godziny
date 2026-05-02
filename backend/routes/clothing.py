@@ -7,11 +7,20 @@ Workflow:
 - Worker can re-order the same type only after usage_period elapses from last 'issued' order
   AND when yearly quota hasn't been exceeded.
 """
-from fastapi import APIRouter, HTTPException, Depends
+import base64
+import io
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import Response
 from datetime import datetime, timedelta
 from typing import Optional, List
 from pydantic import BaseModel, Field
 import uuid
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib import colors
+from reportlab.lib.units import mm
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from database import db
 from auth import get_current_user, get_current_admin
@@ -608,3 +617,204 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
 
     order.pop("_id", None)
     return order
+
+
+
+# ============= PDF export (admin) =============
+_PL_MAP = {
+    "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n",
+    "ó": "o", "ś": "s", "ź": "z", "ż": "z",
+    "Ą": "A", "Ć": "C", "Ę": "E", "Ł": "L", "Ń": "N",
+    "Ó": "O", "Ś": "S", "Ź": "Z", "Ż": "Z",
+}
+_BODY_LABELS = {"chudy": "Szczuply", "sredni": "Sredni", "gruby": "Silny"}
+
+
+def _ascii(text) -> str:
+    if text is None:
+        return ""
+    s = str(text)
+    for k, v in _PL_MAP.items():
+        s = s.replace(k, v)
+    return s
+
+
+def _decode_photo(photo: Optional[str]) -> Optional[io.BytesIO]:
+    if not photo:
+        return None
+    data = photo
+    if "," in data:
+        # strip "data:image/...;base64,"
+        data = data.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(data, validate=False)
+    except (ValueError, TypeError):
+        return None
+    # Validate via PIL to avoid broken-stream crashes in reportlab
+    try:
+        from PIL import Image as PILImage
+        bio = io.BytesIO(raw)
+        img = PILImage.open(bio)
+        img.verify()  # raises on broken
+        # verify() closes the file; re-open for reportlab to use
+        return io.BytesIO(raw)
+    except Exception:
+        return None
+
+
+@router.get("/clothing/orders/pdf")
+async def export_orders_pdf(
+    status: str = Query("ordered", pattern="^(ordered|issued|all)$"),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Generate a PDF with orders grouped by clothing type.
+    status=ordered (default) -> only pending orders; status=all -> everything.
+    Each row: Zdjecie | Nazwa | Ilosc | Lista pracownikow z wymiarami.
+    """
+    # 1) Fetch orders
+    query = {}
+    if status == "ordered":
+        query = {"status": {"$ne": "issued"}}
+    elif status == "issued":
+        query = {"status": "issued"}
+
+    orders = await db.clothing_orders.find(query, {"_id": 0}).to_list(5000)
+    types = await db.clothing_types.find({}, {"_id": 0}).to_list(500)
+    types_by_id = {t["id"]: t for t in types}
+
+    # 2) Fetch employees for profile lookup
+    emp_ids = list({o.get("employee_id") for o in orders if o.get("employee_id")})
+    emp_docs = []
+    if emp_ids:
+        emp_docs = await db.employees.find(
+            {"id": {"$in": emp_ids}},
+            {"_id": 0, "id": 1, "full_name": 1, "clothing_profile": 1},
+        ).to_list(5000)
+    emp_by_id = {e["id"]: e for e in emp_docs}
+
+    # 3) Group orders by clothing_type_id
+    groups = {}
+    for o in orders:
+        tid = o.get("clothing_type_id")
+        if not tid:
+            continue
+        if tid not in groups:
+            groups[tid] = {"type": types_by_id.get(tid) or {"id": tid, "name": o.get("clothing_type_name", "?")}, "orders": []}
+        groups[tid]["orders"].append(o)
+
+    # Sort by clothing name
+    sorted_groups = sorted(groups.values(), key=lambda g: _ascii(g["type"].get("name", "")).lower())
+
+    # 4) Build PDF
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=A4,
+        leftMargin=10 * mm, rightMargin=10 * mm,
+        topMargin=12 * mm, bottomMargin=12 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle(
+        "Title", parent=styles["Heading1"], fontSize=16, alignment=1, spaceAfter=4
+    )
+    sub_style = ParagraphStyle(
+        "Sub", parent=styles["Normal"], fontSize=9, alignment=1, spaceAfter=10, textColor=colors.HexColor("#64748B")
+    )
+    cell_style = ParagraphStyle(
+        "Cell", parent=styles["Normal"], fontSize=8, leading=10
+    )
+    name_style = ParagraphStyle(
+        "Name", parent=styles["Normal"], fontSize=10, leading=12, fontName="Helvetica-Bold"
+    )
+    workers_style = ParagraphStyle(
+        "Workers", parent=styles["Normal"], fontSize=8, leading=11
+    )
+
+    elements = [
+        Paragraph("FeGrro - Zamowienie ubran", title_style),
+        Paragraph(
+            _ascii(f"Status: {status} | Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M')}"),
+            sub_style,
+        ),
+        Spacer(1, 2 * mm),
+    ]
+
+    if not sorted_groups:
+        elements.append(Paragraph("Brak zamowien do eksportu.", cell_style))
+    else:
+        header = [
+            Paragraph("<b>Zdjecie</b>", cell_style),
+            Paragraph("<b>Nazwa</b>", cell_style),
+            Paragraph("<b>Szt.</b>", cell_style),
+            Paragraph("<b>Pracownicy (imie, wzrost, but, sylwetka)</b>", cell_style),
+        ]
+        table_data = [header]
+
+        for g in sorted_groups:
+            ct = g["type"]
+            # Photo cell
+            photo_buf = _decode_photo(ct.get("photo"))
+            if photo_buf:
+                try:
+                    img = RLImage(photo_buf, width=28 * mm, height=28 * mm, kind="proportional")
+                    photo_cell = img
+                except Exception:
+                    photo_cell = Paragraph("-", cell_style)
+            else:
+                photo_cell = Paragraph("<i>brak</i>", cell_style)
+
+            # Quantity
+            total_qty = sum(int(o.get("quantity") or 0) for o in g["orders"])
+
+            # Workers list
+            lines = []
+            orders_sorted = sorted(g["orders"], key=lambda o: _ascii(o.get("employee_name", "")).lower())
+            for o in orders_sorted:
+                emp = emp_by_id.get(o.get("employee_id")) or {}
+                prof = emp.get("clothing_profile") or {}
+                shoe = o.get("shoe_size") or prof.get("shoe_size") or "-"
+                height = o.get("height") or prof.get("height") or "-"
+                body = o.get("body_type") or prof.get("body_type")
+                body_lbl = _BODY_LABELS.get(body, "-") if body else "-"
+                name = _ascii(o.get("employee_name") or emp.get("full_name") or "?")
+                qty = int(o.get("quantity") or 0)
+                issued_mark = " [WYD]" if o.get("status") == "issued" else ""
+                lines.append(
+                    f"&bull; <b>{name}</b>{issued_mark} &middot; x{qty} &middot; "
+                    f"wzrost {_ascii(height)} &middot; but {_ascii(shoe)} &middot; sylwetka {body_lbl}"
+                )
+            workers_html = "<br/>".join(lines) if lines else "-"
+
+            table_data.append([
+                photo_cell,
+                Paragraph(_ascii(ct.get("name", "")), name_style),
+                Paragraph(str(total_qty), cell_style),
+                Paragraph(workers_html, workers_style),
+            ])
+
+        col_widths = [32 * mm, 45 * mm, 12 * mm, 101 * mm]
+        table = Table(table_data, colWidths=col_widths, repeatRows=1)
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2A384C")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#94A3B8")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (2, 1), (2, -1), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, -1), 5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+            ("LEFTPADDING", (0, 0), (-1, -1), 4),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F1F5F9")]),
+        ]))
+        elements.append(table)
+
+    doc.build(elements)
+    pdf_bytes = buffer.getvalue()
+    buffer.close()
+
+    filename = f"zamowienie_ubran_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Shirt, Plus, Trash2, Check, Edit, X } from 'lucide-react';
+import { Shirt, Plus, Trash2, Check, Edit, X, Download } from 'lucide-react';
 import { toast } from 'sonner';
 import { BODY_TYPES } from './BodySilhouettes';
 
@@ -167,6 +167,25 @@ export const ClothingAdmin = () => {
     }
   };
 
+  const exportOrdersPdf = async (statusFilter = 'ordered') => {
+    try {
+      const resp = await api.get(`/clothing/orders/pdf?status=${statusFilter}`, { responseType: 'blob' });
+      const blob = new Blob([resp.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
+      a.href = url;
+      a.download = `zamowienie_ubran_${ts}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('PDF wygenerowany');
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad eksportu PDF');
+    }
+  };
+
   if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
 
   return (
@@ -278,9 +297,30 @@ export const ClothingAdmin = () => {
       {subtab === 'orders' && (
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader>
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-              <Shirt className="h-5 w-5 text-[#5F7151]" /> Zamówione ubrania
-            </CardTitle>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <Shirt className="h-5 w-5 text-[#5F7151]" /> Zamówione ubrania
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => exportOrdersPdf('ordered')}
+                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
+                  data-testid="export-orders-pdf-pending"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (do wydania)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => exportOrdersPdf('all')}
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
+                  data-testid="export-orders-pdf-all"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (wszystkie)
+                </Button>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {grouped.length === 0 ? (
