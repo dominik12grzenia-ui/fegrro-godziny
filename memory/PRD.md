@@ -83,11 +83,14 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
 ## Completed (2026-02-12)
-- **PDF eksport zamowien ubran** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
+- **PDF eksport zamowien ubran z grupowaniem rozmiarow** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
   - Endpoint: `GET /api/clothing/orders/pdf?status={ordered|issued|all}` (admin only)
-  - Tabela zgrupowana po typie ubrania: Zdjecie | Nazwa | Ilosc | Lista pracownikow (imie, wzrost, rozmiar buta, sylwetka, [WYD] marker)
-  - Uzywa istniejacego reportlab + PIL do walidacji zdjec (fallback na "brak" przy uszkodzonych)
-  - Zweryfikowane: 200 OK dla ordered/issued/all, PDF magic bytes, obrazy renderowane poprawnie
+  - Tabela zgrupowana po typie ubrania: Zdjecie | Nazwa | Ilosc | Pracownicy
+  - **Podsumowanie rozmiarow** (zielona linia na gorze listy pracownikow):
+    - Buty (jesli `requires_shoe_size`): `Buty: 42: 2 szt., 44: 1 szt., 45: 1 szt.`
+    - Pozostale ubrania: `Sylwetka: Szczuply: 1, Sredni: 2, Silny: 1`
+  - Walidacja zdjec przez PIL (odpornosc na uszkodzone base64)
+  - 10/10 testow tekstu PDF (pypdf): naglowki, liczniki, sortowanie numeryczne butow
 - Cache-busting PWA: nowy sw.js (network-only dla HTML/sw/manifest, cache-first dla /static/* z hashem)
 - index.js: auto-reload przy aktywacji nowego SW (updatefound -> SKIP_WAITING -> controllerchange)
 - vercel.json: Cache-Control no-store dla /, /index.html, /sw.js, /manifest.json + immutable dla /static/*

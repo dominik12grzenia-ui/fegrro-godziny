@@ -766,6 +766,33 @@ async def export_orders_pdf(
             # Quantity
             total_qty = sum(int(o.get("quantity") or 0) for o in g["orders"])
 
+            # Size summary - group by shoe_size if type requires shoe, otherwise by body_type
+            requires_shoe = bool(ct.get("requires_shoe_size"))
+            size_counts = {}  # label -> qty
+            for o in g["orders"]:
+                emp = emp_by_id.get(o.get("employee_id")) or {}
+                prof = emp.get("clothing_profile") or {}
+                qty = int(o.get("quantity") or 0)
+                if requires_shoe:
+                    label = _ascii(o.get("shoe_size") or prof.get("shoe_size") or "?")
+                else:
+                    body = o.get("body_type") or prof.get("body_type")
+                    label = _BODY_LABELS.get(body, "?") if body else "?"
+                size_counts[label] = size_counts.get(label, 0) + qty
+            # Sort: shoes numerically, body_type by predefined order
+            if requires_shoe:
+                def _shoe_key(k):
+                    try:
+                        return (0, int(k))
+                    except (ValueError, TypeError):
+                        return (1, k)
+                size_pairs = sorted(size_counts.items(), key=lambda kv: _shoe_key(kv[0]))
+            else:
+                order_lbl = {"Szczuply": 0, "Sredni": 1, "Silny": 2, "?": 99}
+                size_pairs = sorted(size_counts.items(), key=lambda kv: order_lbl.get(kv[0], 50))
+            size_summary = ", ".join(f"<b>{lbl}</b>: {q} szt." for lbl, q in size_pairs)
+            size_label = "Buty" if requires_shoe else "Sylwetka"
+
             # Workers list
             lines = []
             orders_sorted = sorted(g["orders"], key=lambda o: _ascii(o.get("employee_name", "")).lower())
@@ -783,7 +810,11 @@ async def export_orders_pdf(
                     f"&bull; <b>{name}</b>{issued_mark} &middot; x{qty} &middot; "
                     f"wzrost {_ascii(height)} &middot; but {_ascii(shoe)} &middot; sylwetka {body_lbl}"
                 )
-            workers_html = "<br/>".join(lines) if lines else "-"
+            summary_block = (
+                f'<font color="#5F7151"><b>{size_label}:</b> {size_summary}</font><br/>'
+                if size_summary else ""
+            )
+            workers_html = summary_block + ("<br/>".join(lines) if lines else "-")
 
             table_data.append([
                 photo_cell,
