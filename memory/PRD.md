@@ -1,5 +1,12 @@
 # FeGrro - System Rejestracji Godzin Pracy
 
+## Production URLs
+- **Frontend (Vercel)**: https://godziny.fegrro.pl
+  - Admin login: https://godziny.fegrro.pl/login
+  - Brygadzista login: https://godziny.fegrro.pl/foreman
+  - Publiczny link pracownika: https://godziny.fegrro.pl/hours/{token}
+- **Sandbox preview**: https://nostalgic-visvesvaraya-4.preview.emergentagent.com
+
 ## Problem Statement
 Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracowników na budowach.
 
