@@ -1,6 +1,7 @@
 {
   "name": "FeGrro Godziny",
   "short_name": "FeGrro",
+  "version": "2026-02-12-01",
   "description": "System rejestracji godzin pracy - FeGrro",
   "start_url": "/login",
   "display": "standalone",

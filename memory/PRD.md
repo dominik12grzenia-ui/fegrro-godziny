@@ -75,6 +75,12 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - Pelna historia (Utworzono/Edytowano/Przypisano/Przekazanie zlozone-zaakceptowane-odrzucone/Usterka)
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
+## Completed (2026-02-12)
+- Cache-busting PWA: nowy sw.js (network-only dla HTML/sw/manifest, cache-first dla /static/* z hashem)
+- index.js: auto-reload przy aktywacji nowego SW (updatefound -> SKIP_WAITING -> controllerchange)
+- vercel.json: Cache-Control no-store dla /, /index.html, /sw.js, /manifest.json + immutable dla /static/*
+- Efekt: po deployu na Vercelu kazde wejscie w link pokazuje najnowsza wersje bez recznego czyszczenia cache
+
 ## Completed (2026-02-XX, ten fork)
 - Lokalizacje (manualne) calkowicie oddzielone od Budow z Excela:
   - Discriminator: `excel_column` (truthy = Excel-synced, falsy = manualna)
