@@ -80,10 +80,11 @@ scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
 async def startup_event():
-    # Create admin user if not exists
+    # Create admin user if not exists, or sync password from env if ADMIN_PASSWORD is set
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@fegrro.pl")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
-    
+    force_reset = os.environ.get("ADMIN_PASSWORD_RESET", "").lower() in ("1", "true", "yes")
+
     existing_admin = await db.users.find_one({"email": admin_email})
     if not existing_admin:
         admin_id = str(uuid.uuid4())
@@ -97,6 +98,13 @@ async def startup_event():
         }
         await db.users.insert_one(admin_doc)
         logger.info(f"Admin user created: {admin_email}")
+    elif force_reset:
+        # One-shot password reset: set ADMIN_PASSWORD_RESET=true on Render, deploy, then remove the flag
+        await db.users.update_one(
+            {"email": admin_email},
+            {"$set": {"hashed_password": get_password_hash(admin_password)}}
+        )
+        logger.warning(f"Admin password reset from ADMIN_PASSWORD env for {admin_email}")
 
     # Start the scheduler for automatic jobs
     scheduler.add_job(
