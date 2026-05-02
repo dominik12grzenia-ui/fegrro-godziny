@@ -228,28 +228,46 @@ export const ClothingOrderPublic = ({ token }) => {
             );
           })}
 
-          {myOrders.length > 0 && (
-            <div className="mt-3 pt-3 border-t border-[#334155]">
-              <p className="text-[#94A3B8] text-xs font-semibold mb-2">Moje zamówienia</p>
-              <div className="space-y-1">
-                {myOrders.slice(0, 10).map((o) => (
-                  <div key={o.id} className="text-xs bg-[#1E293B] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
-                    <span>
-                      <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
-                      <span className="text-[#94A3B8]"> x {o.quantity}</span>
-                    </span>
-                    <span>
-                      {o.status === 'issued' ? (
-                        <span className="text-[#6B8E4E] font-semibold">Wydane · {o.issued_at ? new Date(o.issued_at).toLocaleDateString('pl-PL') : ''}</span>
-                      ) : (
-                        <span className="text-[#E8B76A]">Zamówione · {new Date(o.created_at).toLocaleDateString('pl-PL')}</span>
-                      )}
-                    </span>
+          {myOrders.length > 0 && (() => {
+            const pending = myOrders.filter((o) => o.status !== 'issued');
+            const issued = myOrders.filter((o) => o.status === 'issued');
+            return (
+              <div className="mt-3 pt-3 border-t border-[#334155] space-y-3">
+                {pending.length > 0 && (
+                  <div>
+                    <p className="text-[#E8B76A] text-xs font-semibold mb-1">Zamówione (czekają na realizację)</p>
+                    <div className="space-y-1">
+                      {pending.map((o) => (
+                        <div key={o.id} className="text-xs bg-[#1E293B] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
+                          <span>
+                            <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
+                            <span className="text-[#94A3B8]"> x {o.quantity}</span>
+                          </span>
+                          <span className="text-[#E8B76A]">{new Date(o.created_at).toLocaleDateString('pl-PL')}</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                ))}
+                )}
+                {issued.length > 0 && (
+                  <div>
+                    <p className="text-[#6B8E4E] text-xs font-semibold mb-1">Dostarczone</p>
+                    <div className="space-y-1">
+                      {issued.slice(0, 15).map((o) => (
+                        <div key={o.id} className="text-xs bg-[#1E293B]/60 p-2 rounded flex justify-between flex-wrap gap-2 opacity-70" data-testid={`my-clothing-${o.id}`}>
+                          <span>
+                            <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
+                            <span className="text-[#94A3B8]"> x {o.quantity}</span>
+                          </span>
+                          <span className="text-[#6B8E4E]">Odebrane · {o.issued_at ? new Date(o.issued_at).toLocaleDateString('pl-PL') : ''}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
         </CardContent>
       </Card>
 

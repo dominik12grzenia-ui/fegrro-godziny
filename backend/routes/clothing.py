@@ -30,6 +30,8 @@ class ClothingTypeCreate(BaseModel):
     requires_height: bool = True
     requires_body_type: bool = True
     photo: Optional[str] = None  # base64
+    tier_group: Optional[str] = None  # items with same group are exclusive (e.g. "spodnie")
+    tier_level: int = 1  # higher = more premium; cannot downgrade within same group after ordering
 
 
 class ClothingTypeUpdate(BaseModel):
@@ -43,6 +45,8 @@ class ClothingTypeUpdate(BaseModel):
     requires_body_type: Optional[bool] = None
     is_active: Optional[bool] = None
     photo: Optional[str] = None
+    tier_group: Optional[str] = None
+    tier_level: Optional[int] = None
 
 
 class ClothingOrderCreate(BaseModel):
@@ -54,6 +58,12 @@ class ClothingProfileUpdate(BaseModel):
     shoe_size: Optional[str] = None
     height: Optional[str] = None
     body_type: Optional[str] = None  # 'chudy' | 'sredni' | 'gruby'
+
+
+class EmployeeLimitUpdate(BaseModel):
+    employee_id: str
+    clothing_type_id: str
+    yearly_limit: Optional[int] = None  # None = use default from type
 
 
 # ============= Helpers =============
@@ -79,16 +89,14 @@ def _months_between(start_month: int, end_month: int, check_month: int) -> bool:
 
 
 async def _compute_remaining(ct: dict, employee_id: str) -> dict:
-    """For given clothing type and employee, compute:
-    - ordered_this_year: count of orders placed this year
-    - remaining_this_year: yearly_limit - ordered_this_year
-    - next_available_at: ISO datetime when a new order becomes possible (None if now)
-    - can_order_now: bool
-    - reason: human readable reason if cannot order
-    """
+    """For given clothing type and employee, compute can_order_now + reason."""
     now = datetime.now()
     year = now.year
-    yearly_limit = int(ct.get("yearly_limit") or 0)
+
+    # Per-employee limit override (falls back to type default)
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "clothing_limits": 1})
+    overrides = (emp or {}).get("clothing_limits") or {}
+    yearly_limit = int(overrides.get(ct["id"]) or ct.get("yearly_limit") or 0)
     usage_period = int(ct.get("usage_period_months") or 0)
 
     orders = await db.clothing_orders.find(
@@ -96,16 +104,14 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
         {"_id": 0}
     ).to_list(500)
 
-    # Count ordered this year
     ordered_this_year = 0
     for o in orders:
         created = _parse_dt(o.get("created_at"))
         if created and created.year == year:
             ordered_this_year += int(o.get("quantity") or 0)
-
     remaining = max(0, yearly_limit - ordered_this_year)
 
-    # Next available based on last issued order + usage_period
+    # Usage period blocker
     next_available_at = None
     if usage_period > 0:
         last_issued = None
@@ -119,12 +125,35 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
             if cutoff > now:
                 next_available_at = cutoff.isoformat()
 
-    # Order window
+    # Tier lock: look at ALL orders in same tier_group (any status) placed this year;
+    # the tier_level of the first one locks the employee into that level (same tier only).
+    tier_locked_level = None
+    tier_locked_name = None
+    tg = ct.get("tier_group")
+    if tg:
+        all_types = await db.clothing_types.find(
+            {"tier_group": tg}, {"_id": 0, "id": 1, "name": 1, "tier_level": 1}
+        ).to_list(200)
+        group_ids = [t["id"] for t in all_types]
+        group_orders = await db.clothing_orders.find(
+            {"clothing_type_id": {"$in": group_ids}, "employee_id": employee_id},
+            {"_id": 0}
+        ).sort("created_at", 1).to_list(200)
+        for go in group_orders:
+            created = _parse_dt(go.get("created_at"))
+            if created and created.year == year:
+                first_type = next((t for t in all_types if t["id"] == go["clothing_type_id"]), None)
+                tier_locked_level = int((first_type or {}).get("tier_level") or 1)
+                tier_locked_name = (first_type or {}).get("name")
+                break
+
     in_window = _months_between(ct["start_month"], ct["end_month"], now.month)
 
     reason = None
     if not ct.get("is_active", True):
         reason = "Pozycja nieaktywna"
+    elif tier_locked_level is not None and int(ct.get("tier_level") or 1) != tier_locked_level:
+        reason = f"Masz juz zamowienie: {tier_locked_name} (inny wariant tej grupy)"
     elif remaining <= 0:
         reason = f"Roczny limit wyczerpany ({ordered_this_year}/{yearly_limit})"
     elif next_available_at is not None:
@@ -135,9 +164,12 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
     return {
         "ordered_this_year": ordered_this_year,
         "remaining_this_year": remaining,
+        "yearly_limit_effective": yearly_limit,
         "next_available_at": next_available_at,
         "can_order_now": reason is None,
         "reason": reason,
+        "tier_locked_level": tier_locked_level,
+        "tier_locked_name": tier_locked_name,
     }
 
 
@@ -162,6 +194,8 @@ async def create_clothing_type(payload: ClothingTypeCreate,
         "requires_height": payload.requires_height,
         "requires_body_type": payload.requires_body_type,
         "photo": payload.photo,
+        "tier_group": (payload.tier_group or "").strip() or None,
+        "tier_level": int(payload.tier_level or 1),
         "is_active": True,
         "created_at": datetime.now().isoformat(),
     }
@@ -192,6 +226,31 @@ async def delete_clothing_type(type_id: str,
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Pozycja nie znaleziona")
     return {"message": "Pozycja usunieta"}
+
+
+@router.post("/clothing/employee-limit")
+async def set_employee_limit(payload: EmployeeLimitUpdate,
+                              current_user: dict = Depends(get_current_admin)):
+    """Override yearly_limit for a specific employee + clothing type. Pass yearly_limit=null to reset."""
+    emp = await db.employees.find_one({"id": payload.employee_id}, {"_id": 0})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    ct = await db.clothing_types.find_one({"id": payload.clothing_type_id}, {"_id": 0})
+    if not ct:
+        raise HTTPException(status_code=404, detail="Pozycja nie znaleziona")
+
+    key = f"clothing_limits.{payload.clothing_type_id}"
+    if payload.yearly_limit is None:
+        await db.employees.update_one(
+            {"id": payload.employee_id},
+            {"$unset": {key: ""}}
+        )
+    else:
+        await db.employees.update_one(
+            {"id": payload.employee_id},
+            {"$set": {key: int(payload.yearly_limit)}}
+        )
+    return {"message": "Limit zaktualizowany"}
 
 
 # ============= Orders (admin) =============
@@ -265,7 +324,7 @@ async def delete_order(order_id: str,
 @router.get("/clothing/employees-summary")
 async def employees_summary(current_user: dict = Depends(get_current_admin)):
     """For each employee returns counts per clothing type: issued_count, remaining_this_year, can_order_now."""
-    employees = await db.employees.find({}, {"_id": 0, "id": 1, "full_name": 1}).sort("full_name", 1).to_list(5000)
+    employees = await db.employees.find({}, {"_id": 0, "id": 1, "full_name": 1, "clothing_limits": 1}).sort("full_name", 1).to_list(5000)
     types = await db.clothing_types.find({"is_active": True}, {"_id": 0}).to_list(500)
 
     result = []
@@ -273,7 +332,6 @@ async def employees_summary(current_user: dict = Depends(get_current_admin)):
         per_type = []
         for ct in types:
             info = await _compute_remaining(ct, emp["id"])
-            # count 'issued' ever (all-time)
             issued_count = await db.clothing_orders.count_documents({
                 "clothing_type_id": ct["id"],
                 "employee_id": emp["id"],
@@ -283,6 +341,8 @@ async def employees_summary(current_user: dict = Depends(get_current_admin)):
                 "clothing_type_id": ct["id"],
                 "clothing_type_name": ct["name"],
                 "yearly_limit": ct["yearly_limit"],
+                "yearly_limit_effective": info["yearly_limit_effective"],
+                "limit_overridden": (emp.get("clothing_limits") or {}).get(ct["id"]) is not None,
                 "ordered_this_year": info["ordered_this_year"],
                 "remaining_this_year": info["remaining_this_year"],
                 "issued_count_total": issued_count,

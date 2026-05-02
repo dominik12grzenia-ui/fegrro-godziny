@@ -29,6 +29,8 @@ export const ClothingAdmin = () => {
     requires_height: true,
     requires_body_type: true,
     photo: null,
+    tier_group: '',
+    tier_level: '1',
   });
 
   const fetchAll = useCallback(async () => {
@@ -57,7 +59,7 @@ export const ClothingAdmin = () => {
     setForm({
       name: '', yearly_limit: '2', start_month: '1', end_month: '12',
       usage_period_months: '6', requires_shoe_size: false, requires_height: true, requires_body_type: true,
-      photo: null,
+      photo: null, tier_group: '', tier_level: '1',
     });
     setShowAddType(true);
   };
@@ -73,6 +75,8 @@ export const ClothingAdmin = () => {
       requires_height: !!t.requires_height,
       requires_body_type: !!t.requires_body_type,
       photo: t.photo || null,
+      tier_group: t.tier_group || '',
+      tier_level: String(t.tier_level || 1),
     });
     setShowAddType(true);
   };
@@ -89,6 +93,8 @@ export const ClothingAdmin = () => {
       requires_height: form.requires_height,
       requires_body_type: form.requires_body_type,
       photo: form.photo,
+      tier_group: form.tier_group.trim() || null,
+      tier_level: parseInt(form.tier_level, 10) || 1,
     };
     try {
       if (editingType) {
@@ -363,10 +369,34 @@ export const ClothingAdmin = () => {
                           return (
                             <td key={t.id} className="border border-[#334155] p-2 text-center text-xs">
                               <div className="text-[#CBD5E1]">Wydane: <span className="font-bold text-[#6B8E4E]">{item.issued_count_total}</span></div>
-                              <div className="text-[#94A3B8]">Zostalo w tym roku: <span className="font-bold text-[#E8B76A]">{item.remaining_this_year}</span>/{item.yearly_limit}</div>
+                              <div className="text-[#94A3B8]">
+                                Zostalo: <span className="font-bold text-[#E8B76A]">{item.remaining_this_year}</span>/
+                                <span className={item.limit_overridden ? 'text-[#E8836A] font-bold' : ''}>{item.yearly_limit_effective}</span>
+                              </div>
                               {item.next_available_at && (
                                 <div className="text-[10px] text-[#64748B] mt-1">Do {item.next_available_at.slice(0, 10)}</div>
                               )}
+                              <button
+                                onClick={async () => {
+                                  const cur = item.yearly_limit_effective;
+                                  const v = window.prompt(`Nadpisz roczny limit dla ${row.employee_name} / ${t.name}.\nObecny: ${cur} (${item.limit_overridden ? 'indywidualny' : 'domyślny'}).\nWpisz nową wartość lub puste aby zresetować do domyślnego.`, String(cur));
+                                  if (v === null) return;
+                                  const payload = { employee_id: row.employee_id, clothing_type_id: t.id };
+                                  payload.yearly_limit = v.trim() === '' ? null : parseInt(v, 10);
+                                  if (payload.yearly_limit !== null && (isNaN(payload.yearly_limit) || payload.yearly_limit < 1)) { toast.error('Nieprawidlowa liczba'); return; }
+                                  try {
+                                    await api.post('/clothing/employee-limit', payload);
+                                    toast.success('Limit zaktualizowany');
+                                    fetchAll();
+                                  } catch (err) {
+                                    toast.error(err.response?.data?.detail || 'Blad');
+                                  }
+                                }}
+                                className="text-[10px] text-[#5F7151] hover:text-white hover:underline mt-1"
+                                data-testid={`edit-limit-${row.employee_id}-${t.id}`}
+                              >
+                                Zmień limit
+                              </button>
                             </td>
                           );
                         })}
@@ -447,6 +477,31 @@ export const ClothingAdmin = () => {
                   </select>
                 </div>
               </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-[#94A3B8]">Grupa wariantów (opcjonalnie)</label>
+                  <Input
+                    value={form.tier_group}
+                    onChange={(e) => setForm((f) => ({ ...f, tier_group: e.target.value }))}
+                    placeholder="np. spodnie"
+                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    data-testid="clothing-tier-group"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-[#94A3B8]">Poziom (1=tani, 2=droższy...)</label>
+                  <Input
+                    type="number" min="1"
+                    value={form.tier_level}
+                    onChange={(e) => setForm((f) => ({ ...f, tier_level: e.target.value }))}
+                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    data-testid="clothing-tier-level"
+                  />
+                </div>
+              </div>
+              <p className="text-[10px] text-[#64748B] -mt-1">
+                Pozycje w tej samej grupie są <strong>wzajemnie wyłączne</strong> - pracownik po pierwszym zamówieniu jest zablokowany na ten poziom (nie może zamienić tańszego na droższy ani odwrotnie).
+              </p>
               <div className="pt-2 space-y-1">
                 <p className="text-xs text-[#94A3B8]">Wymagane pola od pracownika:</p>
                 <label className="flex items-center gap-2 text-sm text-[#CBD5E1]">

@@ -232,7 +232,7 @@ export const AdminDashboard = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-1 px-1">
-            <TabsList className="inline-flex w-auto min-w-full sm:grid sm:w-full sm:grid-cols-5">
+            <TabsList className="inline-flex w-auto min-w-max gap-1">
               <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Lokalizacje</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap">
                 Brygadzisci
