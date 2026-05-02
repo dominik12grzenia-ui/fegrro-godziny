@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
@@ -11,8 +11,14 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SitesMap } from './SitesMap';
-import { EquipmentAdmin } from './EquipmentAdmin';
-import { ClothingAdmin } from './ClothingAdmin';
+
+// Lazy-loaded heavy tabs — code-split away from the main bundle
+const EquipmentAdmin = lazy(() => import('./EquipmentAdmin').then((m) => ({ default: m.EquipmentAdmin })));
+const ClothingAdmin = lazy(() => import('./ClothingAdmin').then((m) => ({ default: m.ClothingAdmin })));
+
+const TabSpinner = () => (
+  <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
+);
 
 export const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -54,41 +60,39 @@ export const AdminDashboard = () => {
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
-      const [employeesRes, sitesRes, requestsRes, foremenRes, notificationsRes, syncLogsRes, assignmentsRes, absencesRes, clothingOrdersRes] = await Promise.all([
+
+      // PRIMARY - render stats + hours table as soon as these arrive
+      const [employeesRes, sitesRes, assignmentsRes] = await Promise.all([
         api.get(`/employees?month=${currentMonth}&year=${currentYear}`),
         api.get('/sites'),
+        api.get('/assignments'),
+      ]);
+      setEmployees(employeesRes.data);
+      setSites(sitesRes.data);
+      setAssignments(assignmentsRes.data);
+      const budowyCount = (sitesRes.data || []).filter((s) => s.excel_column).length;
+      setStats((s) => ({ ...s, totalEmployees: employeesRes.data.length, totalSites: budowyCount, todayHours: 0 }));
+      setLoading(false);
+
+      // SECONDARY - fill counters and tabs below without blocking
+      const [requestsRes, foremenRes, notificationsRes, syncLogsRes, absencesRes, clothingOrdersRes] = await Promise.all([
         api.get('/requests?status=pending'),
         api.get('/foremen'),
         api.get('/notifications'),
         api.get('/sync/logs'),
-        api.get('/assignments'),
         api.get('/absences?status=pending'),
         api.get('/clothing/orders').catch(() => ({ data: [] })),
       ]);
-      
-      setEmployees(employeesRes.data);
-      setSites(sitesRes.data);
       setRequests(requestsRes.data);
       setForemen(foremenRes.data);
       setNotifications(notificationsRes.data);
       setAbsenceRequests(absencesRes.data);
       setSyncLogs(syncLogsRes.data);
-      setAssignments(assignmentsRes.data);
-
-      // Stats counter shows only Excel-synced budowy
-      const budowyCount = (sitesRes.data || []).filter((s) => s.excel_column).length;
       const pendingClothing = (clothingOrdersRes.data || []).filter((o) => o.status !== 'issued').length;
-      setStats({
-        totalEmployees: employeesRes.data.length,
-        totalSites: budowyCount,
-        pendingRequests: requestsRes.data.length,
-        pendingClothing,
-        todayHours: 0
-      });
+      setStats((s) => ({ ...s, pendingRequests: requestsRes.data.length, pendingClothing }));
     } catch (error) {
       console.error('Failed to fetch data:', error);
       toast.error('Nie udało się pobrać danych');
-    } finally {
       setLoading(false);
     }
   };
@@ -825,15 +829,21 @@ export const AdminDashboard = () => {
 
           {/* Equipment Tab */}
           <TabsContent value="equipment" className="space-y-4 bg-[#1E293B]">
-            <EquipmentAdmin category="electronics" title="Elektronarzedzia" />
+            <Suspense fallback={<TabSpinner />}>
+              <EquipmentAdmin category="electronics" title="Elektronarzedzia" />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="accessories" className="space-y-4 bg-[#1E293B]">
-            <EquipmentAdmin category="accessories" title="Akcesoria" />
+            <Suspense fallback={<TabSpinner />}>
+              <EquipmentAdmin category="accessories" title="Akcesoria" />
+            </Suspense>
           </TabsContent>
 
           <TabsContent value="clothing" className="space-y-4 bg-[#1E293B]">
-            <ClothingAdmin />
+            <Suspense fallback={<TabSpinner />}>
+              <ClothingAdmin />
+            </Suspense>
           </TabsContent>
 
           {/* Tools Tab */}

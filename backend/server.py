@@ -80,6 +80,28 @@ scheduler = AsyncIOScheduler()
 
 @app.on_event("startup")
 async def startup_event():
+    # Ensure critical indexes for faster queries (safe to call repeatedly)
+    try:
+        await db.equipment_assignments.create_index("foreman_id")
+        await db.equipment_assignments.create_index("equipment_id")
+        await db.equipment.create_index("category")
+        await db.equipment_history.create_index("equipment_id")
+        await db.equipment_transfers.create_index([("to_foreman_id", 1), ("status", 1)])
+        await db.equipment_defects.create_index("foreman_id")
+        await db.equipment_defects.create_index("status")
+        await db.hour_entries.create_index([("employee_id", 1), ("work_date", 1)])
+        await db.hour_entries.create_index("work_date")
+        await db.assignments.create_index([("employee_id", 1), ("month", 1), ("year", 1)])
+        await db.assignments.create_index("site_id")
+        await db.clothing_orders.create_index([("employee_id", 1), ("clothing_type_id", 1)])
+        await db.clothing_orders.create_index("status")
+        await db.absences.create_index([("employee_id", 1), ("status", 1)])
+        await db.employees.create_index("public_token")
+        await db.users.create_index([("role", 1), ("email", 1)])
+        await db.users.create_index("full_name")
+    except Exception as e:
+        logger.warning(f"Index creation warning: {e}")
+
     # Create admin user if not exists, or sync password from env if ADMIN_PASSWORD is set
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@fegrro.pl")
     admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")

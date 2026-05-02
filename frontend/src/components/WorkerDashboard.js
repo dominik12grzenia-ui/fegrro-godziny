@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
@@ -8,8 +8,11 @@ import { LogOut, Calendar, AlertCircle, Send, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
-import { EquipmentForeman } from './EquipmentForeman';
 import { LocationsButton } from './LocationsButton';
+
+// Lazy-load heavy equipment section
+const EquipmentForeman = lazy(() => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman })));
+const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie sprzętu...</div>;
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
@@ -48,55 +51,54 @@ export const WorkerDashboard = () => {
       const monthName = format(selectedMonth, 'MMMM', { locale: pl }).toUpperCase();
       const year = selectedMonth.getFullYear();
       const monthNum = selectedMonth.getMonth() + 1;
-      const [foremanRes, employeesRes, sitesRes, assignmentsRes, hoursRes, holidaysRes, absencesRes] = await Promise.all([
+
+      // PRIMARY - render hours table as fast as possible
+      const [foremanRes, employeesRes, sitesRes, assignmentsRes, hoursRes] = await Promise.all([
         api.get('/foreman/me'),
         api.get(`/employees?month=${monthNum}&year=${year}`),
         api.get('/sites'),
         api.get(`/assignments?month=${monthName}&year=${year}`),
         api.get(`/hours?start_date=${format(startOfMonth(selectedMonth), 'yyyy-MM-dd')}&end_date=${format(new Date(year, selectedMonth.getMonth() + 1, 0), 'yyyy-MM-dd')}`),
-        api.get(`/holidays?year=${year}`),
-        api.get(`/absences?month=${monthNum}&year=${year}`)
       ]);
 
       const foreman = foremanRes.data;
       setForemanData(foreman);
       const foremanSiteIds = foreman.assigned_sites || [];
-      setHolidays(holidaysRes.data.holidays || []);
-      
+
       setSites(sitesRes.data);
-      // Foreman sees only Excel-synced budowy (manual budowy and Lokalizacje are filtered out)
-      const allAssignedSites = sitesRes.data.filter(s => foremanSiteIds.includes(s.id));
-      const onlyBudowy = allAssignedSites.filter(s => s.excel_column);
+      const allAssignedSites = sitesRes.data.filter((s) => foremanSiteIds.includes(s.id));
+      const onlyBudowy = allAssignedSites.filter((s) => s.excel_column);
       setMySites(onlyBudowy);
 
-      // Filter assignments to only my sites
       const allAssignments = assignmentsRes.data;
-      const myAssignments = allAssignments.filter(a => foremanSiteIds.includes(a.site_id));
+      const myAssignments = allAssignments.filter((a) => foremanSiteIds.includes(a.site_id));
       setAssignments(myAssignments);
 
-      // Get employee IDs assigned to my sites
       const myEmployeeIds = new Set();
-      myAssignments.forEach(a => {
-        if (a.assigned_dates && a.assigned_dates.length > 0) {
-          myEmployeeIds.add(a.employee_id);
-        }
+      myAssignments.forEach((a) => {
+        if (a.assigned_dates && a.assigned_dates.length > 0) myEmployeeIds.add(a.employee_id);
       });
-      setEmployees(employeesRes.data.filter(e => myEmployeeIds.has(e.id)));
-
-      // Filter absences to only my employees
-      setAbsences(absencesRes.data.filter(a => myEmployeeIds.has(a.employee_id)));
+      setEmployees(employeesRes.data.filter((e) => myEmployeeIds.has(e.id)));
 
       const hoursMap = {};
-      hoursRes.data.forEach(entry => {
+      hoursRes.data.forEach((entry) => {
         hoursMap[`${entry.employee_id}-${entry.work_date}`] = entry.hours_worked;
       });
       setHourEntries(hoursMap);
+      setLoading(false);
+
+      // SECONDARY - holidays + absences don't block the main view
+      const [holidaysRes, absencesRes] = await Promise.all([
+        api.get(`/holidays?year=${year}`).catch(() => ({ data: { holidays: [] } })),
+        api.get(`/absences?month=${monthNum}&year=${year}`).catch(() => ({ data: [] })),
+      ]);
+      setHolidays(holidaysRes.data.holidays || []);
+      setAbsences((absencesRes.data || []).filter((a) => myEmployeeIds.has(a.employee_id)));
     } catch (error) {
       console.error('Failed to fetch data:', error);
       if (error.response?.status === 404) {
         toast.error('Twoje konto nie zostalo jeszcze skonfigurowane');
       }
-    } finally {
       setLoading(false);
     }
   }, [selectedMonth]);
@@ -408,9 +410,13 @@ export const WorkerDashboard = () => {
             </button>
           </div>
           {eqTab === 'electronics' ? (
-            <EquipmentForeman category="electronics" title="Moje elektronarzedzia" />
+            <Suspense fallback={<EquipmentSpinner />}>
+              <EquipmentForeman category="electronics" title="Moje elektronarzedzia" />
+            </Suspense>
           ) : (
-            <EquipmentForeman category="accessories" title="Moje akcesoria" />
+            <Suspense fallback={<EquipmentSpinner />}>
+              <EquipmentForeman category="accessories" title="Moje akcesoria" />
+            </Suspense>
           )}
         </div>
 
