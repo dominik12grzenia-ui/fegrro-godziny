@@ -205,10 +205,11 @@ export const ClothingOrderPublic = ({ token }) => {
                         <div className="flex-1 max-w-[100px]">
                           <label className="text-[10px] text-[#94A3B8]">Ilość</label>
                           <Input
-                            type="number" min="1" max={ct.remaining_this_year}
+                            type="number" min="1"
+                            max={ct.usage_period_months > 0 ? 1 : ct.remaining_this_year}
                             value={qty[ct.id] || ''}
                             onChange={(e) => setQty((prev) => ({ ...prev, [ct.id]: e.target.value }))}
-                            placeholder={`max ${ct.remaining_this_year}`}
+                            placeholder={ct.usage_period_months > 0 ? 'max 1' : `max ${ct.remaining_this_year}`}
                             className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
                             data-testid={`clothing-qty-${ct.id}`}
                           />

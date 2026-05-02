@@ -67,6 +67,20 @@ class EmployeeLimitUpdate(BaseModel):
 
 
 # ============= Helpers =============
+POLISH_MONTHS_GEN = [
+    "stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca",
+    "lipca", "sierpnia", "wrzesnia", "pazdziernika", "listopada", "grudnia",
+]
+
+
+def _fmt_pl_date(iso: str) -> str:
+    try:
+        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    except (ValueError, AttributeError):
+        return iso[:10] if iso else ""
+    return f"{d.day} {POLISH_MONTHS_GEN[d.month - 1]} {d.year}"
+
+
 def _parse_dt(v) -> Optional[datetime]:
     if not v:
         return None
@@ -111,17 +125,17 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
             ordered_this_year += int(o.get("quantity") or 0)
     remaining = max(0, yearly_limit - ordered_this_year)
 
-    # Usage period blocker
+    # Usage period blocker - counted from the LAST order (any status),
+    # so worker cannot stack 2 orders at once within the usage window.
     next_available_at = None
     if usage_period > 0:
-        last_issued = None
+        last_order_at = None
         for o in orders:
-            if o.get("status") == "issued":
-                issued_dt = _parse_dt(o.get("issued_at"))
-                if issued_dt and (last_issued is None or issued_dt > last_issued):
-                    last_issued = issued_dt
-        if last_issued is not None:
-            cutoff = last_issued + timedelta(days=30 * usage_period)
+            created = _parse_dt(o.get("created_at"))
+            if created and (last_order_at is None or created > last_order_at):
+                last_order_at = created
+        if last_order_at is not None:
+            cutoff = last_order_at + timedelta(days=30 * usage_period)
             if cutoff > now:
                 next_available_at = cutoff.isoformat()
 
@@ -157,7 +171,7 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
     elif remaining <= 0:
         reason = f"Roczny limit wyczerpany ({ordered_this_year}/{yearly_limit})"
     elif next_available_at is not None:
-        reason = f"Mozna zamowic od {next_available_at[:10]} (okres uzytkowania)"
+        reason = f"Mozesz zamowic ponownie od {_fmt_pl_date(next_available_at)}"
     elif not in_window:
         reason = f"Poza oknem zamawiania (miesiace {ct['start_month']}-{ct['end_month']})"
 
@@ -395,21 +409,20 @@ async def employees_summary(current_user: dict = Depends(get_current_admin)):
 
             ordered_this_year = 0
             issued_count = 0
-            last_issued = None
+            last_order_at = None
             for o in orders:
                 created = _parse_dt(o.get("created_at"))
                 if created and created.year == year:
                     ordered_this_year += int(o.get("quantity") or 0)
                 if o.get("status") == "issued":
                     issued_count += 1
-                    issued_dt = _parse_dt(o.get("issued_at"))
-                    if issued_dt and (last_issued is None or issued_dt > last_issued):
-                        last_issued = issued_dt
+                if created and (last_order_at is None or created > last_order_at):
+                    last_order_at = created
 
             remaining = max(0, yearly_limit - ordered_this_year)
             next_available_at = None
-            if usage_period > 0 and last_issued is not None:
-                cutoff = last_issued + timedelta(days=30 * usage_period)
+            if usage_period > 0 and last_order_at is not None:
+                cutoff = last_order_at + timedelta(days=30 * usage_period)
                 if cutoff > now:
                     next_available_at = cutoff.isoformat()
 
@@ -430,7 +443,7 @@ async def employees_summary(current_user: dict = Depends(get_current_admin)):
             elif remaining <= 0:
                 reason = f"Roczny limit wyczerpany ({ordered_this_year}/{yearly_limit})"
             elif next_available_at is not None:
-                reason = f"Mozna zamowic od {next_available_at[:10]} (okres uzytkowania)"
+                reason = f"Mozesz zamowic ponownie od {_fmt_pl_date(next_available_at)}"
             elif not in_window:
                 reason = f"Poza oknem zamawiania (miesiace {ct['start_month']}-{ct['end_month']})"
 
@@ -538,6 +551,13 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
         raise HTTPException(
             status_code=400,
             detail=f"Mozesz zamowic max {info['remaining_this_year']} szt. (pozostalo w tym roku)"
+        )
+
+    # If usage_period is set, only 1 piece per order allowed (next one after the cooldown)
+    if int(ct.get("usage_period_months") or 0) > 0 and payload.quantity > 1:
+        raise HTTPException(
+            status_code=400,
+            detail="Mozesz zamowic tylko 1 szt. naraz - kolejna bedzie dostepna po uplywie okresu uzytkowania"
         )
 
     # Read employee clothing profile
