@@ -83,14 +83,12 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
 ## Completed (2026-02-12)
-- **PDF eksport zamowien ubran z grupowaniem rozmiarow** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
+- **PDF eksport zamowien ubran (2 strony)** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
   - Endpoint: `GET /api/clothing/orders/pdf?status={ordered|issued|all}` (admin only)
-  - Tabela zgrupowana po typie ubrania: Zdjecie | Nazwa | Ilosc | Pracownicy
-  - **Podsumowanie rozmiarow** (zielona linia na gorze listy pracownikow):
-    - Buty (jesli `requires_shoe_size`): `Buty: 42: 2 szt., 44: 1 szt., 45: 1 szt.`
-    - Pozostale ubrania: `Sylwetka: Szczuply: 1, Sredni: 2, Silny: 1`
-  - Walidacja zdjec przez PIL (odpornosc na uszkodzone base64)
-  - 10/10 testow tekstu PDF (pypdf): naglowki, liczniki, sortowanie numeryczne butow
+  - **Strona 1**: szczegolowa tabela Zdjecie | Nazwa | Ilosc | Pracownicy (z zielonym podsumowaniem rozmiarow + pelna lista z wymiarami)
+  - **Strona 2**: kompaktowe podsumowanie zbiorcze do wyslania dostawcy - `Nazwa | Razem | Rozbicie rozmiarow (42 x 2, 44 x 1)`
+  - Grupowanie automatyczne: buty -> po shoe_size (sort numeryczny), inne ubrania -> po sylwetce (chudy->sredni->silny)
+  - Walidacja zdjec przez PIL, 2 strony zweryfikowane pypdf
 - Cache-busting PWA: nowy sw.js (network-only dla HTML/sw/manifest, cache-first dla /static/* z hashem)
 - index.js: auto-reload przy aktywacji nowego SW (updatefound -> SKIP_WAITING -> controllerchange)
 - vercel.json: Cache-Control no-store dla /, /index.html, /sw.js, /manifest.json + immutable dla /static/*

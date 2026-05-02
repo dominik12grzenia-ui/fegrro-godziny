@@ -839,6 +839,78 @@ async def export_orders_pdf(
         ]))
         elements.append(table)
 
+        # ===== Summary page (zbiorczo per typ) =====
+        from reportlab.platypus import PageBreak
+        elements.append(PageBreak())
+        summary_title = ParagraphStyle(
+            "SummaryTitle", parent=styles["Heading1"], fontSize=14, alignment=1, spaceAfter=3
+        )
+        summary_sub = ParagraphStyle(
+            "SummarySub", parent=styles["Normal"], fontSize=9, alignment=1, spaceAfter=8,
+            textColor=colors.HexColor("#64748B")
+        )
+        elements.append(Paragraph("Podsumowanie zbiorcze - do zamowienia u dostawcy", summary_title))
+        elements.append(Paragraph(
+            _ascii(f"Status: {status} | {datetime.now().strftime('%Y-%m-%d %H:%M')}"),
+            summary_sub,
+        ))
+
+        sum_header = [
+            Paragraph("<b>Nazwa</b>", cell_style),
+            Paragraph("<b>Razem</b>", cell_style),
+            Paragraph("<b>Rozbicie rozmiarow</b>", cell_style),
+        ]
+        sum_rows = [sum_header]
+        for g in sorted_groups:
+            ct = g["type"]
+            requires_shoe = bool(ct.get("requires_shoe_size"))
+            size_counts = {}
+            total = 0
+            for o in g["orders"]:
+                emp = emp_by_id.get(o.get("employee_id")) or {}
+                prof = emp.get("clothing_profile") or {}
+                qty = int(o.get("quantity") or 0)
+                total += qty
+                if requires_shoe:
+                    label = _ascii(o.get("shoe_size") or prof.get("shoe_size") or "?")
+                else:
+                    body = o.get("body_type") or prof.get("body_type")
+                    label = _BODY_LABELS.get(body, "?") if body else "?"
+                size_counts[label] = size_counts.get(label, 0) + qty
+            if requires_shoe:
+                def _shoe_key2(k):
+                    try:
+                        return (0, int(k))
+                    except (ValueError, TypeError):
+                        return (1, k)
+                pairs = sorted(size_counts.items(), key=lambda kv: _shoe_key2(kv[0]))
+                size_tag = "Buty"
+            else:
+                order_lbl2 = {"Szczuply": 0, "Sredni": 1, "Silny": 2, "?": 99}
+                pairs = sorted(size_counts.items(), key=lambda kv: order_lbl2.get(kv[0], 50))
+                size_tag = "Sylwetka"
+            breakdown = ", ".join(f"<b>{lbl}</b>&nbsp;&times;&nbsp;{q}" for lbl, q in pairs) or "-"
+            sum_rows.append([
+                Paragraph(_ascii(ct.get("name", "")), name_style),
+                Paragraph(f"<b>{total}</b>", cell_style),
+                Paragraph(f"<font color='#64748B'>{size_tag}:</font> {breakdown}", workers_style),
+            ])
+
+        sum_table = Table(sum_rows, colWidths=[55 * mm, 18 * mm, 117 * mm], repeatRows=1)
+        sum_table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5F7151")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#94A3B8")),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (1, 1), (1, -1), "CENTER"),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("LEFTPADDING", (0, 0), (-1, -1), 5),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 5),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F1F5F9")]),
+        ]))
+        elements.append(sum_table)
+
     doc.build(elements)
     pdf_bytes = buffer.getvalue()
     buffer.close()
