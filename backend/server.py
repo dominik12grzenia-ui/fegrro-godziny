@@ -106,6 +106,22 @@ async def startup_event():
         )
         logger.warning(f"Admin password reset from ADMIN_PASSWORD env for {admin_email}")
 
+    # One-shot migration: reset admin password to "Admin123!" exactly once
+    # Marker in DB ensures this runs at most once per installation.
+    # TODO: remove this block after 2026-06 once the user has logged in successfully.
+    migration_marker = "admin_pw_reset_2026_05_v1"
+    already_run = await db.migrations.find_one({"name": migration_marker})
+    if not already_run:
+        await db.users.update_one(
+            {"email": admin_email},
+            {"$set": {"hashed_password": get_password_hash("Admin123!")}}
+        )
+        await db.migrations.insert_one({
+            "name": migration_marker,
+            "executed_at": datetime.now().isoformat()
+        })
+        logger.warning(f"One-shot: admin password for {admin_email} set to provided value")
+
     # Start the scheduler for automatic jobs
     scheduler.add_job(
         cron_write_hours_previous_month,
