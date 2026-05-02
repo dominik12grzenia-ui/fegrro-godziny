@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Shirt, Plus, Trash2, Check, Edit, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { BODY_TYPES } from './BodySilhouettes';
 
 const MONTHS = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paz', 'Lis', 'Gru'];
 
@@ -12,10 +13,12 @@ export const ClothingAdmin = () => {
   const [subtab, setSubtab] = useState('types');
   const [types, setTypes] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [grouped, setGrouped] = useState([]);
   const [summary, setSummary] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddType, setShowAddType] = useState(false);
   const [editingType, setEditingType] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
   const [form, setForm] = useState({
     name: '',
     yearly_limit: '2',
@@ -25,17 +28,20 @@ export const ClothingAdmin = () => {
     requires_shoe_size: false,
     requires_height: true,
     requires_body_type: true,
+    photo: null,
   });
 
   const fetchAll = useCallback(async () => {
     try {
-      const [tRes, oRes, sRes] = await Promise.all([
+      const [tRes, oRes, gRes, sRes] = await Promise.all([
         api.get('/clothing/types'),
         api.get('/clothing/orders'),
+        api.get('/clothing/orders-grouped'),
         api.get('/clothing/employees-summary'),
       ]);
       setTypes(tRes.data);
       setOrders(oRes.data);
+      setGrouped(gRes.data);
       setSummary(sRes.data);
     } catch (e) {
       toast.error('Blad pobierania danych ubran');
@@ -51,6 +57,7 @@ export const ClothingAdmin = () => {
     setForm({
       name: '', yearly_limit: '2', start_month: '1', end_month: '12',
       usage_period_months: '6', requires_shoe_size: false, requires_height: true, requires_body_type: true,
+      photo: null,
     });
     setShowAddType(true);
   };
@@ -65,6 +72,7 @@ export const ClothingAdmin = () => {
       requires_shoe_size: !!t.requires_shoe_size,
       requires_height: !!t.requires_height,
       requires_body_type: !!t.requires_body_type,
+      photo: t.photo || null,
     });
     setShowAddType(true);
   };
@@ -80,6 +88,7 @@ export const ClothingAdmin = () => {
       requires_shoe_size: form.requires_shoe_size,
       requires_height: form.requires_height,
       requires_body_type: form.requires_body_type,
+      photo: form.photo,
     };
     try {
       if (editingType) {
@@ -197,7 +206,22 @@ export const ClothingAdmin = () => {
                     {types.map((t, idx) => (
                       <tr key={t.id} className={idx % 2 === 0 ? 'bg-[#1E293B]/40' : 'bg-[#2A384C]'} data-testid={`clothing-type-row-${t.id}`}>
                         <td className="border border-[#334155] p-2 text-[#CBD5E1] font-semibold">
-                          {t.name}
+                          <div className="flex items-center gap-2">
+                            {t.photo ? (
+                              <img
+                                src={t.photo}
+                                alt={t.name}
+                                className="w-10 h-10 object-contain rounded border border-[#334155] bg-[#0F172A] cursor-zoom-in shrink-0"
+                                onClick={() => setLightbox(t.photo)}
+                                data-testid={`clothing-thumb-${t.id}`}
+                              />
+                            ) : (
+                              <div className="w-10 h-10 rounded bg-[#0F172A] border border-[#334155] flex items-center justify-center shrink-0">
+                                <Shirt className="h-5 w-5 text-[#475569]" />
+                              </div>
+                            )}
+                            <span>{t.name}</span>
+                          </div>
                           {!t.is_active && <span className="ml-2 text-[10px] bg-[#475569] text-white px-1.5 py-0.5 rounded uppercase">Nieaktywna</span>}
                         </td>
                         <td className="border border-[#334155] p-2 text-center text-[#6B8E4E] font-bold">{t.yearly_limit}</td>
@@ -229,7 +253,7 @@ export const ClothingAdmin = () => {
         </Card>
       )}
 
-      {/* ORDERS sub-tab */}
+      {/* ORDERS sub-tab - grouped by employee */}
       {subtab === 'orders' && (
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader>
@@ -238,47 +262,65 @@ export const ClothingAdmin = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {orders.length === 0 ? (
+            {grouped.length === 0 ? (
               <p className="text-[#94A3B8]">Brak zamówień.</p>
             ) : (
-              <div className="space-y-2">
-                {orders.map((o) => {
-                  const issued = o.status === 'issued';
+              <div className="space-y-4">
+                {grouped.map((row) => {
+                  const p = row.clothing_profile || {};
+                  const btInfo = BODY_TYPES.find((b) => b.value === p.body_type);
+                  const BtIcon = btInfo?.Icon;
                   return (
-                    <div
-                      key={o.id}
-                      className={`p-3 rounded border ${issued ? 'bg-[#1E293B]/50 border-[#5F7151]/40 opacity-80' : 'bg-[#1E293B] border-[#334155]'}`}
-                      data-testid={`order-${o.id}`}
-                    >
-                      <div className="flex flex-wrap items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[#CBD5E1] font-semibold">{o.employee_name}</span>
-                            <span className="text-[#94A3B8]">→</span>
-                            <span className={`font-semibold ${issued ? 'text-[#6B8E4E]' : 'text-[#E8B76A]'}`}>{o.clothing_type_name}</span>
-                            <span className="text-[#94A3B8]">x {o.quantity}</span>
-                            {issued && <span className="text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase">Wydane</span>}
-                          </div>
-                          <div className="text-xs text-[#94A3B8] mt-1 flex flex-wrap gap-x-3 gap-y-1">
-                            {o.shoe_size && <span>Rozm: <span className="text-[#CBD5E1]">{o.shoe_size}</span></span>}
-                            {o.height && <span>Wzrost: <span className="text-[#CBD5E1]">{o.height}</span></span>}
-                            {o.body_type && <span>Sylwetka: <span className="text-[#CBD5E1]">{o.body_type}</span></span>}
-                          </div>
-                          <p className="text-[11px] text-[#64748B] mt-1">
-                            Zamówione: {new Date(o.created_at).toLocaleString('pl-PL')}
-                            {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          {!issued && (
-                            <Button size="sm" onClick={() => markIssued(o)} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7" data-testid={`issue-order-${o.id}`}>
-                              <Check className="h-3 w-3 mr-1" /> Wydane
-                            </Button>
+                    <div key={row.employee_id} className="bg-[#1E293B] rounded-lg border border-[#334155] p-3" data-testid={`orders-group-${row.employee_id}`}>
+                      {/* Employee header with profile */}
+                      <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-[#334155]">
+                        <span className="text-[#CBD5E1] font-bold text-base">{row.employee_name}</span>
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
+                          {p.shoe_size && <span className="bg-[#2A384C] text-[#CBD5E1] px-2 py-1 rounded">But: <b>{p.shoe_size}</b></span>}
+                          {p.height && <span className="bg-[#2A384C] text-[#CBD5E1] px-2 py-1 rounded">Wzrost: <b>{p.height} cm</b></span>}
+                          {btInfo && BtIcon && (
+                            <span className="bg-[#2A384C] text-[#CBD5E1] px-2 py-1 rounded flex items-center gap-1">
+                              <BtIcon className="h-4 w-4 text-[#5F7151]" />
+                              <b>{btInfo.label}</b>
+                            </span>
                           )}
-                          <Button size="sm" variant="ghost" onClick={() => deleteOrder(o)} className="text-[#E8836A] h-7 px-2" data-testid={`del-order-${o.id}`}>
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                          {!p.shoe_size && !p.height && !btInfo && (
+                            <span className="text-[#E8B76A] text-[11px]">Brak zapisanych wymiarów</span>
+                          )}
                         </div>
+                      </div>
+                      {/* Orders list */}
+                      <div className="space-y-1 mt-2">
+                        {row.orders.map((o) => {
+                          const issued = o.status === 'issued';
+                          return (
+                            <div
+                              key={o.id}
+                              className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded ${issued ? 'bg-[#2A384C]/50 opacity-70' : 'bg-[#2A384C]'}`}
+                              data-testid={`order-${o.id}`}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <span className={`font-semibold ${issued ? 'text-[#6B8E4E]' : 'text-[#E8B76A]'}`}>{o.clothing_type_name}</span>
+                                <span className="text-[#94A3B8] ml-2">x {o.quantity}</span>
+                                {issued && <span className="ml-2 text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase">Wydane</span>}
+                                <p className="text-[11px] text-[#64748B] mt-0.5">
+                                  {new Date(o.created_at).toLocaleString('pl-PL')}
+                                  {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
+                                </p>
+                              </div>
+                              <div className="flex gap-1 shrink-0">
+                                {!issued && (
+                                  <Button size="sm" onClick={() => markIssued(o)} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7" data-testid={`issue-order-${o.id}`}>
+                                    <Check className="h-3 w-3 mr-1" /> Wydane
+                                  </Button>
+                                )}
+                                <Button size="sm" variant="ghost" onClick={() => deleteOrder(o)} className="text-[#E8836A] h-7 px-2" data-testid={`del-order-${o.id}`}>
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -432,6 +474,36 @@ export const ClothingAdmin = () => {
                   /> Sylwetka
                 </label>
               </div>
+              <div className="pt-2">
+                <label className="text-xs text-[#94A3B8] block mb-1">Zdjęcie podglądowe (opcjonalnie)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) { toast.error('Plik za duzy (max 5MB)'); return; }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => setForm((f) => ({ ...f, photo: ev.target.result }));
+                    reader.readAsDataURL(file);
+                  }}
+                  className="text-xs text-[#CBD5E1]"
+                  data-testid="clothing-photo-input"
+                />
+                {form.photo && (
+                  <div className="mt-2 relative inline-block">
+                    <img src={form.photo} alt="podglad" className="max-h-48 max-w-full object-contain rounded bg-[#0F172A]" />
+                    <button
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, photo: null }))}
+                      className="absolute top-1 right-1 bg-red-600 hover:bg-red-700 text-white rounded p-1"
+                      data-testid="clothing-photo-clear"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-2 pt-3">
                 <Button onClick={submitForm} className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="save-clothing-type-btn">
                   {editingType ? 'Zapisz' : 'Dodaj'}
@@ -440,6 +512,17 @@ export const ClothingAdmin = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Lightbox */}
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+          data-testid="clothing-admin-lightbox"
+        >
+          <img src={lightbox} alt="Podglad" className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
         </div>
       )}
     </div>

@@ -3,33 +3,38 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Shirt, Check } from 'lucide-react';
+import { Shirt, Check, User } from 'lucide-react';
 import { toast } from 'sonner';
+import { BODY_TYPES } from './BodySilhouettes';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
-
-const BODY_TYPES = [
-  { value: 'chudy', label: 'Szczupły' },
-  { value: 'sredni', label: 'Średni' },
-  { value: 'gruby', label: 'Silny' },
-];
-
 const MONTH_NAMES = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paz', 'Lis', 'Gru'];
 
 export const ClothingOrderPublic = ({ token }) => {
   const [types, setTypes] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
+  const [profile, setProfile] = useState({ shoe_size: '', height: '', body_type: '' });
+  const [profileDirty, setProfileDirty] = useState(false);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [qty, setQty] = useState({});
+  const [lightbox, setLightbox] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [orderForm, setOrderForm] = useState({});
 
   const fetchData = async () => {
     try {
-      const [tRes, oRes] = await Promise.all([
+      const [tRes, oRes, pRes] = await Promise.all([
         axios.get(`${API}/public/clothing/${token}/types`),
         axios.get(`${API}/public/clothing/${token}/orders`),
+        axios.get(`${API}/public/clothing/${token}/profile`),
       ]);
       setTypes(tRes.data);
       setMyOrders(oRes.data);
+      setProfile({
+        shoe_size: pRes.data.shoe_size || '',
+        height: pRes.data.height || '',
+        body_type: pRes.data.body_type || '',
+      });
+      setProfileDirty(false);
     } catch (e) {
       // silent
     } finally {
@@ -39,24 +44,34 @@ export const ClothingOrderPublic = ({ token }) => {
 
   useEffect(() => { fetchData(); /* eslint-disable-next-line */ }, []);
 
+  const saveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await axios.put(`${API}/public/clothing/${token}/profile`, {
+        shoe_size: profile.shoe_size || null,
+        height: profile.height || null,
+        body_type: profile.body_type || null,
+      });
+      toast.success('Wymiary zapisane');
+      setProfileDirty(false);
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   const handleOrder = async (ct) => {
-    const form = orderForm[ct.id] || {};
-    const qty = parseInt(form.quantity || '1', 10);
-    if (!qty || qty < 1) { toast.error('Podaj ilosc'); return; }
-    if (qty > ct.remaining_this_year) { toast.error(`Max ${ct.remaining_this_year} szt.`); return; }
-    if (ct.requires_shoe_size && !form.shoe_size) { toast.error('Podaj rozmiar buta'); return; }
-    if (ct.requires_height && !form.height) { toast.error('Podaj wzrost'); return; }
-    if (ct.requires_body_type && !form.body_type) { toast.error('Wybierz sylwetke'); return; }
+    const q = parseInt(qty[ct.id] || '1', 10);
+    if (!q || q < 1) { toast.error('Podaj ilosc'); return; }
+    if (q > ct.remaining_this_year) { toast.error(`Max ${ct.remaining_this_year} szt.`); return; }
     try {
       await axios.post(`${API}/public/clothing/${token}/order`, {
         clothing_type_id: ct.id,
-        quantity: qty,
-        shoe_size: form.shoe_size || null,
-        height: form.height || null,
-        body_type: form.body_type || null,
+        quantity: q,
       });
       toast.success('Zamowienie wyslane');
-      setOrderForm((prev) => ({ ...prev, [ct.id]: {} }));
+      setQty((prev) => ({ ...prev, [ct.id]: '' }));
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -66,127 +81,187 @@ export const ClothingOrderPublic = ({ token }) => {
   if (loading) return null;
   if (types.length === 0) return null;
 
-  return (
-    <Card className="mt-4 bg-[#2A384C] border-[#334155]">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-          <Shirt className="h-4 w-4 text-[#5F7151]" />
-          Ubrania robocze
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {types.map((ct) => {
-          const f = orderForm[ct.id] || {};
-          const setF = (patch) => setOrderForm((prev) => ({ ...prev, [ct.id]: { ...(prev[ct.id] || {}), ...patch } }));
-          return (
-            <div key={ct.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
-              <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                <span className="text-[#CBD5E1] font-semibold">{ct.name}</span>
-                <span className="text-xs text-[#94A3B8]">
-                  Zostało: <span className="text-[#6B8E4E] font-bold">{ct.remaining_this_year}</span>/{ct.yearly_limit} w tym roku
-                </span>
-              </div>
-              <p className="text-[11px] text-[#64748B] mb-2">
-                Okno zamówień: {MONTH_NAMES[ct.start_month - 1]} → {MONTH_NAMES[ct.end_month - 1]}
-                {ct.usage_period_months > 0 && ` · Okres użytkowania: ${ct.usage_period_months} mies.`}
-              </p>
+  const profileComplete = !!(profile.shoe_size && profile.height && profile.body_type);
 
-              {!ct.can_order_now ? (
-                <p className="text-xs text-[#E8B76A] bg-[#3D2E2E] p-2 rounded">{ct.reason}</p>
-              ) : (
-                <div className="space-y-2">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    <div>
-                      <label className="text-[10px] text-[#94A3B8]">Ilość</label>
-                      <Input
-                        type="number" min="1" max={ct.remaining_this_year}
-                        value={f.quantity || ''}
-                        onChange={(e) => setF({ quantity: e.target.value })}
-                        placeholder={`max ${ct.remaining_this_year}`}
-                        className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
-                        data-testid={`clothing-qty-${ct.id}`}
-                      />
+  return (
+    <>
+      <Card className="mt-4 bg-[#2A384C] border-[#334155]">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <Shirt className="h-4 w-4 text-[#5F7151]" />
+            Ubrania robocze
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Profile section (saved once per worker) */}
+          <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
+            <div className="flex items-center gap-2 mb-2">
+              <User className="h-4 w-4 text-[#5F7151]" />
+              <span className="text-[#CBD5E1] font-semibold text-sm">Moje wymiary</span>
+              {!profileComplete && (
+                <span className="text-[10px] bg-[#4A2020] text-[#E8B76A] px-2 py-0.5 rounded font-semibold uppercase">Uzupełnij</span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <div>
+                <label className="text-[10px] text-[#94A3B8]">Rozmiar buta</label>
+                <Input
+                  value={profile.shoe_size}
+                  onChange={(e) => { setProfile((p) => ({ ...p, shoe_size: e.target.value })); setProfileDirty(true); }}
+                  placeholder="np. 42"
+                  className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
+                  data-testid="profile-shoe"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-[#94A3B8]">Wzrost (cm)</label>
+                <Input
+                  value={profile.height}
+                  onChange={(e) => { setProfile((p) => ({ ...p, height: e.target.value })); setProfileDirty(true); }}
+                  placeholder="np. 178"
+                  className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
+                  data-testid="profile-height"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-[#94A3B8] block mb-1">Sylwetka</label>
+              <div className="grid grid-cols-3 gap-2">
+                {BODY_TYPES.map((bt) => {
+                  const selected = profile.body_type === bt.value;
+                  const Icon = bt.Icon;
+                  return (
+                    <button
+                      key={bt.value}
+                      type="button"
+                      onClick={() => { setProfile((p) => ({ ...p, body_type: bt.value })); setProfileDirty(true); }}
+                      className={`flex flex-col items-center gap-1 p-2 rounded border transition-colors ${selected ? 'bg-[#5F7151]/20 border-[#5F7151] text-[#CBD5E1]' : 'bg-[#0F172A] border-[#334155] text-[#64748B] hover:border-[#5F7151]/50'}`}
+                      data-testid={`profile-body-${bt.value}`}
+                    >
+                      <Icon className={`h-14 w-auto ${selected ? 'text-[#5F7151]' : 'text-[#475569]'}`} />
+                      <span className="text-xs font-semibold">{bt.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            {profileDirty && (
+              <Button
+                onClick={saveProfile}
+                disabled={savingProfile}
+                size="sm"
+                className="mt-3 w-full bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                data-testid="save-profile-btn"
+              >
+                {savingProfile ? 'Zapisywanie...' : 'Zapisz wymiary'}
+              </Button>
+            )}
+          </div>
+
+          {/* Clothing types */}
+          {types.map((ct) => {
+            const needsProfile = (
+              (ct.requires_shoe_size && !profile.shoe_size) ||
+              (ct.requires_height && !profile.height) ||
+              (ct.requires_body_type && !profile.body_type)
+            );
+            return (
+              <div key={ct.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
+                <div className="flex items-start gap-3">
+                  {ct.photo ? (
+                    <img
+                      src={ct.photo}
+                      alt={ct.name}
+                      className="w-20 h-20 object-contain rounded border border-[#334155] bg-[#0F172A] cursor-zoom-in shrink-0"
+                      onClick={() => setLightbox(ct.photo)}
+                      data-testid={`clothing-photo-${ct.id}`}
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded bg-[#0F172A] border border-[#334155] flex items-center justify-center shrink-0">
+                      <Shirt className="h-8 w-8 text-[#475569]" />
                     </div>
-                    {ct.requires_shoe_size && (
-                      <div>
-                        <label className="text-[10px] text-[#94A3B8]">Rozmiar buta</label>
-                        <Input
-                          value={f.shoe_size || ''}
-                          onChange={(e) => setF({ shoe_size: e.target.value })}
-                          placeholder="np. 42"
-                          className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
-                          data-testid={`clothing-shoe-${ct.id}`}
-                        />
-                      </div>
-                    )}
-                    {ct.requires_height && (
-                      <div>
-                        <label className="text-[10px] text-[#94A3B8]">Wzrost (cm)</label>
-                        <Input
-                          value={f.height || ''}
-                          onChange={(e) => setF({ height: e.target.value })}
-                          placeholder="np. 178"
-                          className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
-                          data-testid={`clothing-height-${ct.id}`}
-                        />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-[#CBD5E1] font-semibold">{ct.name}</span>
+                      <span className="text-xs text-[#94A3B8]">
+                        Zostało: <span className="text-[#6B8E4E] font-bold">{ct.remaining_this_year}</span>/{ct.yearly_limit}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#64748B] mt-1">
+                      Okno zamówień: {MONTH_NAMES[ct.start_month - 1]} → {MONTH_NAMES[ct.end_month - 1]}
+                      {ct.usage_period_months > 0 && ` · Okres: ${ct.usage_period_months} mies.`}
+                    </p>
+
+                    {!ct.can_order_now ? (
+                      <p className="text-xs text-[#E8B76A] bg-[#3D2E2E] p-2 rounded mt-2">{ct.reason}</p>
+                    ) : needsProfile ? (
+                      <p className="text-xs text-[#E8B76A] bg-[#3D2E2E] p-2 rounded mt-2">
+                        Najpierw uzupełnij swoje wymiary powyżej.
+                      </p>
+                    ) : (
+                      <div className="flex gap-2 items-end mt-2">
+                        <div className="flex-1 max-w-[100px]">
+                          <label className="text-[10px] text-[#94A3B8]">Ilość</label>
+                          <Input
+                            type="number" min="1" max={ct.remaining_this_year}
+                            value={qty[ct.id] || ''}
+                            onChange={(e) => setQty((prev) => ({ ...prev, [ct.id]: e.target.value }))}
+                            placeholder={`max ${ct.remaining_this_year}`}
+                            className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
+                            data-testid={`clothing-qty-${ct.id}`}
+                          />
+                        </div>
+                        <Button
+                          onClick={() => handleOrder(ct)}
+                          size="sm"
+                          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                          data-testid={`clothing-order-btn-${ct.id}`}
+                        >
+                          <Check className="h-3 w-3 mr-1" /> Zamów
+                        </Button>
                       </div>
                     )}
                   </div>
-                  {ct.requires_body_type && (
-                    <div>
-                      <label className="text-[10px] text-[#94A3B8] block mb-1">Sylwetka</label>
-                      <div className="flex gap-2 flex-wrap">
-                        {BODY_TYPES.map((bt) => (
-                          <button
-                            key={bt.value}
-                            type="button"
-                            onClick={() => setF({ body_type: bt.value })}
-                            className={`px-3 py-1.5 rounded border text-xs ${f.body_type === bt.value ? 'bg-[#5F7151] border-[#5F7151] text-white' : 'bg-[#0F172A] border-[#334155] text-[#CBD5E1] hover:border-[#5F7151]'}`}
-                            data-testid={`clothing-body-${ct.id}-${bt.value}`}
-                          >
-                            {bt.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <Button
-                    onClick={() => handleOrder(ct)}
-                    size="sm"
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white w-full sm:w-auto"
-                    data-testid={`clothing-order-btn-${ct.id}`}
-                  >
-                    <Check className="h-3 w-3 mr-1" /> Zamów
-                  </Button>
                 </div>
-              )}
-            </div>
-          );
-        })}
+              </div>
+            );
+          })}
 
-        {myOrders.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-[#334155]">
-            <p className="text-[#94A3B8] text-xs font-semibold mb-2">Moje zamówienia</p>
-            <div className="space-y-1">
-              {myOrders.slice(0, 10).map((o) => (
-                <div key={o.id} className="text-xs bg-[#1E293B] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
-                  <span>
-                    <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
-                    <span className="text-[#94A3B8]"> x {o.quantity}</span>
-                  </span>
-                  <span>
-                    {o.status === 'issued' ? (
-                      <span className="text-[#6B8E4E] font-semibold">Wydane · {o.issued_at ? new Date(o.issued_at).toLocaleDateString('pl-PL') : ''}</span>
-                    ) : (
-                      <span className="text-[#E8B76A]">Zamówione · {new Date(o.created_at).toLocaleDateString('pl-PL')}</span>
-                    )}
-                  </span>
-                </div>
-              ))}
+          {myOrders.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-[#334155]">
+              <p className="text-[#94A3B8] text-xs font-semibold mb-2">Moje zamówienia</p>
+              <div className="space-y-1">
+                {myOrders.slice(0, 10).map((o) => (
+                  <div key={o.id} className="text-xs bg-[#1E293B] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
+                    <span>
+                      <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
+                      <span className="text-[#94A3B8]"> x {o.quantity}</span>
+                    </span>
+                    <span>
+                      {o.status === 'issued' ? (
+                        <span className="text-[#6B8E4E] font-semibold">Wydane · {o.issued_at ? new Date(o.issued_at).toLocaleDateString('pl-PL') : ''}</span>
+                      ) : (
+                        <span className="text-[#E8B76A]">Zamówione · {new Date(o.created_at).toLocaleDateString('pl-PL')}</span>
+                      )}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      {lightbox && (
+        <div
+          className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4 cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+          data-testid="clothing-lightbox"
+        >
+          <img src={lightbox} alt="Podglad" className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
+        </div>
+      )}
+    </>
   );
 };

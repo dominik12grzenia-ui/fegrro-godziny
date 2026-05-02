@@ -29,6 +29,7 @@ class ClothingTypeCreate(BaseModel):
     requires_shoe_size: bool = False
     requires_height: bool = True
     requires_body_type: bool = True
+    photo: Optional[str] = None  # base64
 
 
 class ClothingTypeUpdate(BaseModel):
@@ -41,11 +42,15 @@ class ClothingTypeUpdate(BaseModel):
     requires_height: Optional[bool] = None
     requires_body_type: Optional[bool] = None
     is_active: Optional[bool] = None
+    photo: Optional[str] = None
 
 
 class ClothingOrderCreate(BaseModel):
     clothing_type_id: str
     quantity: int = Field(ge=1)
+
+
+class ClothingProfileUpdate(BaseModel):
     shoe_size: Optional[str] = None
     height: Optional[str] = None
     body_type: Optional[str] = None  # 'chudy' | 'sredni' | 'gruby'
@@ -156,6 +161,7 @@ async def create_clothing_type(payload: ClothingTypeCreate,
         "requires_shoe_size": payload.requires_shoe_size,
         "requires_height": payload.requires_height,
         "requires_body_type": payload.requires_body_type,
+        "photo": payload.photo,
         "is_active": True,
         "created_at": datetime.now().isoformat(),
     }
@@ -193,6 +199,38 @@ async def delete_clothing_type(type_id: str,
 async def list_all_orders(current_user: dict = Depends(get_current_admin)):
     items = await db.clothing_orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
     return items
+
+
+@router.get("/clothing/orders-grouped")
+async def list_orders_grouped(current_user: dict = Depends(get_current_admin)):
+    """Returns orders grouped by employee with their clothing profile attached."""
+    items = await db.clothing_orders.find({}, {"_id": 0}).sort("created_at", -1).to_list(2000)
+    by_emp: dict = {}
+    for o in items:
+        emp_id = o.get("employee_id")
+        if not emp_id:
+            continue
+        if emp_id not in by_emp:
+            by_emp[emp_id] = {
+                "employee_id": emp_id,
+                "employee_name": o.get("employee_name"),
+                "orders": [],
+            }
+        by_emp[emp_id]["orders"].append(o)
+
+    # Attach clothing profile
+    for emp_id, row in by_emp.items():
+        emp = await db.employees.find_one(
+            {"id": emp_id}, {"_id": 0, "clothing_profile": 1, "full_name": 1}
+        )
+        row["clothing_profile"] = (emp or {}).get("clothing_profile") or {}
+        if not row.get("employee_name") and emp:
+            row["employee_name"] = emp.get("full_name")
+
+    return sorted(
+        by_emp.values(),
+        key=lambda r: (r.get("employee_name") or "").lower()
+    )
 
 
 @router.post("/clothing/orders/{order_id}/issue")
@@ -290,6 +328,40 @@ async def public_list_my_orders(token: str):
     return orders
 
 
+@router.get("/public/clothing/{token}/profile")
+async def public_get_profile(token: str):
+    employee = await db.employees.find_one({"public_token": token}, {"_id": 0})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Invalid link")
+    profile = employee.get("clothing_profile") or {}
+    return {
+        "shoe_size": profile.get("shoe_size"),
+        "height": profile.get("height"),
+        "body_type": profile.get("body_type"),
+    }
+
+
+@router.put("/public/clothing/{token}/profile")
+async def public_save_profile(token: str, payload: ClothingProfileUpdate):
+    employee = await db.employees.find_one({"public_token": token}, {"_id": 0})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Invalid link")
+    if payload.body_type not in (None, "chudy", "sredni", "gruby"):
+        raise HTTPException(status_code=400, detail="Nieprawidlowa sylwetka")
+
+    profile = {
+        "shoe_size": (payload.shoe_size or "").strip() or None,
+        "height": (payload.height or "").strip() or None,
+        "body_type": payload.body_type,
+        "updated_at": datetime.now().isoformat(),
+    }
+    await db.employees.update_one(
+        {"id": employee["id"]},
+        {"$set": {"clothing_profile": profile}}
+    )
+    return profile
+
+
 @router.post("/public/clothing/{token}/order")
 async def public_place_order(token: str, payload: ClothingOrderCreate):
     employee = await db.employees.find_one({"public_token": token}, {"_id": 0})
@@ -311,13 +383,18 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
             detail=f"Mozesz zamowic max {info['remaining_this_year']} szt. (pozostalo w tym roku)"
         )
 
-    # Validate required extra fields per type
-    if ct.get("requires_shoe_size") and not payload.shoe_size:
-        raise HTTPException(status_code=400, detail="Podaj rozmiar buta")
-    if ct.get("requires_height") and not payload.height:
-        raise HTTPException(status_code=400, detail="Podaj wzrost")
-    if ct.get("requires_body_type") and payload.body_type not in ("chudy", "sredni", "gruby"):
-        raise HTTPException(status_code=400, detail="Wybierz sylwetke (chudy / sredni / gruby)")
+    # Read employee clothing profile
+    profile = employee.get("clothing_profile") or {}
+    shoe_size = profile.get("shoe_size")
+    height = profile.get("height")
+    body_type = profile.get("body_type")
+
+    if ct.get("requires_shoe_size") and not shoe_size:
+        raise HTTPException(status_code=400, detail="Uzupelnij rozmiar buta w swoim profilu wymiarow")
+    if ct.get("requires_height") and not height:
+        raise HTTPException(status_code=400, detail="Uzupelnij wzrost w swoim profilu wymiarow")
+    if ct.get("requires_body_type") and body_type not in ("chudy", "sredni", "gruby"):
+        raise HTTPException(status_code=400, detail="Wybierz sylwetke w swoim profilu wymiarow")
 
     order = {
         "id": str(uuid.uuid4()),
@@ -326,9 +403,9 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
         "clothing_type_id": ct["id"],
         "clothing_type_name": ct["name"],
         "quantity": payload.quantity,
-        "shoe_size": payload.shoe_size,
-        "height": payload.height,
-        "body_type": payload.body_type,
+        "shoe_size": shoe_size,
+        "height": height,
+        "body_type": body_type,
         "status": "ordered",
         "issued_at": None,
         "issued_by": None,
