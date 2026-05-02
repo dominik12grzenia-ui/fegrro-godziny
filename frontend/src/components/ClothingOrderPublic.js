@@ -16,7 +16,6 @@ export const ClothingOrderPublic = ({ token }) => {
   const [profile, setProfile] = useState({ shoe_size: '', height: '', body_type: '' });
   const [profileDirty, setProfileDirty] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
-  const [qty, setQty] = useState({});
   const [lightbox, setLightbox] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -62,16 +61,12 @@ export const ClothingOrderPublic = ({ token }) => {
   };
 
   const handleOrder = async (ct) => {
-    const q = parseInt(qty[ct.id] || '1', 10);
-    if (!q || q < 1) { toast.error('Podaj ilosc'); return; }
-    if (q > ct.remaining_this_year) { toast.error(`Max ${ct.remaining_this_year} szt.`); return; }
     try {
       await axios.post(`${API}/public/clothing/${token}/order`, {
         clothing_type_id: ct.id,
-        quantity: q,
+        quantity: 1,
       });
       toast.success('Zamowienie wyslane');
-      setQty((prev) => ({ ...prev, [ct.id]: '' }));
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -201,28 +196,14 @@ export const ClothingOrderPublic = ({ token }) => {
                         Najpierw uzupełnij swoje wymiary powyżej.
                       </p>
                     ) : (
-                      <div className="flex gap-2 items-end mt-2">
-                        <div className="flex-1 max-w-[100px]">
-                          <label className="text-[10px] text-[#94A3B8]">Ilość</label>
-                          <Input
-                            type="number" min="1"
-                            max={ct.usage_period_months > 0 ? 1 : ct.remaining_this_year}
-                            value={qty[ct.id] || ''}
-                            onChange={(e) => setQty((prev) => ({ ...prev, [ct.id]: e.target.value }))}
-                            placeholder={ct.usage_period_months > 0 ? 'max 1' : `max ${ct.remaining_this_year}`}
-                            className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
-                            data-testid={`clothing-qty-${ct.id}`}
-                          />
-                        </div>
-                        <Button
-                          onClick={() => handleOrder(ct)}
-                          size="sm"
-                          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-                          data-testid={`clothing-order-btn-${ct.id}`}
-                        >
-                          <Check className="h-3 w-3 mr-1" /> Zamów
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => handleOrder(ct)}
+                        size="sm"
+                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white mt-2"
+                        data-testid={`clothing-order-btn-${ct.id}`}
+                      >
+                        <Check className="h-3 w-3 mr-1" /> Zamów 1 szt.
+                      </Button>
                     )}
                   </div>
                 </div>

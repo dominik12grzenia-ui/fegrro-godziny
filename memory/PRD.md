@@ -83,6 +83,13 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
 ## Completed (2026-02-12)
+- **BHP zakladka** (admin -> BHP) - katalog rzeczy BHP + wydawanie pracownikom
+  - Backend: `routes/bhp.py` + kolekcje `bhp_items`, `bhp_issuances`
+  - Endpointy: `GET/POST/PUT/DELETE /api/bhp/items` i `/api/bhp/issuances`
+  - Model: Item (nazwa, zdjecie), Issuance (employee_id, bhp_item_id, quantity, serial_number, note, issued_at)
+  - Frontend `BhpAdmin.js`: sub-taby "Rzeczy BHP" (CRUD ze zdjeciami) + "Wydania pracownikom" (grupowane po pracowniku)
+  - Modal wydania: wybor pracownika + rzeczy + ilosc + nr seryjny + notatka
+- **Uproszczenie zamawiania ubran** - usunieto pole "Ilość" po stronie pracownika (zawsze 1 szt.)
 - **PDF eksport zamowien ubran (2 strony)** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
   - Endpoint: `GET /api/clothing/orders/pdf?status={ordered|issued|all}` (admin only)
   - **Strona 1**: szczegolowa tabela Zdjecie | Nazwa | Ilosc | Pracownicy (z zielonym podsumowaniem rozmiarow + pelna lista z wymiarami)

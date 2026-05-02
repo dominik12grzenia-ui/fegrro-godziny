@@ -15,6 +15,7 @@ import { SitesMap } from './SitesMap';
 // Lazy-loaded heavy tabs — code-split away from the main bundle
 const EquipmentAdmin = lazy(() => import('./EquipmentAdmin').then((m) => ({ default: m.EquipmentAdmin })));
 const ClothingAdmin = lazy(() => import('./ClothingAdmin').then((m) => ({ default: m.ClothingAdmin })));
+const BhpAdmin = lazy(() => import('./BhpAdmin').then((m) => ({ default: m.BhpAdmin })));
 
 const TabSpinner = () => (
   <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
@@ -277,6 +278,7 @@ export const AdminDashboard = () => {
               <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Elektronarzędzia</TabsTrigger>
               <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap">Akcesoria</TabsTrigger>
               <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap">Ubrania</TabsTrigger>
+              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap">BHP</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
@@ -843,6 +845,12 @@ export const AdminDashboard = () => {
           <TabsContent value="clothing" className="space-y-4 bg-[#1E293B]">
             <Suspense fallback={<TabSpinner />}>
               <ClothingAdmin />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="bhp" className="space-y-4 bg-[#1E293B]">
+            <Suspense fallback={<TabSpinner />}>
+              <BhpAdmin />
             </Suspense>
           </TabsContent>
 
