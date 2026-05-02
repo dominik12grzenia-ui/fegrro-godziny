@@ -35,24 +35,39 @@ export const ClothingAdmin = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [tRes, oRes, gRes, sRes] = await Promise.all([
+      // PRIMARY - render first 2 subtabs fast
+      const [tRes, gRes] = await Promise.all([
         api.get('/clothing/types'),
-        api.get('/clothing/orders'),
         api.get('/clothing/orders-grouped'),
-        api.get('/clothing/employees-summary'),
       ]);
       setTypes(tRes.data);
-      setOrders(oRes.data);
       setGrouped(gRes.data);
-      setSummary(sRes.data);
+      // orders list derived for the counter badge
+      const flatOrders = gRes.data.flatMap((g) => g.orders || []);
+      setOrders(flatOrders);
+      setLoading(false);
     } catch (e) {
       toast.error('Blad pobierania danych ubran');
-    } finally {
       setLoading(false);
     }
   }, []);
 
+  const fetchSummary = useCallback(async () => {
+    try {
+      const sRes = await api.get('/clothing/employees-summary');
+      setSummary(sRes.data);
+    } catch (e) {
+      // silent
+    }
+  }, []);
+
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    // Lazy-load summary (slowest endpoint) only when user opens the Pracownicy sub-tab
+    if (subtab === 'summary' && summary.length === 0) {
+      fetchSummary();
+    }
+  }, [subtab, summary.length, fetchSummary]);
 
   const openCreate = () => {
     setEditingType(null);
@@ -387,7 +402,8 @@ export const ClothingAdmin = () => {
                                   try {
                                     await api.post('/clothing/employee-limit', payload);
                                     toast.success('Limit zaktualizowany');
-                                    fetchAll();
+                                    setSummary([]);  // force refetch
+                                    fetchSummary();
                                   } catch (err) {
                                     toast.error(err.response?.data?.detail || 'Blad');
                                   }

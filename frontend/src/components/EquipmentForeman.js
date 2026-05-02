@@ -46,24 +46,29 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
 
   const fetchAll = useCallback(async () => {
     try {
-      const [myRes, forRes, ptRes, meRes, retRes, wkRes] = await Promise.all([
+      // PRIMARY - minimum needed for "Moj sprzet" table to render
+      const [myRes, forRes] = await Promise.all([
         api.get(`/equipment/my?category=${encodeURIComponent(category)}`),
         api.get('/foremen'),
+      ]);
+      setMyEquipment(myRes.data);
+      const allF = forRes.data || [];
+      setAllForemen(allF);
+      setLoading(false);
+
+      // SECONDARY - transfers banner, keeper status, pending returns etc.
+      const [ptRes, meRes, retRes, wkRes] = await Promise.all([
         api.get('/equipment/transfers/pending'),
         api.get('/foreman/me').catch(() => ({ data: null })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null } })),
       ]);
-      setMyEquipment(myRes.data);
       const me = meRes.data;
-      const allF = forRes.data || [];
-      setAllForemen(allF);
       setForemen(allF.filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
       setPendingReturns(retRes.data);
       const keeperFlag = me && wkRes.data?.foreman_id === me.id;
       setIsWarehouseKeeper(keeperFlag);
-      // If keeper, also load full equipment + assignments overview (filtered by category)
       if (keeperFlag) {
         const [eqAll, asgAll] = await Promise.all([
           api.get(`/equipment?category=${encodeURIComponent(category)}`),
@@ -73,8 +78,6 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         setAllAssignments(asgAll.data);
       }
     } catch (e) {
-      // silent
-    } finally {
       setLoading(false);
     }
   }, [category]);

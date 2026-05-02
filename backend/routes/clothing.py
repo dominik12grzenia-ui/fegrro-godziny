@@ -323,32 +323,129 @@ async def delete_order(order_id: str,
 # ============= Employee summary (admin) =============
 @router.get("/clothing/employees-summary")
 async def employees_summary(current_user: dict = Depends(get_current_admin)):
-    """For each employee returns counts per clothing type: issued_count, remaining_this_year, can_order_now."""
-    employees = await db.employees.find({}, {"_id": 0, "id": 1, "full_name": 1, "clothing_limits": 1}).sort("full_name", 1).to_list(5000)
+    """For each employee returns counts per clothing type (optimized: bulk queries)."""
+    employees = await db.employees.find(
+        {}, {"_id": 0, "id": 1, "full_name": 1, "clothing_limits": 1}
+    ).sort("full_name", 1).to_list(5000)
     types = await db.clothing_types.find({"is_active": True}, {"_id": 0}).to_list(500)
+    if not employees or not types:
+        return []
+
+    now = datetime.now()
+    year = now.year
+    emp_ids = [e["id"] for e in employees]
+    type_ids = [t["id"] for t in types]
+
+    # Bulk fetch ALL orders for all these employees/types once
+    all_orders = await db.clothing_orders.find(
+        {"employee_id": {"$in": emp_ids}, "clothing_type_id": {"$in": type_ids}},
+        {"_id": 0}
+    ).to_list(50000)
+
+    # Also fetch orders in other (possibly inactive) types within same tier_groups
+    tier_groups = list({t.get("tier_group") for t in types if t.get("tier_group")})
+    group_type_map = {}  # tier_group -> [{id, name, tier_level}]
+    group_orders_map = {}  # (emp_id, tier_group) -> list of orders this year sorted by created
+    if tier_groups:
+        group_types = await db.clothing_types.find(
+            {"tier_group": {"$in": tier_groups}}, {"_id": 0, "id": 1, "name": 1, "tier_level": 1, "tier_group": 1}
+        ).to_list(500)
+        for gt in group_types:
+            group_type_map.setdefault(gt["tier_group"], []).append(gt)
+        group_type_ids = [gt["id"] for gt in group_types]
+        group_all_orders = await db.clothing_orders.find(
+            {"employee_id": {"$in": emp_ids}, "clothing_type_id": {"$in": group_type_ids}},
+            {"_id": 0}
+        ).to_list(50000)
+        # Index orders by (emp_id, type_id) to resolve tier_group lookup
+        type_group_by_id = {gt["id"]: gt for gt in group_types}
+        for o in group_all_orders:
+            gt = type_group_by_id.get(o["clothing_type_id"])
+            if not gt:
+                continue
+            tg = gt["tier_group"]
+            created = _parse_dt(o.get("created_at"))
+            if not created or created.year != year:
+                continue
+            key = (o["employee_id"], tg)
+            group_orders_map.setdefault(key, []).append((created, gt))
+
+    # Sort each group's orders by date asc to find first
+    tier_first_map = {}  # (emp_id, tier_group) -> (tier_level, name)
+    for key, lst in group_orders_map.items():
+        lst.sort(key=lambda x: x[0])
+        _, first_type = lst[0]
+        tier_first_map[key] = (int(first_type.get("tier_level") or 1), first_type.get("name"))
+
+    # Group orders by (emp_id, type_id)
+    orders_by_et = {}
+    for o in all_orders:
+        key = (o["employee_id"], o["clothing_type_id"])
+        orders_by_et.setdefault(key, []).append(o)
 
     result = []
     for emp in employees:
+        overrides = emp.get("clothing_limits") or {}
         per_type = []
         for ct in types:
-            info = await _compute_remaining(ct, emp["id"])
-            issued_count = await db.clothing_orders.count_documents({
-                "clothing_type_id": ct["id"],
-                "employee_id": emp["id"],
-                "status": "issued",
-            })
+            key = (emp["id"], ct["id"])
+            orders = orders_by_et.get(key, [])
+            yearly_limit = int(overrides.get(ct["id"]) or ct.get("yearly_limit") or 0)
+            usage_period = int(ct.get("usage_period_months") or 0)
+
+            ordered_this_year = 0
+            issued_count = 0
+            last_issued = None
+            for o in orders:
+                created = _parse_dt(o.get("created_at"))
+                if created and created.year == year:
+                    ordered_this_year += int(o.get("quantity") or 0)
+                if o.get("status") == "issued":
+                    issued_count += 1
+                    issued_dt = _parse_dt(o.get("issued_at"))
+                    if issued_dt and (last_issued is None or issued_dt > last_issued):
+                        last_issued = issued_dt
+
+            remaining = max(0, yearly_limit - ordered_this_year)
+            next_available_at = None
+            if usage_period > 0 and last_issued is not None:
+                cutoff = last_issued + timedelta(days=30 * usage_period)
+                if cutoff > now:
+                    next_available_at = cutoff.isoformat()
+
+            tier_locked_level = None
+            tier_locked_name = None
+            tg = ct.get("tier_group")
+            if tg:
+                tier_lock = tier_first_map.get((emp["id"], tg))
+                if tier_lock:
+                    tier_locked_level, tier_locked_name = tier_lock
+
+            in_window = _months_between(ct["start_month"], ct["end_month"], now.month)
+            reason = None
+            if not ct.get("is_active", True):
+                reason = "Pozycja nieaktywna"
+            elif tier_locked_level is not None and int(ct.get("tier_level") or 1) != tier_locked_level:
+                reason = f"Masz juz zamowienie: {tier_locked_name} (inny wariant tej grupy)"
+            elif remaining <= 0:
+                reason = f"Roczny limit wyczerpany ({ordered_this_year}/{yearly_limit})"
+            elif next_available_at is not None:
+                reason = f"Mozna zamowic od {next_available_at[:10]} (okres uzytkowania)"
+            elif not in_window:
+                reason = f"Poza oknem zamawiania (miesiace {ct['start_month']}-{ct['end_month']})"
+
             per_type.append({
                 "clothing_type_id": ct["id"],
                 "clothing_type_name": ct["name"],
                 "yearly_limit": ct["yearly_limit"],
-                "yearly_limit_effective": info["yearly_limit_effective"],
-                "limit_overridden": (emp.get("clothing_limits") or {}).get(ct["id"]) is not None,
-                "ordered_this_year": info["ordered_this_year"],
-                "remaining_this_year": info["remaining_this_year"],
+                "yearly_limit_effective": yearly_limit,
+                "limit_overridden": overrides.get(ct["id"]) is not None,
+                "ordered_this_year": ordered_this_year,
+                "remaining_this_year": remaining,
                 "issued_count_total": issued_count,
-                "next_available_at": info["next_available_at"],
-                "can_order_now": info["can_order_now"],
-                "reason": info["reason"],
+                "next_available_at": next_available_at,
+                "can_order_now": reason is None,
+                "reason": reason,
             })
         result.append({
             "employee_id": emp["id"],

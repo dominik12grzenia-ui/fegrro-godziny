@@ -53,10 +53,19 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
 
   const fetchAll = useCallback(async () => {
     try {
-      const [eqRes, forRes, asgRes, hisRes, defRes, trRes, wkRes, retRes, scrRes] = await Promise.all([
+      // PRIMARY fetches - render table as soon as these arrive
+      const [eqRes, forRes, asgRes] = await Promise.all([
         api.get(`/equipment?category=${encodeURIComponent(category)}`),
         api.get('/foremen'),
         api.get('/equipment/assignments/all'),
+      ]);
+      setEquipment(eqRes.data);
+      setForemen((forRes.data || []).filter((f) => f.status === 'active'));
+      setAssignments(asgRes.data);
+      setLoading(false);
+
+      // SECONDARY fetches - fill in lists below the table without blocking
+      const [hisRes, defRes, trRes, wkRes, retRes, scrRes] = await Promise.all([
         api.get('/equipment/history'),
         api.get('/equipment/defects'),
         api.get('/equipment/transfers/all'),
@@ -64,9 +73,6 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get(`/equipment/scrapped?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
       ]);
-      setEquipment(eqRes.data);
-      setForemen((forRes.data || []).filter((f) => f.status === 'active'));
-      setAssignments(asgRes.data);
       setHistory(hisRes.data);
       setDefects(defRes.data);
       setTransfers(trRes.data);
@@ -75,7 +81,6 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setScrapped(scrRes.data);
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
-    } finally {
       setLoading(false);
     }
   }, [category]);
