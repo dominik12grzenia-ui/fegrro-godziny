@@ -7,7 +7,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { 
   Users, Building2, Clock, FileText, LogOut, 
   CheckCircle, XCircle, MapPin, Phone, Calendar,
-  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle
+  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle, Shirt
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SitesMap } from './SitesMap';
@@ -23,6 +23,7 @@ export const AdminDashboard = () => {
     totalEmployees: 0,
     totalSites: 0,
     pendingRequests: 0,
+    pendingClothing: 0,
     todayHours: 0
   });
   const [employees, setEmployees] = useState([]);
@@ -53,7 +54,7 @@ export const AdminDashboard = () => {
       const now = new Date();
       const currentMonth = now.getMonth() + 1;
       const currentYear = now.getFullYear();
-      const [employeesRes, sitesRes, requestsRes, foremenRes, notificationsRes, syncLogsRes, assignmentsRes, absencesRes] = await Promise.all([
+      const [employeesRes, sitesRes, requestsRes, foremenRes, notificationsRes, syncLogsRes, assignmentsRes, absencesRes, clothingOrdersRes] = await Promise.all([
         api.get(`/employees?month=${currentMonth}&year=${currentYear}`),
         api.get('/sites'),
         api.get('/requests?status=pending'),
@@ -61,7 +62,8 @@ export const AdminDashboard = () => {
         api.get('/notifications'),
         api.get('/sync/logs'),
         api.get('/assignments'),
-        api.get('/absences?status=pending')
+        api.get('/absences?status=pending'),
+        api.get('/clothing/orders').catch(() => ({ data: [] })),
       ]);
       
       setEmployees(employeesRes.data);
@@ -75,10 +77,12 @@ export const AdminDashboard = () => {
 
       // Stats counter shows only Excel-synced budowy
       const budowyCount = (sitesRes.data || []).filter((s) => s.excel_column).length;
+      const pendingClothing = (clothingOrdersRes.data || []).filter((o) => o.status !== 'issued').length;
       setStats({
         totalEmployees: employeesRes.data.length,
         totalSites: budowyCount,
         pendingRequests: requestsRes.data.length,
+        pendingClothing,
         todayHours: 0
       });
     } catch (error) {
@@ -169,7 +173,7 @@ export const AdminDashboard = () => {
         )}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card className="bg-[#2A384C] border-[#334155]">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -205,6 +209,22 @@ export const AdminDashboard = () => {
               </div>
             </CardContent>
           </Card>
+
+          <Card
+            className="bg-[#2A384C] border-[#334155] cursor-pointer hover:border-[#5F7151] transition-colors"
+            onClick={() => setActiveTab('clothing')}
+            data-testid="stat-clothing-orders"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#94A3B8]">Zamówienia</p>
+                  <p className="text-3xl font-bold text-[#E8B76A]">{stats.pendingClothing}</p>
+                </div>
+                <Shirt className="h-12 w-12 text-[#E8B76A] opacity-20" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Quick Actions - Tabela Godzin */}
@@ -232,7 +252,7 @@ export const AdminDashboard = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="overflow-x-auto -mx-1 px-1">
-            <TabsList className="inline-flex w-auto min-w-max gap-1">
+            <TabsList className="inline-flex w-auto min-w-max gap-1 lg:grid lg:w-full lg:grid-cols-7 lg:gap-1">
               <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Lokalizacje</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap">
                 Brygadzisci

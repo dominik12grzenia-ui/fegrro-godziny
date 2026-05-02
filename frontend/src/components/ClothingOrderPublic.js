@@ -135,11 +135,12 @@ export const ClothingOrderPublic = ({ token }) => {
                       key={bt.value}
                       type="button"
                       onClick={() => { setProfile((p) => ({ ...p, body_type: bt.value })); setProfileDirty(true); }}
-                      className={`flex flex-col items-center gap-1 p-2 rounded border transition-colors ${selected ? 'bg-[#5F7151]/20 border-[#5F7151] text-[#CBD5E1]' : 'bg-[#0F172A] border-[#334155] text-[#64748B] hover:border-[#5F7151]/50'}`}
+                      title={bt.label}
+                      aria-label={bt.label}
+                      className={`flex items-center justify-center p-2 rounded border transition-colors ${selected ? 'bg-[#5F7151]/20 border-[#5F7151]' : 'bg-[#0F172A] border-[#334155] hover:border-[#5F7151]/50'}`}
                       data-testid={`profile-body-${bt.value}`}
                     >
-                      <Icon className={`h-14 w-auto ${selected ? 'text-[#5F7151]' : 'text-[#475569]'}`} />
-                      <span className="text-xs font-semibold">{bt.label}</span>
+                      <Icon className={`h-10 w-auto ${selected ? 'text-[#5F7151]' : 'text-[#475569]'}`} />
                     </button>
                   );
                 })}
