@@ -494,18 +494,38 @@ export const AdminDashboard = () => {
           {/* Foremen Tab */}
           <TabsContent value="foremen" className="space-y-4 bg-[#1E293B]">
             <Card className="bg-[#2A384C] border-[#334155]">
-              <CardHeader>
+              <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-[#CBD5E1]">Brygadzisci</CardTitle>
+                <Button
+                  onClick={async () => {
+                    const name = window.prompt('Imie i nazwisko nowego brygadzisty:');
+                    if (!name || !name.trim()) return;
+                    const pwd = window.prompt(`Haslo dla ${name.trim()} (min. 4 znaki):`);
+                    if (!pwd || pwd.length < 4) { toast.error('Haslo za krotkie'); return; }
+                    try {
+                      await api.post('/foremen', { full_name: name.trim(), password: pwd });
+                      toast.success(`Brygadzista ${name.trim()} dodany`);
+                      fetchData();
+                    } catch (err) {
+                      toast.error(err.response?.data?.detail || 'Blad');
+                    }
+                  }}
+                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid="add-foreman-btn"
+                >
+                  + Dodaj brygadziste
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
                   {foremen.map((foreman) => {
                     const currentSiteIds = foremanSiteSelections[foreman.id] ?? foreman.assigned_sites ?? [];
                     const isPending = foreman.status === 'pending';
+                    const hasPassword = foreman.has_password !== false;
 
                     return (
                       <div key={foreman.id} className={`p-4 rounded-lg border ${isPending ? 'border-[#E8836A]/50 bg-[#1E293B]' : 'border-[#334155] bg-[#1E293B]'}`} data-testid={`foreman-${foreman.id}`}>
-                        <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                           <div>
                             <span className="text-[#CBD5E1] font-semibold text-lg">{foreman.full_name}</span>
                             {isPending && (
@@ -514,7 +534,28 @@ export const AdminDashboard = () => {
                             {!isPending && (
                               <span className="ml-2 text-xs bg-[#5F7151]/20 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold">Aktywny</span>
                             )}
+                            {!hasPassword && (
+                              <span className="ml-2 text-xs bg-[#E8B76A]/20 text-[#E8B76A] px-2 py-0.5 rounded font-semibold">BRAK HASLA</span>
+                            )}
                           </div>
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              const pwd = window.prompt(`${hasPassword ? 'Zmien' : 'Ustaw'} haslo dla ${foreman.full_name} (min. 4 znaki):`);
+                              if (!pwd || pwd.length < 4) return;
+                              try {
+                                await api.post(`/foremen/${foreman.id}/password`, { password: pwd });
+                                toast.success('Haslo zaktualizowane');
+                                fetchData();
+                              } catch (err) {
+                                toast.error(err.response?.data?.detail || 'Blad');
+                              }
+                            }}
+                            className={hasPassword ? 'bg-[#334155] hover:bg-[#475569] text-[#CBD5E1] text-xs h-8' : 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] text-xs h-8 font-bold'}
+                            data-testid={`set-foreman-password-${foreman.id}`}
+                          >
+                            {hasPassword ? 'Zmien haslo' : 'Ustaw haslo'}
+                          </Button>
                         </div>
                         <div className="mb-3">
                           <p className="text-xs text-[#94A3B8] mb-2">Przypisane budowy:</p>

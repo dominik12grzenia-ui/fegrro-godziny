@@ -62,16 +62,16 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const registerForeman = async (fullName) => {
+  const loginForeman = async (fullName, password) => {
     try {
-      const response = await axios.post(`${API}/auth/worker/register`, {
-        full_name: fullName,
-        role: 'foreman'
+      const response = await axios.post(`${API}/auth/foreman/login`, {
+        email: fullName,  // backend reads from .email field
+        password,
       });
       const { access_token, user_id, full_name, role, assigned_sites, message } = response.data;
       const userData = {
         id: user_id,
-        full_name: full_name,
+        full_name,
         role: role || 'foreman',
         assigned_sites: assigned_sites || []
       };
@@ -83,7 +83,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       return {
         success: false,
-        error: error.response?.data?.detail || 'Rejestracja nie powiodla sie'
+        error: error.response?.data?.detail || 'Logowanie nie powiodlo sie'
       };
     }
   };
@@ -99,7 +99,7 @@ export const AuthProvider = ({ children }) => {
     token,
     loading,
     loginAdmin,
-    registerForeman,
+    loginForeman,
     logout,
     isAdmin: user?.role === 'admin',
     isForeman: user?.role === 'foreman'
