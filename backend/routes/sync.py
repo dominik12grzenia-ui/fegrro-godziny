@@ -99,6 +99,7 @@ async def do_excel_sync(trigger: str = "manual", month: int = None, year: int = 
         emp_deactivated = 0
         excel_names_upper = {n.upper() for n in excel_names}
         all_emps = await db.employees.find({"active_months": month_key}, {"_id": 0, "id": 1, "full_name": 1}).to_list(5000)
+        missing_from_excel = []
         for emp in all_emps:
             if emp["full_name"].upper() not in excel_names_upper:
                 await db.employees.update_one(
@@ -106,9 +107,34 @@ async def do_excel_sync(trigger: str = "manual", month: int = None, year: int = 
                     {"$pull": {"active_months": month_key}}
                 )
                 emp_deactivated += 1
-        
+                missing_from_excel.append(emp)
+
         if emp_deactivated > 0:
             logger.info(f"Deactivated {emp_deactivated} employees not found in Excel")
+
+        # Insert notifications for employees missing from current Excel month.
+        # Only notify for employees not already archived and not already notified this month.
+        if missing_from_excel:
+            try:
+                from routes.bhp import notify_employee_missing_from_excel
+                for emp in missing_from_excel:
+                    emp_full = await db.employees.find_one(
+                        {"id": emp["id"]},
+                        {"_id": 0, "is_archived": 1}
+                    )
+                    if emp_full and emp_full.get("is_archived"):
+                        continue
+                    # Avoid spamming - only one notif per employee+month
+                    existing_notif = await db.notifications.find_one({
+                        "type": "employee_missing_excel",
+                        "employee_id": emp["id"],
+                        "message": {"$regex": month_key},
+                    })
+                    if existing_notif:
+                        continue
+                    await notify_employee_missing_from_excel(emp["id"], emp["full_name"], month_key)
+            except Exception as notif_err:
+                logger.warning(f"Failed to insert missing-employee notifications: {notif_err}")
         
         sites_from_excel = read_excel_sites(file_name, sheet_name)
         

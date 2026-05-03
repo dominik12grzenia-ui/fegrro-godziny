@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { HardHat, Plus, Trash2, Edit, X, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
+import { BhpEmployees } from './BhpEmployees';
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -181,7 +182,17 @@ export const BhpAdmin = () => {
         >
           Wydania pracownikom ({issuances.length})
         </button>
+        <button
+          type="button"
+          onClick={() => setSubtab('employees')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'employees' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="bhp-subtab-employees"
+        >
+          Pracownicy - dokumenty
+        </button>
       </div>
+
+      {subtab === 'employees' && <BhpEmployees />}
 
       {/* ITEMS sub-tab */}
       {subtab === 'items' && (

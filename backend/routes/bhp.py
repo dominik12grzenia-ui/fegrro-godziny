@@ -2,10 +2,16 @@
 
 Admin manages a catalog of BHP items (e.g. szelki, kask, rękawice) and
 records issuances to individual employees. One record per physical piece.
+Also: employee BHP info (job_title, validity dates) and document storage (PDFs).
 """
-from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
-from typing import Optional
+import base64
+import io
+import re
+import zipfile
+from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import Response
+from datetime import datetime, timedelta
+from typing import Optional, List
 from pydantic import BaseModel, Field
 import uuid
 
@@ -13,6 +19,32 @@ from database import db
 from auth import get_current_admin
 
 router = APIRouter()
+
+
+# Document categories (kept as string constants for flexibility)
+DOC_CATEGORIES = {
+    "bhp_szkolenie": "Szkolenie BHP",
+    "badania_lekarskie": "Badania lekarskie",
+    "uprawnienia_hakowy": "Uprawnienia hakowy",
+    "uprawnienia_sygnalista": "Uprawnienia sygnalista",
+    "badanie_wysokosciowe": "Badanie wysokosciowe",
+    "inne": "Inne",
+}
+
+_PL_FILE_MAP = {
+    "ą": "a", "ć": "c", "ę": "e", "ł": "l", "ń": "n",
+    "ó": "o", "ś": "s", "ź": "z", "ż": "z",
+    "Ą": "A", "Ć": "C", "Ę": "E", "Ł": "L", "Ń": "N",
+    "Ó": "O", "Ś": "S", "Ź": "Z", "Ż": "Z",
+    " ": "_",
+}
+
+
+def _safe_filename(text: str) -> str:
+    s = str(text or "unknown")
+    for k, v in _PL_FILE_MAP.items():
+        s = s.replace(k, v)
+    return re.sub(r"[^A-Za-z0-9_\-\.]", "", s)[:80] or "file"
 
 
 # ============= Schemas =============
@@ -148,3 +180,333 @@ async def delete_issuance(issuance_id: str,
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Wydanie nie znalezione")
     return {"message": "Wydanie usuniete"}
+
+
+# ============= Employee BHP info =============
+class EmployeeBhpInfoUpdate(BaseModel):
+    job_title: Optional[str] = None
+    registered_at: Optional[str] = None  # ISO date
+    bhp_valid_until: Optional[str] = None
+    height_work_certified: Optional[bool] = None
+    height_valid_until: Optional[str] = None
+
+
+@router.put("/employees/{employee_id}/bhp-info")
+async def update_employee_bhp_info(
+    employee_id: str,
+    payload: EmployeeBhpInfoUpdate,
+    current_user: dict = Depends(get_current_admin),
+):
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    update_doc = {}
+    payload_data = payload.model_dump(exclude_unset=True)
+    for k, v in payload_data.items():
+        if v == "":
+            update_doc[k] = None
+        else:
+            update_doc[k] = v
+    if not update_doc:
+        raise HTTPException(status_code=400, detail="Brak pol do aktualizacji")
+    update_doc["updated_at"] = datetime.now().isoformat()
+    await db.employees.update_one({"id": employee_id}, {"$set": update_doc})
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0})
+    return emp
+
+
+# ============= Archive / restore =============
+@router.post("/employees/{employee_id}/archive")
+async def archive_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {
+            "is_archived": True,
+            "archived_at": datetime.now().isoformat(),
+            "currently_active": False,
+        }},
+    )
+    return {"message": "Zarchiwizowano"}
+
+
+@router.post("/employees/{employee_id}/restore")
+async def restore_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {"is_archived": False, "archived_at": None}},
+    )
+    return {"message": "Przywrocono"}
+
+
+# ============= Documents CRUD =============
+class DocumentCreate(BaseModel):
+    category: str
+    file_name: str
+    file_data: str  # base64 (may include data: prefix)
+
+
+@router.get("/employees/{employee_id}/documents")
+async def list_documents(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    docs = await db.employee_documents.find(
+        {"employee_id": employee_id},
+        {"_id": 0, "file_data": 0},
+    ).sort("uploaded_at", -1).to_list(500)
+    return docs
+
+
+@router.post("/employees/{employee_id}/documents")
+async def upload_document(
+    employee_id: str,
+    payload: DocumentCreate,
+    current_user: dict = Depends(get_current_admin),
+):
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    if payload.category not in DOC_CATEGORIES:
+        raise HTTPException(status_code=400, detail="Nieprawidlowa kategoria")
+    raw_b64 = payload.file_data
+    if "," in raw_b64 and raw_b64.startswith("data:"):
+        raw_b64 = raw_b64.split(",", 1)[1]
+    if len(raw_b64) > 14 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Plik za duzy (max 10MB)")
+    try:
+        decoded = base64.b64decode(raw_b64, validate=False)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=400, detail="Nieprawidlowy plik")
+    size_bytes = len(decoded)
+
+    doc = {
+        "id": str(uuid.uuid4()),
+        "employee_id": employee_id,
+        "category": payload.category,
+        "file_name": payload.file_name.strip() or "document.pdf",
+        "file_data": raw_b64,
+        "size_bytes": size_bytes,
+        "uploaded_at": datetime.now().isoformat(),
+        "uploaded_by": current_user["sub"],
+    }
+    await db.employee_documents.insert_one(doc)
+    doc.pop("file_data", None)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.get("/employees/{employee_id}/documents/{doc_id}/download")
+async def download_document(
+    employee_id: str,
+    doc_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    doc = await db.employee_documents.find_one({"id": doc_id, "employee_id": employee_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Dokument nie znaleziony")
+    try:
+        content = base64.b64decode(doc["file_data"], validate=False)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=500, detail="Plik uszkodzony")
+    fname = _safe_filename(doc.get("file_name") or "document.pdf")
+    return Response(
+        content=content,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.delete("/employees/{employee_id}/documents/{doc_id}")
+async def delete_document(
+    employee_id: str,
+    doc_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    result = await db.employee_documents.delete_one({"id": doc_id, "employee_id": employee_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Dokument nie znaleziony")
+    return {"message": "Usunieto"}
+
+
+# ============= Employees listing with filters (for BHP tab) =============
+@router.get("/bhp/employees")
+async def list_employees_for_bhp(
+    include_archived: bool = Query(False),
+    only_archived: bool = Query(False),
+    site_id: Optional[str] = Query(None),
+    assigned_on_date: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_admin),
+):
+    query: dict = {}
+    if only_archived:
+        query["is_archived"] = True
+    elif not include_archived:
+        query["$or"] = [{"is_archived": {"$exists": False}}, {"is_archived": False}]
+
+    if site_id:
+        query["assigned_sites"] = site_id
+
+    employees = await db.employees.find(
+        query, {"_id": 0}
+    ).sort("full_name", 1).to_list(5000)
+
+    # Attach document counts (single aggregation)
+    emp_ids = [e["id"] for e in employees]
+    counts_by_emp: dict = {}
+    if emp_ids:
+        cursor = db.employee_documents.aggregate([
+            {"$match": {"employee_id": {"$in": emp_ids}}},
+            {"$group": {
+                "_id": {"emp": "$employee_id", "cat": "$category"},
+                "count": {"$sum": 1},
+            }},
+        ])
+        async for row in cursor:
+            emp = row["_id"]["emp"]
+            cat = row["_id"]["cat"]
+            counts_by_emp.setdefault(emp, {})[cat] = row["count"]
+
+    for e in employees:
+        e["documents_by_category"] = counts_by_emp.get(e["id"], {})
+        e["documents_total"] = sum(counts_by_emp.get(e["id"], {}).values())
+
+    return employees
+
+
+# ============= Bulk download =============
+class BulkDownloadPayload(BaseModel):
+    employee_ids: List[str] = Field(min_length=1)
+    categories: List[str] = Field(min_length=1)
+    format: str = Field(default="zip")
+
+
+@router.post("/bhp/documents/bulk-download")
+async def bulk_download(
+    payload: BulkDownloadPayload,
+    current_user: dict = Depends(get_current_admin),
+):
+    if payload.format not in ("zip", "pdf"):
+        raise HTTPException(status_code=400, detail="format must be zip or pdf")
+    invalid = [c for c in payload.categories if c not in DOC_CATEGORIES]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Nieprawidlowe kategorie: {invalid}")
+
+    emps = await db.employees.find(
+        {"id": {"$in": payload.employee_ids}},
+        {"_id": 0, "id": 1, "full_name": 1},
+    ).to_list(5000)
+    emp_names = {e["id"]: e["full_name"] for e in emps}
+
+    docs = await db.employee_documents.find(
+        {"employee_id": {"$in": payload.employee_ids}, "category": {"$in": payload.categories}},
+        {"_id": 0},
+    ).to_list(5000)
+
+    if not docs:
+        raise HTTPException(status_code=404, detail="Brak dokumentow do pobrania")
+
+    ts = datetime.now().strftime("%Y%m%d_%H%M")
+
+    if payload.format == "zip":
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for doc in docs:
+                try:
+                    content = base64.b64decode(doc["file_data"], validate=False)
+                except (ValueError, TypeError):
+                    continue
+                emp_name = emp_names.get(doc["employee_id"], "unknown")
+                cat_label = _safe_filename(DOC_CATEGORIES.get(doc["category"], doc["category"]))
+                safe_emp = _safe_filename(emp_name)
+                orig_name = _safe_filename(doc.get("file_name") or "doc.pdf")
+                path = f"{safe_emp}/{cat_label}_{orig_name}"
+                suffix = 1
+                final_path = path
+                while final_path in zf.namelist():
+                    if "." in final_path:
+                        root, ext = final_path.rsplit(".", 1)
+                        final_path = f"{root}_{suffix}.{ext}"
+                    else:
+                        final_path = f"{final_path}_{suffix}"
+                    suffix += 1
+                zf.writestr(final_path, content)
+        buf.seek(0)
+        filename = f"dokumenty_bhp_{ts}.zip"
+        return Response(
+            content=buf.getvalue(),
+            media_type="application/zip",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+
+    # format == "pdf" -> merge all PDFs
+    try:
+        from pypdf import PdfWriter, PdfReader
+    except ImportError:
+        raise HTTPException(status_code=500, detail="pypdf not installed")
+
+    writer = PdfWriter()
+    added = 0
+    cat_order = {c: i for i, c in enumerate(DOC_CATEGORIES.keys())}
+    docs_sorted = sorted(
+        docs,
+        key=lambda d: (
+            (emp_names.get(d["employee_id"], "") or "").lower(),
+            cat_order.get(d.get("category"), 99),
+            d.get("uploaded_at", ""),
+        ),
+    )
+    for doc in docs_sorted:
+        try:
+            content = base64.b64decode(doc["file_data"], validate=False)
+            reader = PdfReader(io.BytesIO(content))
+            for page in reader.pages:
+                writer.add_page(page)
+            added += 1
+        except Exception:
+            continue
+    if added == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Zadne z wybranych dokumentow nie jest prawidlowym PDF - uzyj formatu ZIP",
+        )
+
+    out = io.BytesIO()
+    writer.write(out)
+    out.seek(0)
+    filename = f"dokumenty_bhp_{ts}.pdf"
+    return Response(
+        content=out.getvalue(),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+# ============= Notification hook (called from sync) =============
+async def notify_employee_missing_from_excel(employee_id: str, employee_name: str, month_key: str):
+    """Insert a notification; called by Excel sync when employee is not present."""
+    notif = {
+        "id": str(uuid.uuid4()),
+        "type": "employee_missing_excel",
+        "title": f"Pracownik zniknal z Excela: {employee_name}",
+        "message": f"{employee_name} nie wystapil w arkuszu {month_key}. Rozwaz archiwizacje w zakladce BHP.",
+        "employee_id": employee_id,
+        "status": "unread",
+        "created_at": datetime.now().isoformat(),
+    }
+    try:
+        await db.notifications.insert_one(notif)
+    except Exception:
+        pass
+

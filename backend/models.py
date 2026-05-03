@@ -57,6 +57,15 @@ class Employee(BaseModel):
     user_id: Optional[str] = None
     currently_active: bool = True
     assigned_sites: List[str] = []
+    # BHP info (optional)
+    job_title: Optional[str] = None
+    registered_at: Optional[str] = None  # ISO date
+    bhp_valid_until: Optional[str] = None  # ISO date
+    height_work_certified: Optional[bool] = None
+    height_valid_until: Optional[str] = None
+    # Archive
+    is_archived: bool = False
+    archived_at: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now())
     updated_at: datetime = Field(default_factory=lambda: datetime.now())
     sync_source: Optional[str] = None
