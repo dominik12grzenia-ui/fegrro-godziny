@@ -83,12 +83,20 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
 ## Completed (2026-02-12)
+- **BHP: dokumenty pracownikow + bulk download + archiwizacja** (admin -> BHP -> "Pracownicy - dokumenty")
+  - Rozszerzony model Employee: `job_title`, `registered_at`, `bhp_valid_until`, `height_work_certified`, `height_valid_until`, `is_archived`, `archived_at`
+  - Kolekcja `employee_documents`: base64 PDF z kategoriami (bhp_szkolenie, badania_lekarskie, uprawnienia_hakowy, uprawnienia_sygnalista, badanie_wysokosciowe, inne)
+  - Endpointy:
+    - `PUT /api/employees/{id}/bhp-info` - update pol BHP
+    - `GET/POST/DELETE /api/employees/{id}/documents[/{doc_id}[/download]]`
+    - `POST /api/employees/{id}/archive` | `POST /api/employees/{id}/restore`
+    - `GET /api/bhp/employees?include_archived&only_archived&site_id` - lista z licznikami dokumentow per kategoria
+    - `POST /api/bhp/documents/bulk-download` - format=zip lub pdf (scalony pypdf)
+  - Excel sync: przy braku pracownika w arkuszu -> notyfikacja (typ `employee_missing_excel`), admin recznie archiwizuje
+  - Frontend: filtry (status/budowa/szukaj), multi-select checkbox, przycisk "Pobierz dokumenty" -> modal wyboru kategorii + formatu (ZIP / scalony PDF), modal edycji pracownika z uploadem PDF
+  - Kolorowanie terminow waznosci: czerwony przeterminowane, zolty <30 dni, zielony OK
+  - Testy: 15/15 pytest backend, 100% frontend Playwright
 - **BHP zakladka** (admin -> BHP) - katalog rzeczy BHP + wydawanie pracownikom
-  - Backend: `routes/bhp.py` + kolekcje `bhp_items`, `bhp_issuances`
-  - Endpointy: `GET/POST/PUT/DELETE /api/bhp/items` i `/api/bhp/issuances`
-  - Model: Item (nazwa, zdjecie), Issuance (employee_id, bhp_item_id, quantity, serial_number, note, issued_at)
-  - Frontend `BhpAdmin.js`: sub-taby "Rzeczy BHP" (CRUD ze zdjeciami) + "Wydania pracownikom" (grupowane po pracowniku)
-  - Modal wydania: wybor pracownika + rzeczy + ilosc + nr seryjny + notatka
 - **Uproszczenie zamawiania ubran** - usunieto pole "Ilość" po stronie pracownika (zawsze 1 szt.)
 - **PDF eksport zamowien ubran (2 strony)** (admin -> Ubrania -> Zamowione -> "PDF (do wydania)" / "PDF (wszystkie)")
   - Endpoint: `GET /api/clothing/orders/pdf?status={ordered|issued|all}` (admin only)
