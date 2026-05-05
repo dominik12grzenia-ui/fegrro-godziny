@@ -1,0 +1,533 @@
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { api } from '../context/AuthContext';
+import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Package, Plus, Trash2, Edit, X, Boxes, History, Check, AlertCircle } from 'lucide-react';
+import { toast } from 'sonner';
+
+const fileToBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+
+const UNITS = ['szt.', 'op.', 'm', 'm2', 'm3', 'kg', 't', 'l', 'paleta'];
+
+export const WarehouseAdmin = () => {
+  const [subtab, setSubtab] = useState('materials');
+  const [materials, setMaterials] = useState([]);
+  const [orders, setOrders] = useState([]);
+  const [foremen, setForemen] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const [showItem, setShowItem] = useState(false);
+  const [editing, setEditing] = useState(null);
+  const [form, setForm] = useState({ name: '', unit: 'szt.', current_stock: '0', note: '', photo: null });
+
+  const [stockAdjust, setStockAdjust] = useState(null); // material object
+  const [adjustVal, setAdjustVal] = useState('');
+  const [adjustReason, setAdjustReason] = useState('przyjęcie');
+
+  const [historyForeman, setHistoryForeman] = useState('');
+
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [m, o, f] = await Promise.all([
+        api.get('/warehouse/materials?include_inactive=true'),
+        api.get('/warehouse/orders'),
+        api.get('/foremen'),
+      ]);
+      setMaterials(m.data);
+      setOrders(o.data);
+      setForemen(f.data || []);
+    } catch (_e) {
+      toast.error('Blad pobierania');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (historyForeman) params.set('foreman_id', historyForeman);
+      const r = await api.get(`/warehouse/history?${params}`);
+      setHistory(r.data);
+    } catch (_e) { /* ignore */ }
+  }, [historyForeman]);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { if (subtab === 'history') fetchHistory(); }, [subtab, fetchHistory]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: '', unit: 'szt.', current_stock: '0', note: '', photo: null });
+    setShowItem(true);
+  };
+  const openEdit = (m) => {
+    setEditing(m);
+    setForm({
+      name: m.name,
+      unit: m.unit || 'szt.',
+      current_stock: String(m.current_stock ?? 0),
+      note: m.note || '',
+      photo: m.photo || null,
+    });
+    setShowItem(true);
+  };
+
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) { toast.error('Max 3MB'); return; }
+    const b64 = await fileToBase64(file);
+    setForm((f) => ({ ...f, photo: b64 }));
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) { toast.error('Podaj nazwe'); return; }
+    try {
+      const payload = {
+        name: form.name.trim(),
+        unit: form.unit,
+        current_stock: parseFloat(form.current_stock || '0') || 0,
+        note: form.note.trim() || null,
+        photo: form.photo,
+      };
+      if (editing) {
+        await api.put(`/warehouse/materials/${editing.id}`, payload);
+        toast.success('Zaktualizowano');
+      } else {
+        await api.post('/warehouse/materials', payload);
+        toast.success('Dodano');
+      }
+      setShowItem(false);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const remove = async (m) => {
+    if (!window.confirm(`Usunac "${m.name}"?`)) return;
+    try {
+      await api.delete(`/warehouse/materials/${m.id}`);
+      toast.success('Usunieto');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const submitAdjust = async () => {
+    const delta = parseFloat(adjustVal);
+    if (isNaN(delta) || delta === 0) { toast.error('Podaj zmiane'); return; }
+    try {
+      await api.post(`/warehouse/materials/${stockAdjust.id}/stock`, {
+        delta,
+        reason: adjustReason,
+      });
+      toast.success('Stan zaktualizowany');
+      setStockAdjust(null);
+      setAdjustVal('');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const issueOrder = async (order) => {
+    if (!window.confirm(`Oznaczyc zamowienie jako WYDANE?\nStan magazynu zostanie pomniejszony o zamowione ilosci.`)) return;
+    try {
+      await api.put(`/warehouse/orders/${order.id}/status`, { status: 'issued' });
+      toast.success('Wydano - stan zaktualizowany');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const rejectOrder = async (order) => {
+    const reason = window.prompt('Powod odrzucenia (opcjonalnie):') || null;
+    try {
+      await api.put(`/warehouse/orders/${order.id}/status`, { status: 'rejected', admin_note: reason });
+      toast.success('Odrzucono');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const removeOrder = async (order) => {
+    if (!window.confirm('Usunac zamowienie z historii?')) return;
+    try {
+      await api.delete(`/warehouse/orders/${order.id}`);
+      toast.success('Usunieto');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending'), [orders]);
+  const filteredOrders = useMemo(
+    () => (historyForeman ? orders.filter((o) => o.foreman_id === historyForeman) : orders),
+    [orders, historyForeman],
+  );
+
+  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
+
+  return (
+    <div className="space-y-4">
+      {/* Sub-tabs */}
+      <div className="flex gap-2 flex-wrap">
+        <button
+          type="button"
+          onClick={() => setSubtab('materials')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'materials' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="warehouse-subtab-materials"
+        >
+          Materiały ({materials.length})
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubtab('orders')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="warehouse-subtab-orders"
+        >
+          Zamówienia
+          {pendingOrders.length > 0 && (
+            <span className="ml-2 bg-[#E8B76A] text-[#1E293B] px-2 py-0.5 rounded text-[11px]">
+              {pendingOrders.length}
+            </span>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubtab('history')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'history' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="warehouse-subtab-history"
+        >
+          Historia
+        </button>
+      </div>
+
+      {/* MATERIALS */}
+      {subtab === 'materials' && (
+        <Card className="bg-[#2A384C] border-[#334155]">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <Boxes className="h-5 w-5 text-[#5F7151]" /> Materiały
+              </CardTitle>
+              <Button size="sm" onClick={openCreate}
+                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
+                data-testid="warehouse-add-material-btn">
+                <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj material
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {materials.length === 0 ? (
+              <p className="text-[#94A3B8]">Brak materiałów. Dodaj pierwszy (np. Cement, Pustak, Stal zbrojeniowa).</p>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {materials.map((m) => {
+                  const isLow = (m.current_stock || 0) < 1;
+                  return (
+                    <div key={m.id}
+                      className="bg-[#1E293B] rounded-lg border border-[#334155] p-3 flex gap-3"
+                      data-testid={`warehouse-material-${m.id}`}>
+                      {m.photo ? (
+                        <img src={m.photo} alt={m.name} className="h-20 w-20 object-cover rounded shrink-0" />
+                      ) : (
+                        <div className="h-20 w-20 bg-[#0F172A] rounded flex items-center justify-center shrink-0">
+                          <Package className="h-8 w-8 text-[#475569]" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[#CBD5E1] font-semibold truncate">{m.name}</p>
+                        <p className={`text-sm font-bold mt-1 ${isLow ? 'text-[#E8836A]' : 'text-[#6B8E4E]'}`}>
+                          Stan: {m.current_stock} {m.unit}
+                          {isLow && <AlertCircle className="h-3 w-3 inline-block ml-1" />}
+                        </p>
+                        {m.note && <p className="text-[11px] text-[#64748B] mt-0.5 truncate">{m.note}</p>}
+                        <div className="flex gap-1 mt-2">
+                          <Button size="sm" variant="ghost"
+                            onClick={() => { setStockAdjust(m); setAdjustVal(''); setAdjustReason('przyjęcie'); }}
+                            className="text-[#6B8E4E] h-7 px-2 text-[11px]"
+                            data-testid={`warehouse-adjust-stock-${m.id}`}>
+                            +/− stan
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => openEdit(m)}
+                            className="text-[#94A3B8] h-7 px-2">
+                            <Edit className="h-3 w-3" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => remove(m)}
+                            className="text-[#E8836A] h-7 px-2">
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ORDERS */}
+      {subtab === 'orders' && (
+        <Card className="bg-[#2A384C] border-[#334155]">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <Package className="h-5 w-5 text-[#5F7151]" /> Zamówienia brygadzistów
+              </CardTitle>
+              <select
+                value={historyForeman}
+                onChange={(e) => setHistoryForeman(e.target.value)}
+                className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-8 px-2 text-sm"
+                data-testid="warehouse-orders-foreman-filter">
+                <option value="">Wszyscy brygadziści</option>
+                {foremen.map((f) => (
+                  <option key={f.id} value={f.id}>{f.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {filteredOrders.length === 0 ? (
+              <p className="text-[#94A3B8]">Brak zamówień.</p>
+            ) : (
+              <div className="space-y-3">
+                {filteredOrders.map((o) => {
+                  const statusColor =
+                    o.status === 'pending' ? 'bg-[#E8B76A]/20 text-[#E8B76A]' :
+                    o.status === 'issued' ? 'bg-[#5F7151]/30 text-[#6B8E4E]' :
+                    'bg-[#E8836A]/20 text-[#E8836A]';
+                  const statusLabel = { pending: 'Oczekuje', issued: 'Wydane', rejected: 'Odrzucone' }[o.status] || o.status;
+                  return (
+                    <div key={o.id}
+                      className="bg-[#1E293B] rounded-lg border border-[#334155] p-3"
+                      data-testid={`warehouse-order-${o.id}`}>
+                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                        <div>
+                          <span className="text-[#CBD5E1] font-bold">{o.foreman_name}</span>
+                          {o.site_name && <span className="ml-2 text-xs text-[#94A3B8]">· {o.site_name}</span>}
+                          <span className={`ml-2 text-[11px] px-2 py-0.5 rounded ${statusColor}`}>{statusLabel}</span>
+                        </div>
+                        <span className="text-[11px] text-[#64748B]">
+                          {new Date(o.created_at).toLocaleString('pl-PL')}
+                        </span>
+                      </div>
+                      <div className="space-y-1 mb-2">
+                        {o.items.map((it) => (
+                          <div key={it.material_id} className="flex flex-wrap gap-2 items-center text-sm">
+                            <span className="text-[#CBD5E1]">{it.material_name}</span>
+                            <span className="text-[#94A3B8]">x {it.quantity} {it.unit}</span>
+                            {(it.stock_at_order ?? 0) < it.quantity && (
+                              <span className="text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1.5 py-0.5 rounded">
+                                w magazynie {it.stock_at_order} {it.unit}
+                              </span>
+                            )}
+                            {it.issued_quantity !== null && it.issued_quantity !== undefined && (
+                              <span className="text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-1.5 py-0.5 rounded">
+                                wydano {it.issued_quantity} {it.unit}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {o.note && <p className="text-xs text-[#94A3B8] italic mb-2">"{o.note}"</p>}
+                      {o.admin_note && <p className="text-xs text-[#E8B76A] italic mb-2">Admin: {o.admin_note}</p>}
+                      <div className="flex gap-2 flex-wrap">
+                        {o.status === 'pending' && (
+                          <>
+                            <Button size="sm" onClick={() => issueOrder(o)}
+                              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-8 text-xs"
+                              data-testid={`warehouse-issue-${o.id}`}>
+                              <Check className="h-3 w-3 mr-1" /> Wydaj
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => rejectOrder(o)}
+                              className="border-[#E8836A] text-[#E8836A] hover:bg-[#3D2E2E] h-8 text-xs"
+                              data-testid={`warehouse-reject-${o.id}`}>
+                              Odrzuć
+                            </Button>
+                          </>
+                        )}
+                        <Button size="sm" variant="ghost" onClick={() => removeOrder(o)}
+                          className="text-[#94A3B8] h-8 px-2 text-xs ml-auto">
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* HISTORY */}
+      {subtab === 'history' && (
+        <Card className="bg-[#2A384C] border-[#334155]">
+          <CardHeader>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <History className="h-5 w-5 text-[#5F7151]" /> Historia ruchów magazynowych
+              </CardTitle>
+              <select
+                value={historyForeman}
+                onChange={(e) => setHistoryForeman(e.target.value)}
+                className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-8 px-2 text-sm"
+                data-testid="warehouse-history-foreman-filter">
+                <option value="">Wszystkie zdarzenia</option>
+                {foremen.map((f) => (
+                  <option key={f.id} value={f.id}>Tylko: {f.full_name}</option>
+                ))}
+              </select>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {history.length === 0 ? (
+              <p className="text-[#94A3B8]">Brak historii.</p>
+            ) : (
+              <div className="space-y-1">
+                {history.map((h) => (
+                  <div key={h.id}
+                    className="flex flex-wrap items-center gap-2 bg-[#1E293B] rounded p-2 text-sm"
+                    data-testid={`warehouse-history-${h.id}`}>
+                    <span className="text-[#64748B] text-[11px] min-w-[110px]">
+                      {new Date(h.at).toLocaleString('pl-PL')}
+                    </span>
+                    <span className={`font-bold ${h.delta < 0 ? 'text-[#E8836A]' : 'text-[#6B8E4E]'} min-w-[70px]`}>
+                      {h.delta > 0 ? '+' : ''}{h.delta} {h.unit || ''}
+                    </span>
+                    <span className="text-[#CBD5E1] flex-1">{h.material_name}</span>
+                    {h.foreman_name && (
+                      <span className="text-[11px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded">
+                        {h.foreman_name}
+                      </span>
+                    )}
+                    {h.reason && <span className="text-[11px] text-[#94A3B8]">{h.reason}</span>}
+                    <span className="text-[11px] text-[#64748B]">→ {h.stock_after}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Material modal */}
+      {showItem && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowItem(false)}>
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-[#CBD5E1]">
+                  {editing ? 'Edytuj material' : 'Nowy material'}
+                </CardTitle>
+                <Button size="sm" variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs text-[#94A3B8]">Nazwa</label>
+                <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="np. Cement portlandzki 25kg"
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  data-testid="warehouse-form-name" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-[#94A3B8]">Jednostka</label>
+                  <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
+                    className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                    data-testid="warehouse-form-unit">
+                    {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-[#94A3B8]">Aktualny stan</label>
+                  <Input type="number" step="0.01" value={form.current_stock}
+                    onChange={(e) => setForm((f) => ({ ...f, current_stock: e.target.value }))}
+                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    data-testid="warehouse-form-stock" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8]">Notatka (opc.)</label>
+                <Input value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+                  placeholder="np. polka A3"
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]" />
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8]">Zdjecie (opc.)</label>
+                <Input type="file" accept="image/*" onChange={onPhoto}
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]" />
+                {form.photo && <img src={form.photo} alt="podglad" className="h-20 mt-2 rounded" />}
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">Anuluj</Button>
+                <Button onClick={save} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid="warehouse-form-save">Zapisz</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Stock adjust modal */}
+      {stockAdjust && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          onClick={() => setStockAdjust(null)}>
+          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+            <CardHeader>
+              <CardTitle className="text-[#CBD5E1] text-base">{stockAdjust.name}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-[#94A3B8]">
+                Aktualny stan: <b className="text-[#CBD5E1]">{stockAdjust.current_stock} {stockAdjust.unit}</b>
+              </p>
+              <div>
+                <label className="text-xs text-[#94A3B8]">Zmiana (+ przyjęcie, − wydanie/strata)</label>
+                <Input type="number" step="0.01" value={adjustVal}
+                  onChange={(e) => setAdjustVal(e.target.value)}
+                  placeholder={`np. 50 lub -10 (${stockAdjust.unit})`}
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  data-testid="warehouse-adjust-input" />
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8]">Powód</label>
+                <select value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)}
+                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm">
+                  <option value="przyjęcie">Przyjęcie</option>
+                  <option value="korekta">Korekta</option>
+                  <option value="strata">Strata/zniszczenie</option>
+                </select>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button variant="ghost" onClick={() => setStockAdjust(null)} className="text-[#94A3B8]">Anuluj</Button>
+                <Button onClick={submitAdjust} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  data-testid="warehouse-adjust-save">Zapisz</Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+};

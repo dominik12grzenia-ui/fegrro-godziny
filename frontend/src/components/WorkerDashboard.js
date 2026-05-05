@@ -12,6 +12,7 @@ import { LocationsButton } from './LocationsButton';
 
 // Lazy-load heavy equipment section
 const EquipmentForeman = lazy(() => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman })));
+const WarehouseForeman = lazy(() => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman })));
 const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie sprzętu...</div>;
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
@@ -443,9 +444,9 @@ export const WorkerDashboard = () => {
       </div>
 
       <div className="shrink-0 p-4 pb-0 overflow-x-auto">
-        {/* Equipment section: two sub-tabs (Elektronarzędzia / Akcesoria) */}
+        {/* Equipment section: 4 sub-tabs (Elektronarzędzia / Akcesoria / Szalunki / Magazyn) */}
         <div className="mb-4 space-y-3">
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setEqTab('electronics')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
@@ -460,14 +461,39 @@ export const WorkerDashboard = () => {
             >
               Akcesoria
             </button>
+            <button
+              onClick={() => setEqTab('formwork')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'formwork' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="foreman-tab-formwork"
+            >
+              Szalunki
+            </button>
+            <button
+              onClick={() => setEqTab('warehouse')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'warehouse' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="foreman-tab-warehouse"
+            >
+              Magazyn
+            </button>
           </div>
-          {eqTab === 'electronics' ? (
+          {eqTab === 'electronics' && (
             <Suspense fallback={<EquipmentSpinner />}>
               <EquipmentForeman category="electronics" title="Moje elektronarzedzia" />
             </Suspense>
-          ) : (
+          )}
+          {eqTab === 'accessories' && (
             <Suspense fallback={<EquipmentSpinner />}>
               <EquipmentForeman category="accessories" title="Moje akcesoria" />
+            </Suspense>
+          )}
+          {eqTab === 'formwork' && (
+            <Suspense fallback={<EquipmentSpinner />}>
+              <EquipmentForeman category="formwork" title="Moje szalunki" />
+            </Suspense>
+          )}
+          {eqTab === 'warehouse' && (
+            <Suspense fallback={<EquipmentSpinner />}>
+              <WarehouseForeman />
             </Suspense>
           )}
         </div>

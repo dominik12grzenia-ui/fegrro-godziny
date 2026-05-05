@@ -85,6 +85,25 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - Pelna historia (Utworzono/Edytowano/Przypisano/Przekazanie zlozone-zaakceptowane-odrzucone/Usterka)
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
+## Completed (2026-02-12 - faza II)
+- **Szalunki** (admin + brygadzista) - 3-cia kategoria w istniejacym module Equipment (formwork)
+  - Admin tab: `/admin/dashboard` -> Szalunki
+  - Brygadzista tab: `Szalunki` w panelu equipment
+- **Magazyn** (nowy modul `routes/warehouse.py`)
+  - Materialy (CRUD + zdjecia + jednostki + stan magazynu)
+  - `POST /warehouse/materials/{id}/stock` - korekta stanu (przyjecie/strata/korekta) z logiem
+  - Brygadzista: katalog + koszyk + zlozenie zamowienia (mozliwe nawet przy stanie 0)
+  - Admin: 3 sub-taby (Materialy/Zamowienia/Historia)
+  - In-app notification (`type=warehouse_order`) przy zlozeniu zamowienia
+  - Email notification (Resend, opcjonalny - czeka na RESEND_API_KEY)
+  - Historia ruchow z filtrem po brygadziscie - `/warehouse/history?foreman_id=...`
+- **Impersonacja brygadzisty** (admin -> Brygadzisci -> "Wejdz jako")
+  - `POST /api/foremen/{id}/impersonate` (1h TTL, claim impersonated_by)
+  - Banner zolty "Wcielony jako X" + przycisk "Wroc do admina" - sessionStorage backup
+- **PWA brygadzisty** - dynamiczny manifest dla `/foreman` i `/worker/dashboard`
+  - Po dodaniu do ekranu glownego: kafelek otwiera `/foreman` zamiast `/login` admina
+- **Login admina**: usuniety link "Jestem brygadzistą"
+
 ## Completed (2026-02-12 - rozszerzenie)
 - **Trwale usuwanie zarchiwizowanych pracownikow** (BHP + Ubrania-limity)
   - `DELETE /api/employees/{id}/hard` - guarded (tylko archived), cascade: documents + bhp_issuances + clothing_orders + notifications
