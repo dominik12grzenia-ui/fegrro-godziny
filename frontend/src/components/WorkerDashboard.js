@@ -20,7 +20,7 @@ const WEEKEND_BORDER = '#6B4444';
 const HOLIDAY_BORDER = '#DC2626';
 
 export const WorkerDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, isImpersonating, stopImpersonation } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [foremanData, setForemanData] = useState(null);
@@ -107,6 +107,36 @@ export const WorkerDashboard = () => {
     if (!user) { navigate('/worker-entry'); return; }
     fetchData();
   }, [user, navigate, fetchData]);
+
+  // Dynamiczny manifest PWA: brygadzista uzywajacy "Add to Home Screen"
+  // ma trafiac na /foreman po kliknieciu ikony, nie na /login admina
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const original = link.getAttribute('href');
+    const m = {
+      name: 'FeGrro Brygadzista',
+      short_name: 'FeGrro Brygadzista',
+      description: 'Panel brygadzisty - FeGrro',
+      start_url: '/foreman',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#0F172A',
+      theme_color: '#0F172A',
+      orientation: 'any',
+      icons: [
+        { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      ],
+    };
+    const blob = new Blob([JSON.stringify(m)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    return () => {
+      URL.revokeObjectURL(url);
+      if (original) link.setAttribute('href', original);
+    };
+  }, []);
 
   const getSiteColorHex = (siteId) => {
     const allSites = sites.length > 0 ? sites : mySites;
@@ -374,6 +404,28 @@ export const WorkerDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#1E293B]">
+      {/* Impersonation banner */}
+      {isImpersonating && (
+        <div className="bg-[#E8B76A] text-[#1E293B] px-4 py-2 text-sm font-semibold flex items-center justify-between gap-2 shrink-0" data-testid="impersonation-banner">
+          <span>👁️ Wcielony jako brygadzista <b>{user?.full_name}</b> (sesja 1h)</span>
+          <Button
+            size="sm"
+            onClick={() => {
+              const r = stopImpersonation();
+              if (r.success) {
+                navigate('/admin/dashboard');
+              } else {
+                logout();
+                navigate('/login');
+              }
+            }}
+            className="bg-[#1E293B] text-white hover:bg-[#0F172A] h-8"
+            data-testid="stop-impersonation-btn"
+          >
+            ← Wróć do admina
+          </Button>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-[#2A384C] text-white shadow-lg shrink-0">
         <div className="max-w-full mx-auto p-4 flex items-center gap-4">

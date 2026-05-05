@@ -22,6 +22,36 @@ export const ForemanEntry = () => {
     }
   }, [user, authLoading, navigate]);
 
+  // Dynamiczny manifest PWA: gdy ktos doda /foreman do ekranu glownego,
+  // ikonka ma otwierac /foreman a NIE /login (admin)
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const original = link.getAttribute('href');
+    const m = {
+      name: 'FeGrro Brygadzista',
+      short_name: 'FeGrro Brygadzista',
+      description: 'Panel brygadzisty - FeGrro',
+      start_url: '/foreman',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#0F172A',
+      theme_color: '#0F172A',
+      orientation: 'any',
+      icons: [
+        { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      ],
+    };
+    const blob = new Blob([JSON.stringify(m)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    return () => {
+      URL.revokeObjectURL(url);
+      if (original) link.setAttribute('href', original);
+    };
+  }, []);
+
   const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
   const handleSubmit = async (e) => {

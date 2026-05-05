@@ -139,6 +139,35 @@ async def assign_sites_to_foreman(
     return {"message": "Sites assigned successfully"}
 
 
+@router.post("/foremen/{foreman_id}/impersonate")
+async def impersonate_foreman(
+    foreman_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Generate a foreman token for the admin to view their panel.
+    The token has a short TTL (1h) and an `impersonated_by` claim so
+    frontend can show a banner and the action is auditable.
+    """
+    foreman = await db.users.find_one({"id": foreman_id, "role": "foreman"}, {"_id": 0})
+    if not foreman:
+        raise HTTPException(status_code=404, detail="Foreman not found")
+    token = create_access_token(data={
+        "sub": foreman["id"],
+        "role": "foreman",
+        "impersonated_by": current_user["sub"],
+    }, expires_delta=timedelta(hours=1))
+    return {
+        "access_token": token,
+        "user_id": foreman["id"],
+        "full_name": foreman["full_name"],
+        "role": "foreman",
+        "assigned_sites": foreman.get("assigned_sites", []),
+        "impersonated_by": current_user["sub"],
+        "message": f"Wcielony jako {foreman['full_name']} (1h)"
+    }
+
+
+
 @router.delete("/foremen/{foreman_id}")
 async def delete_foreman(
     foreman_id: str,
@@ -199,4 +228,8 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="User not found")
     if not user.get("role"):
         user["role"] = current_user.get("role", "foreman")
+    # Pass through impersonation flag so frontend banner survives refresh
+    if current_user.get("impersonated_by"):
+        user["impersonated"] = True
+        user["impersonated_by"] = current_user.get("impersonated_by")
     return user

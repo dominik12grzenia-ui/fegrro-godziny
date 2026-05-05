@@ -22,7 +22,7 @@ const TabSpinner = () => (
 );
 
 export const AdminDashboard = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, impersonateForeman } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('sites');
@@ -607,6 +607,23 @@ export const AdminDashboard = () => {
                           data-testid={`save-foreman-${foreman.id}`}
                         >
                           Zapisz przypisanie
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            const result = await impersonateForeman(foreman.id);
+                            if (result.success) {
+                              toast.success(`Wcielony jako ${foreman.full_name}`);
+                              navigate('/worker/dashboard');
+                            } else {
+                              toast.error(result.error || 'Blad');
+                            }
+                          }}
+                          size="sm"
+                          variant="outline"
+                          className="border-[#5F7151] text-[#6B8E4E] hover:bg-[#5F7151] hover:text-white"
+                          data-testid={`impersonate-foreman-${foreman.id}`}
+                        >
+                          Wejdz jako
                         </Button>
                         <Button
                           onClick={async () => {

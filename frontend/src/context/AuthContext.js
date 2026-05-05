@@ -92,6 +92,63 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    // Czysc takze backup admin tokena (impersonacja)
+    sessionStorage.removeItem('admin_backup_token');
+    sessionStorage.removeItem('admin_backup_user');
+  };
+
+  const impersonateForeman = async (foremanId) => {
+    try {
+      // Backup obecnego admin tokena/usera, zeby mozna bylo wrocic
+      if (token && user) {
+        sessionStorage.setItem('admin_backup_token', token);
+        sessionStorage.setItem('admin_backup_user', JSON.stringify(user));
+      }
+      const response = await axios.post(`${API}/foremen/${foremanId}/impersonate`, {}, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const { access_token, user_id, full_name, role, assigned_sites } = response.data;
+      const userData = {
+        id: user_id,
+        full_name,
+        role: role || 'foreman',
+        assigned_sites: assigned_sites || [],
+        impersonated: true,
+      };
+      setToken(access_token);
+      setUser(userData);
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user_name', full_name || 'Brygadzista');
+      return { success: true, user: userData };
+    } catch (error) {
+      // Cleanup backup at failure
+      sessionStorage.removeItem('admin_backup_token');
+      sessionStorage.removeItem('admin_backup_user');
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Nie udalo sie wcielic',
+      };
+    }
+  };
+
+  const stopImpersonation = () => {
+    const adminToken = sessionStorage.getItem('admin_backup_token');
+    const adminUserRaw = sessionStorage.getItem('admin_backup_user');
+    if (!adminToken || !adminUserRaw) {
+      return { success: false, error: 'Brak danych admina' };
+    }
+    try {
+      const adminUser = JSON.parse(adminUserRaw);
+      setToken(adminToken);
+      setUser(adminUser);
+      localStorage.setItem('token', adminToken);
+      localStorage.setItem('user_name', adminUser.full_name || 'Admin');
+      sessionStorage.removeItem('admin_backup_token');
+      sessionStorage.removeItem('admin_backup_user');
+      return { success: true, user: adminUser };
+    } catch (_e) {
+      return { success: false, error: 'Blad odczytu danych admina' };
+    }
   };
 
   const value = {
@@ -100,9 +157,12 @@ export const AuthProvider = ({ children }) => {
     loading,
     loginAdmin,
     loginForeman,
+    impersonateForeman,
+    stopImpersonation,
     logout,
     isAdmin: user?.role === 'admin',
-    isForeman: user?.role === 'foreman'
+    isForeman: user?.role === 'foreman',
+    isImpersonating: !!user?.impersonated,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
