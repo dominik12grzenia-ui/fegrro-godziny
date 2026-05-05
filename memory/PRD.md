@@ -8,7 +8,7 @@
 - **Sandbox preview**: https://nostalgic-visvesvaraya-4.preview.emergentagent.com
 - **Vercel project**: doominik's projects → fegrro-godziny (Hobby plan)
 - **Domain registrar**: Jdm.pl sp. z o.o. (https://jdm.pl/panel)
-- **DNS instruction (Vercel)**: CNAME `godziny` → `b1162803be5ee9ae.vercel-dns-XX.com` (pelna wartosc do potwierdzenia od uzytkownika)
+- **DNS instruction (Vercel)**: CNAME `godziny` → `b1162803be5ee9ae.vercel-dns-017.com`
 
 ## Problem Statement
 Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracowników na budowach.
