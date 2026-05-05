@@ -27,6 +27,53 @@
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
         <title>FeGrro Godziny</title>
+        <script>
+            // === SW RECOVERY (musi byc na poczatku, przed React) ===
+            // Jesli kiedykolwiek SW bedzie zlamany (np. zwroci null z respondWith),
+            // ten script wywali wszystkie SW i cache + przeladuje strone bez SW.
+            // Dziala tylko raz na sesje (sessionStorage flag).
+            (function () {
+                try {
+                    // Heurystyka: jezeli mamy controller (czyli SW jest aktywny) ale ostatni
+                    // pageload byl niedawno i zarejestrowany - sprobuj wymusic update
+                    if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker
+                            .getRegistrations()
+                            .then(function (rs) {
+                                rs.forEach(function (r) {
+                                    r.update().catch(function () {});
+                                });
+                            })
+                            .catch(function () {});
+                    }
+                    // Globalny error handler - jesli pojawi sie blad SW respondWith,
+                    // unregister + clear caches + reload (raz na sesje)
+                    window.addEventListener("error", function (e) {
+                        var msg = (e && e.message) || "";
+                        if (
+                            msg.indexOf("respondWith") >= 0 ||
+                            msg.indexOf("Returned response is null") >= 0
+                        ) {
+                            if (sessionStorage.getItem("sw_recovery_done")) return;
+                            sessionStorage.setItem("sw_recovery_done", "1");
+                            if ("serviceWorker" in navigator) {
+                                navigator.serviceWorker.getRegistrations().then(function (rs) {
+                                    Promise.all(rs.map(function (r) { return r.unregister(); }))
+                                        .then(function () {
+                                            if (window.caches) {
+                                                return caches.keys().then(function (ks) {
+                                                    return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+                                                });
+                                            }
+                                        })
+                                        .then(function () { window.location.reload(); });
+                                });
+                            }
+                        }
+                    });
+                } catch (_e) { /* ignore */ }
+            })();
+        </script>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>

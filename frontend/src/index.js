@@ -10,48 +10,30 @@ root.render(
   </React.StrictMode>,
 );
 
-// Register Service Worker for PWA - z auto-aktualizacja przy nowym deployu
+// Register Service Worker for PWA - pass-through SW (no fetch intercept)
+// Glowny cel SW: instalacja PWA + samoczynne wyczyszczenie starych cache.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', {
-        updateViaCache: 'none', // przegladarka nigdy nie cachuje sw.js
+        updateViaCache: 'none',
       });
-
-      // Sprawdz update co otwarcie karty + co 60s gdy karta jest widoczna
+      // Sprawdzaj update przy kazdym pokazaniu karty
       registration.update().catch(() => {});
-      setInterval(() => {
+      document.addEventListener('visibilitychange', () => {
         if (document.visibilityState === 'visible') {
           registration.update().catch(() => {});
         }
-      }, 60 * 1000);
-
-      // Gdy nowy SW jest zainstalowany -> aktywuj natychmiast
-      registration.addEventListener('updatefound', () => {
-        const nw = registration.installing;
-        if (!nw) return;
-        nw.addEventListener('statechange', () => {
-          if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-            nw.postMessage({ type: 'SKIP_WAITING' });
-          }
-        });
       });
     } catch (_e) { /* noop */ }
   });
 
-  // Gdy nowy SW przejmie kontrole -> przeladuj strone (raz)
-  let reloading = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloading) return;
-    reloading = true;
-    window.location.reload();
-  });
-
-  // Dodatkowo: komunikat SW_UPDATED z SW (cache wyczyszczony)
+  // Reaguj na komunikat SW_RELOAD - auto-reload raz na sesje
   navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data && event.data.type === 'SW_UPDATED') {
-      if (reloading) return;
-      reloading = true;
+    if (!event.data) return;
+    if (event.data.type === 'SW_RELOAD' || event.data.type === 'SW_UPDATED') {
+      if (sessionStorage.getItem('sw_reload_done')) return;
+      sessionStorage.setItem('sw_reload_done', '1');
       window.location.reload();
     }
   });
