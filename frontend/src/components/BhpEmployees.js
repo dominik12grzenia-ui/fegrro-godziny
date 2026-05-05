@@ -71,9 +71,15 @@ export const BhpEmployees = () => {
   const [editForm, setEditForm] = useState({
     job_title: '', registered_at: '', bhp_valid_until: '',
     height_work_certified: false, height_valid_until: '',
+    pesel: '', permit_type: '', permit_valid_until: '',
+    legal_stay_until: '', company_name: '', employment_fraction: '',
   });
   const [docs, setDocs] = useState([]);
   const [uploadCat, setUploadCat] = useState('bhp_szkolenie');
+  const [uploadValidUntil, setUploadValidUntil] = useState('');
+  const [uploadIsHeight, setUploadIsHeight] = useState(false);
+  // Alerts widget
+  const [alerts, setAlerts] = useState({ employees: [], documents: [] });
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -82,12 +88,14 @@ export const BhpEmployees = () => {
       if (statusFilter === 'archived') params.set('only_archived', 'true');
       else if (statusFilter === 'all') params.set('include_archived', 'true');
       if (siteFilter) params.set('site_id', siteFilter);
-      const [empRes, sitesRes] = await Promise.all([
+      const [empRes, sitesRes, alertsRes] = await Promise.all([
         api.get(`/bhp/employees?${params}`),
         api.get('/sites'),
+        api.get('/bhp/alerts?days=30'),
       ]);
       setEmployees(empRes.data);
       setSites(sitesRes.data || []);
+      setAlerts(alertsRes.data || { employees: [], documents: [] });
     } catch (_e) {
       toast.error('Blad pobierania danych');
     } finally {
@@ -123,8 +131,16 @@ export const BhpEmployees = () => {
       bhp_valid_until: (emp.bhp_valid_until || '').slice(0, 10),
       height_work_certified: !!emp.height_work_certified,
       height_valid_until: (emp.height_valid_until || '').slice(0, 10),
+      pesel: emp.pesel || '',
+      permit_type: emp.permit_type || '',
+      permit_valid_until: (emp.permit_valid_until || '').slice(0, 10),
+      legal_stay_until: (emp.legal_stay_until || '').slice(0, 10),
+      company_name: emp.company_name || '',
+      employment_fraction: emp.employment_fraction || '',
     });
     setDocs([]);
+    setUploadValidUntil('');
+    setUploadIsHeight(false);
     try {
       const r = await api.get(`/employees/${emp.id}/documents`);
       setDocs(r.data);
@@ -140,6 +156,12 @@ export const BhpEmployees = () => {
         bhp_valid_until: editForm.bhp_valid_until || null,
         height_work_certified: editForm.height_work_certified,
         height_valid_until: editForm.height_valid_until || null,
+        pesel: editForm.pesel || null,
+        permit_type: editForm.permit_type || null,
+        permit_valid_until: editForm.permit_valid_until || null,
+        legal_stay_until: editForm.legal_stay_until || null,
+        company_name: editForm.company_name || null,
+        employment_fraction: editForm.employment_fraction || null,
       });
       toast.success('Zapisano');
       await fetchData();
@@ -161,10 +183,14 @@ export const BhpEmployees = () => {
         category: uploadCat,
         file_name: file.name,
         file_data: b64,
+        valid_until: uploadValidUntil || null,
+        is_height_related: uploadIsHeight,
       });
       toast.success('Dodano dokument');
       const r = await api.get(`/employees/${editing.id}/documents`);
       setDocs(r.data);
+      setUploadValidUntil('');
+      setUploadIsHeight(false);
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad uploadu');
@@ -209,6 +235,25 @@ export const BhpEmployees = () => {
     try {
       await api.post(`/employees/${emp.id}/restore`);
       toast.success('Przywrocono');
+      fetchData();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const hardDelete = async (emp) => {
+    const confirm1 = window.confirm(
+      `Trwale usunac ${emp.full_name}?\n\nTo usunie pracownika oraz WSZYSTKIE jego dokumenty, wydania BHP i zamowienia ubran. Operacja NIEODWRACALNA.`,
+    );
+    if (!confirm1) return;
+    const typed = window.prompt(`Aby potwierdzic, wpisz: ${emp.full_name}`);
+    if (typed !== emp.full_name) {
+      toast.error('Nazwa nie pasuje - anulowano');
+      return;
+    }
+    try {
+      await api.delete(`/employees/${emp.id}/hard`);
+      toast.success('Usunieto trwale');
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -270,6 +315,56 @@ export const BhpEmployees = () => {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Alerts widget */}
+        {(alerts.employees.length > 0 || alerts.documents.length > 0) && (
+          <div className="bg-[#3D2E2E]/40 border border-[#E8B76A]/30 rounded-lg p-3" data-testid="bhp-alerts-widget">
+            <div className="flex items-center gap-2 mb-2">
+              <AlertTriangle className="h-4 w-4 text-[#E8B76A]" />
+              <span className="text-[#E8B76A] font-semibold text-sm">
+                Wkrótce wygasają / przeterminowane (30 dni):
+                {' '}
+                {alerts.employees.length} osób
+                {alerts.documents.length > 0 && `, ${alerts.documents.length} dokumentów`}
+              </span>
+            </div>
+            <div className="space-y-1 text-xs max-h-40 overflow-y-auto">
+              {alerts.employees.map((row) => (
+                <div key={row.employee_id} className="flex flex-wrap gap-2 items-center" data-testid={`alert-emp-${row.employee_id}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const emp = employees.find((e) => e.id === row.employee_id);
+                      if (emp) openEdit(emp);
+                    }}
+                    className="text-[#CBD5E1] font-semibold hover:text-[#6B8E4E] underline-offset-2 hover:underline"
+                  >
+                    {row.employee_name}
+                  </button>
+                  {row.alerts.map((a, i) => (
+                    <span key={i} className={`px-2 py-0.5 rounded text-[11px] ${a.expired ? 'bg-[#E8836A]/30 text-[#E8836A]' : 'bg-[#E8B76A]/30 text-[#E8B76A]'}`}>
+                      {a.label}: {formatDate(a.valid_until)} {a.expired ? '(przeterm.)' : ''}
+                    </span>
+                  ))}
+                </div>
+              ))}
+              {alerts.documents.length > 0 && (
+                <div className="border-t border-[#334155] pt-1 mt-2">
+                  <p className="text-[#94A3B8] text-[10px] uppercase mb-1">Dokumenty</p>
+                  {alerts.documents.slice(0, 20).map((d) => (
+                    <div key={d.document_id} className="flex flex-wrap gap-2 items-center">
+                      <span className="text-[#CBD5E1]">{d.employee_name}</span>
+                      <span className="text-[#94A3B8]">- {d.category_label}</span>
+                      <span className={`px-2 py-0.5 rounded text-[11px] ${d.expired ? 'bg-[#E8836A]/30 text-[#E8836A]' : 'bg-[#E8B76A]/30 text-[#E8B76A]'}`}>
+                        {formatDate(d.valid_until)} {d.expired ? '(przeterm.)' : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Filters */}
         <div className="flex flex-wrap gap-2 items-end">
           <div className="flex-1 min-w-[160px]">
@@ -395,10 +490,17 @@ export const BhpEmployees = () => {
                         <Edit className="h-3.5 w-3.5" />
                       </Button>
                       {isArch ? (
-                        <Button size="sm" variant="ghost" onClick={() => restore(emp)}
-                          className="text-[#6B8E4E] h-8 px-2" data-testid={`bhp-emp-restore-${emp.id}`}>
-                          <ArchiveRestore className="h-3.5 w-3.5" />
-                        </Button>
+                        <>
+                          <Button size="sm" variant="ghost" onClick={() => restore(emp)}
+                            className="text-[#6B8E4E] h-8 px-2" data-testid={`bhp-emp-restore-${emp.id}`}>
+                            <ArchiveRestore className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => hardDelete(emp)}
+                            className="text-[#E8836A] h-8 px-2" title="Usun trwale"
+                            data-testid={`bhp-emp-hard-delete-${emp.id}`}>
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </>
                       ) : (
                         <Button size="sm" variant="ghost" onClick={() => archive(emp)}
                           className="text-[#E8B76A] h-8 px-2" data-testid={`bhp-emp-archive-${emp.id}`}>
@@ -553,6 +655,77 @@ export const BhpEmployees = () => {
                   </div>
                 )}
               </div>
+
+              {/* HR fields */}
+              <div className="border-t border-[#334155] pt-3">
+                <p className="text-[#CBD5E1] font-semibold mb-2 text-sm">Dane pracownika</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">PESEL</label>
+                    <Input
+                      value={editForm.pesel}
+                      onChange={(e) => setEditForm((f) => ({ ...f, pesel: e.target.value }))}
+                      placeholder="11 cyfr"
+                      maxLength={11}
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      data-testid="bhp-edit-pesel"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Nazwa firmy</label>
+                    <Input
+                      value={editForm.company_name}
+                      onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))}
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      data-testid="bhp-edit-company"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Wielkość etatu</label>
+                    <select
+                      value={editForm.employment_fraction}
+                      onChange={(e) => setEditForm((f) => ({ ...f, employment_fraction: e.target.value }))}
+                      className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                      data-testid="bhp-edit-employment"
+                    >
+                      <option value="">(brak)</option>
+                      <option value="1/4">1/4</option>
+                      <option value="1/2">1/2</option>
+                      <option value="1/1">1/1 (pełen)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Typ zezwolenia</label>
+                    <Input
+                      value={editForm.permit_type}
+                      onChange={(e) => setEditForm((f) => ({ ...f, permit_type: e.target.value }))}
+                      placeholder="np. zezwolenie typu A"
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      data-testid="bhp-edit-permit-type"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Zezwolenie ważne do</label>
+                    <Input
+                      type="date"
+                      value={editForm.permit_valid_until}
+                      onChange={(e) => setEditForm((f) => ({ ...f, permit_valid_until: e.target.value }))}
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      data-testid="bhp-edit-permit-valid"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Legalny pobyt do</label>
+                    <Input
+                      type="date"
+                      value={editForm.legal_stay_until}
+                      onChange={(e) => setEditForm((f) => ({ ...f, legal_stay_until: e.target.value }))}
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      data-testid="bhp-edit-legal-stay"
+                    />
+                  </div>
+                </div>
+              </div>
               <div className="flex justify-end">
                 <Button onClick={saveEdit} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                   data-testid="bhp-edit-save-btn">
@@ -563,13 +736,13 @@ export const BhpEmployees = () => {
               {/* Documents */}
               <div className="border-t border-[#334155] pt-3">
                 <p className="text-[#CBD5E1] font-semibold mb-2">Dokumenty ({docs.length})</p>
-                <div className="flex flex-wrap gap-2 items-end mb-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                   <div>
                     <label className="text-xs text-[#94A3B8]">Kategoria</label>
                     <select
                       value={uploadCat}
                       onChange={(e) => setUploadCat(e.target.value)}
-                      className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
+                      className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
                       data-testid="bhp-upload-category"
                     >
                       {DOC_CATEGORIES.map((c) => (
@@ -577,7 +750,29 @@ export const BhpEmployees = () => {
                       ))}
                     </select>
                   </div>
-                  <label className="flex items-center gap-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-9 px-3 rounded cursor-pointer">
+                  <div>
+                    <label className="text-xs text-[#94A3B8]">Termin ważności (opc.)</label>
+                    <Input
+                      type="date"
+                      value={uploadValidUntil}
+                      onChange={(e) => setUploadValidUntil(e.target.value)}
+                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] h-9"
+                      data-testid="bhp-upload-valid-until"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 items-center mb-2">
+                  <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={uploadIsHeight}
+                      onChange={(e) => setUploadIsHeight(e.target.checked)}
+                      className="accent-[#5F7151]"
+                      data-testid="bhp-upload-height-checkbox"
+                    />
+                    Badania wysokościowe
+                  </label>
+                  <label className="flex items-center gap-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-9 px-3 rounded cursor-pointer ml-auto">
                     <Upload className="h-3.5 w-3.5" /> Dodaj plik (PDF, max 10MB)
                     <input type="file" accept="application/pdf,image/*"
                       onChange={uploadDoc} className="hidden"
@@ -590,6 +785,13 @@ export const BhpEmployees = () => {
                   <div className="space-y-1">
                     {docs.map((d) => {
                       const catLabel = DOC_CATEGORIES.find((c) => c.value === d.category)?.label || d.category;
+                      const days = daysBetween(d.valid_until);
+                      let validColor = 'text-[#94A3B8]';
+                      if (days !== null) {
+                        if (days < 0) validColor = 'text-[#E8836A]';
+                        else if (days < 30) validColor = 'text-[#E8B76A]';
+                        else validColor = 'text-[#6B8E4E]';
+                      }
                       return (
                         <div key={d.id}
                           className="flex flex-wrap items-center gap-2 bg-[#1E293B] rounded p-2 text-sm"
@@ -598,8 +800,18 @@ export const BhpEmployees = () => {
                           <div className="flex-1 min-w-0">
                             <span className="text-[#CBD5E1] font-medium">{d.file_name}</span>
                             <span className="text-[#94A3B8] text-xs ml-2">{catLabel}</span>
+                            {d.is_height_related && (
+                              <span className="ml-2 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1.5 py-0.5 rounded">wysokość</span>
+                            )}
+                            {d.valid_until && (
+                              <span className={`ml-2 text-[11px] ${validColor}`}>
+                                ważny do {formatDate(d.valid_until)}
+                                {days !== null && days < 0 && ' (przeterm.)'}
+                                {days !== null && days >= 0 && days < 30 && ` (${days}d)`}
+                              </span>
+                            )}
                             <span className="text-[#64748B] text-[11px] ml-2">
-                              {new Date(d.uploaded_at).toLocaleDateString('pl-PL')} · {Math.round((d.size_bytes || 0) / 1024)} KB
+                              · {new Date(d.uploaded_at).toLocaleDateString('pl-PL')} · {Math.round((d.size_bytes || 0) / 1024)} KB
                             </span>
                           </div>
                           <Button size="sm" variant="ghost" onClick={() => downloadDoc(d)}

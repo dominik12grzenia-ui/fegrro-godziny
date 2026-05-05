@@ -189,6 +189,13 @@ class EmployeeBhpInfoUpdate(BaseModel):
     bhp_valid_until: Optional[str] = None
     height_work_certified: Optional[bool] = None
     height_valid_until: Optional[str] = None
+    # HR
+    pesel: Optional[str] = None
+    permit_type: Optional[str] = None
+    permit_valid_until: Optional[str] = None
+    legal_stay_until: Optional[str] = None
+    company_name: Optional[str] = None
+    employment_fraction: Optional[str] = None  # "1/4"|"1/2"|"1/1"
 
 
 @router.put("/employees/{employee_id}/bhp-info")
@@ -200,6 +207,8 @@ async def update_employee_bhp_info(
     emp = await db.employees.find_one({"id": employee_id}, {"_id": 0})
     if not emp:
         raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    if payload.employment_fraction is not None and payload.employment_fraction not in ("", "1/4", "1/2", "1/1"):
+        raise HTTPException(status_code=400, detail="Nieprawidlowa wielkosc etatu (1/4, 1/2 lub 1/1)")
     update_doc = {}
     payload_data = payload.model_dump(exclude_unset=True)
     for k, v in payload_data.items():
@@ -250,11 +259,38 @@ async def restore_employee(
     return {"message": "Przywrocono"}
 
 
+@router.delete("/employees/{employee_id}/hard")
+async def hard_delete_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Permanently delete an archived employee + all related records.
+    Guarded: only allowed when employee.is_archived == True.
+    """
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1, "is_archived": 1, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    if not emp.get("is_archived"):
+        raise HTTPException(
+            status_code=400,
+            detail="Mozna trwale usunac tylko zarchiwizowanego pracownika - najpierw archiwizuj",
+        )
+    # Cascade delete
+    await db.employee_documents.delete_many({"employee_id": employee_id})
+    await db.bhp_issuances.delete_many({"employee_id": employee_id})
+    await db.clothing_orders.delete_many({"employee_id": employee_id})
+    await db.notifications.delete_many({"employee_id": employee_id})
+    await db.employees.delete_one({"id": employee_id})
+    return {"message": "Pracownik trwale usuniety"}
+
+
 # ============= Documents CRUD =============
 class DocumentCreate(BaseModel):
     category: str
     file_name: str
     file_data: str  # base64 (may include data: prefix)
+    valid_until: Optional[str] = None  # ISO date - termin waznosci dokumentu
+    is_height_related: Optional[bool] = None  # czy dokument dotyczy badan wysokosciowych
 
 
 @router.get("/employees/{employee_id}/documents")
@@ -298,6 +334,8 @@ async def upload_document(
         "file_name": payload.file_name.strip() or "document.pdf",
         "file_data": raw_b64,
         "size_bytes": size_bytes,
+        "valid_until": (payload.valid_until or "").strip() or None,
+        "is_height_related": bool(payload.is_height_related) if payload.is_height_related is not None else None,
         "uploaded_at": datetime.now().isoformat(),
         "uploaded_by": current_user["sub"],
     }
@@ -509,4 +547,93 @@ async def notify_employee_missing_from_excel(employee_id: str, employee_name: st
         await db.notifications.insert_one(notif)
     except Exception:
         pass
+
+
+
+# ============= Expiration alerts =============
+@router.get("/bhp/alerts")
+async def bhp_alerts(
+    days: int = Query(30, ge=1, le=365),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Returns employees with expirations within `days` days (or already expired).
+    Includes: bhp_valid_until, height_valid_until, permit_valid_until, legal_stay_until
+    + per-document valid_until.
+    """
+    today = datetime.now().date()
+    cutoff = today + timedelta(days=days)
+    cutoff_iso = cutoff.isoformat()
+    today_iso = today.isoformat()
+
+    # Only consider non-archived employees
+    employees = await db.employees.find(
+        {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]},
+        {"_id": 0},
+    ).to_list(5000)
+
+    out_employee_alerts = []
+    emp_ids = []
+    for e in employees:
+        alerts = []
+        for field, label in [
+            ("bhp_valid_until", "BHP"),
+            ("permit_valid_until", "Zezwolenie"),
+            ("legal_stay_until", "Legalny pobyt"),
+        ]:
+            d = (e.get(field) or "").strip()
+            if d and d <= cutoff_iso:
+                alerts.append({
+                    "field": field,
+                    "label": label,
+                    "valid_until": d,
+                    "expired": d < today_iso,
+                })
+        if e.get("height_work_certified"):
+            d = (e.get("height_valid_until") or "").strip()
+            if d and d <= cutoff_iso:
+                alerts.append({
+                    "field": "height_valid_until",
+                    "label": "Wysokosciowe",
+                    "valid_until": d,
+                    "expired": d < today_iso,
+                })
+        if alerts:
+            out_employee_alerts.append({
+                "employee_id": e["id"],
+                "employee_name": e["full_name"],
+                "alerts": alerts,
+            })
+        emp_ids.append(e["id"])
+
+    # Per-document expirations
+    docs = await db.employee_documents.find(
+        {
+            "employee_id": {"$in": emp_ids},
+            "valid_until": {"$ne": None, "$lte": cutoff_iso},
+        },
+        {"_id": 0, "file_data": 0},
+    ).to_list(5000)
+    emp_name_by_id = {e["id"]: e["full_name"] for e in employees}
+    out_doc_alerts = [
+        {
+            "employee_id": d.get("employee_id"),
+            "employee_name": emp_name_by_id.get(d.get("employee_id"), "?"),
+            "document_id": d.get("id"),
+            "category": d.get("category"),
+            "category_label": DOC_CATEGORIES.get(d.get("category"), d.get("category")),
+            "file_name": d.get("file_name"),
+            "valid_until": d.get("valid_until"),
+            "is_height_related": d.get("is_height_related"),
+            "expired": (d.get("valid_until") or "") < today_iso,
+        }
+        for d in docs
+    ]
+
+    return {
+        "today": today_iso,
+        "cutoff": cutoff_iso,
+        "days_window": days,
+        "employees": out_employee_alerts,
+        "documents": out_doc_alerts,
+    }
 

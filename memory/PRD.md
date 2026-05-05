@@ -82,6 +82,22 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - Pelna historia (Utworzono/Edytowano/Przypisano/Przekazanie zlozone-zaakceptowane-odrzucone/Usterka)
   - 27/27 testow backendu pass; admin UI i banner brygadzisty zweryfikowane live
 
+## Completed (2026-02-12 - rozszerzenie)
+- **Trwale usuwanie zarchiwizowanych pracownikow** (BHP + Ubrania-limity)
+  - `DELETE /api/employees/{id}/hard` - guarded (tylko archived), cascade: documents + bhp_issuances + clothing_orders + notifications
+  - Frontend: ikona Trash w wierszu archiwum (BHP), przycisk "Usun trwale" w Ubrania-limity przy zarchiwizowanych
+  - Double-confirmation: window.confirm + window.prompt z wpisaniem nazwy pracownika
+- **Dokumenty BHP - dodatkowe metadane**
+  - `valid_until` (data waznosci dokumentu) + `is_height_related` (badania wysokosciowe)
+  - Frontend upload: pola opcjonalne, kolorowanie waznosci (czerwony/zolty/zielony), badge "wysokosc"
+- **Dane HR pracownika** (modal BHP edit)
+  - PESEL, typ zezwolenia, data waznosci zezwolenia, data legalnego pobytu, nazwa firmy, wielkosc etatu (1/4|1/2|1/1)
+  - Walidacja employment_fraction (400 dla nieprawidlowej wartosci)
+- **Alerty BHP** - widget na gorze zakladki Pracownicy
+  - `GET /api/bhp/alerts?days=30` - lista pracownikow + dokumentow z waznoscia <= 30 dni lub przeterminowanych
+  - Sprawdza: bhp_valid_until, height_valid_until (gdy certified), permit_valid_until, legal_stay_until, document.valid_until
+  - Klikanie nazwiska otwiera modal edycji bezposrednio
+
 ## Completed (2026-02-12)
 - **BHP: dokumenty pracownikow + bulk download + archiwizacja** (admin -> BHP -> "Pracownicy - dokumenty")
   - Rozszerzony model Employee: `job_title`, `registered_at`, `bhp_valid_until`, `height_work_certified`, `height_valid_until`, `is_archived`, `archived_at`

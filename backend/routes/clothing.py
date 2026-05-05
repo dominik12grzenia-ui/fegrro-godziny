@@ -348,7 +348,7 @@ async def delete_order(order_id: str,
 async def employees_summary(current_user: dict = Depends(get_current_admin)):
     """For each employee returns counts per clothing type (optimized: bulk queries)."""
     employees = await db.employees.find(
-        {}, {"_id": 0, "id": 1, "full_name": 1, "clothing_limits": 1}
+        {}, {"_id": 0, "id": 1, "full_name": 1, "clothing_limits": 1, "is_archived": 1}
     ).sort("full_name", 1).to_list(5000)
     types = await db.clothing_types.find({"is_active": True}, {"_id": 0}).to_list(500)
     if not employees or not types:
@@ -472,6 +472,7 @@ async def employees_summary(current_user: dict = Depends(get_current_admin)):
         result.append({
             "employee_id": emp["id"],
             "employee_name": emp["full_name"],
+            "is_archived": bool(emp.get("is_archived")),
             "items": per_type,
         })
     return result

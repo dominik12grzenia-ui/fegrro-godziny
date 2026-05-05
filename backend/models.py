@@ -63,6 +63,13 @@ class Employee(BaseModel):
     bhp_valid_until: Optional[str] = None  # ISO date
     height_work_certified: Optional[bool] = None
     height_valid_until: Optional[str] = None
+    # HR / contract info
+    pesel: Optional[str] = None
+    permit_type: Optional[str] = None  # typ zezwolenia
+    permit_valid_until: Optional[str] = None
+    legal_stay_until: Optional[str] = None  # data legalnego pobytu
+    company_name: Optional[str] = None
+    employment_fraction: Optional[str] = None  # "1/4" | "1/2" | "1/1"
     # Archive
     is_archived: bool = False
     archived_at: Optional[str] = None

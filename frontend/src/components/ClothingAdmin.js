@@ -412,12 +412,18 @@ export const ClothingAdmin = () => {
                       {types.filter(t => t.is_active).map(t => (
                         <th key={t.id} className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">{t.name}</th>
                       ))}
+                      <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[80px]">Akcje</th>
                     </tr>
                   </thead>
                   <tbody>
                     {summary.map((row, idx) => (
-                      <tr key={row.employee_id} className={idx % 2 === 0 ? 'bg-[#1E293B]/40' : 'bg-[#2A384C]'}>
-                        <td className="border border-[#334155] p-2 text-[#CBD5E1] font-semibold sticky left-0 bg-[#1E293B] z-10">{row.employee_name}</td>
+                      <tr key={row.employee_id} className={`${idx % 2 === 0 ? 'bg-[#1E293B]/40' : 'bg-[#2A384C]'} ${row.is_archived ? 'opacity-60' : ''}`}>
+                        <td className="border border-[#334155] p-2 text-[#CBD5E1] font-semibold sticky left-0 bg-[#1E293B] z-10">
+                          {row.employee_name}
+                          {row.is_archived && (
+                            <span className="ml-2 text-[10px] bg-[#E8836A]/20 text-[#E8836A] px-1.5 py-0.5 rounded">Archiwum</span>
+                          )}
+                        </td>
                         {types.filter(t => t.is_active).map(t => {
                           const item = row.items.find(i => i.clothing_type_id === t.id);
                           if (!item) return <td key={t.id} className="border border-[#334155] p-2 text-center text-[#94A3B8]">-</td>;
@@ -456,6 +462,32 @@ export const ClothingAdmin = () => {
                             </td>
                           );
                         })}
+                        <td className="border border-[#334155] p-2 text-center">
+                          {row.is_archived ? (
+                            <button
+                              type="button"
+                              className="text-[#E8836A] hover:text-white text-[10px] font-semibold px-2 py-1 rounded bg-[#3D2E2E] hover:bg-[#E8836A]/30"
+                              onClick={async () => {
+                                if (!window.confirm(`Trwale usunac ${row.employee_name}?\nUsunie wszystkie dokumenty, wydania BHP i zamowienia ubran. NIEODWRACALNE.`)) return;
+                                const typed = window.prompt(`Aby potwierdzic, wpisz: ${row.employee_name}`);
+                                if (typed !== row.employee_name) { toast.error('Nazwa nie pasuje'); return; }
+                                try {
+                                  await api.delete(`/employees/${row.employee_id}/hard`);
+                                  toast.success('Usunieto trwale');
+                                  setSummary([]);
+                                  fetchSummary();
+                                } catch (err) {
+                                  toast.error(err.response?.data?.detail || 'Blad');
+                                }
+                              }}
+                              data-testid={`hard-del-archived-${row.employee_id}`}
+                            >
+                              Usuń trwale
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-[#64748B]">-</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
