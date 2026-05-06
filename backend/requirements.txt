@@ -14,3 +14,6 @@ python-multipart==0.0.24
 reportlab==4.4.10
 requests==2.33.1
 uvicorn==0.25.0
+
+httpx==0.28.1
+pypdf==6.10.2
