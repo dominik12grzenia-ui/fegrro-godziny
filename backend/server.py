@@ -76,7 +76,14 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()
-    ] or ["https://fegrro-godziny.vercel.app", "https://godziny.fegrro.pl"],
+    ] or [
+        "https://fegrro-godziny.vercel.app",
+        "https://godziny.fegrro.pl",
+        "https://fegrro.pl",
+        "https://www.fegrro.pl",
+    ],
+    # Also allow Vercel preview deploys (PR previews etc.)
+    allow_origin_regex=r"https://fegrro-godziny-[a-z0-9-]+\.vercel\.app",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
