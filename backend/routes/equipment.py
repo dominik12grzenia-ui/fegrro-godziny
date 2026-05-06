@@ -1046,7 +1046,15 @@ async def report_shortage(check_id: str,
         raise HTTPException(status_code=400, detail="Zglaszana ilosc nie moze byc wieksza niz przypisana")
 
     foreman_name = await _get_user_name(foreman_id)
-    shortage_id = str(uuid.uuid4())
+    # Idempotency: replace prior open shortage from same foreman+check+equipment
+    # so spam-clicking 'Brak' doesn't create duplicates.
+    existing = await db.inventory_shortages.find_one({
+        "check_id": check_id,
+        "foreman_id": foreman_id,
+        "equipment_id": payload.equipment_id,
+        "status": "open",
+    }, {"_id": 0, "id": 1})
+    shortage_id = existing["id"] if existing else str(uuid.uuid4())
     doc = {
         "id": shortage_id,
         "check_id": check_id,
@@ -1064,7 +1072,12 @@ async def report_shortage(check_id: str,
         "status": "open",  # open | resolved
         "created_at": datetime.now().isoformat(),
     }
-    await db.inventory_shortages.insert_one(doc)
+    if existing:
+        await db.inventory_shortages.update_one(
+            {"id": shortage_id}, {"$set": doc}
+        )
+    else:
+        await db.inventory_shortages.insert_one(doc)
     doc.pop("_id", None)
 
     # Notify admin

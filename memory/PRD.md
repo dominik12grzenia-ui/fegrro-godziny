@@ -177,3 +177,33 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 ## Completed (2026-02-13) - Resend
 - Domena `fegrro.pl` zweryfikowana w Resend - `RESEND_FROM_EMAIL=noreply@fegrro.pl`, `WAREHOUSE_NOTIFY_EMAIL=biuro@fegrro.pl` (juz nie Apple privaterelay)
 
+## Completed (2026-02-13) - Iteration 21: Bezpieczenstwo + Wydajnosc + Brak/Mam mniej
+
+### Funkcja "Brak / Mam mniej" w inwentaryzacji
+- Backend `routes/equipment.py`:
+  - `POST /api/equipment/inventory/{check_id}/report-shortage` (foreman) - body `{equipment_id, reported_quantity, description?, photo?}`. Walidacja: 0 <= reported <= expected, check musi byc aktywny, foreman wymagany. Idempotentne (upsert po check+foreman+equipment+status=open). Notyfikacja do admina.
+  - `GET /api/equipment/inventory/shortages?status=open|resolved` (admin) - lista zgłoszen
+  - `POST /api/equipment/inventory/shortages/{id}/resolve` (admin) - oznacz jako rozpatrzone
+- Kolekcja `inventory_shortages` (id/check_id/category/equipment/foreman/expected/reported/missing/description/photo/status)
+- Frontend `InventoryCheckModal.js`:
+  - Per-pozycja: checkbox **lub** przycisk "Brak" → modal ze zdjeciem (max 2MB) + opisem + ilosc < expected
+  - Pozycja zglaszona blokuje checkbox i pokazuje badge "Zgloszono niezgodnosc"
+  - "Zakoncz inwentaryzacje" aktywny gdy KAZDA pozycja jest oznaczona (potwierdzona LUB zgloszona)
+- Frontend `EquipmentAdmin.js`: nowa karta "Zgloszone niezgodnosci sprzetu" pokazuje aktywne zgloszenia z thumbnailem + opisem + przycisk "Rozpatrzono"
+
+### Wydajnosc
+- N+1 fix w `GET /api/equipment` - 1 agregacja zamiast (1 + N) zapytan
+- N+1 fix w `GET /api/equipment/my` - 1 batch find zamiast (1 + N)
+- GZip middleware (minimum_size=500) - ~70% redukcja JSON dla list
+- Nowe MongoDB indexy: `inventory_checks(status,category)`, `inventory_checks(required_foremen)`, `inventory_shortages(check_id,status)`, `inventory_shortages(foreman_id)`
+
+### Bezpieczenstwo
+- `JWT_SECRET_KEY` wymagany w `.env` (>=32 znakow), aplikacja nie wystartuje bez. Wygenerowano silny 64-znakowy secret.
+- `CORS_ORIGINS` allowlist zamiast `*` (Vercel + custom domain + sandbox preview)
+- Security headers middleware: `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy: geolocation=(), microphone=(), camera=()`
+- Rate limiter (`rate_limit.py`, sliding window in-memory): 8 prob / 60s per IP na `/auth/admin/login` i `/auth/foreman/login` -> 429 z Retry-After. Honoruje `x-forwarded-for` z k8s ingress.
+
+### Testy
+- 12/12 pytest backend (`/app/backend/tests/test_inventory_shortage_and_security.py`) + Playwright frontend pelny flow zweryfikowany
+- Manualnie zweryfikowane: 7x401 -> 8th=429, GZip Content-Encoding na /api/equipment, wszystkie security headers obecne
+
