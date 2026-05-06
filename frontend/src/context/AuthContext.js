@@ -15,9 +15,21 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+  // Lazy initial state - read once on mount.
+  // If a freshly-impersonated user payload exists in sessionStorage,
+  // hydrate from it immediately so ProtectedWorkerRoute doesn't redirect
+  // while we wait for the /auth/me roundtrip.
+  const [user, setUser] = useState(() => {
+    try {
+      const cached = sessionStorage.getItem('cached_user');
+      if (cached) return JSON.parse(cached);
+    } catch (_e) {
+      // ignore
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
 
   useEffect(() => {
     if (token) {
@@ -34,6 +46,10 @@ export const AuthProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUser(response.data);
+      // Refresh cached payload so subsequent reloads stay consistent
+      try {
+        sessionStorage.setItem('cached_user', JSON.stringify(response.data));
+      } catch (_e) { /* ignore */ }
     } catch (error) {
       console.error('Failed to fetch user:', error);
       logout();
@@ -49,10 +65,11 @@ export const AuthProvider = ({ children }) => {
         password
       });
       const { access_token, user: userData } = response.data;
-      setToken(access_token);
-      setUser(userData);
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', userData?.full_name || 'Admin');
+      sessionStorage.setItem('cached_user', JSON.stringify(userData));
+      setToken(access_token);
+      setUser(userData);
       return { success: true };
     } catch (error) {
       return {
@@ -75,10 +92,11 @@ export const AuthProvider = ({ children }) => {
         role: role || 'foreman',
         assigned_sites: assigned_sites || []
       };
-      setToken(access_token);
-      setUser(userData);
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', full_name || 'Brygadzista');
+      sessionStorage.setItem('cached_user', JSON.stringify(userData));
+      setToken(access_token);
+      setUser(userData);
       return { success: true, user: userData, message };
     } catch (error) {
       return {
@@ -92,6 +110,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
+    sessionStorage.removeItem('cached_user');
     // Czysc takze backup admin tokena (impersonacja)
     sessionStorage.removeItem('admin_backup_token');
     sessionStorage.removeItem('admin_backup_user');
@@ -118,14 +137,18 @@ export const AuthProvider = ({ children }) => {
         assigned_sites: assigned_sites || [],
         impersonated: true,
       };
-      setToken(access_token);
-      setUser(userData);
+      // Write to localStorage SYNCHRONOUSLY before any reload.
+      // This is what AuthProvider reads on next mount.
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', full_name || 'Brygadzista');
+      // Pre-populate the user payload so AuthProvider can hydrate without
+      // waiting for /auth/me roundtrip - avoids any flicker through
+      // ProtectedWorkerRoute's redirect-when-not-foreman branch.
+      sessionStorage.setItem('cached_user', JSON.stringify(userData));
+      setToken(access_token);
+      setUser(userData);
       return { success: true, user: userData };
     } catch (error) {
-      // Don't wipe backup on failure unless we wrote it fresh - ozekuj sa
-      // sytuacje gdy backup juz byl poprawny przed kliknieciem.
       return {
         success: false,
         error: error.response?.data?.detail || 'Nie udalo sie wcielic',
@@ -141,12 +164,13 @@ export const AuthProvider = ({ children }) => {
     }
     try {
       const adminUser = JSON.parse(adminUserRaw);
-      setToken(adminToken);
-      setUser(adminUser);
       localStorage.setItem('token', adminToken);
       localStorage.setItem('user_name', adminUser.full_name || 'Admin');
+      sessionStorage.setItem('cached_user', JSON.stringify(adminUser));
       sessionStorage.removeItem('admin_backup_token');
       sessionStorage.removeItem('admin_backup_user');
+      setToken(adminToken);
+      setUser(adminUser);
       return { success: true, user: adminUser };
     } catch (_e) {
       return { success: false, error: 'Blad odczytu danych admina' };
