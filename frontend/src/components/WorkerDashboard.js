@@ -476,7 +476,7 @@ export const WorkerDashboard = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'warehouse' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
               data-testid="foreman-tab-warehouse"
             >
-              Magazyn
+              Materiały
             </button>
           </div>
           {eqTab === 'electronics' && (

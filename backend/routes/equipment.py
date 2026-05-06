@@ -23,7 +23,8 @@ class EquipmentCreate(BaseModel):
     brand: Optional[str] = None
     total_quantity: int
     photo: Optional[str] = None  # base64 encoded
-    category: Optional[str] = "electronics"  # electronics | accessories
+    category: Optional[str] = "electronics"  # electronics | accessories | formwork
+    variants: Optional[List[str]] = None  # e.g. ["5mm", "8mm", "10mm"] for drills/discs
 
 
 class EquipmentUpdate(BaseModel):
@@ -34,6 +35,7 @@ class EquipmentUpdate(BaseModel):
     status: Optional[str] = None  # working / broken / maintenance
     broken_quantity: Optional[int] = None  # number of units returned to warehouse for repair
     category: Optional[str] = None
+    variants: Optional[List[str]] = None
 
 
 class AssignmentSet(BaseModel):
@@ -145,6 +147,7 @@ async def create_equipment(payload: EquipmentCreate,
         "photo": payload.photo,
         "status": "working",
         "category": payload.category or "electronics",
+        "variants": [v.strip() for v in (payload.variants or []) if v and v.strip()],
         "created_at": datetime.now().isoformat(),
         "updated_at": datetime.now().isoformat(),
     }
@@ -174,6 +177,10 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
         update_doc["status"] = payload.status
     if payload.category is not None:
         update_doc["category"] = payload.category
+    if payload.variants is not None:
+        # normalize: strip+lowercase preserved; drop empties
+        cleaned = [v.strip() for v in payload.variants if v and v.strip()]
+        update_doc["variants"] = cleaned
 
     new_total = payload.total_quantity if payload.total_quantity is not None else eq.get("total_quantity", 0)
     new_broken = payload.broken_quantity if payload.broken_quantity is not None else eq.get("broken_quantity", 0) or 0

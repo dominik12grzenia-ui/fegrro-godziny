@@ -279,7 +279,7 @@ export const AdminDashboard = () => {
               <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0">Elektronarzędzia</TabsTrigger>
               <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0">Akcesoria</TabsTrigger>
               <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0">Szalunki</TabsTrigger>
-              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">Magazyn</TabsTrigger>
+              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">Materiały</TabsTrigger>
               <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">Ubrania</TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>

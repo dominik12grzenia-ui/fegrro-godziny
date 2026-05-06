@@ -28,6 +28,7 @@ from routes.reports import router as reports_router
 from routes.sync import router as sync_router, cron_write_hours_previous_month, cron_daily_sync, set_scheduler
 from routes.public import router as public_router
 from routes.equipment import router as equipment_router
+from routes.equipment_orders import router as equipment_orders_router
 from routes.clothing import router as clothing_router
 from routes.bhp import router as bhp_router
 from routes.warehouse import router as warehouse_router
@@ -58,6 +59,7 @@ api_router.include_router(reports_router)
 api_router.include_router(sync_router)
 api_router.include_router(public_router)
 api_router.include_router(equipment_router)
+api_router.include_router(equipment_orders_router)
 api_router.include_router(clothing_router)
 api_router.include_router(bhp_router)
 api_router.include_router(warehouse_router)
@@ -132,6 +134,8 @@ async def startup_event():
         await db.inventory_checks.create_index("required_foremen")
         await db.inventory_shortages.create_index([("check_id", 1), ("status", 1)])
         await db.inventory_shortages.create_index("foreman_id")
+        await db.equipment_orders.create_index([("status", 1), ("created_at", -1)])
+        await db.equipment_orders.create_index("foreman_id")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
 

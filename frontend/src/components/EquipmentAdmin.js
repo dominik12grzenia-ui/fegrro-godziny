@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
+import { EquipmentOrdersAdmin } from './EquipmentOrdersAdmin';
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -43,7 +44,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const [warehouseKeeper, setWarehouseKeeper] = useState({ foreman_id: null, foreman_name: null });
   const [pendingReturns, setPendingReturns] = useState([]);
   const [filterForemanId, setFilterForemanId] = useState('');
-  const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null });
+  const [form, setForm] = useState({ name: '', brand: '', total_quantity: '', photo: null, variants: '' });
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [resolveModal, setResolveModal] = useState(null); // defect being resolved
   const [resolveDest, setResolveDest] = useState('warehouse'); // 'warehouse' | 'foreman'
@@ -173,16 +174,21 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       return;
     }
     try {
+      const variantsArr = (form.variants || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       await api.post('/equipment', {
         name: form.name.trim(),
         brand: form.brand.trim() || null,
         total_quantity: parseInt(form.total_quantity, 10),
         photo: form.photo,
         category,
+        variants: variantsArr.length > 0 ? variantsArr : null,
       });
       toast.success('Sprzet dodany');
       setShowAddModal(false);
-      setForm({ name: '', brand: '', total_quantity: '', photo: null });
+      setForm({ name: '', brand: '', total_quantity: '', photo: null, variants: '' });
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad dodawania');
@@ -191,10 +197,15 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
 
   const handleUpdate = async () => {
     try {
+      const variantsArr = (editingEq.variants_edit || '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
       await api.put(`/equipment/${editingEq.id}`, {
         name: editingEq.name,
         brand: editingEq.brand,
         photo: editingEq.photo,
+        variants: variantsArr.length > 0 ? variantsArr : [],
       });
       toast.success('Zaktualizowano');
       setEditingEq(null);
@@ -455,7 +466,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                             </div>
                           )}
                           <button
-                            onClick={() => setEditingEq({ ...eq })}
+                            onClick={() => setEditingEq({ ...eq, variants_edit: ((eq.variants || []).join(', ')) })}
                             className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
                             data-testid={`equipment-name-${eq.id}`}
                           >
@@ -614,6 +625,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
           </CardContent>
         </Card>
       )}
+
+      {/* Equipment orders from foremen (awaiting admin action) */}
+      <EquipmentOrdersAdmin category={category} />
 
       {/* Inventory shortage reports */}
       {shortages.length > 0 && (
@@ -928,6 +942,21 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                 />
               </div>
               <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">
+                  Warianty / rozmiary (opcjonalne, oddziel przecinkami)
+                </label>
+                <Input
+                  value={form.variants}
+                  onChange={(e) => setForm({ ...form, variants: e.target.value })}
+                  placeholder="np. 5mm, 8mm, 10mm  lub  125mm, 180mm, 230mm"
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  data-testid="equipment-variants-input"
+                />
+                <p className="text-[10px] text-[#64748B] mt-1">
+                  Brygadzista bedzie musial wybrac jeden z wariantow przy zamawianiu.
+                </p>
+              </div>
+              <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Zdjecie (opcjonalne, max 2MB)</label>
                 <input
                   type="file"
@@ -981,6 +1010,18 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                   value={editingEq.brand || ''}
                   onChange={(e) => setEditingEq({ ...editingEq, brand: e.target.value })}
                   className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">
+                  Warianty / rozmiary (oddziel przecinkami)
+                </label>
+                <Input
+                  value={editingEq.variants_edit || ''}
+                  onChange={(e) => setEditingEq({ ...editingEq, variants_edit: e.target.value })}
+                  placeholder="np. 5mm, 8mm, 10mm"
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  data-testid="edit-variants-input"
                 />
               </div>
               <div>

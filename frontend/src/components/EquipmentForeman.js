@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon, Warehouse } from 'lucide-react';
 import { toast } from 'sonner';
+import { EquipmentCatalog } from './EquipmentCatalog';
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -323,7 +324,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       )}
 
       {/* My equipment table */}
-      <Card className="bg-[#2A384C] border-[#334155]">
+      <Card className="bg-[#2A384C] border-[#334155]" data-testid="my-equipment-card">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#5F7151]" /> {title}
@@ -433,6 +434,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
           )}
         </CardContent>
       </Card>
+
+      {/* Equipment catalog for ordering */}
+      <EquipmentCatalog category={category} />
 
       {/* Transfer Modal */}
       {transferModal && (
