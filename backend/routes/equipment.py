@@ -870,17 +870,24 @@ async def start_inventory(payload: InventoryStart,
         {"$set": {"status": "finished", "finished_at": datetime.now().isoformat()}},
     )
 
-    # Find foremen who have at least one piece in this category
-    pipeline = [
-        {"$match": {"category": payload.category}},
-        {"$unwind": "$assignments"},
-        {"$match": {"assignments.quantity": {"$gt": 0}}},
-        {"$group": {"_id": "$assignments.foreman_id"}},
-    ]
+    # Find foremen who have at least one piece in this category.
+    # equipment_assignments is a separate collection; join with equipment to filter by category.
+    cat_filter = (
+        {"$or": [{"category": "electronics"}, {"category": {"$exists": False}}, {"category": None}]}
+        if payload.category == "electronics"
+        else {"category": payload.category}
+    )
+    eq_in_cat = await db.equipment.find(cat_filter, {"_id": 0, "id": 1}).to_list(5000)
+    eq_ids = [e["id"] for e in eq_in_cat]
     foremen_ids = []
-    async for row in db.equipment.aggregate(pipeline):
-        if row["_id"]:
-            foremen_ids.append(row["_id"])
+    if eq_ids:
+        pipeline = [
+            {"$match": {"equipment_id": {"$in": eq_ids}, "quantity": {"$gt": 0}}},
+            {"$group": {"_id": "$foreman_id"}},
+        ]
+        async for row in db.equipment_assignments.aggregate(pipeline):
+            if row["_id"]:
+                foremen_ids.append(row["_id"])
 
     check = {
         "id": str(uuid.uuid4()),
@@ -953,26 +960,39 @@ async def my_active_inventory(current_user: dict = Depends(get_current_user)):
     ).sort("started_at", -1).to_list(20)
     # Attach foreman's equipment for each check
     for c in checks:
+        cat = c["category"]
+        cat_filter = (
+            {"$or": [{"category": "electronics"}, {"category": {"$exists": False}}, {"category": None}]}
+            if cat == "electronics"
+            else {"category": cat}
+        )
+        # Find assignment rows for this foreman
+        my_assigns = await db.equipment_assignments.find(
+            {"foreman_id": foreman_id, "quantity": {"$gt": 0}},
+            {"_id": 0, "equipment_id": 1, "quantity": 1},
+        ).to_list(1000)
+        eq_qty_map = {a["equipment_id"]: a["quantity"] for a in my_assigns}
+        if not eq_qty_map:
+            c["equipment"] = []
+            continue
         eq_items = await db.equipment.find(
-            {
-                "category": c["category"],
-                "assignments": {"$elemMatch": {"foreman_id": foreman_id, "quantity": {"$gt": 0}}},
-            },
-            {"_id": 0, "id": 1, "name": 1, "brand": 1, "photo": 1, "assignments": 1},
-        ).to_list(500)
-        for eq in eq_items:
-            assigned = sum(
-                a.get("quantity", 0) for a in eq.get("assignments", [])
-                if a.get("foreman_id") == foreman_id
-            )
-            eq["assigned_quantity"] = assigned
-            eq["assignments"] = None  # don't leak others
-        c["equipment"] = [{k: v for k, v in eq.items() if v is not None or k == "photo"} for eq in eq_items]
+            {"$and": [cat_filter, {"id": {"$in": list(eq_qty_map.keys())}}]},
+            {"_id": 0, "id": 1, "name": 1, "brand": 1, "photo": 1},
+        ).sort("name", 1).to_list(500)
+        c["equipment"] = [
+            {**eq, "assigned_quantity": eq_qty_map.get(eq["id"], 0)}
+            for eq in eq_items
+        ]
     return checks
+
+
+class ConfirmInventoryPayload(BaseModel):
+    confirmed_equipment_ids: Optional[List[str]] = None  # for audit
 
 
 @router.post("/equipment/inventory/{check_id}/confirm")
 async def confirm_inventory(check_id: str,
+                             payload: Optional[ConfirmInventoryPayload] = None,
                              current_user: dict = Depends(get_current_user)):
     """Foreman confirms he has reviewed all his equipment for this check."""
     if current_user.get("role") != "foreman":
@@ -986,9 +1006,20 @@ async def confirm_inventory(check_id: str,
     if foreman_id in check.get("confirmed_foremen", []):
         return {"message": "Juz potwierdzone"}
 
+    confirmed_ids = (payload.confirmed_equipment_ids if payload else None) or []
+
     await db.inventory_checks.update_one(
         {"id": check_id},
-        {"$addToSet": {"confirmed_foremen": foreman_id}},
+        {
+            "$addToSet": {"confirmed_foremen": foreman_id},
+            "$push": {
+                "confirmation_log": {
+                    "foreman_id": foreman_id,
+                    "confirmed_equipment_ids": confirmed_ids,
+                    "confirmed_at": datetime.now().isoformat(),
+                }
+            },
+        },
     )
     # Auto-finish if all confirmed
     updated = await db.inventory_checks.find_one({"id": check_id}, {"_id": 0})

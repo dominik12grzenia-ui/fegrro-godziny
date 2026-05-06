@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check, ClipboardCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fileToBase64 = (file) =>
@@ -50,6 +50,8 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const [resolveForemanId, setResolveForemanId] = useState('');
   const [scrapped, setScrapped] = useState([]);
   const [showScrapped, setShowScrapped] = useState(false);
+  const [activeInventory, setActiveInventory] = useState([]); // active checks for THIS category
+  const [startingInventory, setStartingInventory] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -65,13 +67,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setLoading(false);
 
       // SECONDARY fetches - fill in lists below the table without blocking
-      const [hisRes, defRes, trRes, wkRes, retRes, scrRes] = await Promise.all([
+      const [hisRes, defRes, trRes, wkRes, retRes, scrRes, invRes] = await Promise.all([
         api.get('/equipment/history'),
         api.get('/equipment/defects'),
         api.get('/equipment/transfers/all'),
         api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null, foreman_name: null } })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get(`/equipment/scrapped?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
+        api.get('/equipment/inventory/list').catch(() => ({ data: [] })),
       ]);
       setHistory(hisRes.data);
       setDefects(defRes.data);
@@ -79,6 +82,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setWarehouseKeeper(wkRes.data);
       setPendingReturns(retRes.data);
       setScrapped(scrRes.data);
+      setActiveInventory((invRes.data || []).filter((c) => c.category === category && c.status === 'active'));
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
       setLoading(false);
@@ -240,6 +244,38 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     }
   };
 
+  const handleStartInventory = async () => {
+    if (!window.confirm(
+      `Rozpoczac inwentaryzacje dla "${title}"?\n\nWszyscy brygadzisci posiadajacy sprzet w tej kategorii zostana zablokowani na ekranie godzin do momentu potwierdzenia kazdej pozycji.`
+    )) return;
+    setStartingInventory(true);
+    try {
+      const r = await api.post('/equipment/inventory/start', { category });
+      const required = (r.data?.required_foremen || []).length;
+      if (required === 0) {
+        toast.warning('Zaden brygadzista nie ma przypisanego sprzetu w tej kategorii');
+      } else {
+        toast.success(`Inwentaryzacja rozpoczeta. Wymagane potwierdzenia: ${required}`);
+      }
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad rozpoczecia inwentaryzacji');
+    } finally {
+      setStartingInventory(false);
+    }
+  };
+
+  const handleFinishInventory = async (checkId) => {
+    if (!window.confirm('Recznie zakonczyc te inwentaryzacje? Brygadzisci zostana odblokowani bez potwierdzenia.')) return;
+    try {
+      await api.post(`/equipment/inventory/${checkId}/finish`);
+      toast.success('Inwentaryzacja zakonczona');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-12 text-[#94A3B8]" data-testid="equipment-loading">
@@ -299,6 +335,16 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
               data-testid="add-equipment-btn"
             >
               <Plus className="h-4 w-4 mr-2" /> Dodaj sprzet
+            </Button>
+            <Button
+              onClick={handleStartInventory}
+              disabled={startingInventory || activeInventory.length > 0}
+              className="bg-[#E8B76A] hover:bg-[#D4A055] text-[#1E293B] font-semibold disabled:opacity-50"
+              data-testid="start-inventory-btn"
+              title={activeInventory.length > 0 ? 'Inwentaryzacja juz aktywna' : 'Wymus inwentaryzacje u brygadzistow'}
+            >
+              <ClipboardCheck className="h-4 w-4 mr-2" />
+              {startingInventory ? 'Uruchamianie...' : 'Inwentaryzacja'}
             </Button>
           </div>
         </CardHeader>
@@ -494,6 +540,67 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
           </p>
         </CardContent>
       </Card>
+
+      {/* Active inventory check banner */}
+      {activeInventory.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#E8B76A]" data-testid="active-inventory-card">
+          <CardHeader>
+            <CardTitle className="text-[#E8B76A] flex items-center gap-2">
+              <ClipboardCheck className="h-5 w-5" />
+              Aktywna inwentaryzacja - {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {activeInventory.map((c) => {
+                const required = (c.required_foremen || []).length;
+                const confirmed = (c.confirmed_foremen || []).length;
+                const pendingIds = (c.required_foremen || []).filter(
+                  (fid) => !(c.confirmed_foremen || []).includes(fid)
+                );
+                const pendingNames = pendingIds.map(
+                  (fid) => foremen.find((f) => f.id === fid)?.full_name || '?'
+                );
+                return (
+                  <div
+                    key={c.id}
+                    className="p-3 bg-[#1E293B] rounded border border-[#334155]"
+                    data-testid={`inventory-status-${c.id}`}
+                  >
+                    <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
+                      <div className="text-sm text-[#CBD5E1]">
+                        Rozpoczeto: {new Date(c.started_at).toLocaleString('pl-PL')}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-sm">
+                          <span className="text-[#5F7151] font-bold">{confirmed}</span>
+                          <span className="text-[#94A3B8]"> / </span>
+                          <span className="text-white font-bold">{required}</span>
+                          <span className="text-[#94A3B8] ml-1">potwierdzonych</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => handleFinishInventory(c.id)}
+                          className="bg-[#334155] hover:bg-[#475569] text-white"
+                          data-testid={`finish-inventory-${c.id}`}
+                        >
+                          Zakoncz recznie
+                        </Button>
+                      </div>
+                    </div>
+                    {pendingNames.length > 0 && (
+                      <div className="text-xs text-[#94A3B8]">
+                        <span className="text-[#E8B76A]">Oczekuje: </span>
+                        {pendingNames.join(', ')}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Warehouse keeper setting */}
       <Card className="bg-[#2A384C] border-[#334155]">

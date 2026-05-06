@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 import { LocationsButton } from './LocationsButton';
+import { InventoryCheckModal } from './InventoryCheckModal';
 
 // Lazy-load heavy equipment section
 const EquipmentForeman = lazy(() => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman })));
@@ -405,6 +406,8 @@ export const WorkerDashboard = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#1E293B]">
+      {/* Inventory check blocking modal */}
+      <InventoryCheckModal />
       {/* Impersonation banner */}
       {isImpersonating && (
         <div className="bg-[#E8B76A] text-[#1E293B] px-4 py-2 text-sm font-semibold flex items-center justify-between gap-2 shrink-0" data-testid="impersonation-banner">
