@@ -52,6 +52,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const [showScrapped, setShowScrapped] = useState(false);
   const [activeInventory, setActiveInventory] = useState([]); // active checks for THIS category
   const [startingInventory, setStartingInventory] = useState(false);
+  const [shortages, setShortages] = useState([]); // open shortages
 
   const fetchAll = useCallback(async () => {
     try {
@@ -67,7 +68,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setLoading(false);
 
       // SECONDARY fetches - fill in lists below the table without blocking
-      const [hisRes, defRes, trRes, wkRes, retRes, scrRes, invRes] = await Promise.all([
+      const [hisRes, defRes, trRes, wkRes, retRes, scrRes, invRes, shRes] = await Promise.all([
         api.get('/equipment/history'),
         api.get('/equipment/defects'),
         api.get('/equipment/transfers/all'),
@@ -75,6 +76,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get(`/equipment/scrapped?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
         api.get('/equipment/inventory/list').catch(() => ({ data: [] })),
+        api.get('/equipment/inventory/shortages?status=open').catch(() => ({ data: [] })),
       ]);
       setHistory(hisRes.data);
       setDefects(defRes.data);
@@ -83,6 +85,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setPendingReturns(retRes.data);
       setScrapped(scrRes.data);
       setActiveInventory((invRes.data || []).filter((c) => c.category === category && c.status === 'active'));
+      setShortages((shRes.data || []).filter((s) => s.category === category));
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
       setLoading(false);
@@ -270,6 +273,16 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.post(`/equipment/inventory/${checkId}/finish`);
       toast.success('Inwentaryzacja zakonczona');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const handleResolveShortage = async (shortageId) => {
+    try {
+      await api.post(`/equipment/inventory/shortages/${shortageId}/resolve`);
+      toast.success('Zgloszenie rozpatrzone');
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -597,6 +610,71 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                   </div>
                 );
               })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Inventory shortage reports */}
+      {shortages.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#E8B76A]" data-testid="shortages-card">
+          <CardHeader>
+            <CardTitle className="text-[#E8B76A] flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" />
+              Zgloszone niezgodnosci sprzetu ({shortages.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {shortages.map((s) => (
+                <div
+                  key={s.id}
+                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#1E293B] rounded border border-[#334155]"
+                  data-testid={`shortage-row-${s.id}`}
+                >
+                  <div className="flex-1 min-w-[200px] text-sm">
+                    <div>
+                      <span className="text-[#CBD5E1] font-semibold">{s.foreman_name}</span>
+                      <span className="text-[#94A3B8]"> - </span>
+                      <span className="text-[#5F7151] font-bold">{s.equipment_name}</span>
+                      {s.equipment_brand && (
+                        <span className="text-[#94A3B8]"> ({s.equipment_brand})</span>
+                      )}
+                    </div>
+                    <div className="text-[#94A3B8] mt-1">
+                      Posiada <span className="text-white font-bold">{s.reported_quantity}</span>
+                      <span> / </span>
+                      <span className="text-white">{s.expected_quantity}</span> szt.
+                      <span className="text-[#E8B76A] ml-2">
+                        (brak: <b>{s.missing_quantity}</b> szt.)
+                      </span>
+                    </div>
+                    {s.description && (
+                      <div className="text-[#CBD5E1] mt-1 italic">"{s.description}"</div>
+                    )}
+                    <div className="text-xs text-[#64748B] mt-1">
+                      {new Date(s.created_at).toLocaleString('pl-PL')}
+                    </div>
+                  </div>
+                  {s.photo && (
+                    <a href={s.photo} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={s.photo}
+                        alt="dowod"
+                        className="h-16 w-16 rounded object-cover border border-[#334155] cursor-zoom-in"
+                      />
+                    </a>
+                  )}
+                  <Button
+                    size="sm"
+                    onClick={() => handleResolveShortage(s.id)}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    data-testid={`resolve-shortage-${s.id}`}
+                  >
+                    <Check className="h-4 w-4 mr-1" /> Rozpatrzono
+                  </Button>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>

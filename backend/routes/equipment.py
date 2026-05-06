@@ -106,9 +106,18 @@ async def list_equipment(
         else:
             query = {"category": category}
     items = await db.equipment.find(query, {"_id": 0}).sort("name", 1).to_list(1000)
+    if not items:
+        return []
+    # Single aggregation: sum of assignments grouped by equipment_id (replaces N+1)
+    eq_ids = [it["id"] for it in items]
+    pipeline = [
+        {"$match": {"equipment_id": {"$in": eq_ids}}},
+        {"$group": {"_id": "$equipment_id", "total": {"$sum": "$quantity"}}},
+    ]
+    sums = {row["_id"]: row["total"] async for row in db.equipment_assignments.aggregate(pipeline)}
     result = []
     for item in items:
-        total_assigned = await _get_total_assigned(item["id"])
+        total_assigned = sums.get(item["id"], 0)
         broken = item.get("broken_quantity", 0) or 0
         total = item.get("total_quantity", 0)
         result.append({
@@ -292,9 +301,17 @@ async def my_equipment(
     assignments = await db.equipment_assignments.find(
         {"foreman_id": foreman_id}, {"_id": 0}
     ).to_list(1000)
+    if not assignments:
+        return []
+    # Single batch fetch instead of N find_one calls
+    eq_ids = [a["equipment_id"] for a in assignments]
+    eq_docs = await db.equipment.find(
+        {"id": {"$in": eq_ids}}, {"_id": 0}
+    ).to_list(len(eq_ids))
+    eq_map = {e["id"]: e for e in eq_docs}
     result = []
     for a in assignments:
-        eq = await db.equipment.find_one({"id": a["equipment_id"]}, {"_id": 0})
+        eq = eq_map.get(a["equipment_id"])
         if not eq:
             continue
         eq_cat = eq.get("category") or "electronics"
@@ -988,6 +1005,119 @@ async def my_active_inventory(current_user: dict = Depends(get_current_user)):
 
 class ConfirmInventoryPayload(BaseModel):
     confirmed_equipment_ids: Optional[List[str]] = None  # for audit
+
+
+class ShortageReport(BaseModel):
+    equipment_id: str
+    reported_quantity: int  # what foreman actually has (may be 0)
+    description: Optional[str] = None
+    photo: Optional[str] = None  # base64
+
+
+@router.post("/equipment/inventory/{check_id}/report-shortage")
+async def report_shortage(check_id: str,
+                           payload: ShortageReport,
+                           current_user: dict = Depends(get_current_user)):
+    """Foreman reports a discrepancy: 'I have less / none' for a specific equipment.
+    Stored separately from confirmation; admin can review and decide to adjust assignment.
+    """
+    if current_user.get("role") != "foreman":
+        raise HTTPException(status_code=403, detail="Tylko brygadzista")
+    if payload.reported_quantity < 0:
+        raise HTTPException(status_code=400, detail="Ilosc nie moze byc ujemna")
+
+    foreman_id = current_user["sub"]
+    check = await db.inventory_checks.find_one({"id": check_id, "status": "active"}, {"_id": 0})
+    if not check:
+        raise HTTPException(status_code=404, detail="Aktywna inwentaryzacja nie znaleziona")
+    if foreman_id not in check.get("required_foremen", []):
+        raise HTTPException(status_code=400, detail="Nie jestes wymagany w tej inwentaryzacji")
+
+    eq = await db.equipment.find_one({"id": payload.equipment_id}, {"_id": 0, "name": 1, "brand": 1})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+
+    own = await db.equipment_assignments.find_one(
+        {"equipment_id": payload.equipment_id, "foreman_id": foreman_id},
+        {"_id": 0, "quantity": 1},
+    )
+    expected = (own or {}).get("quantity", 0)
+    if payload.reported_quantity > expected:
+        raise HTTPException(status_code=400, detail="Zglaszana ilosc nie moze byc wieksza niz przypisana")
+
+    foreman_name = await _get_user_name(foreman_id)
+    shortage_id = str(uuid.uuid4())
+    doc = {
+        "id": shortage_id,
+        "check_id": check_id,
+        "category": check.get("category"),
+        "equipment_id": payload.equipment_id,
+        "equipment_name": eq.get("name"),
+        "equipment_brand": eq.get("brand"),
+        "foreman_id": foreman_id,
+        "foreman_name": foreman_name,
+        "expected_quantity": expected,
+        "reported_quantity": payload.reported_quantity,
+        "missing_quantity": max(0, expected - payload.reported_quantity),
+        "description": payload.description,
+        "photo": payload.photo,
+        "status": "open",  # open | resolved
+        "created_at": datetime.now().isoformat(),
+    }
+    await db.inventory_shortages.insert_one(doc)
+    doc.pop("_id", None)
+
+    # Notify admin
+    try:
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()),
+            "type": "inventory_shortage",
+            "title": "Zgloszono brak sprzetu",
+            "message": f"{foreman_name}: {eq.get('name')} - {payload.reported_quantity}/{expected} szt.",
+            "shortage_id": shortage_id,
+            "check_id": check_id,
+            "status": "unread",
+            "created_at": datetime.now().isoformat(),
+        })
+    except Exception as e:
+        # log but don't fail the user-facing call
+        print(f"Notification insert failed: {e}")
+
+    await _add_history(payload.equipment_id, "shortage_reported", foreman_id, foreman_name,
+                       {"expected": expected, "reported": payload.reported_quantity,
+                        "description": payload.description, "check_id": check_id})
+    return doc
+
+
+@router.get("/equipment/inventory/shortages")
+async def list_shortages(check_id: Optional[str] = None,
+                          status: Optional[str] = None,
+                          current_user: dict = Depends(get_current_admin)):
+    """Admin: list discrepancies. Filterable by check_id and status (open/resolved)."""
+    query = {}
+    if check_id:
+        query["check_id"] = check_id
+    if status:
+        query["status"] = status
+    items = await db.inventory_shortages.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+
+@router.post("/equipment/inventory/shortages/{shortage_id}/resolve")
+async def resolve_shortage(shortage_id: str,
+                            current_user: dict = Depends(get_current_admin)):
+    """Mark a shortage as reviewed/resolved by admin."""
+    actor_name = await _get_user_name(current_user["sub"])
+    result = await db.inventory_shortages.update_one(
+        {"id": shortage_id},
+        {"$set": {"status": "resolved",
+                  "resolved_by": current_user["sub"],
+                  "resolved_by_name": actor_name,
+                  "resolved_at": datetime.now().isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Zgloszenie nie znalezione")
+    return {"message": "Zgloszenie rozpatrzone"}
 
 
 @router.post("/equipment/inventory/{check_id}/confirm")

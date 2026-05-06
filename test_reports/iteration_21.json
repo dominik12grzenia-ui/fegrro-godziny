@@ -1,0 +1,35 @@
+{
+  "summary": "Iteration 21 - shortage reporting + perf/security hardening fully validated. Backend: 12/12 pytest pass (test_inventory_shortage_and_security.py) covering shortage report success/negative/over-assigned/unknown-check, list+resolve+resolve-unknown, mixed confirm-after-shortage, security headers (X-Frame-Options=DENY, X-Content-Type-Options=nosniff, Strict-Transport-Security, Referrer-Policy, Permissions-Policy all present on /api/), GZip enabled on /api/equipment, list_equipment + my_equipment correctness post N+1 fix. Rate limiter manually verified via curl: 7x401 then 429 with Retry-After header on 8th attempt. Existing iteration_20 inventory tests still pass. Frontend (Playwright): foreman modal at /worker/dashboard shows checkbox + 'Brak' button per row (data-testid=inventory-shortage-btn-{eq_id}). Click opens shortage-modal with qty pre-fill (assigned-1 = 2 for qty=3 ladder), description+photo inputs. Submit closes modal, row shows 'Zgloszono niezgodnosc - czeka na admina' label, checkbox becomes disabled, Brak button hidden. Confirm button (inventory-confirm-btn) initially disabled, enables after mixed action (1 reported + 3 checked). Admin Elektronarzedzia tab shows 'Zgloszone niezgodnosci sprzetu (2)' card (shortages-card) with each shortage row (shortage-row-{id}) listing foreman name, equipment name+brand, expected/reported quantities, missing count, description, timestamp, and Rozpatrzono button (resolve-shortage-{id}). Click resolves via API and removes row from UI immediately.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/dashboard", "issues": ["Pre-existing Google Maps ApiProjectMapError on Lokalizacje tab (unrelated to this iteration)"]},
+      {"screen": "/admin/login", "issues": ["When direct-navigating to /admin/login as already-authenticated user, page renders blank (no inputs). Workaround: clear localStorage first. Likely a redirect-guard side effect; not blocking."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_inventory_shortage_and_security.py",
+    "/app/backend/tests/test_inventory_check.py",
+    "/app/test_reports/pytest/pytest_iter21_shortage.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "rate_limit.py: in-memory limiter resets on backend restart and is per-process. Acceptable for single-replica deployment but document this assumption; under k8s autoscaling with >1 replicas the per-IP cap will effectively become N*8 attempts.",
+    "equipment.py report_shortage: no idempotency - foreman can spam-post same equipment_id and create multiple open shortage docs for the same item in one check. Consider unique index (check_id, equipment_id, foreman_id) or upsert semantics.",
+    "equipment.py confirm_inventory still allows empty confirmed_equipment_ids audit list (carryover from iter 20). Audit-only impact since UI now enforces all-marked rule (checkbox or shortage). Backend is permissive on purpose for shortage-only flows (foreman with 1 item that he reports as missing then confirms), but a server-side check that confirmed_ids + reported_ids covers required equipment would harden it.",
+    "InventoryCheckModal.js: shortage-photo-input accepts any size base64 and posts in a single JSON body. No client-side size limit -> a 10MB photo will hit FastAPI default request size and could 413. Consider <=2MB resize before submit.",
+    "EquipmentAdmin.js: shortages-card always renders all open shortages regardless of currently selected category sub-tab. Mixing categories may confuse admin if shortages from accessories show on Elektronarzedzia tab. Filter by current sub-tab category, or move card to a dedicated 'Zgloszenia' tab."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_inventory_shortage_and_security.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (12/12 pytest + manual rate-limit curl)", "frontend": "100% (foreman shortage modal end-to-end + admin shortages-card+resolve end-to-end)"},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! (POST /api/auth/admin/login). Foreman impersonation: POST /api/foremen/{id}/impersonate as admin -> {access_token}. Frontend localStorage key is 'token' (not 'access_token').",
+  "seed_data_creation": "Created 2 open shortages during testing (drabina aluminiowa 3m '2/3 brak:1' and wiertarka udarowa '0/2 brak:2'); both resolved during admin UI test. Started additional inventory checks across all 3 categories. 1 mixed scenario confirmation completed by foreman cae21436-3a07-44d3-b91c-135a70769fe8 (TEST_Foreman_A_a8b95c).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Two regression test files now exist: test_inventory_check.py (iter 20 - basic inventory) and test_inventory_shortage_and_security.py (iter 21 - shortage + security + GZip + N+1 sanity). Rate-limit test is opt-in via RUN_RATE_LIMIT_TEST=1 env to avoid blocking other tests. Local rate limiter is in-memory per backend process; if you spam admin login >8 times in 60s your subsequent UI logins will 429 - wait 60s. Frontend localStorage key for auth is 'token' (not 'access_token'). Admin equipment sub-tabs use Polish chars: 'Elektronarzędzia' (with ę), 'Akcesoria', 'Szalunki' - exact text match required for Playwright get_by_text.",
+  "rca of the issue": "N/A - all features work as designed. Two minor side-notes captured under design_issues."
+}

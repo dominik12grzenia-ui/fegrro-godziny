@@ -1,5 +1,7 @@
-from fastapi import FastAPI, APIRouter
+from fastapi import FastAPI, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from dotenv import load_dotenv
 from pathlib import Path
 import os
@@ -72,11 +74,34 @@ app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=[
+        o.strip() for o in os.environ.get("CORS_ORIGINS", "").split(",") if o.strip()
+    ] or ["https://fegrro-godziny.vercel.app", "https://godziny.fegrro.pl"],
     allow_credentials=True,
-    allow_origin_regex=r"https?://.*",
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    expose_headers=["Content-Disposition"],
+    max_age=600,
 )
+
+# GZip: compresses JSON responses >= 500 bytes (cuts payload ~70% for hours/equipment lists)
+app.add_middleware(GZipMiddleware, minimum_size=500)
+
+
+# Security headers - defense in depth. Cheap to apply and blocks common attack vectors.
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        # HSTS only meaningful over HTTPS; harmless on http (browsers ignore)
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
 
 # ============= SCHEDULER (CRON) =============
 scheduler = AsyncIOScheduler()
@@ -103,6 +128,10 @@ async def startup_event():
         await db.employees.create_index("public_token")
         await db.users.create_index([("role", 1), ("email", 1)])
         await db.users.create_index("full_name")
+        await db.inventory_checks.create_index([("status", 1), ("category", 1)])
+        await db.inventory_checks.create_index("required_foremen")
+        await db.inventory_shortages.create_index([("check_id", 1), ("status", 1)])
+        await db.inventory_shortages.create_index("foreman_id")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
 

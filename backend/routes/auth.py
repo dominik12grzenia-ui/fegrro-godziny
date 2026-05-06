@@ -1,16 +1,18 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from datetime import datetime, timedelta
 import uuid
 
 from database import db
 from models import UserCreate, UserLogin, Token
 from auth import get_password_hash, verify_password, create_access_token, get_current_user, get_current_admin
+from rate_limit import check_login_rate
 
 router = APIRouter()
 
 
 @router.post("/auth/admin/login", response_model=Token)
-async def admin_login(credentials: UserLogin):
+async def admin_login(credentials: UserLogin, request: Request):
+    check_login_rate(request, "admin_login")
     user = await db.users.find_one({"email": credentials.email, "role": "admin"})
     if not user or not verify_password(credentials.password, user.get("hashed_password", "")):
         raise HTTPException(status_code=401, detail="Invalid credentials")
@@ -34,8 +36,9 @@ async def admin_login(credentials: UserLogin):
 
 
 @router.post("/auth/foreman/login", response_model=dict)
-async def foreman_login(user_data: UserLogin):
+async def foreman_login(user_data: UserLogin, request: Request):
     """Login for foreman with full_name + password (no public registration)."""
+    check_login_rate(request, "foreman_login")
     # UserLogin uses 'email' field but for foreman we pass full_name there
     name = (user_data.email or "").strip()
     password = user_data.password or ""
