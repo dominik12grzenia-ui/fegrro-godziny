@@ -45,12 +45,23 @@ export const EquipmentOrdersAdmin = ({ category }) => {
       return;
     }
     try {
-      await api.post(`/equipment/orders/${order.id}/issue`, { quantity_issued: qty });
-      toast.success('Wydano');
+      const res = await api.post(`/equipment/orders/${order.id}/issue`, { quantity_issued: qty });
+      const newIssued = res.data?.quantity_issued ?? (order.quantity_issued || 0) + qty;
+      const newStatus = res.data?.status ?? (newIssued >= order.quantity_requested ? 'issued' : 'partial');
+      // Optymistyczna aktualizacja - tylko ten zamowienie sie zmienia,
+      // reszta listy zostaje (nie ma flickera/reloadu).
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === order.id
+            ? { ...o, quantity_issued: newIssued, status: newStatus, issued_at: new Date().toISOString() }
+            : o
+        )
+      );
       setIssueQty((m) => { const n = { ...m }; delete n[order.id]; return n; });
-      fetchAll();
+      toast.success(`Wydano ${qty} szt.`);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
+      fetchAll(); // tylko gdy blad - synchronizujemy z backendem
     }
   };
 
@@ -58,10 +69,14 @@ export const EquipmentOrdersAdmin = ({ category }) => {
     if (!window.confirm('Odrzucic to zamowienie?')) return;
     try {
       await api.post(`/equipment/orders/${orderId}/reject`);
+      // Optymistyczna aktualizacja
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: 'rejected' } : o))
+      );
       toast.success('Odrzucono');
-      fetchAll();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
+      fetchAll();
     }
   };
 

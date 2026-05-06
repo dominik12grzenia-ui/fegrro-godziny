@@ -48,6 +48,9 @@ export const AdminDashboard = () => {
   const [geocoding, setGeocoding] = useState(null);
   const [publicLinks, setPublicLinks] = useState([]);
   const [generatingLinks, setGeneratingLinks] = useState(false);
+  const [equipmentOrdersByCategory, setEquipmentOrdersByCategory] = useState({
+    electronics: 0, accessories: 0, formwork: 0,
+  });
 
   useEffect(() => {
     if (!user || user.role !== 'admin') {
@@ -108,13 +111,14 @@ export const AdminDashboard = () => {
       setLoading(false);
 
       // SECONDARY - fill counters and tabs below without blocking
-      const [requestsRes, foremenRes, notificationsRes, syncLogsRes, absencesRes, clothingOrdersRes] = await Promise.all([
+      const [requestsRes, foremenRes, notificationsRes, syncLogsRes, absencesRes, clothingOrdersRes, eqOrdersRes] = await Promise.all([
         api.get('/requests?status=pending'),
         api.get('/foremen'),
         api.get('/notifications'),
         api.get('/sync/logs'),
         api.get('/absences?status=pending'),
         api.get('/clothing/orders').catch(() => ({ data: [] })),
+        api.get('/equipment/orders?status=pending').catch(() => ({ data: [] })),
       ]);
       setRequests(requestsRes.data);
       setForemen(foremenRes.data);
@@ -123,6 +127,19 @@ export const AdminDashboard = () => {
       setSyncLogs(syncLogsRes.data);
       const pendingClothing = (clothingOrdersRes.data || []).filter((o) => o.status !== 'issued').length;
       setStats((s) => ({ ...s, pendingRequests: requestsRes.data.length, pendingClothing }));
+      // Pending equipment orders by category
+      const eqByCat = { electronics: 0, accessories: 0, formwork: 0 };
+      (eqOrdersRes.data || []).forEach((o) => {
+        const c = o.category || 'electronics';
+        if (eqByCat[c] !== undefined) eqByCat[c] += 1;
+      });
+      // Also include partial orders
+      const partialRes = await api.get('/equipment/orders?status=partial').catch(() => ({ data: [] }));
+      (partialRes.data || []).forEach((o) => {
+        const c = o.category || 'electronics';
+        if (eqByCat[c] !== undefined) eqByCat[c] += 1;
+      });
+      setEquipmentOrdersByCategory(eqByCat);
     } catch (error) {
       console.error('Failed to fetch data:', error);
       toast.error('Nie udało się pobrać danych');
@@ -307,9 +324,30 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0">Elektronarzędzia</TabsTrigger>
-              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0">Akcesoria</TabsTrigger>
-              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0">Szalunki</TabsTrigger>
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0">
+                Elektronarzędzia
+                {equipmentOrdersByCategory.electronics > 0 && (
+                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                    {equipmentOrdersByCategory.electronics}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0">
+                Akcesoria
+                {equipmentOrdersByCategory.accessories > 0 && (
+                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                    {equipmentOrdersByCategory.accessories}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0">
+                Szalunki
+                {equipmentOrdersByCategory.formwork > 0 && (
+                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                    {equipmentOrdersByCategory.formwork}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">Materiały</TabsTrigger>
               <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">Ubrania</TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>

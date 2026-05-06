@@ -2,6 +2,8 @@
 
 Admin can then fulfill (issue) or reject orders.
 """
+import os
+import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
@@ -11,7 +13,79 @@ import uuid
 from database import db
 from auth import get_current_user, get_current_admin
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+CATEGORY_LABELS = {
+    "electronics": "Elektronarzedzia",
+    "accessories": "Akcesoria",
+    "formwork": "Szalunki",
+}
+
+
+async def _send_equipment_order_email(order: dict):
+    """Send email to admin about new equipment order via Resend."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    to_addr = os.environ.get("WAREHOUSE_NOTIFY_EMAIL", "biuro@fegrro.pl")
+    from_addr = os.environ.get("RESEND_FROM_EMAIL", "noreply@fegrro.pl")
+    if not api_key:
+        logger.info("RESEND_API_KEY not configured - skipping equipment order email")
+        return
+    try:
+        import httpx
+    except ImportError:
+        logger.warning("httpx not installed - cannot send email")
+        return
+
+    cat_label = CATEGORY_LABELS.get(order.get("category"), order.get("category", "?"))
+    variant_line = (
+        f"<p>Wariant / rozmiar: <b>{order['variant']}</b></p>"
+        if order.get("variant") else ""
+    )
+    notes_line = (
+        f"<p>Uwagi: <i>{order['notes']}</i></p>"
+        if order.get("notes") else ""
+    )
+    html = f"""
+    <html><body style="font-family:sans-serif;max-width:600px">
+      <h2 style="color:#5F7151">FeGrro - Nowe zamowienie sprzetu</h2>
+      <p>Brygadzista <b>{order['foreman_name']}</b> zlozyl zamowienie:</p>
+      <table style="border-collapse:collapse;width:100%;margin:12px 0">
+        <tr><td style="padding:8px;border:1px solid #ddd">Kategoria</td>
+            <td style="padding:8px;border:1px solid #ddd"><b>{cat_label}</b></td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd">Sprzet</td>
+            <td style="padding:8px;border:1px solid #ddd"><b>{order['equipment_name']}</b>"""
+    if order.get("equipment_brand"):
+        html += f" ({order['equipment_brand']})"
+    html += f"""</td></tr>
+        <tr><td style="padding:8px;border:1px solid #ddd">Ilosc</td>
+            <td style="padding:8px;border:1px solid #ddd"><b>{order['quantity_requested']}</b> szt.</td></tr>
+      </table>
+      {variant_line}
+      {notes_line}
+      <p style="color:#666;font-size:12px">
+        Zaloguj sie do panelu admina aby wydac sprzet.
+      </p>
+    </body></html>
+    """
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_addr,
+                    "to": [to_addr],
+                    "subject": f"FeGrro: zamowienie sprzetu od {order['foreman_name']}",
+                    "html": html,
+                },
+            )
+            if resp.status_code >= 300:
+                logger.warning(f"Resend equipment order email failed {resp.status_code}: {resp.text}")
+    except Exception as e:
+        logger.warning(f"Resend equipment order email exception: {e}")
+
 
 
 class EquipmentOrderCreate(BaseModel):
@@ -113,7 +187,7 @@ async def create_equipment_order(payload: EquipmentOrderCreate,
     await db.equipment_orders.insert_one(order)
     order.pop("_id", None)
 
-    # Notify admin
+    # Notify admin (in-app)
     try:
         await db.notifications.insert_one({
             "id": str(uuid.uuid4()),
@@ -128,6 +202,12 @@ async def create_equipment_order(payload: EquipmentOrderCreate,
         })
     except Exception as e:
         print(f"Notification insert failed: {e}")
+
+    # Notify admin (email - non-blocking; errors logged but don't fail the request)
+    try:
+        await _send_equipment_order_email(order)
+    except Exception as e:
+        logger.warning(f"Email send failed: {e}")
 
     return order
 
