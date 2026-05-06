@@ -257,10 +257,10 @@ export const AdminDashboard = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="overflow-x-auto -mx-1 px-1">
-            <TabsList className="inline-flex w-auto min-w-max gap-1 lg:grid lg:w-full lg:grid-cols-7 lg:gap-1">
-              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap">Lokalizacje</TabsTrigger>
-              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap">
+          <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin">
+            <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap">
+              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0">Lokalizacje</TabsTrigger>
+              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0">
                 Brygadzisci
                 {foremen.filter(f => f.status === 'pending').length > 0 && (
                   <span className="ml-1 bg-[#E8836A] text-white text-xs rounded-full px-1.5 py-0.5">
@@ -268,7 +268,7 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap">
+              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap shrink-0">
                 Prosby
                 {(stats.pendingRequests + notifications.length + absenceRequests.length) > 0 && (
                   <span className="ml-1 bg-[#5F7151] text-white text-xs rounded-full px-1.5 py-0.5">
@@ -276,13 +276,13 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap">Elektronarzędzia</TabsTrigger>
-              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap">Akcesoria</TabsTrigger>
-              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap">Szalunki</TabsTrigger>
-              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap">Magazyn</TabsTrigger>
-              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap">Ubrania</TabsTrigger>
-              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap">BHP</TabsTrigger>
-              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap">Narzedzia</TabsTrigger>
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0">Elektronarzędzia</TabsTrigger>
+              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0">Akcesoria</TabsTrigger>
+              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0">Szalunki</TabsTrigger>
+              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">Magazyn</TabsTrigger>
+              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">Ubrania</TabsTrigger>
+              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
+              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
 
