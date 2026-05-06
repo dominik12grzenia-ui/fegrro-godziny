@@ -49,7 +49,7 @@ export const AdminDashboard = () => {
   const [publicLinks, setPublicLinks] = useState([]);
   const [generatingLinks, setGeneratingLinks] = useState(false);
   const [equipmentOrdersByCategory, setEquipmentOrdersByCategory] = useState({
-    electronics: 0, accessories: 0, formwork: 0,
+    electronics: 0, accessories: 0, formwork: 0, warehouse: 0,
   });
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export const AdminDashboard = () => {
       setLoading(false);
 
       // SECONDARY - fill counters and tabs below without blocking
-      const [requestsRes, foremenRes, notificationsRes, syncLogsRes, absencesRes, clothingOrdersRes, eqOrdersRes] = await Promise.all([
+      const [requestsRes, foremenRes, notificationsRes, syncLogsRes, absencesRes, clothingOrdersRes, eqOrdersRes, eqPartialRes, whOrdersRes] = await Promise.all([
         api.get('/requests?status=pending'),
         api.get('/foremen'),
         api.get('/notifications'),
@@ -119,6 +119,8 @@ export const AdminDashboard = () => {
         api.get('/absences?status=pending'),
         api.get('/clothing/orders').catch(() => ({ data: [] })),
         api.get('/equipment/orders?status=pending').catch(() => ({ data: [] })),
+        api.get('/equipment/orders?status=partial').catch(() => ({ data: [] })),
+        api.get('/warehouse/orders').catch(() => ({ data: [] })),
       ]);
       setRequests(requestsRes.data);
       setForemen(foremenRes.data);
@@ -127,18 +129,16 @@ export const AdminDashboard = () => {
       setSyncLogs(syncLogsRes.data);
       const pendingClothing = (clothingOrdersRes.data || []).filter((o) => o.status !== 'issued').length;
       setStats((s) => ({ ...s, pendingRequests: requestsRes.data.length, pendingClothing }));
-      // Pending equipment orders by category
-      const eqByCat = { electronics: 0, accessories: 0, formwork: 0 };
-      (eqOrdersRes.data || []).forEach((o) => {
+      // Pending equipment orders by category (incl. partial)
+      const eqByCat = { electronics: 0, accessories: 0, formwork: 0, warehouse: 0 };
+      [...(eqOrdersRes.data || []), ...(eqPartialRes.data || [])].forEach((o) => {
         const c = o.category || 'electronics';
         if (eqByCat[c] !== undefined) eqByCat[c] += 1;
       });
-      // Also include partial orders
-      const partialRes = await api.get('/equipment/orders?status=partial').catch(() => ({ data: [] }));
-      (partialRes.data || []).forEach((o) => {
-        const c = o.category || 'electronics';
-        if (eqByCat[c] !== undefined) eqByCat[c] += 1;
-      });
+      // Warehouse (Materiały) - pending or partial orders
+      eqByCat.warehouse = (whOrdersRes.data || []).filter(
+        (o) => o.status === 'pending' || o.status === 'partial'
+      ).length;
       setEquipmentOrdersByCategory(eqByCat);
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -348,7 +348,14 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">Materiały</TabsTrigger>
+              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">
+                Materiały
+                {equipmentOrdersByCategory.warehouse > 0 && (
+                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                    {equipmentOrdersByCategory.warehouse}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">Ubrania</TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>

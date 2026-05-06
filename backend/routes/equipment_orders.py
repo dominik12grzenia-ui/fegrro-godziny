@@ -217,13 +217,28 @@ async def list_equipment_orders(
     status: Optional[str] = None,
     current_user: dict = Depends(get_current_user),
 ):
-    """List equipment orders. Admin sees all; foreman sees his own only."""
+    """List equipment orders. Admin sees all; foreman sees his own only.
+
+    Enriches each order with the up-to-date `category` from its equipment doc
+    so historic orders (from before category was set) and recategorized items
+    show up in the right admin/foreman tab.
+    """
     query = {}
     if status:
         query["status"] = status
     if current_user.get("role") != "admin":
         query["foreman_id"] = current_user["sub"]
     items = await db.equipment_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    if not items:
+        return items
+    eq_ids = list({it.get("equipment_id") for it in items if it.get("equipment_id")})
+    eq_cats = {}
+    if eq_ids:
+        async for e in db.equipment.find({"id": {"$in": eq_ids}}, {"_id": 0, "id": 1, "category": 1}):
+            eq_cats[e["id"]] = e.get("category") or "electronics"
+    for it in items:
+        # Always prefer current equipment.category; fallback to stored or default.
+        it["category"] = eq_cats.get(it.get("equipment_id"), it.get("category") or "electronics")
     return items
 
 

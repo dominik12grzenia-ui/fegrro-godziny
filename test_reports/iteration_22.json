@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 22 - Verified BUG FIX 1 (admin tab badges across all 4 categories), BUG FIX 2 (backend /equipment/orders enrichment of category from db.equipment), BUG FIX 3 (foreman WorkerDashboard tab badges), and email send code path. Backend pytest: 6/6 pass in test_iter22_badges.py covering: GET /equipment/orders?status=pending returns orders enriched with category in {electronics, accessories, formwork} (3+ distinct categories present in seed), GET /warehouse/orders shows >=1 pending order, equipment catalog has items in each category, foreman impersonation + create equipment order + admin sees pending + foreman cleanup, reject flow removes order from pending list. Frontend Playwright: admin dashboard /admin/dashboard shows 4 yellow badges (data-testid=equipment-tab/accessories-tab/formwork-tab/warehouse-tab) each with text suffix '1'. Foreman dashboard (via impersonation) shows 4 badges on data-testid=foreman-tab-electronics/accessories/formwork/warehouse, each text '1'. Email integration: backend.err.log shows 'POST https://api.resend.com/emails HTTP/1.1 200 OK' on recent equipment order creates - send code path executes successfully without exceptions. Resend confirmed delivering to biuro@fegrro.pl per problem statement; user issue is spam-folder/inbox-side, not code.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/dashboard sites tab", "issues": ["Pre-existing Google Maps ApiProjectMapError modal (no API key) - unrelated to this iteration"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_badges.py",
+    "/app/test_reports/pytest/pytest_iter22_badges.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "equipment_orders.py list_equipment_orders: enrichment loop overwrites stored order.category with current equipment.category. This means if an item is recategorized later, all historical orders move to the new tab - acceptable for badge-grouping but may surprise admins viewing past orders. Consider adding a separate display_category alongside the historical category field if audit history matters.",
+    "AdminDashboard.js fetchData: makes 9 parallel api calls in a single Promise.all including 2 separate /equipment/orders requests (?status=pending and ?status=partial). Could be collapsed to a single endpoint call returning both statuses (e.g. ?status=pending,partial) to reduce request count - minor perf improvement.",
+    "WorkerDashboard.js orderCounts is computed on every render from useCachedApi result - acceptable since the array is small, but could be wrapped in useMemo to avoid recompute when unrelated state changes.",
+    "_send_equipment_order_email: HTML payload interpolates order fields directly without HTML-escaping; if foreman_name or notes contain '<' or '>' characters the email body could render incorrectly or expose XSS to admins viewing in HTML clients. Use html.escape() around order['foreman_name'], order['equipment_name'], order['notes'], order['variant']."
+  ],
+  "updated_files": ["/app/backend/tests/test_iter22_badges.py (NEW)"],
+  "success_rate": {"backend": "100% (6/6 pytest)", "frontend": "100% (admin + foreman badge UI verified)"},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! (POST /api/auth/admin/login). Foreman impersonation: POST /api/foremen/{id}/impersonate as admin -> {access_token}. localStorage key='token'.",
+  "seed_data_creation": "Test created and self-cleaned 1 transient pending equipment order (TEST_iter22 badges) plus 1 rejected order (TEST_iter22 reject). Existing seed 4 orders (electronics + accessories + formwork + warehouse pending) untouched and visible as badges.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Both bug fixes confirmed working end-to-end: admin and foreman dashboards show 4 category badges. Resend emails send with 200 OK in backend logs. If user still does not receive email, instruct them to check spam folder and add noreply@fegrro.pl to safe senders. Test file test_iter22_badges.py is reusable as regression. The 4 yellow badges use class 'bg-[#E8B76A]' for selectors.",
+  "rca of the issue": "Original bug had 2 root causes: (a) AdminDashboard.js previously fetched only /equipment/orders and grouped them, with no badge state for warehouse (Materiały) orders - fix added /warehouse/orders fetch and warehouse counter. (b) Many existing equipment_orders documents had category=null because they were created before the category field was introduced; the GET /equipment/orders list now joins on db.equipment to enrich each order with current category, so accessories/formwork orders appear in the right tab. Both fixes verified by 6 passing pytest tests + Playwright UI screenshots."
+}
