@@ -449,8 +449,12 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       {visibleForemen.map((f) => {
                         const current = getAssigned(eq.id, f.id);
                         const maxVal = maxAssignableFor(eq, f.id);
+                        const initials = (f.full_name || '')
+                          .split(/\s+/).filter(Boolean).slice(0, 2)
+                          .map((p) => p[0]).join('').toUpperCase();
                         return (
                           <td key={f.id} className="border border-[#334155] p-1 text-center">
+                            <div className="text-[8px] text-[#94A3B8] leading-none mb-0.5 font-semibold">{initials}</div>
                             <input
                               key={`asg-${eq.id}-${f.id}-${current}-${maxVal}`}
                               type="number"

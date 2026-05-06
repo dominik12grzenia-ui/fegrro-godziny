@@ -849,3 +849,153 @@ async def acknowledge_return(notification_id: str,
          "equipment_name": notif["equipment_name"]}
     )
     return {"message": "Zwrot potwierdzony"}
+
+
+# ============= Inventory checks =============
+class InventoryStart(BaseModel):
+    category: str  # electronics | accessories | formwork
+
+
+@router.post("/equipment/inventory/start")
+async def start_inventory(payload: InventoryStart,
+                           current_user: dict = Depends(get_current_admin)):
+    """Admin starts an inventory check for one category. All foremen who have
+    equipment in this category must confirm before they can edit hours."""
+    if payload.category not in ("electronics", "accessories", "formwork"):
+        raise HTTPException(status_code=400, detail="Nieprawidlowa kategoria")
+
+    # Close any existing active check for this category
+    await db.inventory_checks.update_many(
+        {"category": payload.category, "status": "active"},
+        {"$set": {"status": "finished", "finished_at": datetime.now().isoformat()}},
+    )
+
+    # Find foremen who have at least one piece in this category
+    pipeline = [
+        {"$match": {"category": payload.category}},
+        {"$unwind": "$assignments"},
+        {"$match": {"assignments.quantity": {"$gt": 0}}},
+        {"$group": {"_id": "$assignments.foreman_id"}},
+    ]
+    foremen_ids = []
+    async for row in db.equipment.aggregate(pipeline):
+        if row["_id"]:
+            foremen_ids.append(row["_id"])
+
+    check = {
+        "id": str(uuid.uuid4()),
+        "category": payload.category,
+        "started_at": datetime.now().isoformat(),
+        "started_by": current_user["sub"],
+        "status": "active",
+        "finished_at": None,
+        "required_foremen": foremen_ids,
+        "confirmed_foremen": [],
+    }
+    await db.inventory_checks.insert_one(check)
+
+    # In-app notification per foreman
+    cat_label = {"electronics": "elektronarzedzi", "accessories": "akcesoriow", "formwork": "szalunkow"}[payload.category]
+    for fid in foremen_ids:
+        try:
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "type": "inventory_required",
+                "title": "Wymagana inwentaryzacja",
+                "message": f"Wykonaj inwentaryzacje {cat_label} - potwierdz posiadanie sprzetu",
+                "foreman_id": fid,
+                "check_id": check["id"],
+                "category": payload.category,
+                "status": "unread",
+                "created_at": datetime.now().isoformat(),
+            })
+        except Exception:
+            pass
+
+    check.pop("_id", None)
+    return check
+
+
+@router.get("/equipment/inventory/list")
+async def list_inventory(current_user: dict = Depends(get_current_admin)):
+    """List all inventory checks for admin overview."""
+    items = await db.inventory_checks.find({}, {"_id": 0}).sort("started_at", -1).to_list(200)
+    return items
+
+
+@router.post("/equipment/inventory/{check_id}/finish")
+async def finish_inventory(check_id: str,
+                            current_user: dict = Depends(get_current_admin)):
+    """Admin manually finishes an inventory check (closes it for all foremen)."""
+    result = await db.inventory_checks.update_one(
+        {"id": check_id, "status": "active"},
+        {"$set": {"status": "finished", "finished_at": datetime.now().isoformat()}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Aktywna inwentaryzacja nie znaleziona")
+    return {"message": "Zakonczono"}
+
+
+@router.get("/equipment/inventory/active-for-me")
+async def my_active_inventory(current_user: dict = Depends(get_current_user)):
+    """Foreman: returns active inventory checks where he must confirm.
+    Returns empty list if foreman has nothing to confirm."""
+    if current_user.get("role") != "foreman":
+        return []
+    foreman_id = current_user["sub"]
+    checks = await db.inventory_checks.find(
+        {
+            "status": "active",
+            "required_foremen": foreman_id,
+            "confirmed_foremen": {"$ne": foreman_id},
+        },
+        {"_id": 0},
+    ).sort("started_at", -1).to_list(20)
+    # Attach foreman's equipment for each check
+    for c in checks:
+        eq_items = await db.equipment.find(
+            {
+                "category": c["category"],
+                "assignments": {"$elemMatch": {"foreman_id": foreman_id, "quantity": {"$gt": 0}}},
+            },
+            {"_id": 0, "id": 1, "name": 1, "brand": 1, "photo": 1, "assignments": 1},
+        ).to_list(500)
+        for eq in eq_items:
+            assigned = sum(
+                a.get("quantity", 0) for a in eq.get("assignments", [])
+                if a.get("foreman_id") == foreman_id
+            )
+            eq["assigned_quantity"] = assigned
+            eq["assignments"] = None  # don't leak others
+        c["equipment"] = [{k: v for k, v in eq.items() if v is not None or k == "photo"} for eq in eq_items]
+    return checks
+
+
+@router.post("/equipment/inventory/{check_id}/confirm")
+async def confirm_inventory(check_id: str,
+                             current_user: dict = Depends(get_current_user)):
+    """Foreman confirms he has reviewed all his equipment for this check."""
+    if current_user.get("role") != "foreman":
+        raise HTTPException(status_code=403, detail="Tylko brygadzista")
+    foreman_id = current_user["sub"]
+    check = await db.inventory_checks.find_one({"id": check_id, "status": "active"}, {"_id": 0})
+    if not check:
+        raise HTTPException(status_code=404, detail="Aktywna inwentaryzacja nie znaleziona")
+    if foreman_id not in check.get("required_foremen", []):
+        raise HTTPException(status_code=400, detail="Nie jestes wymagany w tej inwentaryzacji")
+    if foreman_id in check.get("confirmed_foremen", []):
+        return {"message": "Juz potwierdzone"}
+
+    await db.inventory_checks.update_one(
+        {"id": check_id},
+        {"$addToSet": {"confirmed_foremen": foreman_id}},
+    )
+    # Auto-finish if all confirmed
+    updated = await db.inventory_checks.find_one({"id": check_id}, {"_id": 0})
+    if set(updated.get("required_foremen", [])) == set(updated.get("confirmed_foremen", [])):
+        await db.inventory_checks.update_one(
+            {"id": check_id},
+            {"$set": {"status": "finished", "finished_at": datetime.now().isoformat()}},
+        )
+    return {"message": "Potwierdzono"}
+
