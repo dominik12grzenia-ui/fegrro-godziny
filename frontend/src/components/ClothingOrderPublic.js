@@ -9,11 +9,15 @@ import { BODY_TYPES } from './BodySilhouettes';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const MONTH_NAMES = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paz', 'Lis', 'Gru'];
+const GARMENT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 export const ClothingOrderPublic = ({ token }) => {
   const [types, setTypes] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
-  const [profile, setProfile] = useState({ shoe_size: '', height: '', body_type: '' });
+  const [profile, setProfile] = useState({
+    shoe_size: '', height: '', body_type: '',
+    pants_size: '', jacket_size: '', waist: '',
+  });
   const [profileDirty, setProfileDirty] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [lightbox, setLightbox] = useState(null);
@@ -32,6 +36,9 @@ export const ClothingOrderPublic = ({ token }) => {
         shoe_size: pRes.data.shoe_size || '',
         height: pRes.data.height || '',
         body_type: pRes.data.body_type || '',
+        pants_size: pRes.data.pants_size || '',
+        jacket_size: pRes.data.jacket_size || '',
+        waist: pRes.data.waist || '',
       });
       setProfileDirty(false);
     } catch (e) {
@@ -50,6 +57,9 @@ export const ClothingOrderPublic = ({ token }) => {
         shoe_size: profile.shoe_size || null,
         height: profile.height || null,
         body_type: profile.body_type || null,
+        pants_size: profile.pants_size || null,
+        jacket_size: profile.jacket_size || null,
+        waist: profile.waist || null,
       });
       toast.success('Wymiary zapisane');
       setProfileDirty(false);
@@ -140,6 +150,58 @@ export const ClothingOrderPublic = ({ token }) => {
                   );
                 })}
               </div>
+            </div>
+            {/* New: pants/jacket sizes + waist */}
+            <div className="grid grid-cols-2 gap-2 mt-3">
+              <div>
+                <label className="text-[10px] text-[#94A3B8] block mb-1">Rozmiar spodni</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {GARMENT_SIZES.map((sz) => {
+                    const selected = profile.pants_size === sz;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => { setProfile((p) => ({ ...p, pants_size: selected ? '' : sz })); setProfileDirty(true); }}
+                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#5F7151]/30 border-[#5F7151] text-white' : 'bg-[#0F172A] border-[#334155] text-[#CBD5E1] hover:border-[#5F7151]/50'}`}
+                        data-testid={`profile-pants-${sz}`}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] text-[#94A3B8] block mb-1">Rozmiar kurtki</label>
+                <div className="grid grid-cols-3 gap-1">
+                  {GARMENT_SIZES.map((sz) => {
+                    const selected = profile.jacket_size === sz;
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => { setProfile((p) => ({ ...p, jacket_size: selected ? '' : sz })); setProfileDirty(true); }}
+                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#5F7151]/30 border-[#5F7151] text-white' : 'bg-[#0F172A] border-[#334155] text-[#CBD5E1] hover:border-[#5F7151]/50'}`}
+                        data-testid={`profile-jacket-${sz}`}
+                      >
+                        {sz}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="mt-2">
+              <label className="text-[10px] text-[#94A3B8]">Obwod w pasie (cm)</label>
+              <Input
+                value={profile.waist}
+                onChange={(e) => { setProfile((p) => ({ ...p, waist: e.target.value })); setProfileDirty(true); }}
+                placeholder="np. 92"
+                inputMode="numeric"
+                className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] h-9 text-sm"
+                data-testid="profile-waist"
+              />
             </div>
             {profileDirty && (
               <Button

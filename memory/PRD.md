@@ -207,3 +207,16 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - 12/12 pytest backend (`/app/backend/tests/test_inventory_shortage_and_security.py`) + Playwright frontend pelny flow zweryfikowany
 - Manualnie zweryfikowane: 7x401 -> 8th=429, GZip Content-Encoding na /api/equipment, wszystkie security headers obecne
 
+## Completed (2026-02-13) - Wymiary pracownika rozszerzone
+- Backend `routes/clothing.py` - `clothing_profile` ma teraz 6 pol:
+  - shoe_size, height, body_type (jak wczesniej)
+  - **pants_size**: S/M/L/XL/XXL/XXXL (auto uppercase, walidacja enum, 400 dla nieprawidlowego)
+  - **jacket_size**: S/M/L/XL/XXL/XXXL (jw.)
+  - **waist**: obwod w pasie cm (free string)
+- Pola wlaczone do `clothing_orders` przy zlozeniu zamowienia (snapshot wartosci)
+- PDF eksport `GET /api/clothing/orders/pdf` rozszerzony - kolumna pracownikow pokazuje teraz: `imie, wzrost, but, spodnie, kurtka, pas, sylwetka`
+- Frontend `ClothingOrderPublic.js` - nowe inputy w sekcji "Moje wymiary":
+  - dwie siatki przyciskow S-XXXL dla spodni i kurtki (toggle, wizualne zaznaczenie)
+  - input `obwod w pasie (cm)`
+- Smoke testy: PUT/GET/walidacja zwroconych, wartosci zachowywane miedzy sesjami
+

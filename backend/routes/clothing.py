@@ -67,6 +67,12 @@ class ClothingProfileUpdate(BaseModel):
     shoe_size: Optional[str] = None
     height: Optional[str] = None
     body_type: Optional[str] = None  # 'chudy' | 'sredni' | 'gruby'
+    pants_size: Optional[str] = None  # S/M/L/XL/XXL/XXXL
+    jacket_size: Optional[str] = None  # S/M/L/XL/XXL/XXXL
+    waist: Optional[str] = None  # cm
+
+
+VALID_GARMENT_SIZES = {"XS", "S", "M", "L", "XL", "XXL", "XXXL"}
 
 
 class EmployeeLimitUpdate(BaseModel):
@@ -518,6 +524,9 @@ async def public_get_profile(token: str):
         "shoe_size": profile.get("shoe_size"),
         "height": profile.get("height"),
         "body_type": profile.get("body_type"),
+        "pants_size": profile.get("pants_size"),
+        "jacket_size": profile.get("jacket_size"),
+        "waist": profile.get("waist"),
     }
 
 
@@ -529,10 +538,20 @@ async def public_save_profile(token: str, payload: ClothingProfileUpdate):
     if payload.body_type not in (None, "chudy", "sredni", "gruby"):
         raise HTTPException(status_code=400, detail="Nieprawidlowa sylwetka")
 
+    pants_size = (payload.pants_size or "").strip().upper() or None
+    jacket_size = (payload.jacket_size or "").strip().upper() or None
+    if pants_size and pants_size not in VALID_GARMENT_SIZES:
+        raise HTTPException(status_code=400, detail=f"Nieprawidlowy rozmiar spodni. Dozwolone: {', '.join(sorted(VALID_GARMENT_SIZES))}")
+    if jacket_size and jacket_size not in VALID_GARMENT_SIZES:
+        raise HTTPException(status_code=400, detail=f"Nieprawidlowy rozmiar kurtki. Dozwolone: {', '.join(sorted(VALID_GARMENT_SIZES))}")
+
     profile = {
         "shoe_size": (payload.shoe_size or "").strip() or None,
         "height": (payload.height or "").strip() or None,
         "body_type": payload.body_type,
+        "pants_size": pants_size,
+        "jacket_size": jacket_size,
+        "waist": (payload.waist or "").strip() or None,
         "updated_at": datetime.now().isoformat(),
     }
     await db.employees.update_one(
@@ -575,6 +594,9 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
     shoe_size = profile.get("shoe_size")
     height = profile.get("height")
     body_type = profile.get("body_type")
+    pants_size = profile.get("pants_size")
+    jacket_size = profile.get("jacket_size")
+    waist = profile.get("waist")
 
     if ct.get("requires_shoe_size") and not shoe_size:
         raise HTTPException(status_code=400, detail="Uzupelnij rozmiar buta w swoim profilu wymiarow")
@@ -593,6 +615,9 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
         "shoe_size": shoe_size,
         "height": height,
         "body_type": body_type,
+        "pants_size": pants_size,
+        "jacket_size": jacket_size,
+        "waist": waist,
         "status": "ordered",
         "issued_at": None,
         "issued_by": None,
@@ -747,7 +772,7 @@ async def export_orders_pdf(
             Paragraph("<b>Zdjecie</b>", cell_style),
             Paragraph("<b>Nazwa</b>", cell_style),
             Paragraph("<b>Szt.</b>", cell_style),
-            Paragraph("<b>Pracownicy (imie, wzrost, but, sylwetka)</b>", cell_style),
+            Paragraph("<b>Pracownicy (imie, wzrost, but, spodnie, kurtka, pas, sylwetka)</b>", cell_style),
         ]
         table_data = [header]
 
@@ -804,12 +829,17 @@ async def export_orders_pdf(
                 height = o.get("height") or prof.get("height") or "-"
                 body = o.get("body_type") or prof.get("body_type")
                 body_lbl = _BODY_LABELS.get(body, "-") if body else "-"
+                pants = o.get("pants_size") or prof.get("pants_size") or "-"
+                jacket = o.get("jacket_size") or prof.get("jacket_size") or "-"
+                waist = o.get("waist") or prof.get("waist") or "-"
                 name = _ascii(o.get("employee_name") or emp.get("full_name") or "?")
                 qty = int(o.get("quantity") or 0)
                 issued_mark = " [WYD]" if o.get("status") == "issued" else ""
                 lines.append(
                     f"&bull; <b>{name}</b>{issued_mark} &middot; x{qty} &middot; "
-                    f"wzrost {_ascii(height)} &middot; but {_ascii(shoe)} &middot; sylwetka {body_lbl}"
+                    f"wzrost {_ascii(height)} &middot; but {_ascii(shoe)} &middot; "
+                    f"spodnie {_ascii(pants)} &middot; kurtka {_ascii(jacket)} &middot; "
+                    f"pas {_ascii(waist)} &middot; sylwetka {body_lbl}"
                 )
             summary_block = (
                 f'<font color="#5F7151"><b>{size_label}:</b> {size_summary}</font><br/>'
