@@ -220,6 +220,17 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - input `obwod w pasie (cm)`
 - Smoke testy: PUT/GET/walidacja zwroconych, wartosci zachowywane miedzy sesjami
 
+## Completed (2026-02-13) - Iteration 23: Refaktoryzacja AdminDashboard + EquipmentAdmin
+- **AdminDashboard.js**: 1492 → 472 linii (-68%). Wyciągnięte 4 sub-komponenty z lazy loading + Suspense:
+  - `admin/SitesTab.js` (~217 linii) - Lokalizacje + mapa + dodawanie/edycja lokalizacji
+  - `admin/ForemenTab.js` (~169 linii) - Brygadzisci + przypisania budów + impersonacja
+  - `admin/RequestsTab.js` (~176 linii) - Prosby + notyfikacje >10h + nieobecnosci
+  - `admin/ToolsTab.js` (~422 linii) - Linki dostepowe + Excel sync + PDF + Cron
+- **EquipmentAdmin.js**: 1257 → 980 linii (-22%). Wyciągnięte 4 modale do `equipment/EquipmentModals.js`:
+  - AddEquipmentModal, EditEquipmentModal, HistoryModal, ResolveDefectModal (~290 linii)
+- **Korzysci**: Każdy tab admina jest teraz osobnym chunkiem JS - pierwszy render dashboardu jest szybszy bo nie pobiera kodu nieaktywnych tabów. Łatwiej w utrzymaniu (200 linii zamiast 1500).
+- **Testy**: backend 6/6 pytest pass (test_iter22_badges.py), frontend Playwright 10/10 zakładek renderuje, 4/4 badge'e poprawne, dataTestid integrity 100% zachowana, lint clean.
+
 ## Completed (2026-02-13) - Iteration 22: Badge'e na wszystkich tabach + email diagnostyka
 - **Bug fix 1**: Tab "Materiały" w panelu admina nie pokazywał badge'a z liczbą oczekujących zamówień. Dodano `equipmentOrdersByCategory.warehouse` (z `/warehouse/orders` filter pending|partial) + `<TabsTrigger value="warehouse">` z badge'em.
 - **Bug fix 2**: Stare zamowienia z `category=null` (sprzed wprowadzenia kategorii) lądowały tylko w "Elektronarzędziach". Backend `GET /api/equipment/orders` enrichuje każde zamowienie aktualną `category` z `db.equipment` przez `equipment_id`. Backfill: 4 starsze sprzęty w bazie ustawione na `category=electronics`.
