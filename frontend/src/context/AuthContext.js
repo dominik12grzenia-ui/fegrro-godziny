@@ -99,8 +99,11 @@ export const AuthProvider = ({ children }) => {
 
   const impersonateForeman = async (foremanId) => {
     try {
-      // Backup obecnego admin tokena/usera, zeby mozna bylo wrocic
-      if (token && user) {
+      // Backup obecnego admin tokena/usera, zeby mozna bylo wrocic.
+      // WAZNE: backup tylko gdy aktualnie zalogowany user to admin —
+      // jak admin juz impersonuje brygadziste i przelacza na innego,
+      // nie chcemy nadpisac backup admina tokenem brygadzisty.
+      if (token && user && user.role === 'admin' && !user.impersonated) {
         sessionStorage.setItem('admin_backup_token', token);
         sessionStorage.setItem('admin_backup_user', JSON.stringify(user));
       }
@@ -121,9 +124,8 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem('user_name', full_name || 'Brygadzista');
       return { success: true, user: userData };
     } catch (error) {
-      // Cleanup backup at failure
-      sessionStorage.removeItem('admin_backup_token');
-      sessionStorage.removeItem('admin_backup_user');
+      // Don't wipe backup on failure unless we wrote it fresh - ozekuj sa
+      // sytuacje gdy backup juz byl poprawny przed kliknieciem.
       return {
         success: false,
         error: error.response?.data?.detail || 'Nie udalo sie wcielic',

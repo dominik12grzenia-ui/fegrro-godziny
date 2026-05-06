@@ -616,10 +616,9 @@ export const AdminDashboard = () => {
                             const result = await impersonateForeman(foreman.id);
                             if (result.success) {
                               toast.success(`Wcielony jako ${foreman.full_name}`);
-                              // Hard reload to /worker/dashboard so AuthProvider rehydrates
-                              // from the freshly-stored foreman token. Avoids React state
-                              // race where ProtectedWorkerRoute sees stale admin user.
-                              window.location.href = '/worker/dashboard';
+                              // Hard reload + cache-bust + replace (no back button)
+                              // so AuthProvider rehydrates cleanly from new foreman token.
+                              window.location.replace(`/worker/dashboard?imp=${Date.now()}`);
                             } else {
                               toast.error(result.error || 'Blad');
                             }
