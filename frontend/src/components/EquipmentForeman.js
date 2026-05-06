@@ -46,8 +46,8 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [allForemen, setAllForemen] = useState([]);
   const [warehouseModal, setWarehouseModal] = useState(false);
 
-  // Stale-while-revalidate cached data — instant render on tab re-mount
-  const cachedMy = useCachedApi(`/equipment/my?category=${encodeURIComponent(category)}`, 15000);
+  // Stale-while-revalidate cached data — instant render on tab re-mount (60s)
+  const cachedMy = useCachedApi(`/equipment/my?category=${encodeURIComponent(category)}`, 60000);
   const cachedForemen = useCachedApi('/foremen', 60000);
 
   // Sync cache to local state for instant display

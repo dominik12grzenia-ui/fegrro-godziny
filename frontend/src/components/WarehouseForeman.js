@@ -19,9 +19,9 @@ export const WarehouseForeman = () => {
   const [siteId, setSiteId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Stale-while-revalidate caches for instant tab re-mount
-  const cMaterials = useCachedApi('/warehouse/materials', 15000);
-  const cOrders = useCachedApi('/warehouse/orders', 10000);
+  // Stale-while-revalidate caches for instant tab re-mount (60s TTL)
+  const cMaterials = useCachedApi('/warehouse/materials', 60000);
+  const cOrders = useCachedApi('/warehouse/orders', 60000);
   const cSites = useCachedApi('/sites', 60000);
 
   useEffect(() => { if (cMaterials) { setMaterials(cMaterials); setLoading(false); } }, [cMaterials]);

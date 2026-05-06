@@ -68,6 +68,13 @@ export function useCachedApi(key, ttlMs = 10000, enabled = true) {
   return data;
 }
 
+/** Prefetch a key into cache (no return UI-binding). Useful for warming. */
+export function prefetch(key) {
+  const entry = cache.get(key);
+  if (entry && Date.now() - entry.ts < 60000) return Promise.resolve(entry.data);
+  return refresh(key).catch(() => {});
+}
+
 /** Force-invalidate a cache entry (e.g. after a mutation). */
 export function invalidateCache(key) {
   cache.delete(key);

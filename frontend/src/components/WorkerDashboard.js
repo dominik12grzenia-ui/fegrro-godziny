@@ -12,9 +12,12 @@ import { LocationsButton } from './LocationsButton';
 import { InventoryCheckModal } from './InventoryCheckModal';
 import { useCachedApi } from '../context/apiCache';
 
-// Lazy-load heavy equipment section
-const EquipmentForeman = lazy(() => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman })));
-const WarehouseForeman = lazy(() => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman })));
+// Lazy-load heavy equipment section. We trigger preload immediately on mount
+// (not on tab click) so the chunks are warm and tab switch = instant render.
+const equipmentForemanImport = () => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman }));
+const warehouseForemanImport = () => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman }));
+const EquipmentForeman = lazy(equipmentForemanImport);
+const WarehouseForeman = lazy(warehouseForemanImport);
 const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie sprzętu...</div>;
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
@@ -28,8 +31,8 @@ export const WorkerDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   // Order counts for tab badges (foreman's own pending+partial equipment orders)
-  const myOrders = useCachedApi('/equipment/orders', 10000) || [];
-  const myWarehouseOrders = useCachedApi('/warehouse/orders', 10000) || [];
+  const myOrders = useCachedApi('/equipment/orders', 60000) || [];
+  const myWarehouseOrders = useCachedApi('/warehouse/orders', 60000) || [];
   const orderCounts = {
     electronics: myOrders.filter((o) => (o.category === 'electronics') && (o.status === 'pending' || o.status === 'partial')).length,
     accessories: myOrders.filter((o) => (o.category === 'accessories') && (o.status === 'pending' || o.status === 'partial')).length,
@@ -151,6 +154,39 @@ export const WorkerDashboard = () => {
       if (original) link.setAttribute('href', original);
     };
   }, []);
+
+  // PREFETCH: po zalogowaniu w tle pobierz dane WSZYSTKICH 4 zakladek
+  // (electronics, accessories, formwork, materialy) + warm up lazy chunki.
+  // Dzieki temu kazde klikanie tabu = instant z cache.
+  useEffect(() => {
+    if (!user) return;
+    // Warm up lazy chunks immediately (parallel network request for the JS bundle)
+    equipmentForemanImport().catch(() => {});
+    warehouseForemanImport().catch(() => {});
+
+    // Prefetch data for all 4 tabs in parallel - fills the apiCache
+    // so subsequent component mounts hydrate from cache instantly.
+    const prefetchKeys = [
+      '/equipment/my?category=electronics',
+      '/equipment/my?category=accessories',
+      '/equipment/my?category=formwork',
+      '/equipment/catalog?category=electronics',
+      '/equipment/catalog?category=accessories',
+      '/equipment/catalog?category=formwork',
+      '/equipment/orders',
+      '/warehouse/materials',
+      '/warehouse/orders',
+      '/sites',
+      '/foremen',
+    ];
+    // Stagger slightly to avoid blocking the dashboard's initial render.
+    const t = setTimeout(() => {
+      import('../context/apiCache').then(({ prefetch }) => {
+        prefetchKeys.forEach((k) => prefetch(k));
+      }).catch(() => {});
+    }, 200);
+    return () => clearTimeout(t);
+  }, [user]);
 
   const getSiteColorHex = (siteId) => {
     const allSites = sites.length > 0 ? sites : mySites;

@@ -32,8 +32,8 @@ const CATEGORY_BTN = {
  * Items with `variants` force the foreman to choose one (e.g. drill size).
  */
 export const EquipmentCatalog = ({ category = 'electronics' }) => {
-  const cachedCatalog = useCachedApi(`/equipment/catalog?category=${encodeURIComponent(category)}`, 15000);
-  const cachedOrders = useCachedApi('/equipment/orders', 10000);
+  const cachedCatalog = useCachedApi(`/equipment/catalog?category=${encodeURIComponent(category)}`, 60000);
+  const cachedOrders = useCachedApi('/equipment/orders', 60000);
   const [orders, setOrders] = useState([]);
   const [catalog, setCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
