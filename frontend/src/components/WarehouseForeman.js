@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../context/AuthContext';
+import { useCachedApi, invalidateCachePrefix } from '../context/apiCache';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -18,8 +19,18 @@ export const WarehouseForeman = () => {
   const [siteId, setSiteId] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Stale-while-revalidate caches for instant tab re-mount
+  const cMaterials = useCachedApi('/warehouse/materials', 15000);
+  const cOrders = useCachedApi('/warehouse/orders', 10000);
+  const cSites = useCachedApi('/sites', 60000);
+
+  useEffect(() => { if (cMaterials) { setMaterials(cMaterials); setLoading(false); } }, [cMaterials]);
+  useEffect(() => { if (cOrders) setOrders(cOrders); }, [cOrders]);
+  useEffect(() => { if (cSites) setSites(cSites); }, [cSites]);
+
   const fetchAll = useCallback(async () => {
-    setLoading(true);
+    invalidateCachePrefix('/warehouse/');
+    invalidateCachePrefix('/sites');
     try {
       const [m, o, s] = await Promise.all([
         api.get('/warehouse/materials'),
@@ -36,7 +47,11 @@ export const WarehouseForeman = () => {
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {
+    // Only fetch fresh data if no cache present (instant render otherwise)
+    if (!cMaterials) fetchAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const addToCart = (m) => {
     setCart((c) => ({ ...c, [m.id]: (c[m.id] || 0) + 1 }));

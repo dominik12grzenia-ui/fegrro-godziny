@@ -1,0 +1,85 @@
+/**
+ * Lightweight in-memory cache for API responses with stale-while-revalidate.
+ *
+ * Usage:
+ *   const data = useCachedApi('/equipment/my?category=electronics', 10000);
+ *
+ * Returns instantly from cache (if any) and triggers a background refresh
+ * if the cache is older than `ttlMs`. Subscribers re-render when the cache
+ * updates.
+ */
+import { useEffect, useState } from 'react';
+import { api } from './AuthContext';
+
+const cache = new Map(); // key -> { data, ts, inflight: Promise|null }
+const subscribers = new Map(); // key -> Set<setter>
+
+function notify(key) {
+  const subs = subscribers.get(key);
+  if (!subs) return;
+  const entry = cache.get(key);
+  subs.forEach((setter) => setter(entry?.data));
+}
+
+async function refresh(key) {
+  const entry = cache.get(key) || {};
+  if (entry.inflight) return entry.inflight;
+  const promise = api
+    .get(key)
+    .then((r) => {
+      cache.set(key, { data: r.data, ts: Date.now(), inflight: null });
+      notify(key);
+      return r.data;
+    })
+    .catch((e) => {
+      // Keep stale data on failure; clear inflight so retry is possible
+      const cur = cache.get(key) || {};
+      cache.set(key, { ...cur, inflight: null });
+      throw e;
+    });
+  cache.set(key, { ...entry, inflight: promise });
+  return promise;
+}
+
+export function useCachedApi(key, ttlMs = 10000, enabled = true) {
+  const [data, setData] = useState(() => cache.get(key)?.data);
+
+  useEffect(() => {
+    if (!enabled || !key) return undefined;
+    let subs = subscribers.get(key);
+    if (!subs) {
+      subs = new Set();
+      subscribers.set(key, subs);
+    }
+    subs.add(setData);
+
+    const entry = cache.get(key);
+    setData(entry?.data); // sync to current cache when key changes
+    if (!entry || Date.now() - entry.ts > ttlMs) {
+      refresh(key).catch(() => { /* swallow - subscriber keeps stale */ });
+    }
+
+    return () => {
+      subs.delete(setData);
+      if (subs.size === 0) subscribers.delete(key);
+    };
+  }, [key, ttlMs, enabled]);
+
+  return data;
+}
+
+/** Force-invalidate a cache entry (e.g. after a mutation). */
+export function invalidateCache(key) {
+  cache.delete(key);
+  notify(key);
+}
+
+/** Invalidate every key matching a prefix (e.g. '/equipment'). */
+export function invalidateCachePrefix(prefix) {
+  for (const k of Array.from(cache.keys())) {
+    if (k.startsWith(prefix)) cache.delete(k);
+  }
+  for (const k of Array.from(subscribers.keys())) {
+    if (k.startsWith(prefix)) notify(k);
+  }
+}

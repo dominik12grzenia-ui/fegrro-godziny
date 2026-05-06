@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
+import { useCachedApi, invalidateCachePrefix } from '../context/apiCache';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
@@ -31,8 +32,10 @@ const CATEGORY_BTN = {
  * Items with `variants` force the foreman to choose one (e.g. drill size).
  */
 export const EquipmentCatalog = ({ category = 'electronics' }) => {
-  const [catalog, setCatalog] = useState([]);
+  const cachedCatalog = useCachedApi(`/equipment/catalog?category=${encodeURIComponent(category)}`, 15000);
+  const cachedOrders = useCachedApi('/equipment/orders', 10000);
   const [orders, setOrders] = useState([]);
+  const [catalog, setCatalog] = useState([]);
   const [loading, setLoading] = useState(true);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -42,7 +45,23 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
   const [orderNotes, setOrderNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Sync state from cache (handles initial render from cache + background refresh)
+  useEffect(() => {
+    if (cachedCatalog) {
+      setCatalog(cachedCatalog);
+      setLoading(false);
+    }
+  }, [cachedCatalog]);
+
+  useEffect(() => {
+    if (cachedOrders) {
+      setOrders(cachedOrders.filter((x) => x.category === category));
+    }
+  }, [cachedOrders, category]);
+
   const fetchAll = useCallback(async () => {
+    invalidateCachePrefix('/equipment/catalog');
+    invalidateCachePrefix('/equipment/orders');
     try {
       const [c, o] = await Promise.all([
         api.get(`/equipment/catalog?category=${encodeURIComponent(category)}`),
@@ -50,14 +69,20 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
       ]);
       setCatalog(c.data || []);
       setOrders((o.data || []).filter((x) => x.category === category));
-    } catch {
-      // silent
     } finally {
       setLoading(false);
     }
   }, [category]);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  // Initial load fallback (when cache empty)
+  useEffect(() => {
+    if (!cachedCatalog) {
+      fetchAll().catch(() => setLoading(false));
+    } else {
+      setLoading(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const openOrder = (item) => {
     setModalItem(item);
@@ -87,6 +112,9 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
       });
       toast.success('Zamowienie wyslane do admina');
       setModalItem(null);
+      // Invalidate cache so next visit gets fresh stock counts
+      invalidateCachePrefix('/equipment/catalog');
+      invalidateCachePrefix('/equipment/orders');
       fetchAll();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');

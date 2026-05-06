@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
+import { useCachedApi } from '../context/apiCache';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -45,6 +46,21 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [allForemen, setAllForemen] = useState([]);
   const [warehouseModal, setWarehouseModal] = useState(false);
 
+  // Stale-while-revalidate cached data — instant render on tab re-mount
+  const cachedMy = useCachedApi(`/equipment/my?category=${encodeURIComponent(category)}`, 15000);
+  const cachedForemen = useCachedApi('/foremen', 60000);
+
+  // Sync cache to local state for instant display
+  useEffect(() => {
+    if (cachedMy) {
+      setMyEquipment(cachedMy);
+      setLoading(false);
+    }
+  }, [cachedMy]);
+  useEffect(() => {
+    if (cachedForemen) setAllForemen(cachedForemen);
+  }, [cachedForemen]);
+
   const fetchAll = useCallback(async () => {
     try {
       // PRIMARY - minimum needed for "Moj sprzet" table to render
@@ -84,12 +100,24 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   }, [category]);
 
   useEffect(() => {
-    fetchAll();
+    // Only refetch if cache empty - avoids duplicate request on every tab switch
+    if (!cachedMy) {
+      fetchAll();
+    }
+    // Background fetch for SECONDARY data (banners, keeper status) - do it once per mount
+    api.get('/equipment/transfers/pending').then((r) => setPendingTransfers(r.data)).catch(() => {});
+    api.get('/foreman/me').then((r) => {
+      const me = r.data;
+      api.get('/settings/warehouse-keeper').then((wk) => {
+        if (me && wk.data?.foreman_id === me.id) setIsWarehouseKeeper(true);
+      }).catch(() => {});
+    }).catch(() => {});
     // Poll for new pending transfers every 30s
     const id = setInterval(() => {
       api.get('/equipment/transfers/pending').then((r) => setPendingTransfers(r.data)).catch(() => {});
     }, 30000);
     return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchAll]);
 
   const openHistory = async () => {
