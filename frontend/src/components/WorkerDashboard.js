@@ -417,10 +417,10 @@ export const WorkerDashboard = () => {
             onClick={() => {
               const r = stopImpersonation();
               if (r.success) {
-                window.location.replace(`/admin/dashboard?back=${Date.now()}`);
+                window.location.href = '/admin/dashboard';
               } else {
                 logout();
-                window.location.replace('/login');
+                window.location.href = '/login';
               }
             }}
             className="bg-[#1E293B] text-white hover:bg-[#0F172A] h-8"

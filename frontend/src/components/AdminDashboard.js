@@ -647,9 +647,12 @@ export const AdminDashboard = () => {
                             const result = await impersonateForeman(foreman.id);
                             if (result.success) {
                               toast.success(`Wcielony jako ${foreman.full_name}`);
-                              // Hard reload + cache-bust + replace (no back button)
-                              // so AuthProvider rehydrates cleanly from new foreman token.
-                              window.location.replace(`/worker/dashboard?imp=${Date.now()}`);
+                              // Hard reload na /worker/dashboard. AuthProvider
+                              // przy starcie czyta foreman token+cached_user z
+                              // localStorage (PWA Safari-safe). Brak race z
+                              // ProtectedAdminRoute bo obecny admin user state
+                              // umiera razem z reloadem.
+                              window.location.href = '/worker/dashboard';
                             } else {
                               toast.error(result.error || 'Blad');
                             }
@@ -1037,7 +1040,7 @@ export const AdminDashboard = () => {
                       try {
                         await api.post(`/sync/excel?month=${month}&year=${year}`);
                         toast.success('Synchronizacja rozpoczeta');
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad synchronizacji');
                       } finally {
@@ -1122,7 +1125,7 @@ export const AdminDashboard = () => {
                       try {
                         const res = await api.post(`/sync/write-hours?month=${month}&year=${year}`);
                         toast.success(res.data.message);
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad zapisu do Excela');
                       }
@@ -1140,7 +1143,7 @@ export const AdminDashboard = () => {
                       try {
                         const res = await api.post(`/advances/sync-excel?month=${month}&year=${year}`);
                         toast.success(res.data.message);
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad zapisu zaliczek do Excela');
                       }
@@ -1158,7 +1161,7 @@ export const AdminDashboard = () => {
                       try {
                         const res = await api.post(`/penalties/sync-excel?month=${month}&year=${year}`);
                         toast.success(res.data.message);
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad zapisu kar do Excela');
                       }
@@ -1215,7 +1218,7 @@ export const AdminDashboard = () => {
                       try {
                         await api.post(`/reports/pdf?month=${month}&year=${year}`);
                         toast.success('PDF generowany i wysylany na OneDrive');
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad generowania PDF');
                       } finally {
@@ -1398,7 +1401,7 @@ export const AdminDashboard = () => {
                       try {
                         const res = await api.post('/cron/trigger');
                         toast.success(res.data.message);
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad uruchomienia crona');
                       }
@@ -1416,7 +1419,7 @@ export const AdminDashboard = () => {
                         const year = document.getElementById('write-year').value;
                         await api.post(`/sync/excel?month=${month}&year=${year}`);
                         toast.success('Sync pracownikow i budow uruchomiony');
-                        setTimeout(() => fetchData(), 5000);
+                        fetchData();
                       } catch (err) {
                         toast.error(err.response?.data?.detail || 'Blad synca');
                       }

@@ -15,13 +15,13 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  // Lazy initial state - read once on mount.
-  // If a freshly-impersonated user payload exists in sessionStorage,
-  // hydrate from it immediately so ProtectedWorkerRoute doesn't redirect
-  // while we wait for the /auth/me roundtrip.
+  // Lazy initial state - read cached user BEFORE first render so any
+  // ProtectedRoute sees correct role immediately (no flicker, no redirect to
+  // registration screen). Stored in localStorage (not sessionStorage) because
+  // Safari PWA standalone scope isolates sessionStorage across reloads.
   const [user, setUser] = useState(() => {
     try {
-      const cached = sessionStorage.getItem('cached_user');
+      const cached = localStorage.getItem('cached_user');
       if (cached) return JSON.parse(cached);
     } catch (_e) {
       // ignore
@@ -46,9 +46,8 @@ export const AuthProvider = ({ children }) => {
         headers: { Authorization: `Bearer ${token}` }
       });
       setUser(response.data);
-      // Refresh cached payload so subsequent reloads stay consistent
       try {
-        sessionStorage.setItem('cached_user', JSON.stringify(response.data));
+        localStorage.setItem('cached_user', JSON.stringify(response.data));
       } catch (_e) { /* ignore */ }
     } catch (error) {
       console.error('Failed to fetch user:', error);
@@ -67,7 +66,7 @@ export const AuthProvider = ({ children }) => {
       const { access_token, user: userData } = response.data;
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', userData?.full_name || 'Admin');
-      sessionStorage.setItem('cached_user', JSON.stringify(userData));
+      localStorage.setItem('cached_user', JSON.stringify(userData));
       setToken(access_token);
       setUser(userData);
       return { success: true };
@@ -94,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       };
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', full_name || 'Brygadzista');
-      sessionStorage.setItem('cached_user', JSON.stringify(userData));
+      localStorage.setItem('cached_user', JSON.stringify(userData));
       setToken(access_token);
       setUser(userData);
       return { success: true, user: userData, message };
@@ -110,8 +109,9 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
-    sessionStorage.removeItem('cached_user');
-    // Czysc takze backup admin tokena (impersonacja)
+    localStorage.removeItem('cached_user');
+    // Czysc takze backup admin tokena (impersonacja) - nadal w sessionStorage
+    // (ginie po zamknięciu PWA, co jest porządanym zachowaniem dla impersonacji)
     sessionStorage.removeItem('admin_backup_token');
     sessionStorage.removeItem('admin_backup_user');
   };
@@ -137,16 +137,16 @@ export const AuthProvider = ({ children }) => {
         assigned_sites: assigned_sites || [],
         impersonated: true,
       };
-      // Write to localStorage SYNCHRONOUSLY before any reload.
-      // This is what AuthProvider reads on next mount.
+      // Write to storage SYNCHRONOUSLY so AuthProvider can hydrate from
+      // localStorage on next mount/reload (Safari PWA-safe).
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', full_name || 'Brygadzista');
-      // Pre-populate the user payload so AuthProvider can hydrate without
-      // waiting for /auth/me roundtrip - avoids any flicker through
-      // ProtectedWorkerRoute's redirect-when-not-foreman branch.
-      sessionStorage.setItem('cached_user', JSON.stringify(userData));
-      setToken(access_token);
-      setUser(userData);
+      localStorage.setItem('cached_user', JSON.stringify(userData));
+      // DO NOT call setUser/setToken here - that flips user.role to 'foreman'
+      // BEFORE the route changes, causing ProtectedAdminRoute on the current
+      // /admin/dashboard view to bounce us to /login. Instead, return the data
+      // and let the caller navigate first, then trigger a full reload that
+      // rehydrates from localStorage.
       return { success: true, user: userData };
     } catch (error) {
       return {
@@ -164,13 +164,13 @@ export const AuthProvider = ({ children }) => {
     }
     try {
       const adminUser = JSON.parse(adminUserRaw);
+      // Restore admin token+user to localStorage. Caller does a hard reload
+      // so AuthProvider rehydrates from localStorage cleanly.
       localStorage.setItem('token', adminToken);
       localStorage.setItem('user_name', adminUser.full_name || 'Admin');
-      sessionStorage.setItem('cached_user', JSON.stringify(adminUser));
+      localStorage.setItem('cached_user', JSON.stringify(adminUser));
       sessionStorage.removeItem('admin_backup_token');
       sessionStorage.removeItem('admin_backup_user');
-      setToken(adminToken);
-      setUser(adminUser);
       return { success: true, user: adminUser };
     } catch (_e) {
       return { success: false, error: 'Blad odczytu danych admina' };
