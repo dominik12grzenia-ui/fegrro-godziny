@@ -57,6 +57,37 @@ export const AdminDashboard = () => {
     fetchData();
   }, [user, navigate]);
 
+  // Dynamiczny manifest PWA dla admina: kliknięcie "Dodaj do ekranu glównego"
+  // z panelu admina ustawi ikone tak, by po ponownym otwarciu wracała na /admin/dashboard,
+  // nie na /foreman (statyczny manifest zwraca brygadziste).
+  useEffect(() => {
+    const link = document.querySelector('link[rel="manifest"]');
+    if (!link) return;
+    const original = link.getAttribute('href');
+    const m = {
+      name: 'FeGrro Admin',
+      short_name: 'FeGrro Admin',
+      description: 'Panel administratora - FeGrro',
+      start_url: '/admin/dashboard',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#0F172A',
+      theme_color: '#0F172A',
+      orientation: 'any',
+      icons: [
+        { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
+        { src: '/icon-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+      ],
+    };
+    const blob = new Blob([JSON.stringify(m)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    return () => {
+      URL.revokeObjectURL(url);
+      if (original) link.setAttribute('href', original);
+    };
+  }, []);
+
   const fetchData = async () => {
     try {
       const now = new Date();
