@@ -220,3 +220,10 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - input `obwod w pasie (cm)`
 - Smoke testy: PUT/GET/walidacja zwroconych, wartosci zachowywane miedzy sesjami
 
+## Completed (2026-02-13) - Iteration 22: Badge'e na wszystkich tabach + email diagnostyka
+- **Bug fix 1**: Tab "Materiały" w panelu admina nie pokazywał badge'a z liczbą oczekujących zamówień. Dodano `equipmentOrdersByCategory.warehouse` (z `/warehouse/orders` filter pending|partial) + `<TabsTrigger value="warehouse">` z badge'em.
+- **Bug fix 2**: Stare zamowienia z `category=null` (sprzed wprowadzenia kategorii) lądowały tylko w "Elektronarzędziach". Backend `GET /api/equipment/orders` enrichuje każde zamowienie aktualną `category` z `db.equipment` przez `equipment_id`. Backfill: 4 starsze sprzęty w bazie ustawione na `category=electronics`.
+- **Bug fix 3**: Frontend `WorkerDashboard.js` i `AdminDashboard.js` korzystają z enriched category — badge'e poprawnie pojawiają się dla wszystkich 4 zakładek (Elektronarzędzia / Akcesoria / Szalunki / Materiały).
+- **Email diagnostyka**: Resend confirmed `last_event=delivered` na biuro@fegrro.pl (domena `fegrro.pl` status=verified). Mail dochodzi do skrzynki - jeśli user nie widzi maila, sprawdzić folder Spam.
+- **Testy**: 6/6 pytest backend (`test_iter22_badges.py`) + Playwright admin/foreman badge UI 100% pass
+
