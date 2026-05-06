@@ -19,6 +19,12 @@ const STATUS_BADGE = {
   rejected: { label: 'Odrzucone', cls: 'bg-[#7F2D2D]/30 text-[#FCA5A5] border-[#7F2D2D]' },
 };
 
+const CATEGORY_BTN = {
+  electronics: 'Zamów elektronarzedzia',
+  accessories: 'Zamów akcesoria',
+  formwork: 'Zamów szalunki',
+};
+
 /**
  * Equipment catalog + ordering UI for foreman.
  * Shows all equipment in a category + "Zamow" button.
@@ -28,6 +34,8 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
   const [catalog, setCatalog] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [catalogOpen, setCatalogOpen] = useState(false);
+  const [search, setSearch] = useState('');
   const [modalItem, setModalItem] = useState(null);
   const [orderQty, setOrderQty] = useState('1');
   const [orderVariant, setOrderVariant] = useState('');
@@ -107,61 +115,113 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
   const activeOrders = orders.filter((o) => o.status === 'pending' || o.status === 'partial');
   const recentOrders = orders.filter((o) => o.status === 'issued' || o.status === 'rejected').slice(0, 5);
 
+  const q = search.trim().toLowerCase();
+  const visibleCatalog = !q
+    ? catalog
+    : catalog.filter(
+        (it) =>
+          (it.name || '').toLowerCase().includes(q) ||
+          (it.brand || '').toLowerCase().includes(q)
+      );
+
   return (
     <>
-      <Card className="bg-[#2A384C] border-[#334155] mb-4" data-testid="equipment-catalog-card">
-        <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <Package className="h-5 w-5 text-[#5F7151]" />
-            {CATEGORY_TITLES[category] || 'Katalog'}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {catalog.length === 0 ? (
-            <div className="text-center py-4 text-sm text-[#94A3B8]">
-              Katalog jest pusty - admin jeszcze nie dodal sprzetu.
+      {/* Single action button - opens catalog modal on demand */}
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <Button
+          onClick={() => setCatalogOpen(true)}
+          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+          data-testid="open-catalog-btn"
+        >
+          <ShoppingCart className="h-4 w-4 mr-2" />
+          {CATEGORY_BTN[category] || 'Zamów'}
+        </Button>
+        {activeOrders.length > 0 && (
+          <span className="text-xs text-[#E8B76A]">
+            ⏳ Oczekujace zamowienia: <b>{activeOrders.length}</b>
+          </span>
+        )}
+      </div>
+
+      {/* Catalog modal (opens only when user clicks "Zamów ...") */}
+      {catalogOpen && (
+        <div
+          className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+          data-testid="catalog-modal"
+          onClick={(e) => { if (e.target === e.currentTarget) setCatalogOpen(false); }}
+        >
+          <div className="bg-[#2A384C] border-2 border-[#5F7151] rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-[#334155] flex items-center justify-between gap-3 flex-wrap">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Package className="h-5 w-5 text-[#5F7151]" />
+                {CATEGORY_TITLES[category] || 'Katalog'}
+              </h3>
+              <Input
+                placeholder="Szukaj po nazwie / marce..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="bg-[#1E293B] border-[#334155] text-white w-full sm:w-auto sm:min-w-[240px]"
+                data-testid="catalog-search"
+              />
+              <button
+                onClick={() => setCatalogOpen(false)}
+                className="text-[#94A3B8] hover:text-white"
+                data-testid="catalog-close-btn"
+                aria-label="Zamknij"
+              >
+                <X className="h-5 w-5" />
+              </button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {catalog.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex items-center gap-3 p-2 bg-[#1E293B] rounded border border-[#334155]"
-                  data-testid={`catalog-item-${item.id}`}
-                >
-                  {item.photo ? (
-                    <img src={item.photo} alt={item.name} className="h-12 w-12 rounded object-cover border border-[#334155] shrink-0" />
-                  ) : (
-                    <div className="h-12 w-12 rounded bg-[#334155] flex items-center justify-center shrink-0">
-                      <Package className="h-5 w-5 text-[#94A3B8]" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-[#CBD5E1] text-sm font-semibold truncate">{item.name}</div>
-                    {item.brand && <div className="text-xs text-[#94A3B8] truncate">{item.brand}</div>}
-                    <div className="text-xs text-[#94A3B8] mt-0.5">
-                      Dostepne: <span className={item.available_quantity > 0 ? 'text-[#86EFAC] font-bold' : 'text-[#FCA5A5]'}>{item.available_quantity}</span>
-                      <span className="text-[#64748B]"> / {item.total_quantity}</span>
-                      {item.variants && item.variants.length > 0 && (
-                        <span className="ml-2 text-[#E8B76A]">({item.variants.length} war.)</span>
-                      )}
-                    </div>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => openOrder(item)}
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
-                    data-testid={`catalog-order-btn-${item.id}`}
-                  >
-                    <ShoppingCart className="h-3.5 w-3.5 mr-1" />
-                    Zamów
-                  </Button>
+            <div className="p-5 overflow-y-auto">
+              {visibleCatalog.length === 0 ? (
+                <div className="text-center py-6 text-sm text-[#94A3B8]">
+                  {catalog.length === 0
+                    ? 'Katalog jest pusty - admin jeszcze nie dodal sprzetu.'
+                    : 'Brak wynikow dla "' + search + '"'}
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {visibleCatalog.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-2 bg-[#1E293B] rounded border border-[#334155]"
+                      data-testid={`catalog-item-${item.id}`}
+                    >
+                      {item.photo ? (
+                        <img src={item.photo} alt={item.name} className="h-12 w-12 rounded object-cover border border-[#334155] shrink-0" />
+                      ) : (
+                        <div className="h-12 w-12 rounded bg-[#334155] flex items-center justify-center shrink-0">
+                          <Package className="h-5 w-5 text-[#94A3B8]" />
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[#CBD5E1] text-sm font-semibold truncate">{item.name}</div>
+                        {item.brand && <div className="text-xs text-[#94A3B8] truncate">{item.brand}</div>}
+                        <div className="text-xs text-[#94A3B8] mt-0.5">
+                          Dostepne: <span className={item.available_quantity > 0 ? 'text-[#86EFAC] font-bold' : 'text-[#FCA5A5]'}>{item.available_quantity}</span>
+                          <span className="text-[#64748B]"> / {item.total_quantity}</span>
+                          {item.variants && item.variants.length > 0 && (
+                            <span className="ml-2 text-[#E8B76A]">({item.variants.length} war.)</span>
+                          )}
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={() => openOrder(item)}
+                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                        data-testid={`catalog-order-btn-${item.id}`}
+                      >
+                        <ShoppingCart className="h-3.5 w-3.5 mr-1" />
+                        Zamów
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      )}
 
       {/* My orders */}
       {(activeOrders.length > 0 || recentOrders.length > 0) && (
