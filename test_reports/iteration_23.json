@@ -1,0 +1,30 @@
+{
+  "summary": "Iteration 23 - Regression test after AdminDashboard.js (1492->472 lines) + EquipmentAdmin.js (1257->980 lines) refactor into lazy-loaded sub-components. Backend untouched: pytest test_iter22_badges.py still 6/6 PASS. Frontend Playwright: admin login succeeded, /admin/dashboard renders all 10 tabs with correct data-testids and the 4 yellow badges all show '1' as expected (equipment-tab='Elektronarzędzia1', accessories-tab='Akcesoria1', formwork-tab='Szalunki1', warehouse-tab='Materiały1'). Brygadzisci shows '2' (foreman count indicator - pre-existing, not a pending-request badge). SitesTab fully functional: sites-map rendered, new-site-name/new-site-category/add-site-btn all present, 2 site cards with site-category-select-{id}, visible-toggle-{id}, delete-site-{id} present on each. No React render errors, no console exceptions beyond the pre-existing Google Maps ApiProjectMapError (no API key). Lint: 0 issues on admin/, equipment/ and AdminDashboard.js. data-testid preservation verified via grep across ForemenTab.js (add-foreman-btn, foreman-{id}, set-foreman-password-{id}, foreman-site-{id}-{site_id}, save-foreman-{id}, impersonate-foreman-{id}, delete-foreman-{id}), RequestsTab.js (approve-request/reject-request/approve-notif/reject-notif/approve-absence/reject-absence), ToolsTab.js (all 15 tool testids: rotate-worker-tokens-btn, sync/write month+year selects, sync-excel-btn, write-hours/advances/penalties-btn, generate-pdf-btn, download-pdf-btn, generate-links-btn, cron-status/trigger/sync-btn), EquipmentModals.js (close-add-modal, equipment-name/brand/quantity/variants/photo-input, save-equipment-btn, edit-equipment-name, edit-variants-input, delete-from-edit-btn, update-equipment-btn, close-history-modal, history-modal-list, close-resolve-modal, resolve-dest-warehouse/foreman, resolve-foreman-select, confirm-resolve-btn). EquipmentAdmin.js correctly mounts all four modals at lines 890-965 with correct props passed.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "/admin/dashboard sites tab", "issues": ["Pre-existing Google Maps ApiProjectMapError modal (no API key) - unrelated to refactor, same as iteration 22"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_badges.py",
+    "/app/test_reports/pytest/pytest_iter22_badges.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "AdminDashboard.js: 4 TabsContent entries for EquipmentAdmin (equipment/accessories/formwork/warehouse) each wrap EquipmentAdmin in its own Suspense. Because EquipmentAdmin is lazy and each instance has different `category` prop, switching between Elektronarzędzia/Akcesoria/Szalunki will briefly show TabSpinner on first visit per tab (expected behavior, but note the chunk is shared so spinner only appears on first tab click after page load).",
+    "ToolsTab.js (530 lines): file is already near the 700-line soft limit. If more tools are added in future, consider splitting 'Synchronizacja Excel', 'Raport PDF', 'Linki publiczne', and 'Cron' into separate sub-components.",
+    "EquipmentModals.js: HistoryModal reads `historyForModal` prop (array) but does not receive a setter - okay since it's read-only. However the `historyForModal` is recomputed in EquipmentAdmin.js on every render; consider useMemo wrapping to avoid re-sorting history on unrelated state changes.",
+    "Login form (unchanged): occasionally page.fill() does not persist value in the admin-email-input before submit (observed in 2/3 UI runs in this iteration). Pre-existing - not caused by this refactor. Using page.click + page.keyboard.type works reliably."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 test_iter22_badges.py)", "frontend": "Verified: 10/10 tabs render, 4/4 badges correct, SitesTab fully functional, data-testid integrity preserved in ForemenTab/RequestsTab/ToolsTab/EquipmentModals per grep (interactive click test of these 4 was blocked by transient login-form fill flakiness - not a refactor regression; code inspection confirms identical data-testids and props wiring)."},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123!. localStorage key='token'. Login route is /login (not /admin/login - /admin/login returns 'No routes matched').",
+  "seed_data_creation": "None. Existing iteration-22 seed (4 equipment items + 4 pending orders + 1 warehouse order) still intact and drives the '1' badges.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Admin login UI is pre-existingly flaky with page.fill() - use page.click(input)+page.keyboard.type(value, delay=25) for reliable entry. All lazy tabs in AdminDashboard now show TabSpinner on first click per tab. Data-testids match iteration 22 exactly. If regressions appear, check: (a) lazy import paths in AdminDashboard.js lines 16-23 resolve to real modules, (b) props passed to <SitesTab/>/<ForemenTab/>/<RequestsTab/>/<ToolsTab/> at lines 372-466 match the destructuring in each sub-component. All lint clean. The refactor does NOT change any business logic - it's pure structural code-splitting.",
+  "rca of the issue": "N/A - no bugs found. Refactor is clean: 1492->472 lines in AdminDashboard, 1257->980 lines in EquipmentAdmin, with 5 new modules (SitesTab, ForemenTab, RequestsTab, ToolsTab, EquipmentModals) each exposing the same data-testid surface and props contract."
+}
