@@ -371,6 +371,88 @@ async def update_order_status(
     return await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
 
 
+class ItemIssuePayload(BaseModel):
+    quantity: float = Field(gt=0)
+
+
+@router.post("/warehouse/orders/{order_id}/items/{material_id}/issue")
+async def issue_single_item(
+    order_id: str, material_id: str,
+    payload: ItemIssuePayload,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Mark a single item in an order as issued. Deducts stock; updates order
+    overall status to 'issued' once all items are processed (issued or removed)."""
+    order = await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Zamowienie nie znalezione")
+    items = order.get("items", [])
+    target = next((it for it in items if it["material_id"] == material_id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Pozycja nie znaleziona")
+    if target.get("issued_quantity") is not None:
+        raise HTTPException(status_code=400, detail="Pozycja juz wydana")
+
+    issued_q = float(payload.quantity)
+    target["issued_quantity"] = issued_q
+    target["issued_at"] = datetime.now().isoformat()
+
+    # Deduct stock
+    mat = await db.warehouse_materials.find_one({"id": material_id}, {"_id": 0})
+    if mat:
+        new_stock = float(mat.get("current_stock") or 0) - issued_q
+        await db.warehouse_materials.update_one(
+            {"id": material_id},
+            {"$set": {"current_stock": new_stock, "updated_at": datetime.now().isoformat()}},
+        )
+        await db.warehouse_stock_log.insert_one({
+            "id": str(uuid.uuid4()),
+            "material_id": material_id,
+            "material_name": target["material_name"],
+            "unit": target.get("unit", "szt."),
+            "delta": -issued_q,
+            "stock_after": new_stock,
+            "reason": "wydanie zamowienia",
+            "order_id": order_id,
+            "foreman_id": order["foreman_id"],
+            "foreman_name": order["foreman_name"],
+            "by": current_user["sub"],
+            "at": datetime.now().isoformat(),
+        })
+
+    # Update overall status if all items are processed
+    all_done = all(it.get("issued_quantity") is not None for it in items)
+    set_doc = {"items": items}
+    if all_done:
+        set_doc["status"] = "issued"
+        set_doc["issued_at"] = datetime.now().isoformat()
+        set_doc["issued_by"] = current_user["sub"]
+    await db.warehouse_orders.update_one({"id": order_id}, {"$set": set_doc})
+    return await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
+
+
+@router.delete("/warehouse/orders/{order_id}/items/{material_id}")
+async def remove_item_from_order(
+    order_id: str, material_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Remove a single item from an order. If no items left -> rejects whole order."""
+    order = await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
+    if not order:
+        raise HTTPException(status_code=404, detail="Zamowienie nie znalezione")
+    items = [it for it in order.get("items", []) if it["material_id"] != material_id]
+    set_doc = {"items": items}
+    if not items:
+        set_doc["status"] = "rejected"
+        set_doc["admin_note"] = "Wszystkie pozycje usuniete"
+    elif all(it.get("issued_quantity") is not None for it in items):
+        set_doc["status"] = "issued"
+        set_doc["issued_at"] = datetime.now().isoformat()
+        set_doc["issued_by"] = current_user["sub"]
+    await db.warehouse_orders.update_one({"id": order_id}, {"$set": set_doc})
+    return await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
+
+
 @router.delete("/warehouse/orders/{order_id}")
 async def delete_order(order_id: str, current_user: dict = Depends(get_current_admin)):
     result = await db.warehouse_orders.delete_one({"id": order_id})

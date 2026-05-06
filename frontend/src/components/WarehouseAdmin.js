@@ -16,6 +16,49 @@ const fileToBase64 = (file) =>
 
 const UNITS = ['szt.', 'op.', 'm', 'm2', 'm3', 'kg', 't', 'l', 'paleta'];
 
+const PendingItemRow = ({ row, onIssue, onRemove }) => {
+  const [qty, setQty] = useState(String(row.quantity));
+  return (
+    <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 hover:bg-[#2A384C]/40 transition-colors"
+      data-testid={`warehouse-pending-row-${row.order_id}-${row.material_id}`}>
+      <div className="flex-1 min-w-[180px]">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[#CBD5E1] font-medium">{row.material_name}</span>
+          <span className="text-[#94A3B8] text-xs">zam. {row.quantity} {row.unit}</span>
+          {(row.stock_at_order ?? 0) < row.quantity && (
+            <span className="text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1.5 py-0.5 rounded">
+              w mag. {row.stock_at_order}
+            </span>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2 text-[11px] text-[#64748B] mt-0.5">
+          {row.site_name && <span>· {row.site_name}</span>}
+          <span>{new Date(row.created_at).toLocaleDateString('pl-PL')}</span>
+          {row.note && <span className="italic">"{row.note}"</span>}
+        </div>
+      </div>
+      <div className="flex items-center gap-1">
+        <Input type="number" step="0.5" value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          className="h-8 w-20 text-center text-xs bg-[#0F172A] border-[#334155] text-[#CBD5E1]"
+          data-testid={`warehouse-issue-qty-${row.material_id}`} />
+        <span className="text-[10px] text-[#94A3B8]">{row.unit}</span>
+        <Button size="sm" onClick={() => onIssue(qty)}
+          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-8 text-[11px]"
+          data-testid={`warehouse-issue-btn-${row.material_id}`}>
+          <Check className="h-3 w-3 mr-1" /> Wydaj
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onRemove}
+          className="text-[#E8836A] h-8 px-2"
+          title="Usuń pozycję"
+          data-testid={`warehouse-remove-item-${row.material_id}`}>
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 export const WarehouseAdmin = () => {
   const [subtab, setSubtab] = useState('materials');
   const [materials, setMaterials] = useState([]);
@@ -141,6 +184,29 @@ export const WarehouseAdmin = () => {
     }
   };
 
+  const issueItem = async (orderId, item, qty) => {
+    const q = parseFloat(qty);
+    if (isNaN(q) || q <= 0) { toast.error('Podaj ilosc > 0'); return; }
+    try {
+      await api.post(`/warehouse/orders/${orderId}/items/${item.material_id}/issue`, { quantity: q });
+      toast.success(`Wydano ${item.material_name}`);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const removeItem = async (orderId, item) => {
+    if (!window.confirm(`Usunac pozycje "${item.material_name}" z zamowienia?`)) return;
+    try {
+      await api.delete(`/warehouse/orders/${orderId}/items/${item.material_id}`);
+      toast.success('Usunieto pozycje');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
   const issueOrder = async (order) => {
     if (!window.confirm(`Oznaczyc zamowienie jako WYDANE?\nStan magazynu zostanie pomniejszony o zamowione ilosci.`)) return;
     try {
@@ -174,7 +240,31 @@ export const WarehouseAdmin = () => {
     }
   };
 
-  const pendingOrders = useMemo(() => orders.filter((o) => o.status === 'pending'), [orders]);
+  // Pending items: ze wszystkich orders, tylko items bez issued_quantity, zgrupowane per foreman
+  const pendingByForeman = useMemo(() => {
+    const by = {};
+    orders.forEach((o) => {
+      if (o.status === 'rejected') return;
+      const pendingItems = (o.items || []).filter((it) => it.issued_quantity === null || it.issued_quantity === undefined);
+      if (!pendingItems.length) return;
+      if (historyForeman && o.foreman_id !== historyForeman) return;
+      if (!by[o.foreman_id]) {
+        by[o.foreman_id] = { foreman_id: o.foreman_id, foreman_name: o.foreman_name, rows: [] };
+      }
+      pendingItems.forEach((it) => by[o.foreman_id].rows.push({
+        ...it,
+        order_id: o.id,
+        site_name: o.site_name,
+        note: o.note,
+        created_at: o.created_at,
+      }));
+    });
+    return Object.values(by).sort((a, b) => (a.foreman_name || '').localeCompare(b.foreman_name || '', 'pl'));
+  }, [orders, historyForeman]);
+
+  const pendingOrders = useMemo(() => orders.filter((o) =>
+    (o.items || []).some((it) => it.issued_quantity === null || it.issued_quantity === undefined) && o.status !== 'rejected'
+  ), [orders]);
   const filteredOrders = useMemo(
     () => (historyForeman ? orders.filter((o) => o.foreman_id === historyForeman) : orders),
     [orders, historyForeman],
@@ -283,13 +373,13 @@ export const WarehouseAdmin = () => {
         </Card>
       )}
 
-      {/* ORDERS */}
+      {/* ORDERS - grupowane per brygadzista, tylko pozycje DO WYDANIA */}
       {subtab === 'orders' && (
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Package className="h-5 w-5 text-[#5F7151]" /> Zamówienia brygadzistów
+                <Package className="h-5 w-5 text-[#5F7151]" /> Do wydania ({pendingByForeman.length} brygadzist{pendingByForeman.length === 1 ? 'a' : 'ów'})
               </CardTitle>
               <select
                 value={historyForeman}
@@ -304,74 +394,63 @@ export const WarehouseAdmin = () => {
             </div>
           </CardHeader>
           <CardContent>
-            {filteredOrders.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak zamówień.</p>
+            {pendingByForeman.length === 0 ? (
+              <p className="text-[#94A3B8]">Brak pozycji do wydania.</p>
             ) : (
-              <div className="space-y-3">
-                {filteredOrders.map((o) => {
-                  const statusColor =
-                    o.status === 'pending' ? 'bg-[#E8B76A]/20 text-[#E8B76A]' :
-                    o.status === 'issued' ? 'bg-[#5F7151]/30 text-[#6B8E4E]' :
-                    'bg-[#E8836A]/20 text-[#E8836A]';
-                  const statusLabel = { pending: 'Oczekuje', issued: 'Wydane', rejected: 'Odrzucone' }[o.status] || o.status;
-                  return (
-                    <div key={o.id}
-                      className="bg-[#1E293B] rounded-lg border border-[#334155] p-3"
-                      data-testid={`warehouse-order-${o.id}`}>
-                      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
-                        <div>
-                          <span className="text-[#CBD5E1] font-bold">{o.foreman_name}</span>
-                          {o.site_name && <span className="ml-2 text-xs text-[#94A3B8]">· {o.site_name}</span>}
-                          <span className={`ml-2 text-[11px] px-2 py-0.5 rounded ${statusColor}`}>{statusLabel}</span>
-                        </div>
-                        <span className="text-[11px] text-[#64748B]">
-                          {new Date(o.created_at).toLocaleString('pl-PL')}
-                        </span>
-                      </div>
-                      <div className="space-y-1 mb-2">
-                        {o.items.map((it) => (
-                          <div key={it.material_id} className="flex flex-wrap gap-2 items-center text-sm">
-                            <span className="text-[#CBD5E1]">{it.material_name}</span>
-                            <span className="text-[#94A3B8]">x {it.quantity} {it.unit}</span>
-                            {(it.stock_at_order ?? 0) < it.quantity && (
-                              <span className="text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1.5 py-0.5 rounded">
-                                w magazynie {it.stock_at_order} {it.unit}
-                              </span>
-                            )}
-                            {it.issued_quantity !== null && it.issued_quantity !== undefined && (
-                              <span className="text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-1.5 py-0.5 rounded">
-                                wydano {it.issued_quantity} {it.unit}
-                              </span>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                      {o.note && <p className="text-xs text-[#94A3B8] italic mb-2">"{o.note}"</p>}
-                      {o.admin_note && <p className="text-xs text-[#E8B76A] italic mb-2">Admin: {o.admin_note}</p>}
-                      <div className="flex gap-2 flex-wrap">
-                        {o.status === 'pending' && (
-                          <>
-                            <Button size="sm" onClick={() => issueOrder(o)}
-                              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-8 text-xs"
-                              data-testid={`warehouse-issue-${o.id}`}>
-                              <Check className="h-3 w-3 mr-1" /> Wydaj
-                            </Button>
-                            <Button size="sm" variant="outline" onClick={() => rejectOrder(o)}
-                              className="border-[#E8836A] text-[#E8836A] hover:bg-[#3D2E2E] h-8 text-xs"
-                              data-testid={`warehouse-reject-${o.id}`}>
-                              Odrzuć
-                            </Button>
-                          </>
-                        )}
-                        <Button size="sm" variant="ghost" onClick={() => removeOrder(o)}
-                          className="text-[#94A3B8] h-8 px-2 text-xs ml-auto">
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
-                      </div>
+              <div className="space-y-4">
+                {pendingByForeman.map((group) => (
+                  <div key={group.foreman_id}
+                    className="bg-[#1E293B] rounded-lg border border-[#334155]"
+                    data-testid={`warehouse-pending-foreman-${group.foreman_id}`}>
+                    <div className="bg-[#2A384C] px-4 py-2 rounded-t-lg border-b border-[#334155]">
+                      <span className="text-[#CBD5E1] font-bold text-base">{group.foreman_name}</span>
+                      <span className="ml-2 text-[11px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded">
+                        {group.rows.length} {group.rows.length === 1 ? 'pozycja' : 'pozycji'}
+                      </span>
                     </div>
-                  );
-                })}
+                    <div className="divide-y divide-[#334155]">
+                      {group.rows.map((row) => (
+                        <PendingItemRow
+                          key={`${row.order_id}-${row.material_id}`}
+                          row={row}
+                          onIssue={(q) => issueItem(row.order_id, row, q)}
+                          onRemove={() => removeItem(row.order_id, row)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
+            )}
+
+            {/* Wydane / odrzucone - skrocona historia */}
+            {filteredOrders.some((o) => o.status === 'issued' || o.status === 'rejected') && (
+              <details className="mt-4">
+                <summary className="cursor-pointer text-[#94A3B8] text-sm hover:text-[#CBD5E1]">
+                  Pokaż wcześniejsze zamówienia ({filteredOrders.filter((o) => o.status === 'issued' || o.status === 'rejected').length})
+                </summary>
+                <div className="mt-2 space-y-2">
+                  {filteredOrders.filter((o) => o.status === 'issued' || o.status === 'rejected').slice(0, 30).map((o) => (
+                    <div key={o.id} className="bg-[#1E293B] rounded p-2 text-xs"
+                      data-testid={`warehouse-archived-order-${o.id}`}>
+                      <div className="flex flex-wrap justify-between gap-2">
+                        <span className="text-[#CBD5E1] font-semibold">{o.foreman_name}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded ${o.status === 'issued' ? 'bg-[#5F7151]/30 text-[#6B8E4E]' : 'bg-[#E8836A]/20 text-[#E8836A]'}`}>
+                          {o.status === 'issued' ? 'Wydane' : 'Odrzucone'}
+                        </span>
+                        <span className="text-[#64748B]">{new Date(o.issued_at || o.created_at).toLocaleDateString('pl-PL')}</span>
+                      </div>
+                      <div className="mt-1 text-[#94A3B8]">
+                        {(o.items || []).map((it) => `${it.material_name} (${it.issued_quantity ?? it.quantity} ${it.unit})`).join(' · ')}
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => removeOrder(o)}
+                        className="text-[#94A3B8] h-6 px-2 text-[10px] mt-1">
+                        <Trash2 className="h-3 w-3 mr-1" /> Usuń z historii
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
           </CardContent>
         </Card>
