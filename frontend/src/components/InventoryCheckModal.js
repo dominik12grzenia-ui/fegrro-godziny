@@ -27,7 +27,12 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
       const r = await api.get('/equipment/inventory/active-for-me');
       setChecks(r.data || []);
     } catch (e) {
-      // ignore
+      // Show a toast so the foreman has feedback if the inventory endpoint fails.
+      // Empty list (no inventory) is the normal case and is not an error.
+      const status = e?.response?.status;
+      if (status && status !== 404) {
+        toast.error('Nie udalo sie pobrac inwentaryzacji');
+      }
     } finally {
       setLoading(false);
     }

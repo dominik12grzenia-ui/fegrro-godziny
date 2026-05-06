@@ -161,3 +161,19 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - P2: Refaktoryzacja AdminDashboard.js i HoursTable.js (sub-components)
 - P3: Google Maps migrate Marker → AdvancedMarkerElement
 - P3: UptimeRobot ping na /api/health (cold start fix)
+
+## Completed (2026-02-13)
+- **Inwentaryzacja sprzetu** (Equipment Inventory Check) - per-category, per-item confirmation
+  - Backend `routes/equipment.py`:
+    - `POST /api/equipment/inventory/start` (admin) - body `{category}`. Auto-closes any prior active check in same category. Aggregates `equipment_assignments` joined with `equipment` by category to find foremen with qty>0.
+    - `GET /api/equipment/inventory/list` (admin) - all checks history
+    - `POST /api/equipment/inventory/{id}/finish` (admin) - manual close
+    - `GET /api/equipment/inventory/active-for-me` (foreman) - active checks where required; attaches `equipment[]` (id/name/brand/photo/assigned_quantity)
+    - `POST /api/equipment/inventory/{id}/confirm` (foreman) - body `{confirmed_equipment_ids:[...]}`. Adds to confirmed_foremen, auto-finishes when all required confirmed. Logs per-item audit in `confirmation_log`.
+  - Frontend `EquipmentAdmin.js`: nowy przycisk "Inwentaryzacja" (data-testid=`start-inventory-btn`) na kazdej z 3 kategorii (Elektronarzedzia/Akcesoria/Szalunki). Banner "Aktywna inwentaryzacja" pokazuje progress (potwierdzeni/wymagani) + nazwiska oczekujacych + przycisk "Zakoncz recznie".
+  - Frontend `InventoryCheckModal.js` (nowy plik, ~190 linii) wstrzykniety w `WorkerDashboard.js` - blokuje brygadziste pelnoekranowym modalem z checkboxem przy KAZDEJ pozycji sprzetu. Przycisk "Potwierdzam wszystko" disabled dopoki nie zaznaczy wszystkich. Po potwierdzeniu modal znika i mozna edytowac godziny.
+  - Testy: 10/10 pytest backend (`/app/backend/tests/test_inventory_check.py`) + Playwright frontend flow zweryfikowany (admin button -> foreman modal -> 4/4 checkbox -> confirm -> modal znika)
+
+## Completed (2026-02-13) - Resend
+- Domena `fegrro.pl` zweryfikowana w Resend - `RESEND_FROM_EMAIL=noreply@fegrro.pl`, `WAREHOUSE_NOTIFY_EMAIL=biuro@fegrro.pl` (juz nie Apple privaterelay)
+
