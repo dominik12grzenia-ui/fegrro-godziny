@@ -253,6 +253,26 @@ async def issue_equipment_order(order_id: str,
     new_issued = int(order.get("quantity_issued") or 0) + int(payload.quantity_issued)
     new_status = "issued" if new_issued >= int(order["quantity_requested"]) else "partial"
 
+    # Strict stock check - NEVER issue more than is physically available.
+    # available = total_quantity - broken_quantity - sum(all other assignments).
+    # Note: self-assignment is included in "other" but we top it up with quantity_issued,
+    # so total assigned will match after the update.
+    if payload.quantity_issued > 0:
+        eq_doc = await db.equipment.find_one({"id": order["equipment_id"]}, {"_id": 0, "total_quantity": 1, "broken_quantity": 1, "name": 1})
+        total_q = int((eq_doc or {}).get("total_quantity") or 0)
+        broken_q = int((eq_doc or {}).get("broken_quantity") or 0)
+        agg = [{"$match": {"equipment_id": order["equipment_id"]}},
+               {"$group": {"_id": None, "s": {"$sum": "$quantity"}}}]
+        sum_assigned = 0
+        async for row in db.equipment_assignments.aggregate(agg):
+            sum_assigned = int(row.get("s") or 0)
+        available = max(0, total_q - broken_q - sum_assigned)
+        if payload.quantity_issued > available:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Brak wystarczajacej ilosci na stanie. Dostepne: {available} szt. (calkowita {total_q} − uszkodzone {broken_q} − przypisane {sum_assigned})",
+            )
+
     # Increment foreman's assignment on that equipment
     if payload.quantity_issued > 0:
         existing = await db.equipment_assignments.find_one(

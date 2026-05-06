@@ -10,6 +10,7 @@ import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } 
 import { pl } from 'date-fns/locale';
 import { LocationsButton } from './LocationsButton';
 import { InventoryCheckModal } from './InventoryCheckModal';
+import { useCachedApi } from '../context/apiCache';
 
 // Lazy-load heavy equipment section
 const EquipmentForeman = lazy(() => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman })));
@@ -25,6 +26,17 @@ export const WorkerDashboard = () => {
   const { user, logout, isImpersonating, stopImpersonation } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+
+  // Order counts for tab badges (foreman's own pending+partial equipment orders)
+  const myOrders = useCachedApi('/equipment/orders', 10000) || [];
+  const myWarehouseOrders = useCachedApi('/warehouse/orders', 10000) || [];
+  const orderCounts = {
+    electronics: myOrders.filter((o) => (o.category === 'electronics') && (o.status === 'pending' || o.status === 'partial')).length,
+    accessories: myOrders.filter((o) => (o.category === 'accessories') && (o.status === 'pending' || o.status === 'partial')).length,
+    formwork: myOrders.filter((o) => (o.category === 'formwork') && (o.status === 'pending' || o.status === 'partial')).length,
+    warehouse: myWarehouseOrders.filter((o) => o.status === 'pending' || o.status === 'partial').length,
+  };
+
   const [foremanData, setForemanData] = useState(null);
   const [employees, setEmployees] = useState([]);
   const [sites, setSites] = useState([]);
@@ -456,6 +468,11 @@ export const WorkerDashboard = () => {
               data-testid="foreman-tab-electronics"
             >
               Elektronarzędzia
+              {orderCounts.electronics > 0 && (
+                <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  {orderCounts.electronics}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setEqTab('accessories')}
@@ -463,6 +480,11 @@ export const WorkerDashboard = () => {
               data-testid="foreman-tab-accessories"
             >
               Akcesoria
+              {orderCounts.accessories > 0 && (
+                <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  {orderCounts.accessories}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setEqTab('formwork')}
@@ -470,6 +492,11 @@ export const WorkerDashboard = () => {
               data-testid="foreman-tab-formwork"
             >
               Szalunki
+              {orderCounts.formwork > 0 && (
+                <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  {orderCounts.formwork}
+                </span>
+              )}
             </button>
             <button
               onClick={() => setEqTab('warehouse')}
@@ -477,6 +504,11 @@ export const WorkerDashboard = () => {
               data-testid="foreman-tab-warehouse"
             >
               Materiały
+              {orderCounts.warehouse > 0 && (
+                <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  {orderCounts.warehouse}
+                </span>
+              )}
             </button>
           </div>
           {eqTab === 'electronics' && (
