@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
+import { prefetch, invalidateCachePrefix } from '../context/apiCache';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
@@ -43,36 +44,38 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
 
   const fetchAll = useCallback(async () => {
     try {
-      // PRIMARY fetches - render table as soon as these arrive
-      const [eqRes, forRes, asgRes] = await Promise.all([
-        api.get(`/equipment?category=${encodeURIComponent(category)}`),
-        api.get('/foremen'),
-        api.get('/equipment/assignments/all'),
+      // PRIMARY fetches via apiCache: returns cached data instantly if <60s old
+      // (background refresh) — makes tab switch sub-second on every visit
+      // after the first one.
+      const [eqData, forData, asgData] = await Promise.all([
+        prefetch(`/equipment?category=${encodeURIComponent(category)}`),
+        prefetch('/foremen'),
+        prefetch('/equipment/assignments/all'),
       ]);
-      setEquipment(eqRes.data);
-      setForemen((forRes.data || []).filter((f) => f.status === 'active'));
-      setAssignments(asgRes.data);
+      if (eqData) setEquipment(eqData);
+      if (forData) setForemen((forData || []).filter((f) => f.status === 'active'));
+      if (asgData) setAssignments(asgData);
       setLoading(false);
 
-      // SECONDARY fetches - fill in lists below the table without blocking
-      const [hisRes, defRes, trRes, wkRes, retRes, scrRes, invRes, shRes] = await Promise.all([
-        api.get('/equipment/history'),
-        api.get('/equipment/defects'),
-        api.get('/equipment/transfers/all'),
-        api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null, foreman_name: null } })),
-        api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
-        api.get(`/equipment/scrapped?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
-        api.get('/equipment/inventory/list').catch(() => ({ data: [] })),
-        api.get('/equipment/inventory/shortages?status=open').catch(() => ({ data: [] })),
+      // SECONDARY fetches - same cache-first strategy
+      const [hisData, defData, trData, wkData, retData, scrData, invData, shData] = await Promise.all([
+        prefetch('/equipment/history'),
+        prefetch('/equipment/defects'),
+        prefetch('/equipment/transfers/all'),
+        prefetch('/settings/warehouse-keeper'),
+        prefetch('/equipment/returns/pending'),
+        prefetch(`/equipment/scrapped?category=${encodeURIComponent(category)}`),
+        prefetch('/equipment/inventory/list'),
+        prefetch('/equipment/inventory/shortages?status=open'),
       ]);
-      setHistory(hisRes.data);
-      setDefects(defRes.data);
-      setTransfers(trRes.data);
-      setWarehouseKeeper(wkRes.data);
-      setPendingReturns(retRes.data);
-      setScrapped(scrRes.data);
-      setActiveInventory((invRes.data || []).filter((c) => c.category === category && c.status === 'active'));
-      setShortages((shRes.data || []).filter((s) => s.category === category));
+      if (hisData) setHistory(hisData);
+      if (defData) setDefects(defData);
+      if (trData) setTransfers(trData);
+      if (wkData) setWarehouseKeeper(wkData);
+      if (retData) setPendingReturns(retData);
+      if (scrData) setScrapped(scrData);
+      if (invData) setActiveInventory((invData || []).filter((c) => c.category === category && c.status === 'active'));
+      if (shData) setShortages((shData || []).filter((s) => s.category === category));
     } catch (e) {
       toast.error('Blad pobierania danych sprzetu');
       setLoading(false);
@@ -80,6 +83,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   }, [category]);
 
   useEffect(() => {
+    fetchAll();
+  }, [fetchAll]);
+
+  // Used after mutations: blow away the equipment cache then refetch.
+  // Without this, prefetch() would return stale data from before the mutation.
+  const refreshAll = useCallback(() => {
+    invalidateCachePrefix('/equipment');
+    invalidateCachePrefix('/settings/warehouse-keeper');
     fetchAll();
   }, [fetchAll]);
 
@@ -117,10 +128,10 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         foreman_id: foremanId,
         quantity: qty,
       });
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad zapisu');
-      fetchAll();
+      refreshAll();
     }
   };
 
@@ -132,10 +143,10 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     }
     try {
       await api.put(`/equipment/${eqId}`, { broken_quantity: qty });
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad zapisu');
-      fetchAll();
+      refreshAll();
     }
   };
 
@@ -147,10 +158,10 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     }
     try {
       await api.put(`/equipment/${eqId}`, { total_quantity: qty });
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad zapisu');
-      fetchAll();
+      refreshAll();
     }
   };
 
@@ -175,7 +186,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       toast.success('Sprzet dodany');
       setShowAddModal(false);
       setForm({ name: '', brand: '', total_quantity: '', photo: null, variants: '' });
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad dodawania');
     }
@@ -195,7 +206,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       });
       toast.success('Zaktualizowano');
       setEditingEq(null);
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad zapisu');
     }
@@ -206,7 +217,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.delete(`/equipment/${eqId}`);
       toast.success('Usunieto');
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad usuwania');
     }
@@ -228,7 +239,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.put('/settings/warehouse-keeper', { foreman_id: foremanId || null });
       toast.success(foremanId ? 'Magazynier ustawiony' : 'Magazynier wyczyszczony');
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
     }
@@ -238,7 +249,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.post(`/equipment/returns/${notifId}/acknowledge`);
       toast.success('Zwrot potwierdzony');
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
     }
@@ -257,7 +268,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       } else {
         toast.success(`Inwentaryzacja rozpoczeta. Wymagane potwierdzenia: ${required}`);
       }
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad rozpoczecia inwentaryzacji');
     } finally {
@@ -270,7 +281,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.post(`/equipment/inventory/${checkId}/finish`);
       toast.success('Inwentaryzacja zakonczona');
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
     }
@@ -280,7 +291,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     try {
       await api.post(`/equipment/inventory/shortages/${shortageId}/resolve`);
       toast.success('Zgloszenie rozpatrzone');
-      fetchAll();
+      refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
     }
@@ -848,7 +859,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                             try {
                               await api.post(`/equipment/defects/${d.id}/resolve`, { disposition: 'scrapped' });
                               toast.success('Przeniesiono na zlom');
-                              fetchAll();
+                              refreshAll();
                             } catch (err) {
                               toast.error(err.response?.data?.detail || 'Blad');
                             }
@@ -868,7 +879,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                         try {
                           await api.delete(`/equipment/defects/${d.id}`);
                           toast.success('Zgloszenie usuniete');
-                          fetchAll();
+                          refreshAll();
                         } catch (err) {
                           toast.error(err.response?.data?.detail || 'Blad');
                         }
@@ -961,7 +972,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         resolveForemanId={resolveForemanId}
         setResolveForemanId={setResolveForemanId}
         foremen={foremen}
-        fetchAll={fetchAll}
+        fetchAll={refreshAll}
       />
 
       {/* Photo lightbox */}

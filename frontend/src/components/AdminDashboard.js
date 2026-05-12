@@ -1,6 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
+import { prefetch } from '../context/apiCache';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
@@ -12,15 +13,27 @@ import {
 import { toast } from 'sonner';
 import { SitesMap } from './SitesMap';
 
-// Lazy-loaded heavy tabs — code-split away from the main bundle
-const EquipmentAdmin = lazy(() => import('./EquipmentAdmin').then((m) => ({ default: m.EquipmentAdmin })));
-const ClothingAdmin = lazy(() => import('./ClothingAdmin').then((m) => ({ default: m.ClothingAdmin })));
-const BhpAdmin = lazy(() => import('./BhpAdmin').then((m) => ({ default: m.BhpAdmin })));
-const WarehouseAdmin = lazy(() => import('./WarehouseAdmin').then((m) => ({ default: m.WarehouseAdmin })));
-const SitesTab = lazy(() => import('./admin/SitesTab').then((m) => ({ default: m.SitesTab })));
-const ForemenTab = lazy(() => import('./admin/ForemenTab').then((m) => ({ default: m.ForemenTab })));
-const RequestsTab = lazy(() => import('./admin/RequestsTab').then((m) => ({ default: m.RequestsTab })));
-const ToolsTab = lazy(() => import('./admin/ToolsTab').then((m) => ({ default: m.ToolsTab })));
+// Lazy-loaded heavy tabs — code-split away from the main bundle.
+// Each import factory is kept in a const so we can call it directly
+// to PREFETCH chunks immediately after mount (warming the cache so the
+// first tab click renders instantly, not after a network round-trip).
+const equipmentAdminImport = () => import('./EquipmentAdmin').then((m) => ({ default: m.EquipmentAdmin }));
+const clothingAdminImport = () => import('./ClothingAdmin').then((m) => ({ default: m.ClothingAdmin }));
+const bhpAdminImport = () => import('./BhpAdmin').then((m) => ({ default: m.BhpAdmin }));
+const warehouseAdminImport = () => import('./WarehouseAdmin').then((m) => ({ default: m.WarehouseAdmin }));
+const sitesTabImport = () => import('./admin/SitesTab').then((m) => ({ default: m.SitesTab }));
+const foremenTabImport = () => import('./admin/ForemenTab').then((m) => ({ default: m.ForemenTab }));
+const requestsTabImport = () => import('./admin/RequestsTab').then((m) => ({ default: m.RequestsTab }));
+const toolsTabImport = () => import('./admin/ToolsTab').then((m) => ({ default: m.ToolsTab }));
+
+const EquipmentAdmin = lazy(equipmentAdminImport);
+const ClothingAdmin = lazy(clothingAdminImport);
+const BhpAdmin = lazy(bhpAdminImport);
+const WarehouseAdmin = lazy(warehouseAdminImport);
+const SitesTab = lazy(sitesTabImport);
+const ForemenTab = lazy(foremenTabImport);
+const RequestsTab = lazy(requestsTabImport);
+const ToolsTab = lazy(toolsTabImport);
 
 const TabSpinner = () => (
   <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
@@ -94,6 +107,42 @@ export const AdminDashboard = () => {
       if (original) link.setAttribute('href', original);
     };
   }, []);
+
+  // Aggressive prefetch: as soon as the dashboard mounts we (1) start
+  // downloading every lazy chunk in the background so the first click on
+  // any tab is instant, and (2) warm the apiCache with the data each tab
+  // needs. This gives the user sub-second tab switching including the very
+  // first click on Elektronarzedzia / Akcesoria / Szalunki / Materialy.
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const handle = setTimeout(() => {
+      // Warm chunks (these promises are cached by webpack)
+      equipmentAdminImport().catch(() => {});
+      sitesTabImport().catch(() => {});
+      foremenTabImport().catch(() => {});
+      requestsTabImport().catch(() => {});
+      toolsTabImport().catch(() => {});
+      warehouseAdminImport().catch(() => {});
+      clothingAdminImport().catch(() => {});
+      bhpAdminImport().catch(() => {});
+      // Warm data caches for equipment-heavy tabs (most common destinations)
+      prefetch('/equipment?category=electronics');
+      prefetch('/equipment?category=accessories');
+      prefetch('/equipment?category=formwork');
+      prefetch('/equipment/assignments/all');
+      prefetch('/equipment/history');
+      prefetch('/equipment/defects');
+      prefetch('/equipment/transfers/all');
+      prefetch('/equipment/returns/pending');
+      prefetch('/equipment/inventory/list');
+      prefetch('/equipment/inventory/shortages?status=open');
+      prefetch('/equipment/scrapped?category=electronics');
+      prefetch('/settings/warehouse-keeper');
+      prefetch('/warehouse/materials');
+      prefetch('/warehouse/orders');
+    }, 100); // small delay so primary render isn't blocked
+    return () => clearTimeout(handle);
+  }, [user]);
 
   const fetchData = async () => {
     try {

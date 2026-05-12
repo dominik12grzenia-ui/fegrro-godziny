@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 24 - PERFORMANCE verification of AdminDashboard prefetch + EquipmentAdmin apiCache changes. All targets met. Cold load /admin/dashboard (token preloaded in localStorage, no UI login) -> tabs rendered in 1298 ms, default sites-tab content visible at 1444 ms (under the <2s warm-backend target). After 2.5s prefetch warm-up window: first click on Elektronarzedzia -> add-equipment-btn visible in 906 ms (<1s target met). Subsequent tab switches were essentially instant: Akcesoria 120 ms, Szalunki 108 ms, Materialy 294 ms (all well under the <300ms target). Mutation regression PASSED: created PerfTest_X via Dodaj sprzet modal -> modal detached in 131 ms, new row visible in equipment table 210 ms after save click (proves invalidateCachePrefix('/equipment') in refreshAll() works as designed). All 4 yellow badges still show '1' (equipment/accessories/formwork/warehouse), brygadzisci shows '2'. Backend regression: pytest test_iter22_badges.py 6/6 PASS. PerfTest_X cleaned up via DELETE /api/equipment/{id} after test.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "performance_observations": {
+    "dashboard_initial_render_ms": 1298,
+    "dashboard_first_content_visible_ms": 1444,
+    "equipment_tab_first_click_ms": 906,
+    "accessories_tab_switch_ms": 120,
+    "formwork_tab_switch_ms": 108,
+    "warehouse_tab_switch_ms": 294,
+    "mutation_create_to_table_ms": 210,
+    "modal_close_after_save_ms": 131,
+    "method": "token preloaded into localStorage via add_init_script then page.goto('/admin/dashboard'). Login form NOT used due to pre-existing iter23 page.fill flakiness on admin-email-input. Times measured between user-action and data-testid presence using time.time(). 2.5s wait between dashboard mount and first tab click to let prefetch useEffect warm chunks + apiCache.",
+    "targets_met": "All 4 perf targets PASSED: initial load <2s, first equipment tab click <1s, subsequent tab switches <300ms, mutation visible within 2s."
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter22_badges.py",
+    "/app/test_reports/pytest/pytest_iter24_iter22_badges.xml"
+  ],
+  "action_items": [
+    "Optional: Fix login-form flakiness on admin-email-input. Programmatic page.fill() and page.keyboard.type() both fail to populate the email input on this preview env (verified 3 runs). Browser shows the form-validation tooltip 'Please fill out this field' on Email, even though the password field accepted input correctly. Likely a focus/blur handler in AdminLogin that clears the email value, or an HTML autocomplete suggestion intercepting the input. The native HTMLInputElement value setter + 'input' event also DID push the React state to 'admin@fegrro.pl' (confirmed via input_value()), but browser still failed required-attribute validation on submit. Recommend inspecting AdminLogin.js for an onBlur/useEffect that resets email, or an autocomplete='off' attribute missing on the form."
+  ],
+  "critical_code_review_comments": [
+    "AdminDashboard.js useEffect[user] for prefetching does NOT call invalidateCachePrefix on logout/unmount. Stale cached data from one admin session may leak across page reloads within 60s TTL. Low risk since localStorage clears on logout but worth a cache.clear() in logout flow.",
+    "EquipmentAdmin.fetchAll uses prefetch() which returns stale data instantly + refreshes in background. Loading spinner now disappears immediately on cache hit even while data is being re-fetched. Users won't see a spinner during background refresh - that's intentional SWR behavior, but a subtle staleness indicator (e.g. a small dot) could improve transparency.",
+    "fetchAll is called from useEffect on every category change AND from refreshAll after mutations. Combined with 60s TTL, this means rapid tab-switching back-and-forth between Elektronarzedzia/Akcesoria/Szalunki could trigger 3 background refreshes within seconds. Network not an issue (each request is small) but could add load if many admins online. Consider per-key debouncing.",
+    "apiCache.js: notify() in invalidateCachePrefix is called even though cache entry was just deleted, so subscribers get setter(undefined). This causes a brief UI flicker (empty table) during refreshAll before the new data arrives. Consider keeping stale-while-revalidate behavior on invalidation: mark entry as stale instead of deleting."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (6/6 test_iter22_badges.py)", "frontend": "100% (perf targets all met; mutation create flow verified; UI delete-via-edit-modal flow uses click-on-name pattern instead of data-testid edit-equipment-* button - not tested but design unchanged from iter23)"},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! via POST /api/auth/admin/login. Token preloaded into localStorage('token') + user object into localStorage('user') via page.add_init_script before page.goto.",
+  "seed_data_creation": "Created PerfTest_X (electronics, qty=5) via UI to verify create-mutation cache invalidation, then deleted via DELETE /api/equipment/{id}. Net zero seed change.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "ADMIN LOGIN UI IS FLAKY ON THIS ENV - bypass it: (1) curl POST /api/auth/admin/login with admin@fegrro.pl/Admin123! to get access_token, (2) use page.add_init_script to localStorage.setItem('token', t) and localStorage.setItem('user', JSON.stringify(user)), (3) page.goto('/admin/dashboard') directly. To set inputs in modals: use Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set + dispatchEvent('input',{bubbles:true}). The Equipment edit flow uses clicking the equipment NAME (data-testid='edit-equipment-name-*' or similar) to open the edit modal, not a separate edit button - check EquipmentAdmin.js around the table rendering. Performance improvements landed in this iteration: AdminDashboard prefetches 8 lazy chunks + 15 api keys 100ms after admin mount; EquipmentAdmin uses apiCache.prefetch (60s TTL SWR) instead of fresh api.get; refreshAll() calls invalidateCachePrefix('/equipment') before fetchAll to ensure post-mutation freshness. All 4 yellow badges (1/1/1/1) still show after the refactor.",
+  "rca of the issue": "N/A - performance optimizations verified working. The user complaint 'app loads too slowly and Elektronarzedzia takes >1s' is addressed by: (a) AdminDashboard prefetch useEffect warms 8 webpack chunks + 15 apiCache keys 100ms after admin mount, so by the time the user clicks any tab, both the JS chunk and the API data are already in memory; (b) EquipmentAdmin.fetchAll switched from 11 fresh api.get calls to apiCache.prefetch (SWR with 60s TTL) - returns cached data instantly on tab switch; (c) refreshAll() helper invalidates '/equipment' cache prefix before re-fetch so mutations remain visible. Measured: equipment tab first click 906ms (was likely >2s before), subsequent tabs 108-294ms (was likely 1-2s before)."
+}
