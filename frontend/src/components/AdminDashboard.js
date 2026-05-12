@@ -2,6 +2,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { prefetch } from '../context/apiCache';
+import PushNotificationButton from './PushNotificationButton';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
@@ -252,14 +253,17 @@ export const AdminDashboard = () => {
               <p className="text-green-100 text-sm">{user?.email}</p>
             </div>
           </div>
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="text-white hover:bg-[#2A384C]"
-            data-testid="admin-logout-btn"
-          >
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <PushNotificationButton compact />
+            <Button
+              onClick={handleLogout}
+              variant="ghost"
+              className="text-white hover:bg-[#2A384C]"
+              data-testid="admin-logout-btn"
+            >
+              <LogOut className="h-5 w-5" />
+            </Button>
+          </div>
         </div>
       </div>
 

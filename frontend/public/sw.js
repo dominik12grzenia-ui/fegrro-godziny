@@ -7,7 +7,7 @@
 //
 // Brak fetch handlera == przegladarka idzie wprost do sieci. Vercel ustawia
 // no-cache na index.html/sw.js/manifest, wiec kazdy deploy jest natychmiast widoczny.
-const SW_VERSION = 'fegrro-passthrough-2026-02-12-03';
+const SW_VERSION = 'fegrro-push-2026-02-13-01';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -37,4 +37,47 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+});
+
+// --- Push notifications -----------------------------------------------------
+// FeGrro PWA: handle push from backend (VAPID + pywebpush) and display
+// a system notification. Click → focuses an existing tab or opens one.
+self.addEventListener('push', (event) => {
+  let data = { title: 'FeGrro', body: 'Masz nowe powiadomienie', url: '/', tag: 'fegrro' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch (_e) {
+    if (event.data) data.body = event.data.text();
+  }
+  const options = {
+    body: data.body,
+    tag: data.tag || 'fegrro',
+    icon: '/icon-192x192.png',
+    badge: '/icon-192x192.png',
+    data: { url: data.url || '/' },
+    requireInteraction: !!data.requireInteraction,
+    vibrate: [120, 60, 120],
+    renotify: true,
+  };
+  event.waitUntil(self.registration.showNotification(data.title || 'FeGrro', options));
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil((async () => {
+    const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const c of allClients) {
+      try {
+        if ('focus' in c) {
+          await c.focus();
+          if (c.url !== targetUrl && 'navigate' in c) {
+            try { await c.navigate(targetUrl); } catch (_e) { /* cross-origin etc. */ }
+          }
+          return;
+        }
+      } catch (_e) { /* ignore */ }
+    }
+    if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+  })());
 });

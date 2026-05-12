@@ -1,0 +1,199 @@
+import React, { useEffect, useState } from 'react';
+import { api } from '../context/AuthContext';
+import { Button } from './ui/button';
+import { Bell, BellOff, BellRing } from 'lucide-react';
+import { toast } from 'sonner';
+
+/** Base64-URL → Uint8Array (required by PushManager.subscribe applicationServerKey). */
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = window.atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+  return out;
+}
+
+const isSupported = () =>
+  typeof window !== 'undefined' &&
+  'serviceWorker' in navigator &&
+  'PushManager' in window &&
+  'Notification' in window;
+
+const isStandalone = () =>
+  typeof window !== 'undefined' &&
+  (window.matchMedia('(display-mode: standalone)').matches ||
+    // iOS Safari PWA flag
+    // eslint-disable-next-line no-undef
+    window.navigator.standalone === true);
+
+const isIOS = () =>
+  typeof navigator !== 'undefined' &&
+  /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+  !window.MSStream;
+
+export const PushNotificationButton = ({ compact = false }) => {
+  const [permission, setPermission] = useState(
+    typeof Notification !== 'undefined' ? Notification.permission : 'default'
+  );
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [vapidKey, setVapidKey] = useState(null);
+
+  // Bootstrap: fetch public VAPID key + detect current subscription
+  useEffect(() => {
+    if (!isSupported()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get('/push/vapid-key');
+        if (!cancelled) setVapidKey(res.data.public_key);
+      } catch (_e) {
+        /* backend unavailable - hide UI gracefully */
+      }
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const existing = await reg.pushManager.getSubscription();
+        if (!cancelled) setSubscribed(!!existing);
+      } catch (_e) {
+        /* ignore */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  if (!isSupported() || !vapidKey) {
+    return null;
+  }
+
+  // iOS Safari: push only works when installed as PWA (iOS 16.4+)
+  const iosNeedsInstall = isIOS() && !isStandalone();
+
+  const handleEnable = async () => {
+    if (iosNeedsInstall) {
+      toast.error(
+        'Na iPhone najpierw dodaj aplikacje do ekranu glownego: udostepnij -> "Do ekranu poczatkowego". Potem otworz aplikacje z ikony i klinij ponownie.',
+        { duration: 8000 }
+      );
+      return;
+    }
+    setBusy(true);
+    try {
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+      if (perm !== 'granted') {
+        toast.error('Pozwolenie odrzucone. Wlacz powiadomienia w ustawieniach przegladarki.');
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      let sub = await reg.pushManager.getSubscription();
+      if (!sub) {
+        sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidKey),
+        });
+      }
+      const json = sub.toJSON();
+      await api.post('/push/subscribe', {
+        endpoint: json.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+        user_agent: navigator.userAgent,
+      });
+      setSubscribed(true);
+      toast.success('Powiadomienia wlaczone');
+    } catch (err) {
+      console.error('Push enable failed', err);
+      toast.error('Nie udalo sie wlaczyc powiadomien: ' + (err.message || err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDisable = async () => {
+    setBusy(true);
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        try {
+          await api.delete(`/push/unsubscribe?endpoint=${encodeURIComponent(sub.endpoint)}`);
+        } catch (_e) { /* unsub even if backend missed */ }
+        await sub.unsubscribe();
+      }
+      setSubscribed(false);
+      toast.success('Powiadomienia wylaczone');
+    } catch (err) {
+      toast.error('Blad: ' + (err.message || err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleTest = async () => {
+    try {
+      await api.post('/push/test');
+      toast.success('Test wyslany - sprawdz baner powiadomien');
+    } catch (err) {
+      toast.error('Blad testu: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  if (subscribed && permission === 'granted') {
+    if (compact) {
+      return (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleTest}
+          className="text-[#5F7151] hover:bg-[#5F7151]/20"
+          data-testid="push-test-btn"
+          title="Wyslij testowe powiadomienie"
+        >
+          <BellRing className="h-4 w-4" />
+        </Button>
+      );
+    }
+    return (
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleTest}
+          className="border-[#5F7151] text-[#6B8E4E]"
+          data-testid="push-test-btn"
+        >
+          <BellRing className="h-4 w-4 mr-1" />
+          Test powiadomien
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleDisable}
+          disabled={busy}
+          className="text-[#E8836A]"
+          data-testid="push-disable-btn"
+        >
+          <BellOff className="h-4 w-4 mr-1" />
+          Wylacz
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <Button
+      size="sm"
+      onClick={handleEnable}
+      disabled={busy}
+      className={compact
+        ? 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold h-8'
+        : 'bg-[#5F7151] hover:bg-[#4A5A41] text-white'}
+      data-testid="push-enable-btn"
+    >
+      <Bell className="h-4 w-4 mr-1" />
+      {compact ? 'Wlacz push' : 'Wlacz powiadomienia push'}
+    </Button>
+  );
+};
+
+export default PushNotificationButton;

@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 25 - Web Push notifications (VAPID + pywebpush) + HoursTable contentVisibility verification. Backend: 11/11 tests PASS in /app/backend/tests/test_iter25_push.py covering GET /api/push/vapid-key (no auth, returns 'B...' P-256 key length 87), POST /api/push/subscribe (idempotent on same endpoint - verified by querying mongo push_subscriptions: count=1 after 2 POSTs same endpoint), POST /api/push/test (returns sent/failed integers, auth required), DELETE /api/push/unsubscribe (200 on existing, 404 on missing), and that hook-bearing endpoints (/api/absences GET, /api/equipment/orders GET, /api/warehouse/materials GET) still return 200. Service worker /sw.js served by frontend and contains addEventListener('push', showNotification, and notificationclick handlers. Regression: test_iter22_badges.py 6/6 PASS. Frontend: PushNotificationButton renders in AdminDashboard header (top-right next to logout), visible label 'Wlacz push', data-testid='push-enable-btn' present. All 10 admin dashboard tabs render with badges intact (Brygadzisci:2, Elektronarzedzia:1, Akcesoria:1, Szalunki:1, Materialy:1). HoursTable.js line 909 confirmed: <tr style={{contentVisibility:'auto', containIntrinsicSize:'0 44px'}}>. Hook chain code-verified in equipment_orders.py:208 (send_push_to_admins on create), :337 (send_push on issue), warehouse.py:238, absences.py:118, equipment.py:397 - all wrapped in try/except so push failures cannot crash parent endpoints.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter25_push.py",
+    "/app/backend/tests/test_iter22_badges.py",
+    "/app/test_reports/pytest/pytest_iter25_push.xml",
+    "/app/test_reports/pytest/pytest_iter25_iter22_badges.xml"
+  ],
+  "action_items": [
+    "None blocking. Optional polish: send_push_to_admins iterates db.users {role:'admin'} per call - if there are many admins+events, this could cause N+1 mongo queries. Cache admin ids for 60s if hot path. Not urgent.",
+    "Optional: webpush() in send_push() is a SYNC HTTP call inside an async loop; for many subs (>50) it will block the event loop. Consider asyncio.to_thread or aiohttp-based push if scale grows. Current find().to_list(50) cap mitigates this."
+  ],
+  "critical_code_review_comments": [
+    "routes/push.py send_push uses `webpush(...)` which is synchronous - for users with many devices this will block the asyncio event loop briefly per call. Acceptable at current scale (<=50 subs/user), but consider asyncio.to_thread for production.",
+    "routes/push.py:191 deactivates by `endpoint` only (no user_id filter) in the 404/410 branch - if two users somehow share an endpoint (unlikely but possible after device handoff) this would deactivate both. Add user_id to the match filter.",
+    "routes/push.py:32-41 _vapid_claims/_vapid_private/_vapid_public read env on every call. Tiny overhead but fine; consider caching at module load if VAPID rotation is not desired.",
+    "routes/push.py send_push_to_admins iterates ALL admins synchronously in sequence; with N admins it makes N x M webpush calls serially. asyncio.gather would parallelize.",
+    "PushNotificationButton.js: no explicit handling for permission='denied' state on mount - user gets stuck if they previously declined. Consider showing a 'permission denied - reset in browser settings' hint."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter25_push.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (11/11 push tests + 6/6 iter22 regression)", "frontend": "100% (push button renders, dashboard tabs+badges intact, HoursTable contentVisibility style confirmed in source)"},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! via POST /api/auth/admin/login",
+  "seed_data_creation": "Inserted+deleted 2 TEST_ push_subscriptions docs during idempotency test, cleaned up via mongo.push_subscriptions.delete_many. Net zero seed change.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Push notification stack is fully wired and verified at the API boundary. To exercise actual push delivery in tests you would need to mock pywebpush.webpush() (it returns 201 on success, raises WebPushException on 404/410). For full E2E in Playwright, browser context must grant 'notifications' permission via browser_context.grant_permissions(['notifications']) and a real push service endpoint - not feasible in this preview. The test approach used here (verify idempotency in mongo + verify parent endpoints don't propagate push errors + verify sw.js contains handlers) is the practical maximum for an automated suite. ADMIN LOGIN UI continues to be flaky - bypass via POST /api/auth/admin/login + localStorage.setItem in page.add_init_script. urllib.request gets 403 from the preview proxy; use python `requests` library or fetch() inside page context (note: page.evaluate may fail DataCloneError if you embed Request objects - return plain JSON only).",
+  "rca of the issue": "N/A - all 3 requested features (web push, HoursTable virtualization via contentVisibility:auto, UptimeRobot is config-only) verified working. Push subscribe is idempotent (mongo count=1 after duplicate POST). Push test endpoint returns {sent:0,failed:0} when no subs - safe default. Hook-bearing endpoints wrap push calls in try/except so push failures never propagate. Service worker /sw.js bumped and serves push+notificationclick handlers. HoursTable <tr> has contentVisibility:auto inline style (line 909) - browser will skip rendering off-screen rows for >100 workers without changing visual output."
+}

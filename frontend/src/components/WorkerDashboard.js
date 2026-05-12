@@ -10,6 +10,7 @@ import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } 
 import { pl } from 'date-fns/locale';
 import { LocationsButton } from './LocationsButton';
 import { InventoryCheckModal } from './InventoryCheckModal';
+import PushNotificationButton from './PushNotificationButton';
 import { useCachedApi } from '../context/apiCache';
 
 // Lazy-load heavy equipment section. We trigger preload immediately on mount
@@ -488,6 +489,7 @@ export const WorkerDashboard = () => {
             </p>
           </div>
           <LocationsButton />
+          <PushNotificationButton compact />
           <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#334155]" data-testid="logout-btn">
             <LogOut className="h-5 w-5" />
           </Button>

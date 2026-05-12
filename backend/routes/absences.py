@@ -113,6 +113,18 @@ async def create_absence(token: str, absence: AbsenceCreate):
     await db.absences.insert_one(absence_doc)
     absence_doc.pop("_id", None)
 
+    # Push notification to admins (PWA) - foreman/worker requested an absence
+    try:
+        from routes.push import send_push_to_admins
+        await send_push_to_admins(
+            title="Nowa nieobecnosc",
+            body=f"{employee['full_name']}: {len(absence.dates)} dni",
+            url="/admin/dashboard",
+            tag=f"absence-{absence_id}",
+        )
+    except Exception:
+        pass
+
     return Absence(**absence_doc)
 
 

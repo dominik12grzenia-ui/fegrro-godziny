@@ -233,6 +233,18 @@ async def create_order(payload: OrderCreate, current_user: dict = Depends(get_cu
     except Exception as e:
         logger.warning(f"Email send failed for warehouse order {order['id']}: {e}")
 
+    # Push notification to admins (PWA)
+    try:
+        from routes.push import send_push_to_admins
+        await send_push_to_admins(
+            title="Nowe zamowienie materialow",
+            body=f"{user['full_name']}: " + summary[:120],
+            url="/admin/dashboard",
+            tag=f"warehouse-order-{order['id']}",
+        )
+    except Exception as e:
+        logger.warning(f"Push to admins failed: {e}")
+
     order.pop("_id", None)
     return order
 

@@ -203,6 +203,19 @@ async def create_equipment_order(payload: EquipmentOrderCreate,
     except Exception as e:
         print(f"Notification insert failed: {e}")
 
+    # Push notification to admins (PWA)
+    try:
+        from routes.push import send_push_to_admins
+        cat_label = CATEGORY_LABELS.get(order.get("category"), "Sprzet")
+        await send_push_to_admins(
+            title=f"Nowe zamowienie ({cat_label})",
+            body=f"{foreman_name}: {eq.get('name')} x{payload.quantity}",
+            url="/admin/dashboard",
+            tag=f"order-{order['id']}",
+        )
+    except Exception as e:
+        logger.warning(f"Push to admins failed: {e}")
+
     # Notify admin (email - non-blocking; errors logged but don't fail the request)
     try:
         await _send_equipment_order_email(order)
@@ -318,6 +331,22 @@ async def issue_equipment_order(order_id: str,
             "issued_at": datetime.now().isoformat(),
         }},
     )
+
+    # Push to foreman: their order was fulfilled (fully or partially)
+    try:
+        from routes.push import send_push
+        cat_label = CATEGORY_LABELS.get(order.get("category"), "Sprzet")
+        msg_status = "wydany w calosci" if new_status == "issued" else "wydany czesciowo"
+        await send_push(
+            user_id=order["foreman_id"],
+            title=f"Sprzet {msg_status}",
+            body=f"{order.get('equipment_name')} x{payload.quantity_issued} ({cat_label})",
+            url="/worker/dashboard",
+            tag=f"order-issued-{order_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push to foreman (issued) failed: {e}")
+
     return {"message": "Wydano", "status": new_status, "quantity_issued": new_issued}
 
 

@@ -903,7 +903,11 @@ export const HoursTable = () => {
                     const totalHours = Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned;
 
                     return (
-                      <tr key={employee.id} className="border-b border-[#334155]">
+                      <tr
+                        key={employee.id}
+                        className="border-b border-[#334155]"
+                        style={{ contentVisibility: 'auto', containIntrinsicSize: '0 44px' }}
+                      >
                         {/* Row number */}
                         <td className="border border-[#334155] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#1E293B] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                           {filteredEmployees.indexOf(employee) + 1}

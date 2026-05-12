@@ -392,6 +392,21 @@ async def request_transfer(payload: TransferCreate,
         {"to_foreman_name": to_user["full_name"], "quantity": payload.quantity,
          "transfer_id": transfer_id}
     )
+    # Push: notify the receiving foreman
+    try:
+        from routes.push import send_push
+        eq = await db.equipment.find_one({"id": payload.equipment_id}, {"_id": 0, "name": 1})
+        eq_name = (eq or {}).get("name", "Sprzet")
+        await send_push(
+            user_id=payload.to_foreman_id,
+            title="Otrzymujesz sprzet",
+            body=f"{from_user['full_name']}: {eq_name} x{payload.quantity}",
+            url="/worker/dashboard",
+            tag=f"transfer-{transfer_id}",
+            require_interaction=True,
+        )
+    except Exception:
+        pass
     return transfer
 
 
