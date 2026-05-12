@@ -9,6 +9,8 @@ Workflow:
 """
 import base64
 import io
+import logging
+import os
 from fastapi import APIRouter, HTTPException, Depends, Query
 from fastapi.responses import Response
 from datetime import datetime, timedelta
@@ -26,6 +28,57 @@ from database import db
 from auth import get_current_user, get_current_admin
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+async def _send_clothing_order_email(order: dict, employee_name: str, type_name: str):
+    """Send Resend email to admin when employee orders clothing. Non-blocking."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    to_addr = os.environ.get("WAREHOUSE_NOTIFY_EMAIL", "biuro@fegrro.pl")
+    from_addr = os.environ.get("RESEND_FROM_EMAIL", "noreply@fegrro.pl")
+    if not api_key:
+        logger.info("RESEND_API_KEY not configured - skipping clothing email")
+        return
+    try:
+        import httpx
+    except ImportError:
+        logger.warning("httpx not available - cannot send email")
+        return
+    subject = f"FeGrro: zamowienie ubran od {employee_name}"
+    html = f"""
+    <h2>Nowe zamowienie ubran</h2>
+    <p><strong>Pracownik:</strong> {employee_name}</p>
+    <p><strong>Pozycja:</strong> {type_name}</p>
+    <p><strong>Ilosc:</strong> {order.get('quantity')}</p>
+    <hr>
+    <p><strong>Wymiary pracownika:</strong></p>
+    <ul>
+      <li>Wzrost: {order.get('height') or '-'}</li>
+      <li>But: {order.get('shoe_size') or '-'}</li>
+      <li>Spodnie: {order.get('pants_size') or '-'}</li>
+      <li>Kurtka: {order.get('jacket_size') or '-'}</li>
+      <li>Obwod w pasie: {order.get('waist') or '-'}</li>
+      <li>Sylwetka: {order.get('body_type') or '-'}</li>
+    </ul>
+    <p><em>Otworz panel administratora aby wydac zamowienie.</em></p>
+    """
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_addr,
+                    "to": [to_addr],
+                    "reply_to": ["biuro@fegrro.pl"],
+                    "subject": subject,
+                    "html": html,
+                },
+            )
+            if resp.status_code >= 300:
+                logger.warning(f"Resend clothing email returned {resp.status_code}: {resp.text}")
+    except Exception as e:
+        logger.warning(f"Clothing email send failed: {e}")
 
 
 # ============= Schemas =============
@@ -640,6 +693,22 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
         await db.notifications.insert_one(notif)
     except Exception:
         pass
+
+    # Email to admin (Resend) + push to admins (PWA)
+    try:
+        await _send_clothing_order_email(order, employee["full_name"], ct["name"])
+    except Exception as e:
+        logger.warning(f"Email send failed for clothing order {order['id']}: {e}")
+    try:
+        from routes.push import send_push_to_admins
+        await send_push_to_admins(
+            title="Nowe zamowienie ubran",
+            body=f"{employee['full_name']}: {payload.quantity} x {ct['name']}",
+            url="/admin/dashboard",
+            tag=f"clothing-order-{order['id']}",
+        )
+    except Exception as e:
+        logger.warning(f"Push to admins (clothing) failed: {e}")
 
     order.pop("_id", None)
     return order

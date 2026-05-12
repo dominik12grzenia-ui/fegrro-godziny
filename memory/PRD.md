@@ -231,6 +231,15 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - **Korzysci**: Każdy tab admina jest teraz osobnym chunkiem JS - pierwszy render dashboardu jest szybszy bo nie pobiera kodu nieaktywnych tabów. Łatwiej w utrzymaniu (200 linii zamiast 1500).
 - **Testy**: backend 6/6 pytest pass (test_iter22_badges.py), frontend Playwright 10/10 zakładek renderuje, 4/4 badge'e poprawne, dataTestid integrity 100% zachowana, lint clean.
 
+## Completed (2026-02-13) - Iteration 26: Badge na Ubrania + email zamowien ubran
+- **Root cause emaili**: backend miał email tylko dla zamówień sprzętu i materiałów. **Ubrania w ogóle nie wysyłały maila** - tylko `db.notifications.insert_one()` bez Resend. Dlatego user nie dostawał maila gdy pracownik zamawiał kurtkę.
+- **Fix**: dodano `_send_clothing_order_email(order, employee_name, type_name)` w `/app/backend/routes/clothing.py`. Hookowane w `POST /public/clothing/{token}/order` zaraz po notification.
+- **Push admin push też dodany**: `send_push_to_admins` z `tag=clothing-order-{id}` na to samo zdarzenie.
+- **Reply-To**: dodano `reply_to: ["biuro@fegrro.pl"]` do wszystkich 3 emaili (sprzęt, materiały, ubrania) - admin może odpisać bezpośrednio z Outlooka.
+- **Badge na zakładce "Ubrania"**: dodano licznik (`stats.pendingClothing`) jak w innych zakładkach.
+- **Walidacja**: test E2E - `POST /api/public/clothing/{token}/order` → Resend zwrócił `delivered` na biuro@fegrro.pl (subject: "FeGrro: zamowienie ubran od Jan Testowy"). 
+- **Domena fegrro.pl**: status `verified` w Resend, DKIM aktywny. Jeśli mail nie dochodzi do skrzynki - **sprawdź folder Spam** i dodaj `noreply@fegrro.pl` + `biuro@fegrro.pl` do bezpiecznych nadawców.
+
 ## Completed (2026-02-13) - Iteration 25: Web Push notifications + HoursTable virt + UptimeRobot
 - **Web Push (VAPID + pywebpush)**: nowy modul `/app/backend/routes/push.py`. Endpointy: GET `/api/push/vapid-key`, POST `/api/push/subscribe` (idempotent), DELETE `/api/push/unsubscribe`, POST `/api/push/test`. Subskrypcje w kolekcji `push_subscriptions` (user_id, endpoint, p256dh, auth, is_active). Auto-deaktywacja przy 404/410 z push service. Klucze VAPID w `backend/.env`.
 - **Service Worker**: `/app/frontend/public/sw.js` (SW_VERSION bumped do `fegrro-push-2026-02-13-01`) - dodane `addEventListener('push')` z `showNotification()` + `addEventListener('notificationclick')` (focus/navigate na URL z payload).

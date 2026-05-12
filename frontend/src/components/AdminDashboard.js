@@ -413,7 +413,14 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">Ubrania</TabsTrigger>
+              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">
+                Ubrania
+                {stats.pendingClothing > 0 && (
+                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                    {stats.pendingClothing}
+                  </span>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>
             </TabsList>

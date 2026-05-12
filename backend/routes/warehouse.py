@@ -295,7 +295,8 @@ async def _send_order_email(order: dict):
             json={
                 "from": from_addr,
                 "to": [to_addr],
-                "subject": f"FeGrro: zamowienie od {order['foreman_name']}",
+                "reply_to": ["biuro@fegrro.pl"],
+                "subject": f"FeGrro: zamowienie materialow od {order['foreman_name']}",
                 "html": html,
             },
         )

@@ -77,6 +77,7 @@ async def _send_equipment_order_email(order: dict):
                 json={
                     "from": from_addr,
                     "to": [to_addr],
+                    "reply_to": ["biuro@fegrro.pl"],
                     "subject": f"FeGrro: zamowienie sprzetu od {order['foreman_name']}",
                     "html": html,
                 },
