@@ -156,6 +156,16 @@ export const ClothingAdmin = () => {
     }
   };
 
+  const toggleForwarded = async (order) => {
+    try {
+      const res = await api.post(`/clothing/orders/${order.id}/forward`);
+      toast.success(res.data.message);
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
   const deleteOrder = async (order) => {
     if (!window.confirm(`Usunac zamowienie ${order.employee_name} - ${order.clothing_type_name}?`)) return;
     try {
@@ -301,14 +311,25 @@ export const ClothingAdmin = () => {
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
                 <Shirt className="h-5 w-5 text-[#5F7151]" /> Zamówione ubrania
               </CardTitle>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button
                   size="sm"
                   onClick={() => exportOrdersPdf('ordered')}
                   className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
                   data-testid="export-orders-pdf-pending"
+                  title="Tylko nowe zamowienia, ktorych nie oznaczono jako 'Przekazane do realizacji'"
                 >
-                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (do wydania)
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF do dostawcy (nowe)
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => exportOrdersPdf('include_forwarded')}
+                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
+                  data-testid="export-orders-pdf-pending-and-forwarded"
+                  title="Wszystkie niewydane, lacznie z przekazanymi do realizacji"
+                >
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (niewydane)
                 </Button>
                 <Button
                   size="sm"
@@ -354,22 +375,43 @@ export const ClothingAdmin = () => {
                       <div className="space-y-1 mt-2">
                         {row.orders.map((o) => {
                           const issued = o.status === 'issued';
+                          const forwarded = o.status === 'forwarded';
+                          const bgClass = issued
+                            ? 'bg-[#2A384C]/50 opacity-70'
+                            : forwarded
+                              ? 'bg-[#7C5C00]/20 border border-[#E8B76A]/40'
+                              : 'bg-[#2A384C]';
                           return (
                             <div
                               key={o.id}
-                              className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded ${issued ? 'bg-[#2A384C]/50 opacity-70' : 'bg-[#2A384C]'}`}
+                              className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded ${bgClass}`}
                               data-testid={`order-${o.id}`}
                             >
                               <div className="flex-1 min-w-0">
-                                <span className={`font-semibold ${issued ? 'text-[#6B8E4E]' : 'text-[#E8B76A]'}`}>{o.clothing_type_name}</span>
+                                <span className={`font-semibold ${issued ? 'text-[#6B8E4E]' : forwarded ? 'text-[#E8B76A]' : 'text-[#E8B76A]'}`}>{o.clothing_type_name}</span>
                                 <span className="text-[#94A3B8] ml-2">x {o.quantity}</span>
                                 {issued && <span className="ml-2 text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase">Wydane</span>}
+                                {forwarded && <span className="ml-2 text-[10px] bg-[#E8B76A]/30 text-[#E8B76A] px-2 py-0.5 rounded font-semibold uppercase">Przekazane do realizacji</span>}
                                 <p className="text-[11px] text-[#64748B] mt-0.5">
                                   {new Date(o.created_at).toLocaleString('pl-PL')}
                                   {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
+                                  {forwarded && o.forwarded_at && ` · Przekazane: ${new Date(o.forwarded_at).toLocaleString('pl-PL')}`}
                                 </p>
                               </div>
                               <div className="flex gap-1 shrink-0">
+                                {!issued && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => toggleForwarded(o)}
+                                    className={forwarded
+                                      ? 'bg-[#475569] hover:bg-[#334155] text-[#CBD5E1] text-xs h-7'
+                                      : 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] text-xs h-7 font-bold'}
+                                    data-testid={`forward-order-${o.id}`}
+                                    title={forwarded ? 'Cofnij - wroci do listy do wydania i PDF' : 'Wykluczyc z PDF do dostawcy'}
+                                  >
+                                    {forwarded ? 'Cofnij realizacje' : 'Przekazane do realizacji'}
+                                  </Button>
+                                )}
                                 {!issued && (
                                   <Button size="sm" onClick={() => markIssued(o)} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7" data-testid={`issue-order-${o.id}`}>
                                     <Check className="h-3 w-3 mr-1" /> Wydane

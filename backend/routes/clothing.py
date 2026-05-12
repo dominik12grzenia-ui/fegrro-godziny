@@ -393,6 +393,38 @@ async def mark_order_issued(order_id: str,
     return {"message": "Oznaczono jako wydane"}
 
 
+@router.post("/clothing/orders/{order_id}/forward")
+async def mark_order_forwarded(order_id: str,
+                                current_user: dict = Depends(get_current_admin)):
+    """Mark as 'przekazane do realizacji' - sent to supplier/processor.
+
+    Toggle behavior: if already forwarded, this UN-forwards. This way one
+    button serves both directions ("zaznacz/odznacz przekazane do realizacji").
+    Orders with status='forwarded' are EXCLUDED from the default PDF export
+    so they don't appear on subsequent supplier lists.
+    """
+    order = await db.clothing_orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Zamowienie nie znalezione")
+    if order.get("status") == "issued":
+        raise HTTPException(status_code=400, detail="Zamowienie juz wydane - cofnij wydanie najpierw")
+    if order.get("status") == "forwarded":
+        await db.clothing_orders.update_one(
+            {"id": order_id},
+            {"$set": {"status": "ordered"}, "$unset": {"forwarded_at": "", "forwarded_by": ""}}
+        )
+        return {"message": "Cofnieto: zamowienie wraca do listy do wydania", "status": "ordered"}
+    await db.clothing_orders.update_one(
+        {"id": order_id},
+        {"$set": {
+            "status": "forwarded",
+            "forwarded_at": datetime.now().isoformat(),
+            "forwarded_by": current_user["sub"],
+        }}
+    )
+    return {"message": "Oznaczono jako przekazane do realizacji", "status": "forwarded"}
+
+
 @router.delete("/clothing/orders/{order_id}")
 async def delete_order(order_id: str,
                          current_user: dict = Depends(get_current_admin)):
@@ -759,16 +791,24 @@ def _decode_photo(photo: Optional[str]) -> Optional[io.BytesIO]:
 
 @router.get("/clothing/orders/pdf")
 async def export_orders_pdf(
-    status: str = Query("ordered", pattern="^(ordered|issued|all)$"),
+    status: str = Query("ordered", pattern="^(ordered|issued|all|include_forwarded)$"),
     current_user: dict = Depends(get_current_admin),
 ):
     """Generate a PDF with orders grouped by clothing type.
-    status=ordered (default) -> only pending orders; status=all -> everything.
-    Each row: Zdjecie | Nazwa | Ilosc | Lista pracownikow z wymiarami.
+
+    status=ordered (default) -> only NEW pending orders (NOT yet forwarded to
+                                supplier and NOT yet issued). Use this for the
+                                supplier order list to avoid duplicating items.
+    status=include_forwarded -> ordered + already forwarded (all not-yet-issued)
+    status=all                -> everything in any state
+    status=issued             -> only issued
     """
     # 1) Fetch orders
     query = {}
     if status == "ordered":
+        # Exclude both 'issued' AND 'forwarded' - these are already in flight
+        query = {"status": {"$nin": ["issued", "forwarded"]}}
+    elif status == "include_forwarded":
         query = {"status": {"$ne": "issued"}}
     elif status == "issued":
         query = {"status": "issued"}
