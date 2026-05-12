@@ -231,6 +231,18 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - **Korzysci**: Każdy tab admina jest teraz osobnym chunkiem JS - pierwszy render dashboardu jest szybszy bo nie pobiera kodu nieaktywnych tabów. Łatwiej w utrzymaniu (200 linii zamiast 1500).
 - **Testy**: backend 6/6 pytest pass (test_iter22_badges.py), frontend Playwright 10/10 zakładek renderuje, 4/4 badge'e poprawne, dataTestid integrity 100% zachowana, lint clean.
 
+## Completed (2026-02-13) - Iteration 24: Wydajność <1s ładowanie + tabów
+- **Cel**: Użytkownik zglosil ze aplikacja długo się włącza i przy klikaniu zakładki Elektronarzędzia ladowanie trwa za długo. Cel: <1s.
+- **AdminDashboard.js**: dodano agresywny prefetch 100ms po mount - 8 lazy chunków JS + 15 kluczy apiCache (electronics/accessories/formwork katalogi + assignments + history + defects + transfers + returns + inventory + scrapped + warehouse).
+- **EquipmentAdmin.js**: `fetchAll` przebudowany - zamiast 11 świeżych `api.get()` używa `prefetch()` z apiCache (60s TTL SWR). Pierwszy klik tabu = chunk juz pobrany + dane juz w cache → render natychmiastowy.
+- **Mutacje**: nowa funkcja `refreshAll()` wywoluje `invalidateCachePrefix('/equipment')` przed `fetchAll()`. Wszystkie 14 wywolan `fetchAll()` po mutacjach zamienione na `refreshAll()` - dane swieze po zapisie/usunieciu.
+- **apiCache.js polish**: `invalidateCache`/`invalidateCachePrefix` oznaczaja entry jako stale (ts=0) zamiast usuwac - subscribers dalej widza stare dane podczas background refresh = ZERO flicker.
+- **Pomiary** (Playwright/iteration_24.json):
+  - Initial dashboard load: 1298ms / 1444ms first-content ✅ (cel <2s)
+  - First Elektronarzedzia click: **906ms** ✅ (cel <1s)
+  - Akcesoria/Szalunki/Materialy switch: 108-294ms ✅ (cel <300ms)
+  - Mutacja widoczna po zapisie: 210ms ✅
+
 ## Completed (2026-02-13) - Iteration 22: Badge'e na wszystkich tabach + email diagnostyka
 - **Bug fix 1**: Tab "Materiały" w panelu admina nie pokazywał badge'a z liczbą oczekujących zamówień. Dodano `equipmentOrdersByCategory.warehouse` (z `/warehouse/orders` filter pending|partial) + `<TabsTrigger value="warehouse">` z badge'em.
 - **Bug fix 2**: Stare zamowienia z `category=null` (sprzed wprowadzenia kategorii) lądowały tylko w "Elektronarzędziach". Backend `GET /api/equipment/orders` enrichuje każde zamowienie aktualną `category` z `db.equipment` przez `equipment_id`. Backfill: 4 starsze sprzęty w bazie ustawione na `category=electronics`.

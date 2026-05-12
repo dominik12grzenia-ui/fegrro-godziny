@@ -75,18 +75,23 @@ export function prefetch(key) {
   return refresh(key).catch(() => {});
 }
 
-/** Force-invalidate a cache entry (e.g. after a mutation). */
+/** Force-invalidate a cache entry (e.g. after a mutation).
+ *  We MARK the entry as stale (ts=0) instead of deleting it so subscribers
+ *  keep displaying the stale data while the background refresh is in-flight.
+ *  This prevents a brief empty-state flicker after mutations.
+ */
 export function invalidateCache(key) {
-  cache.delete(key);
-  notify(key);
+  const entry = cache.get(key);
+  if (entry) cache.set(key, { ...entry, ts: 0, inflight: null });
+  else cache.delete(key);
 }
 
 /** Invalidate every key matching a prefix (e.g. '/equipment'). */
 export function invalidateCachePrefix(prefix) {
   for (const k of Array.from(cache.keys())) {
-    if (k.startsWith(prefix)) cache.delete(k);
-  }
-  for (const k of Array.from(subscribers.keys())) {
-    if (k.startsWith(prefix)) notify(k);
+    if (k.startsWith(prefix)) {
+      const entry = cache.get(k);
+      if (entry) cache.set(k, { ...entry, ts: 0, inflight: null });
+    }
   }
 }
