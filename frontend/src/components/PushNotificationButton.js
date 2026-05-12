@@ -87,6 +87,26 @@ export const PushNotificationButton = ({ compact = false }) => {
       return;
     }
     setBusy(true);
+
+    // Helper: full clean-slate subscribe. Always wipes any existing browser-level
+    // subscription first so the user never has to clear Chrome settings manually
+    // (the most common cause of "applicationServerKey must contain a valid P-256
+    // public key" is a leftover subscription from an old VAPID key).
+    const cleanSubscribe = async () => {
+      const reg = await navigator.serviceWorker.ready;
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        try { await existing.unsubscribe(); } catch (_e) { /* ignore */ }
+        // Give the browser a tick to release the old subscription internally.
+        await new Promise((r) => setTimeout(r, 200));
+      }
+      const appKey = urlBase64ToUint8Array(vapidKey);
+      return reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: appKey,
+      });
+    };
+
     try {
       const perm = await Notification.requestPermission();
       setPermission(perm);
@@ -94,18 +114,15 @@ export const PushNotificationButton = ({ compact = false }) => {
         toast.error('Pozwolenie odrzucone. Wlacz powiadomienia w ustawieniach przegladarki.');
         return;
       }
-      const reg = await navigator.serviceWorker.ready;
-      // If a stale subscription exists from a previous VAPID key, browser will
-      // refuse to subscribe with a different key. Unsubscribe first defensively.
-      const existing = await reg.pushManager.getSubscription();
-      if (existing) {
-        try { await existing.unsubscribe(); } catch (_e) { /* ignore */ }
+      // Try once; on failure (stale state, race, etc.) retry once after a delay.
+      let sub;
+      try {
+        sub = await cleanSubscribe();
+      } catch (firstErr) {
+        console.warn('Push subscribe attempt 1 failed, retrying:', firstErr);
+        await new Promise((r) => setTimeout(r, 500));
+        sub = await cleanSubscribe();
       }
-      const appKey = urlBase64ToUint8Array(vapidKey);
-      const sub = await reg.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: appKey,
-      });
       const json = sub.toJSON();
       await api.post('/push/subscribe', {
         endpoint: json.endpoint,
