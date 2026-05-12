@@ -96,33 +96,83 @@ async def warehouse_login(user_data: UserLogin, request: Request):
     }
 
 
+@router.get("/auth/warehouse/by-token/{public_token}", response_model=dict)
+async def warehouse_login_by_token(public_token: str, request: Request):
+    """One-click access for warehouse keeper via a permanent public token.
+
+    Admin shares this token-link with the magazynier; opening it grants
+    an instant JWT without password. Useful when the magazynier is a
+    trusted in-office person and a memorable login is unnecessary.
+    """
+    check_login_rate(request, "warehouse_token")
+    user = await db.users.find_one(
+        {"role": "warehouse", "public_token": public_token},
+        {"_id": 0}
+    )
+    if not user:
+        raise HTTPException(status_code=404, detail="Link nieprawidlowy lub uniewazniony")
+    token = create_access_token(data={
+        "sub": user["id"],
+        "role": "warehouse"
+    }, expires_delta=timedelta(days=365))
+    return {
+        "access_token": token,
+        "user_id": user["id"],
+        "full_name": user["full_name"],
+        "role": "warehouse",
+    }
+
+
+@router.post("/warehouse-keepers/{keeper_id}/rotate-token")
+async def rotate_warehouse_keeper_token(keeper_id: str, current_user: dict = Depends(get_current_admin)):
+    """Generate a new public_token, invalidating the old link."""
+    new_token = uuid.uuid4().hex
+    res = await db.users.update_one(
+        {"id": keeper_id, "role": "warehouse"},
+        {"$set": {"public_token": new_token, "token_rotated_at": datetime.now().isoformat()}}
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Magazynier nie znaleziony")
+    return {"public_token": new_token, "message": "Nowy link wygenerowany"}
+
+
 @router.get("/warehouse-keepers")
 async def list_warehouse_keepers(current_user: dict = Depends(get_current_admin)):
     """List all warehouse-keeper accounts for admin management."""
-    items = await db.users.find({"role": "warehouse"}, {"_id": 0, "id": 1, "full_name": 1}).to_list(50)
+    items = await db.users.find(
+        {"role": "warehouse"},
+        {"_id": 0, "id": 1, "full_name": 1, "public_token": 1}
+    ).to_list(50)
     return items
 
 
 @router.post("/warehouse-keepers")
 async def create_warehouse_keeper(body: dict, current_user: dict = Depends(get_current_admin)):
-    """Admin creates a magazynier account (or updates existing password)."""
+    """Admin creates a magazynier account (or updates existing password).
+    Always ensures a public_token exists for one-click link access.
+    """
     full_name = (body.get("full_name") or "").strip()
     password = (body.get("password") or "").strip()
-    if not full_name or not password:
-        raise HTTPException(status_code=400, detail="Podaj nazwe uzytkownika oraz haslo")
-    existing = await db.users.find_one({"full_name": full_name, "role": "warehouse"}, {"_id": 0, "id": 1})
+    if not full_name:
+        raise HTTPException(status_code=400, detail="Podaj nazwe uzytkownika")
+    existing = await db.users.find_one({"full_name": full_name, "role": "warehouse"}, {"_id": 0, "id": 1, "public_token": 1})
     if existing:
-        await db.users.update_one(
-            {"id": existing["id"]},
-            {"$set": {"hashed_password": get_password_hash(password), "updated_at": datetime.now().isoformat()}}
-        )
-        return {"id": existing["id"], "full_name": full_name, "message": "Haslo zaktualizowane"}
+        update = {"updated_at": datetime.now().isoformat()}
+        if password:
+            update["hashed_password"] = get_password_hash(password)
+        if not existing.get("public_token"):
+            update["public_token"] = uuid.uuid4().hex
+        await db.users.update_one({"id": existing["id"]}, {"$set": update})
+        return {"id": existing["id"], "full_name": full_name, "message": "Zaktualizowano"}
+    if not password:
+        raise HTTPException(status_code=400, detail="Podaj haslo dla nowego magazyniera")
     user_id = str(uuid.uuid4())
     await db.users.insert_one({
         "id": user_id,
         "full_name": full_name,
         "role": "warehouse",
         "hashed_password": get_password_hash(password),
+        "public_token": uuid.uuid4().hex,
         "status": "active",
         "created_at": datetime.now().isoformat(),
     })

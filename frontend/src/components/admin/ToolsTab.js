@@ -63,12 +63,12 @@ const WarehouseKeepersCard = () => {
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-[#94A3B8]">
-          Magazynier loguje się przez <code className="bg-[#1E293B] px-1.5 py-0.5 rounded text-[#E8B76A]">link magazyniera</code> powyżej.
+          Magazynier wchodzi przez <strong>jeden link</strong> (poniżej) - bez wpisywania hasła.
           Widzi sprzęt, materiały, ubrania i BHP - może wydawać i przypisywać. Każda akcja wymaga potwierdzenia.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Input
-            placeholder="Nazwa uzytkownika"
+            placeholder="Nazwa uzytkownika (np. Jan)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
@@ -76,7 +76,7 @@ const WarehouseKeepersCard = () => {
           />
           <Input
             type="password"
-            placeholder="Haslo"
+            placeholder="Haslo (zapasowe logowanie)"
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
             className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
@@ -94,24 +94,70 @@ const WarehouseKeepersCard = () => {
           <p className="text-xs text-[#64748B]">Brak kont magazynierów. Dodaj pierwsze powyżej.</p>
         ) : (
           <div className="space-y-2">
-            {keepers.map((k) => (
-              <div
-                key={k.id}
-                className="flex items-center justify-between bg-[#1E293B] rounded px-3 py-2 border border-[#334155]"
-                data-testid={`warehouse-keeper-${k.id}`}
-              >
-                <span className="text-[#CBD5E1] font-medium">{k.full_name}</span>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => remove(k.id, k.full_name)}
-                  className="text-[#E8836A] hover:bg-[#7F2D2D]/30"
-                  data-testid={`warehouse-keeper-delete-${k.id}`}
+            {keepers.map((k) => {
+              const url = k.public_token
+                ? `${window.location.origin}/magazynier/${k.public_token}`
+                : null;
+              return (
+                <div
+                  key={k.id}
+                  className="bg-[#1E293B] rounded p-3 border border-[#334155] space-y-2"
+                  data-testid={`warehouse-keeper-${k.id}`}
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            ))}
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-[#CBD5E1] font-medium">{k.full_name}</span>
+                    <div className="flex gap-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={async () => {
+                          if (!window.confirm(`Wygenerować nowy link dla ${k.full_name}? Stary natychmiast przestanie działać.`)) return;
+                          try {
+                            await api.post(`/warehouse-keepers/${k.id}/rotate-token`);
+                            toast.success('Nowy link wygenerowany');
+                            fetchKeepers();
+                          } catch (err) {
+                            toast.error(err.response?.data?.detail || 'Blad');
+                          }
+                        }}
+                        className="text-[#E8B76A] hover:bg-[#E8B76A]/20 text-xs h-7"
+                        data-testid={`warehouse-keeper-rotate-${k.id}`}
+                        title="Wygeneruj nowy link"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => remove(k.id, k.full_name)}
+                        className="text-[#E8836A] hover:bg-[#7F2D2D]/30 text-xs h-7"
+                        data-testid={`warehouse-keeper-delete-${k.id}`}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                  {url ? (
+                    <div className="flex gap-2 items-center">
+                      <code className="flex-1 text-xs text-[#94A3B8] bg-[#0F172A] p-2 rounded break-all">{url}</code>
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          navigator.clipboard.writeText(url);
+                          toast.success('Skopiowano link');
+                        }}
+                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                        data-testid={`warehouse-keeper-copy-${k.id}`}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[#64748B]">Brak linku - kliknij ikonę odświeżania aby wygenerować.</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
@@ -140,8 +186,7 @@ export const ToolsTab = ({
         <CardContent className="space-y-3">
           {[
             { label: 'Link administratora', path: '/login', testid: 'copy-admin-link' },
-            { label: 'Link brygadzisty / magazyniera', path: '/foreman', testid: 'copy-foreman-link' },
-            { label: 'Link magazyniera (panel z potwierdzeniami)', path: '/magazynier', testid: 'copy-warehouse-link' },
+            { label: 'Link brygadzisty', path: '/foreman', testid: 'copy-foreman-link' },
           ].map((item) => {
             const fullUrl = `${window.location.origin}${item.path}`;
             return (

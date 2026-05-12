@@ -11,6 +11,7 @@ import { ForemanEntry } from './components/ForemanEntry';
 import { WorkerDashboard } from './components/WorkerDashboard';
 import WarehouseLogin from './components/WarehouseLogin';
 import WarehouseDashboard from './components/WarehouseDashboard';
+import WarehouseTokenEntry from './components/WarehouseTokenEntry';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { Toaster } from './components/ui/sonner';
 import '@/App.css';
@@ -67,6 +68,7 @@ function AppRoutes() {
         <Route path="/foreman" element={<ForemanEntry />} />
         <Route path="/magazynier" element={<WarehouseLogin />} />
         <Route path="/magazynier/dashboard" element={<WarehouseDashboard />} />
+        <Route path="/magazynier/:token" element={<WarehouseTokenEntry />} />
         <Route path="/hours/:token" element={<PublicHours />} />
         
         {/* Worker Routes */}
