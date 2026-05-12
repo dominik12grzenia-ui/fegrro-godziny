@@ -179,7 +179,48 @@ async def get_all_absences(
         prefix = f"{year}-{month:02d}"
         absences = [a for a in absences if any(d.startswith(prefix) for d in a.get("dates", []))]
 
+    # Foreman view: hide absences they've already acknowledged ("Przyjąłem").
+    # Acknowledgements are stored per (foreman_id, absence_id) so dismissing
+    # syncs across devices and survives cache clears / impersonation.
+    if current_user.get("role") == "foreman":
+        ack_ids = set()
+        async for r in db.absence_acks.find(
+            {"foreman_id": current_user["sub"]}, {"_id": 0, "absence_id": 1}
+        ):
+            ack_ids.add(r.get("absence_id"))
+        absences = [a for a in absences if a.get("id") not in ack_ids]
+
     return absences
+
+
+@router.post("/absences/{absence_id}/ack")
+async def acknowledge_absence(
+    absence_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """Foreman dismisses ("Przyjąłem") an absence notification.
+
+    Idempotent on (foreman_id, absence_id). After this call the absence is
+    excluded from subsequent GET /absences responses for THIS foreman only,
+    on every device they sign in from.
+    """
+    if current_user.get("role") not in ("foreman", "admin"):
+        raise HTTPException(status_code=403, detail="Brak uprawnien")
+    # Verify absence exists
+    if not await db.absences.find_one({"id": absence_id}, {"_id": 1}):
+        raise HTTPException(status_code=404, detail="Nieobecnosc nie znaleziona")
+    foreman_id = current_user["sub"]
+    existing = await db.absence_acks.find_one(
+        {"foreman_id": foreman_id, "absence_id": absence_id}, {"_id": 1}
+    )
+    if not existing:
+        await db.absence_acks.insert_one({
+            "id": str(uuid.uuid4()),
+            "foreman_id": foreman_id,
+            "absence_id": absence_id,
+            "acknowledged_at": datetime.now().isoformat(),
+        })
+    return {"status": "acknowledged"}
 
 
 @router.put("/absences/{absence_id}/review")

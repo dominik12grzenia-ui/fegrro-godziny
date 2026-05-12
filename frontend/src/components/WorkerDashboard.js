@@ -585,10 +585,15 @@ export const WorkerDashboard = () => {
                   </div>
                 </div>
                 <button
-                  onClick={() => {
+                  onClick={async () => {
+                    // Optimistically remove from UI + record in localStorage as
+                    // safety net (offline / older cached version of backend).
                     const updated = [...dismissedAbsences, a.id];
                     setDismissedAbsences(updated);
                     localStorage.setItem('dismissed_absences', JSON.stringify(updated));
+                    // Persist on backend so the dismissal syncs across all
+                    // devices this foreman uses (was previously per-browser).
+                    try { await api.post(`/absences/${a.id}/ack`); } catch (_e) { /* ignore */ }
                   }}
                   className="shrink-0 px-3 py-1.5 bg-[#334155] text-[#CBD5E1] text-xs font-bold rounded hover:bg-[#5F7151] hover:text-white transition-colors"
                   data-testid={`dismiss-absence-${a.id}`}
