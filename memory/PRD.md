@@ -231,8 +231,20 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - **Korzysci**: Każdy tab admina jest teraz osobnym chunkiem JS - pierwszy render dashboardu jest szybszy bo nie pobiera kodu nieaktywnych tabów. Łatwiej w utrzymaniu (200 linii zamiast 1500).
 - **Testy**: backend 6/6 pytest pass (test_iter22_badges.py), frontend Playwright 10/10 zakładek renderuje, 4/4 badge'e poprawne, dataTestid integrity 100% zachowana, lint clean.
 
+## Completed (2026-02-13) - Iteration 25: Web Push notifications + HoursTable virt + UptimeRobot
+- **Web Push (VAPID + pywebpush)**: nowy modul `/app/backend/routes/push.py`. Endpointy: GET `/api/push/vapid-key`, POST `/api/push/subscribe` (idempotent), DELETE `/api/push/unsubscribe`, POST `/api/push/test`. Subskrypcje w kolekcji `push_subscriptions` (user_id, endpoint, p256dh, auth, is_active). Auto-deaktywacja przy 404/410 z push service. Klucze VAPID w `backend/.env`.
+- **Service Worker**: `/app/frontend/public/sw.js` (SW_VERSION bumped do `fegrro-push-2026-02-13-01`) - dodane `addEventListener('push')` z `showNotification()` + `addEventListener('notificationclick')` (focus/navigate na URL z payload).
+- **UI**: nowy `PushNotificationButton.js` w prawym gornym rogu paneli (admin + brygadzista). Wykrywa iOS w trybie niezainstalowanym i kieruje do "Dodaj do ekranu glownego". Stan: enable/disable/test.
+- **Hooks integracyjne** (zawsze w try/except - blad push NIE blokuje requestu):
+  - `equipment_orders.py`: send_push_to_admins przy create order; send_push do brygadzisty przy issue
+  - `warehouse.py`: send_push_to_admins przy create warehouse order
+  - `absences.py`: send_push_to_admins przy zgloszeniu nieobecnosci
+  - `equipment.py`: send_push do odbiorcy przy transfer_requested (require_interaction=true)
+- **HoursTable virtualization**: dodano `contentVisibility:'auto'` + `containIntrinsicSize:'0 44px'` na `<tr>` - przegladarka natywnie pomija renderowanie/layout wierszy poza ekranem. Dziala dla >100 pracownikow bez disrupcji logiki.
+- **UptimeRobot**: instrukcja w `/app/UPTIMEROBOT_SETUP.md` - user musi sam zalozyc konto i wskazac `https://twoj-backend.onrender.com/api/health` co 5 min.
+- **Testy**: backend 11/11 push tests + 6/6 iter22 regression PASS. Service worker zawiera handlery, frontend buttons renderuja, hooks zaintegrowane.
+
 ## Completed (2026-02-13) - Iteration 24: Wydajność <1s ładowanie + tabów
-- **Cel**: Użytkownik zglosil ze aplikacja długo się włącza i przy klikaniu zakładki Elektronarzędzia ladowanie trwa za długo. Cel: <1s.
 - **AdminDashboard.js**: dodano agresywny prefetch 100ms po mount - 8 lazy chunków JS + 15 kluczy apiCache (electronics/accessories/formwork katalogi + assignments + history + defects + transfers + returns + inventory + scrapped + warehouse).
 - **EquipmentAdmin.js**: `fetchAll` przebudowany - zamiast 11 świeżych `api.get()` używa `prefetch()` z apiCache (60s TTL SWR). Pierwszy klik tabu = chunk juz pobrany + dane juz w cache → render natychmiastowy.
 - **Mutacje**: nowa funkcja `refreshAll()` wywoluje `invalidateCachePrefix('/equipment')` przed `fetchAll()`. Wszystkie 14 wywolan `fetchAll()` po mutacjach zamienione na `refreshAll()` - dane swieze po zapisie/usunieciu.

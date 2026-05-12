@@ -190,7 +190,7 @@ async def send_push(
             logger.warning(f"push fail (status={status}): {e}")
             if status in (404, 410):
                 await db.push_subscriptions.update_one(
-                    {"endpoint": sub["endpoint"]},
+                    {"endpoint": sub["endpoint"], "user_id": user_id},
                     {"$set": {"is_active": False, "deactivated_at": datetime.now().isoformat()}},
                 )
         except Exception as e:
