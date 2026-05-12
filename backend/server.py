@@ -26,6 +26,7 @@ from routes.advances import router as advances_router
 from routes.penalties import router as penalties_router
 from routes.reports import router as reports_router
 from routes.sync import router as sync_router, cron_write_hours_previous_month, cron_daily_sync, set_scheduler
+from routes.daily_summary import cron_daily_summary
 from routes.public import router as public_router
 from routes.equipment import router as equipment_router
 from routes.equipment_orders import router as equipment_orders_router
@@ -198,9 +199,16 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=3600
     )
+    scheduler.add_job(
+        cron_daily_summary,
+        CronTrigger(hour=18, minute=0),
+        id="daily_summary_email",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
     scheduler.start()
     set_scheduler(scheduler)
-    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00")
+    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00")
 
 
 @app.on_event("shutdown")

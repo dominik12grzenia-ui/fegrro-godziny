@@ -231,6 +231,18 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - **Korzysci**: Każdy tab admina jest teraz osobnym chunkiem JS - pierwszy render dashboardu jest szybszy bo nie pobiera kodu nieaktywnych tabów. Łatwiej w utrzymaniu (200 linii zamiast 1500).
 - **Testy**: backend 6/6 pytest pass (test_iter22_badges.py), frontend Playwright 10/10 zakładek renderuje, 4/4 badge'e poprawne, dataTestid integrity 100% zachowana, lint clean.
 
+## Completed (2026-02-13) - Iteration 27: Codzienne podsumowanie mailem o 18:00
+- **Nowy modul `/app/backend/routes/daily_summary.py`** (~190 linii):
+  - `_collect_daily_summary()` agreguje co dzisiaj: nowe zamowienia sprzetu (per kategoria), materialow, ubran, nieobecnosci + pending taski admina (do zrobienia)
+  - `_render_html()` produkuje czytelny HTML z naglowkami i listami
+  - `_send_summary_email()` wysyla przez Resend z reply_to biuro@fegrro.pl
+  - `cron_daily_summary()` entrypoint dla APScheduler + zapis kopii do `daily_summaries` w DB
+- **APScheduler**: nowy job `daily_summary_email` o **18:00 codziennie** (cron `hour=18, minute=0`).
+- **Endpoint reczny**: `POST /api/cron/daily-summary` (admin) - dla testu / wymus.
+- **UI**: w panelu Narzedzia → karta "Automatyczny zapis (Cron)" przybyl przycisk "Wyslij podsumowanie teraz" (data-testid=cron-summary-btn).
+- **Opcjonalne wyciszenie**: `SKIP_EMPTY_DAILY=true` w env -> mail nie wysylany w dniach bez zadnej aktywnosci.
+- **Test E2E**: `curl POST /api/cron/daily-summary` zwrocil `{sent:true, total_today:2}`. Resend potwierdza `delivered` na biuro@fegrro.pl (subject: "FeGrro - podsumowanie 2026-05-12"). Cron status pokazuje `next_run: 2026-05-12T18:00:00`.
+
 ## Completed (2026-02-13) - Iteration 26: Badge na Ubrania + email zamowien ubran
 - **Root cause emaili**: backend miał email tylko dla zamówień sprzętu i materiałów. **Ubrania w ogóle nie wysyłały maila** - tylko `db.notifications.insert_one()` bez Resend. Dlatego user nie dostawał maila gdy pracownik zamawiał kurtkę.
 - **Fix**: dodano `_send_clothing_order_email(order, employee_name, type_name)` w `/app/backend/routes/clothing.py`. Hookowane w `POST /public/clothing/{token}/order` zaraz po notification.

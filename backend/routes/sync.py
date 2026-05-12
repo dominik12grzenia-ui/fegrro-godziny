@@ -528,7 +528,22 @@ async def get_cron_status(current_user: dict = Depends(get_current_admin)):
                 "description": "Codzienny sync pracownikow i budow (06:00)",
                 "next_run": daily_job.next_run_time.isoformat() if daily_job.next_run_time else None
             })
+        summary_job = _scheduler_ref.get_job("daily_summary_email")
+        if summary_job:
+            jobs.append({
+                "job_id": "daily_summary_email",
+                "description": "Podsumowanie dnia (email do biuro@fegrro.pl o 18:00)",
+                "next_run": summary_job.next_run_time.isoformat() if summary_job.next_run_time else None
+            })
     return {"active": len(jobs) > 0, "jobs": jobs}
+
+
+@router.post("/cron/daily-summary")
+async def trigger_daily_summary(current_user: dict = Depends(get_current_admin)):
+    """Reczne wywolanie codziennego podsumowania (dla testu/wymus)."""
+    from routes.daily_summary import cron_daily_summary
+    result = await cron_daily_summary()
+    return {"message": "Podsumowanie uruchomione", "result": result}
 
 
 @router.post("/cron/trigger")

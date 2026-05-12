@@ -458,7 +458,8 @@ export const ToolsTab = ({
           <p className="text-sm text-[#94A3B8] mb-4">
             Harmonogram automatyczny:<br/>
             - Codzienny sync pracownikow i budow z Excela o 06:00<br/>
-            - Zapis godzin do Excela 2. dnia kazdego miesiaca o 02:00
+            - Zapis godzin do Excela 2. dnia kazdego miesiaca o 02:00<br/>
+            - Podsumowanie dnia (email do biuro@fegrro.pl) o 18:00
           </p>
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 flex-wrap">
             <Button
@@ -519,6 +520,21 @@ export const ToolsTab = ({
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Wymus sync pracownikow
+            </Button>
+            <Button
+              onClick={async () => {
+                try {
+                  const res = await api.post('/cron/daily-summary');
+                  toast.success(`Podsumowanie wyslane (${res.data.result?.total_today ?? 0} zamowien dzis)`);
+                } catch (err) {
+                  toast.error(err.response?.data?.detail || 'Blad wysylki podsumowania');
+                }
+              }}
+              className="bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
+              data-testid="cron-summary-btn"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Wyslij podsumowanie teraz
             </Button>
           </div>
         </CardContent>
