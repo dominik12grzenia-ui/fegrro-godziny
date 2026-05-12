@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { api } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Input } from '../ui/input';
 import {
   RefreshCw, Download, FileText, AlertTriangle, Link as LinkIcon,
-  Copy, ExternalLink, Clock,
+  Copy, ExternalLink, Clock, Warehouse, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -12,6 +13,111 @@ const MONTH_NAMES = [
   'Styczen', 'Luty', 'Marzec', 'Kwiecien', 'Maj', 'Czerwiec',
   'Lipiec', 'Sierpien', 'Wrzesien', 'Pazdziernik', 'Listopad', 'Grudzien',
 ];
+
+const WarehouseKeepersCard = () => {
+  const [keepers, setKeepers] = useState([]);
+  const [name, setName] = useState('');
+  const [pwd, setPwd] = useState('');
+
+  const fetchKeepers = async () => {
+    try {
+      const r = await api.get('/warehouse-keepers');
+      setKeepers(r.data || []);
+    } catch (_e) { /* ignore */ }
+  };
+  useEffect(() => { fetchKeepers(); }, []);
+
+  const create = async () => {
+    if (!name.trim() || !pwd || pwd.length < 4) {
+      toast.error('Podaj nazwe i haslo (min. 4 znaki)');
+      return;
+    }
+    try {
+      const r = await api.post('/warehouse-keepers', { full_name: name.trim(), password: pwd });
+      toast.success(r.data.message);
+      setName(''); setPwd('');
+      fetchKeepers();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const remove = async (id, n) => {
+    if (!window.confirm(`Usunac konto magazyniera "${n}"?`)) return;
+    try {
+      await api.delete(`/warehouse-keepers/${id}`);
+      toast.success('Usunieto');
+      fetchKeepers();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  return (
+    <Card className="bg-[#2A384C] border-[#334155]" data-testid="warehouse-keepers-card">
+      <CardHeader>
+        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <Warehouse className="h-5 w-5 text-[#E8B76A]" />
+          Konta magazynierów (panel /magazynier)
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-[#94A3B8]">
+          Magazynier loguje się przez <code className="bg-[#1E293B] px-1.5 py-0.5 rounded text-[#E8B76A]">link magazyniera</code> powyżej.
+          Widzi sprzęt, materiały, ubrania i BHP - może wydawać i przypisywać. Każda akcja wymaga potwierdzenia.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <Input
+            placeholder="Nazwa uzytkownika"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+            data-testid="warehouse-keeper-name-input"
+          />
+          <Input
+            type="password"
+            placeholder="Haslo"
+            value={pwd}
+            onChange={(e) => setPwd(e.target.value)}
+            className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+            data-testid="warehouse-keeper-password-input"
+          />
+          <Button
+            onClick={create}
+            className="bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
+            data-testid="warehouse-keeper-create-btn"
+          >
+            Dodaj / zmień hasło
+          </Button>
+        </div>
+        {keepers.length === 0 ? (
+          <p className="text-xs text-[#64748B]">Brak kont magazynierów. Dodaj pierwsze powyżej.</p>
+        ) : (
+          <div className="space-y-2">
+            {keepers.map((k) => (
+              <div
+                key={k.id}
+                className="flex items-center justify-between bg-[#1E293B] rounded px-3 py-2 border border-[#334155]"
+                data-testid={`warehouse-keeper-${k.id}`}
+              >
+                <span className="text-[#CBD5E1] font-medium">{k.full_name}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => remove(k.id, k.full_name)}
+                  className="text-[#E8836A] hover:bg-[#7F2D2D]/30"
+                  data-testid={`warehouse-keeper-delete-${k.id}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 export const ToolsTab = ({
   syncing, setSyncing,
@@ -35,6 +141,7 @@ export const ToolsTab = ({
           {[
             { label: 'Link administratora', path: '/login', testid: 'copy-admin-link' },
             { label: 'Link brygadzisty / magazyniera', path: '/foreman', testid: 'copy-foreman-link' },
+            { label: 'Link magazyniera (panel z potwierdzeniami)', path: '/magazynier', testid: 'copy-warehouse-link' },
           ].map((item) => {
             const fullUrl = `${window.location.origin}${item.path}`;
             return (
@@ -62,6 +169,8 @@ export const ToolsTab = ({
           </p>
         </CardContent>
       </Card>
+
+      <WarehouseKeepersCard />
 
       {/* Rotate worker tokens */}
       <Card className="bg-[#2A384C] border-[#334155]">

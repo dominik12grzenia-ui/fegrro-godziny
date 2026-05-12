@@ -11,7 +11,7 @@ from datetime import datetime
 import uuid
 
 from database import db
-from auth import get_current_user, get_current_admin
+from auth import get_current_user, get_current_admin, get_current_admin_or_warehouse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -263,7 +263,7 @@ class IssueOrderPayload(BaseModel):
 @router.post("/equipment/orders/{order_id}/issue")
 async def issue_equipment_order(order_id: str,
                                  payload: IssueOrderPayload,
-                                 current_user: dict = Depends(get_current_admin)):
+                                 current_user: dict = Depends(get_current_admin_or_warehouse)):
     """Admin issues (fulfills) equipment order fully or partially.
     Automatically adds quantity to foreman's equipment_assignments.
     """

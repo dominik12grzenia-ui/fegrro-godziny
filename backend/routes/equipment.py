@@ -11,7 +11,7 @@ from typing import Optional, List
 import uuid
 
 from database import db
-from auth import get_current_user, get_current_admin
+from auth import get_current_user, get_current_admin, get_current_admin_or_warehouse
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -241,7 +241,7 @@ async def list_all_assignments(current_user: dict = Depends(get_current_user)):
 @router.post("/equipment/assign")
 async def set_assignment(payload: AssignmentSet,
                           equipment_id: str,
-                          current_user: dict = Depends(get_current_admin)):
+                          current_user: dict = Depends(get_current_admin_or_warehouse)):
     """Set the quantity assigned to a specific foreman for an equipment.
     quantity=0 removes the assignment.
     """
@@ -435,7 +435,7 @@ async def my_pending_transfers(current_user: dict = Depends(get_current_user)):
 
 
 @router.get("/equipment/transfers/all")
-async def all_transfers(current_user: dict = Depends(get_current_admin)):
+async def all_transfers(current_user: dict = Depends(get_current_admin_or_warehouse)):
     items = await db.equipment_transfers.find({}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return items
 

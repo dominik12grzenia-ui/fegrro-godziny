@@ -79,3 +79,18 @@ async def get_current_admin(current_user: dict = Depends(get_current_user)):
             detail="Not enough permissions",
         )
     return current_user
+
+
+async def get_current_admin_or_warehouse(current_user: dict = Depends(get_current_user)):
+    """Admin OR warehouse keeper. Both can issue equipment, materials, clothing.
+
+    Warehouse keeper is a limited-admin role: cannot create users, sites,
+    employees, or change settings - but CAN view/issue all stock items.
+    Used on equipment/warehouse/clothing/bhp mutation endpoints.
+    """
+    if current_user.get("role") not in ("admin", "warehouse"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+    return current_user

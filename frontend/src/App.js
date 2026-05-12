@@ -9,6 +9,8 @@ import { PublicHours } from './components/PublicHours';
 import { WorkerEntry } from './components/WorkerEntry';
 import { ForemanEntry } from './components/ForemanEntry';
 import { WorkerDashboard } from './components/WorkerDashboard';
+import WarehouseLogin from './components/WarehouseLogin';
+import WarehouseDashboard from './components/WarehouseDashboard';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 import { Toaster } from './components/ui/sonner';
 import '@/App.css';
@@ -63,6 +65,8 @@ function AppRoutes() {
         <Route path="/login" element={<AdminLogin />} />
         <Route path="/worker-entry" element={<WorkerEntry />} />
         <Route path="/foreman" element={<ForemanEntry />} />
+        <Route path="/magazynier" element={<WarehouseLogin />} />
+        <Route path="/magazynier/dashboard" element={<WarehouseDashboard />} />
         <Route path="/hours/:token" element={<PublicHours />} />
         
         {/* Worker Routes */}

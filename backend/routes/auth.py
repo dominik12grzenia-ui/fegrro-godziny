@@ -66,6 +66,77 @@ async def foreman_login(user_data: UserLogin, request: Request):
     }
 
 
+@router.post("/auth/warehouse/login", response_model=dict)
+async def warehouse_login(user_data: UserLogin, request: Request):
+    """Login for warehouse keeper (magazynier). Username + password.
+
+    Warehouse keepers can view & issue all stock (equipment, materials,
+    clothing, BHP) but cannot manage users, sites, or settings.
+    """
+    check_login_rate(request, "warehouse_login")
+    name = (user_data.email or "").strip()
+    password = user_data.password or ""
+    if not name or not password:
+        raise HTTPException(status_code=400, detail="Podaj nazwe uzytkownika i haslo")
+    user = await db.users.find_one({"full_name": name, "role": "warehouse"})
+    if not user or not user.get("hashed_password"):
+        raise HTTPException(status_code=401, detail="Nieprawidlowe dane logowania")
+    if not verify_password(password, user["hashed_password"]):
+        raise HTTPException(status_code=401, detail="Nieprawidlowe dane logowania")
+    token = create_access_token(data={
+        "sub": user["id"],
+        "role": "warehouse"
+    }, expires_delta=timedelta(days=365))
+    return {
+        "access_token": token,
+        "user_id": user["id"],
+        "full_name": user["full_name"],
+        "role": "warehouse",
+        "message": "Zalogowano"
+    }
+
+
+@router.get("/warehouse-keepers")
+async def list_warehouse_keepers(current_user: dict = Depends(get_current_admin)):
+    """List all warehouse-keeper accounts for admin management."""
+    items = await db.users.find({"role": "warehouse"}, {"_id": 0, "id": 1, "full_name": 1}).to_list(50)
+    return items
+
+
+@router.post("/warehouse-keepers")
+async def create_warehouse_keeper(body: dict, current_user: dict = Depends(get_current_admin)):
+    """Admin creates a magazynier account (or updates existing password)."""
+    full_name = (body.get("full_name") or "").strip()
+    password = (body.get("password") or "").strip()
+    if not full_name or not password:
+        raise HTTPException(status_code=400, detail="Podaj nazwe uzytkownika oraz haslo")
+    existing = await db.users.find_one({"full_name": full_name, "role": "warehouse"}, {"_id": 0, "id": 1})
+    if existing:
+        await db.users.update_one(
+            {"id": existing["id"]},
+            {"$set": {"hashed_password": get_password_hash(password), "updated_at": datetime.now().isoformat()}}
+        )
+        return {"id": existing["id"], "full_name": full_name, "message": "Haslo zaktualizowane"}
+    user_id = str(uuid.uuid4())
+    await db.users.insert_one({
+        "id": user_id,
+        "full_name": full_name,
+        "role": "warehouse",
+        "hashed_password": get_password_hash(password),
+        "status": "active",
+        "created_at": datetime.now().isoformat(),
+    })
+    return {"id": user_id, "full_name": full_name, "message": "Magazynier dodany"}
+
+
+@router.delete("/warehouse-keepers/{keeper_id}")
+async def delete_warehouse_keeper(keeper_id: str, current_user: dict = Depends(get_current_admin)):
+    res = await db.users.delete_one({"id": keeper_id, "role": "warehouse"})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Magazynier nie znaleziony")
+    return {"message": "Magazynier usuniety"}
+
+
 @router.post("/foremen")
 async def admin_create_foreman(
     body: dict,

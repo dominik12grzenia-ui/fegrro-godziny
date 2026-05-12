@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 import uuid
 
 from database import db
-from auth import get_current_admin, get_current_user
+from auth import get_current_admin, get_current_user, get_current_admin_or_warehouse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -327,7 +327,7 @@ async def list_orders(
 async def update_order_status(
     order_id: str,
     payload: OrderStatusUpdate,
-    current_user: dict = Depends(get_current_admin),
+    current_user: dict = Depends(get_current_admin_or_warehouse),
 ):
     if payload.status not in ("pending", "issued", "rejected"):
         raise HTTPException(status_code=400, detail="Nieprawidlowy status")
@@ -392,7 +392,7 @@ class ItemIssuePayload(BaseModel):
 async def issue_single_item(
     order_id: str, material_id: str,
     payload: ItemIssuePayload,
-    current_user: dict = Depends(get_current_admin),
+    current_user: dict = Depends(get_current_admin_or_warehouse),
 ):
     """Mark a single item in an order as issued. Deducts stock; updates order
     overall status to 'issued' once all items are processed (issued or removed)."""

@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 import uuid
 
 from database import db
-from auth import get_current_admin
+from auth import get_current_admin, get_current_admin_or_warehouse
 
 router = APIRouter()
 
@@ -75,7 +75,7 @@ class BhpIssuanceUpdate(BaseModel):
 
 # ============= Items CRUD =============
 @router.get("/bhp/items")
-async def list_items(current_user: dict = Depends(get_current_admin)):
+async def list_items(current_user: dict = Depends(get_current_admin_or_warehouse)):
     items = await db.bhp_items.find({}, {"_id": 0}).sort("name", 1).to_list(500)
     return items
 
@@ -123,7 +123,7 @@ async def delete_item(item_id: str,
 
 # ============= Issuances =============
 @router.get("/bhp/issuances")
-async def list_issuances(current_user: dict = Depends(get_current_admin)):
+async def list_issuances(current_user: dict = Depends(get_current_admin_or_warehouse)):
     """Returns flat list of issuances. Admin UI groups them by item or by employee."""
     items = await db.bhp_issuances.find({}, {"_id": 0}).sort("issued_at", -1).to_list(5000)
     return items
@@ -131,7 +131,7 @@ async def list_issuances(current_user: dict = Depends(get_current_admin)):
 
 @router.post("/bhp/issuances")
 async def create_issuance(payload: BhpIssuanceCreate,
-                           current_user: dict = Depends(get_current_admin)):
+                           current_user: dict = Depends(get_current_admin_or_warehouse)):
     emp = await db.employees.find_one({"id": payload.employee_id}, {"_id": 0, "id": 1, "full_name": 1})
     if not emp:
         raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
