@@ -58,10 +58,35 @@ class PushSubscribePayload(BaseModel):
 async def get_vapid_public_key():
     """Return the VAPID public key (safe to expose).
     Frontend uses this to subscribe to PushManager.
+
+    Validates that the key looks like a real P-256 uncompressed point so
+    a misconfigured env var produces an actionable 500 instead of a cryptic
+    browser error.
     """
-    pub = _vapid_public()
+    import base64
+    pub = (_vapid_public() or "").strip().strip('"').strip("'")
     if not pub:
-        raise HTTPException(status_code=500, detail="VAPID_PUBLIC_KEY not configured")
+        raise HTTPException(
+            status_code=500,
+            detail="VAPID_PUBLIC_KEY nie skonfigurowany. Ustaw w Render -> Environment.",
+        )
+    try:
+        padded = pub + "=" * (-len(pub) % 4)
+        raw = base64.urlsafe_b64decode(padded)
+    except Exception:
+        raise HTTPException(
+            status_code=500,
+            detail="VAPID_PUBLIC_KEY ma zly format base64. Upewnij sie ze skopiowales caly klucz bez cudzyslowow.",
+        )
+    if len(raw) != 65 or raw[0] != 0x04:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                f"VAPID_PUBLIC_KEY ma zla dlugosc: {len(raw)} bajtow, "
+                f"oczekiwano 65. Skopiuj caly klucz (87 znakow base64url) "
+                f"bez cudzyslowow ani spacji."
+            ),
+        )
     return {"public_key": pub}
 
 
