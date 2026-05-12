@@ -6,16 +6,18 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn server:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.10
       - key: MONGO_URL
         value: mongodb+srv://fegrro:FeGrro2026db@cluster0.ckrpzlh.mongodb.net/?appName=Cluster0
       - key: DB_NAME
         value: fegrro_db
-      - key: JWT_SECRET
-        value: fegrro-secret-key-change-me-2026
+      - key: JWT_SECRET_KEY
+        sync: false
       - key: ADMIN_EMAIL
         value: admin@fegrro.pl
       - key: ADMIN_PASSWORD
-        value: Admin123!
+        sync: false
       - key: CORS_ORIGINS
         value: https://fegrro-godziny.vercel.app,https://godziny.fegrro.pl
       - key: AZURE_CLIENT_ID
@@ -32,3 +34,15 @@ services:
         value: Archiwizacja
       - key: GOOGLE_MAPS_API_KEY
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        value: noreply@fegrro.pl
+      - key: WAREHOUSE_NOTIFY_EMAIL
+        value: biuro@fegrro.pl
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:biuro@fegrro.pl
