@@ -4,13 +4,22 @@ import { Button } from './ui/button';
 import { Bell, BellOff, BellRing } from 'lucide-react';
 import { toast } from 'sonner';
 
-/** Base64-URL → Uint8Array (required by PushManager.subscribe applicationServerKey). */
+/** Base64-URL → Uint8Array (required by PushManager.subscribe applicationServerKey).
+ *  Validates that the result is a valid uncompressed P-256 point (65 bytes, 0x04 prefix).
+ */
 function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  // Strip whitespace/newlines just in case (env vars sometimes carry trailing \n)
+  const clean = String(base64String).replace(/\s+/g, '');
+  const padding = '='.repeat((4 - (clean.length % 4)) % 4);
+  const base64 = (clean + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = window.atob(base64);
   const out = new Uint8Array(raw.length);
   for (let i = 0; i < raw.length; i += 1) out[i] = raw.charCodeAt(i);
+  if (out.length !== 65 || out[0] !== 0x04) {
+    throw new Error(
+      `Klucz VAPID nieprawidlowy: oczekiwano 65 bajtow z prefiksem 0x04, otrzymano ${out.length} bajtow (0x${(out[0]||0).toString(16)}).`
+    );
+  }
   return out;
 }
 
@@ -86,13 +95,17 @@ export const PushNotificationButton = ({ compact = false }) => {
         return;
       }
       const reg = await navigator.serviceWorker.ready;
-      let sub = await reg.pushManager.getSubscription();
-      if (!sub) {
-        sub = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidKey),
-        });
+      // If a stale subscription exists from a previous VAPID key, browser will
+      // refuse to subscribe with a different key. Unsubscribe first defensively.
+      const existing = await reg.pushManager.getSubscription();
+      if (existing) {
+        try { await existing.unsubscribe(); } catch (_e) { /* ignore */ }
       }
+      const appKey = urlBase64ToUint8Array(vapidKey);
+      const sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: appKey,
+      });
       const json = sub.toJSON();
       await api.post('/push/subscribe', {
         endpoint: json.endpoint,

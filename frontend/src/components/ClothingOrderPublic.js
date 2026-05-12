@@ -83,7 +83,28 @@ export const ClothingOrderPublic = ({ token }) => {
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    // Skeleton so user sees the section immediately while data is fetched.
+    // This eliminates the "blank space then clothing card appears" flash.
+    return (
+      <Card className="mt-4 bg-[#2A384C] border-[#334155]" data-testid="clothing-skeleton">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <Shirt className="h-4 w-4 text-[#5F7151]" />
+            Ubrania robocze
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="h-24 bg-[#1E293B] rounded animate-pulse" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i} className="h-32 bg-[#1E293B] rounded animate-pulse" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
   if (types.length === 0) return null;
 
   const profileComplete = !!(profile.shoe_size && profile.height && profile.body_type);
