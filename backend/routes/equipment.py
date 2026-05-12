@@ -294,6 +294,20 @@ async def set_assignment(payload: AssignmentSet,
         {"foreman_id": payload.foreman_id, "foreman_name": foreman["full_name"],
          "quantity": payload.quantity}
     )
+    # Push to the foreman so they know equipment is now assigned to them
+    if payload.quantity > 0:
+        try:
+            from routes.push import send_push
+            await send_push(
+                user_id=payload.foreman_id,
+                title="Sprzet gotowy do odbioru",
+                body=f"{eq.get('name','Sprzet')} x{payload.quantity}",
+                url="/worker/dashboard",
+                tag=f"assign-{equipment_id}",
+                require_interaction=True,
+            )
+        except Exception:
+            pass
     return {"message": "Przypisanie zaktualizowane"}
 
 

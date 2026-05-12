@@ -441,6 +441,24 @@ async def issue_single_item(
         set_doc["issued_at"] = datetime.now().isoformat()
         set_doc["issued_by"] = current_user["sub"]
     await db.warehouse_orders.update_one({"id": order_id}, {"$set": set_doc})
+    # Push to foreman: item / order ready for pickup
+    try:
+        from routes.push import send_push
+        body_text = (
+            f"{target['material_name']} {issued_q} {target.get('unit','szt.')}"
+            if not all_done
+            else f"Zamowienie wydane w calosci ({len(items)} pozycji)"
+        )
+        await send_push(
+            user_id=order["foreman_id"],
+            title="Material gotowy do odbioru",
+            body=body_text,
+            url="/worker/dashboard",
+            tag=f"wh-issued-{order_id}",
+            require_interaction=True,
+        )
+    except Exception:
+        pass
     return await db.warehouse_orders.find_one({"id": order_id}, {"_id": 0})
 
 
