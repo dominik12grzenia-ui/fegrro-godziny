@@ -390,6 +390,21 @@ async def mark_order_issued(order_id: str,
             "issued_by": current_user["sub"],
         }}
     )
+    # Push to employee: their order is ready for pickup
+    try:
+        from routes.push import send_push_to_employee
+        emp = await db.employees.find_one({"id": order["employee_id"]}, {"_id": 0, "public_token": 1})
+        url = f"/hours/{emp['public_token']}" if emp and emp.get("public_token") else "/"
+        await send_push_to_employee(
+            employee_id=order["employee_id"],
+            title="Ubranie gotowe do odbioru",
+            body=f"{order.get('clothing_type_name', 'Ubranie')} x{order.get('quantity', 1)}",
+            url=url,
+            tag=f"clothing-issued-{order_id}",
+            require_interaction=True,
+        )
+    except Exception:
+        pass
     return {"message": "Oznaczono jako wydane"}
 
 
@@ -422,6 +437,20 @@ async def mark_order_forwarded(order_id: str,
             "forwarded_by": current_user["sub"],
         }}
     )
+    # Push to employee: their order is being processed
+    try:
+        from routes.push import send_push_to_employee
+        emp = await db.employees.find_one({"id": order["employee_id"]}, {"_id": 0, "public_token": 1})
+        url = f"/hours/{emp['public_token']}" if emp and emp.get("public_token") else "/"
+        await send_push_to_employee(
+            employee_id=order["employee_id"],
+            title="Zamowienie w realizacji",
+            body=f"{order.get('clothing_type_name', 'Ubranie')} - przekazane do dostawcy",
+            url=url,
+            tag=f"clothing-forwarded-{order_id}",
+        )
+    except Exception:
+        pass
     return {"message": "Oznaczono jako przekazane do realizacji", "status": "forwarded"}
 
 

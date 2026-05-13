@@ -8,6 +8,7 @@ import { pl } from 'date-fns/locale';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { ClothingOrderPublic } from './ClothingOrderPublic';
+import { PublicPushButton } from './PublicPushButton';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -523,6 +524,21 @@ export const PublicHours = () => {
 
         {/* Clothing orders */}
         <ClothingOrderPublic token={token} />
+
+        {/* Push notifications opt-in */}
+        <Card className="mt-4 bg-[#2A384C] border-[#334155]">
+          <CardContent className="pt-4">
+            <div className="flex items-start gap-3 flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <h3 className="text-[#CBD5E1] font-semibold text-sm mb-1">Powiadomienia o zamowieniach</h3>
+                <p className="text-xs text-[#94A3B8]">
+                  Wlacz aby dostac powiadomienie na telefon gdy Twoje ubranie zostanie wydane lub przekazane do dostawcy.
+                </p>
+              </div>
+              <PublicPushButton token={token} />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* PWA Install Instructions */}
         {!window.matchMedia('(display-mode: standalone)').matches && (

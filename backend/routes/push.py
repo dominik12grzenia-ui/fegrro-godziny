@@ -53,6 +53,12 @@ class PushSubscribePayload(BaseModel):
     user_agent: Optional[str] = None
 
 
+class PublicPushSubscribePayload(BaseModel):
+    endpoint: str
+    keys: PushKeys
+    user_agent: Optional[str] = None
+
+
 # --- Endpoints ---
 @router.get("/push/vapid-key")
 async def get_vapid_public_key():
@@ -152,6 +158,79 @@ async def push_test(current_user: dict = Depends(get_current_user)):
     return res
 
 
+# --- Public (token-based) subscriptions for employees on /hours/{token} ---
+@router.get("/public/push/vapid-key")
+async def get_public_vapid_key():
+    """Public endpoint - same key as authed one; safe to expose."""
+    return await get_vapid_public_key()
+
+
+@router.post("/public/push/{token}/subscribe")
+async def public_subscribe_push(
+    token: str,
+    payload: PublicPushSubscribePayload,
+    request: Request,
+):
+    """Register a push subscription for an employee identified by their
+    public_token (no JWT needed). Used by /hours/{token} page so workers can
+    receive notifications about clothing order status without creating an
+    account.
+    """
+    employee = await db.employees.find_one(
+        {"public_token": token}, {"_id": 0, "id": 1, "full_name": 1}
+    )
+    if not employee:
+        raise HTTPException(status_code=404, detail="Link nieprawidlowy")
+    ua = payload.user_agent or request.headers.get("User-Agent", "")
+    doc = {
+        "employee_id": employee["id"],
+        "endpoint": payload.endpoint,
+        "p256dh": payload.keys.p256dh,
+        "auth": payload.keys.auth,
+        "user_agent": ua[:300],
+        "is_active": True,
+        "last_used": datetime.now().isoformat(),
+        "kind": "employee",
+    }
+    existing = await db.push_subscriptions.find_one(
+        {"employee_id": employee["id"], "endpoint": payload.endpoint}, {"_id": 1}
+    )
+    if existing:
+        await db.push_subscriptions.update_one(
+            {"_id": existing["_id"]}, {"$set": doc}
+        )
+        return {"status": "updated"}
+    doc["id"] = str(uuid.uuid4())
+    doc["created_at"] = datetime.now().isoformat()
+    await db.push_subscriptions.insert_one(doc)
+    return {"status": "created", "id": doc["id"]}
+
+
+@router.delete("/public/push/{token}/unsubscribe")
+async def public_unsubscribe_push(token: str, endpoint: str):
+    employee = await db.employees.find_one({"public_token": token}, {"_id": 0, "id": 1})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Link nieprawidlowy")
+    await db.push_subscriptions.delete_one(
+        {"employee_id": employee["id"], "endpoint": endpoint}
+    )
+    return {"status": "deleted"}
+
+
+@router.post("/public/push/{token}/test")
+async def public_push_test(token: str):
+    employee = await db.employees.find_one({"public_token": token}, {"_id": 0, "id": 1, "full_name": 1})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Link nieprawidlowy")
+    res = await send_push_to_employee(
+        employee_id=employee["id"],
+        title="FeGrro - test powiadomien",
+        body=f"Witaj {employee['full_name']}! Powiadomienia dzialaja.",
+        url=f"/hours/{token}",
+    )
+    return res
+
+
 # --- Core sender ---
 async def send_push(
     user_id: str,
@@ -233,3 +312,68 @@ async def send_push_to_admins(title: str, body: str, url: str = "/admin/dashboar
         sent_total += r.get("sent", 0)
         failed_total += r.get("failed", 0)
     return {"sent": sent_total, "failed": failed_total}
+
+
+async def send_push_to_employee(
+    employee_id: str,
+    title: str,
+    body: str,
+    url: str = "/",
+    tag: Optional[str] = None,
+    require_interaction: bool = False,
+) -> dict:
+    """Push to every active subscription registered via /public/push/{token}.
+
+    Used for employee-facing notifications (clothing order status) when the
+    employee has no JWT account - just a public_token link.
+    """
+    priv = _vapid_private()
+    if not priv:
+        return {"sent": 0, "failed": 0, "skipped": "no_vapid"}
+    try:
+        from pywebpush import webpush, WebPushException
+    except ImportError:
+        return {"sent": 0, "failed": 0, "skipped": "no_lib"}
+
+    subs = await db.push_subscriptions.find(
+        {"employee_id": employee_id, "is_active": True}, {"_id": 0}
+    ).to_list(20)
+    if not subs:
+        return {"sent": 0, "failed": 0}
+
+    import json as _json
+    payload = {
+        "title": title,
+        "body": body,
+        "url": url,
+        "tag": tag or f"emp-{employee_id}",
+        "requireInteraction": bool(require_interaction),
+        "timestamp": datetime.now().isoformat(),
+    }
+    payload_json = _json.dumps(payload)
+    sent, failed = 0, 0
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub["endpoint"],
+                    "keys": {"p256dh": sub["p256dh"], "auth": sub["auth"]},
+                },
+                data=payload_json,
+                vapid_private_key=priv,
+                vapid_claims=_vapid_claims(),
+            )
+            sent += 1
+        except WebPushException as e:
+            failed += 1
+            status = getattr(e.response, "status_code", None) if e.response is not None else None
+            logger.warning(f"push (employee) fail (status={status}): {e}")
+            if status in (404, 410):
+                await db.push_subscriptions.update_one(
+                    {"endpoint": sub["endpoint"], "employee_id": employee_id},
+                    {"$set": {"is_active": False, "deactivated_at": datetime.now().isoformat()}},
+                )
+        except Exception as e:
+            failed += 1
+            logger.warning(f"push (employee) exception: {e}")
+    return {"sent": sent, "failed": failed}
