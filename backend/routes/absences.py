@@ -245,6 +245,37 @@ async def review_absence(
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Absence not found")
+
+    # Push notification to the employee whose absence was reviewed.
+    # Their app/PWA subscription is keyed by employee_id (registered via the
+    # /hours/{token} page), so we don't need a foreman/user link.
+    try:
+        absence = await db.absences.find_one({"id": absence_id}, {"_id": 0})
+        if absence:
+            from routes.push import send_push_to_employee
+            employee = await db.employees.find_one(
+                {"id": absence.get("employee_id")},
+                {"_id": 0, "public_token": 1}
+            )
+            url = f"/hours/{employee['public_token']}" if employee and employee.get("public_token") else "/"
+            dates_str = ", ".join(absence.get("dates", []) or [])
+            if review.status == "approved":
+                title = "Wolne zatwierdzone"
+                body = f"Twoja nieobecnosc zostala zaakceptowana: {dates_str}" if dates_str else "Twoja nieobecnosc zostala zaakceptowana"
+            else:
+                title = "Wolne odrzucone"
+                body = f"Twoja nieobecnosc zostala odrzucona: {dates_str}" if dates_str else "Twoja nieobecnosc zostala odrzucona"
+            await send_push_to_employee(
+                employee_id=absence.get("employee_id"),
+                title=title,
+                body=body,
+                url=url,
+                tag=f"absence-review-{absence_id}",
+                require_interaction=(review.status == "rejected"),
+            )
+    except Exception:
+        pass
+
     return {"message": "Nieobecnosc rozpatrzona"}
 
 
