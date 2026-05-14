@@ -12,6 +12,7 @@ import uuid
 
 from database import db
 from auth import get_current_user, get_current_admin, get_current_admin_or_warehouse
+from image_utils import make_thumbnail
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -123,8 +124,13 @@ async def list_equipment(
         broken = item.get("broken_quantity", 0) or 0
         lost = item.get("lost_quantity", 0) or 0
         total = item.get("total_quantity", 0)
+        # Return thumbnail in 'photo' field for list view (fallback to full photo
+        # for items uploaded before thumbnail migration). Saves ~150-300 KB per item.
+        photo_for_list = item.get("photo_thumb") or item.get("photo")
+        item_out = {**item, "photo": photo_for_list}
+        item_out.pop("photo_thumb", None)
         result.append({
-            **item,
+            **item_out,
             "category": item.get("category") or "electronics",
             "broken_quantity": broken,
             "lost_quantity": lost,
@@ -140,6 +146,7 @@ async def create_equipment(payload: EquipmentCreate,
     if payload.total_quantity < 0:
         raise HTTPException(status_code=400, detail="Ilosc nie moze byc ujemna")
     eq_id = str(uuid.uuid4())
+    photo_thumb = make_thumbnail(payload.photo) if payload.photo else None
     doc = {
         "id": eq_id,
         "name": payload.name.strip(),
@@ -148,6 +155,7 @@ async def create_equipment(payload: EquipmentCreate,
         "broken_quantity": 0,
         "lost_quantity": 0,
         "photo": payload.photo,
+        "photo_thumb": photo_thumb,
         "status": "working",
         "category": payload.category or "electronics",
         "variants": [v.strip() for v in (payload.variants or []) if v and v.strip()],
@@ -159,7 +167,11 @@ async def create_equipment(payload: EquipmentCreate,
     await _add_history(eq_id, "created", current_user["sub"],
                         await _get_user_name(current_user["sub"]),
                         {"total_quantity": payload.total_quantity, "name": payload.name})
-    return {**doc, "assigned_quantity": 0, "lost_quantity": 0, "available_quantity": payload.total_quantity}
+    # Return thumb in 'photo' for list compatibility; clients can fetch full via GET /equipment/{id}
+    doc_out = {**doc}
+    doc_out["photo"] = photo_thumb or payload.photo
+    doc_out.pop("photo_thumb", None)
+    return {**doc_out, "assigned_quantity": 0, "lost_quantity": 0, "available_quantity": payload.total_quantity}
 
 
 @router.put("/equipment/{equipment_id}")
@@ -176,6 +188,7 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
         update_doc["brand"] = payload.brand.strip() or None
     if payload.photo is not None:
         update_doc["photo"] = payload.photo
+        update_doc["photo_thumb"] = make_thumbnail(payload.photo)
     if payload.status is not None:
         update_doc["status"] = payload.status
     if payload.category is not None:
@@ -187,6 +200,7 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
 
     new_total = payload.total_quantity if payload.total_quantity is not None else eq.get("total_quantity", 0)
     new_broken = payload.broken_quantity if payload.broken_quantity is not None else eq.get("broken_quantity", 0) or 0
+    cur_lost = eq.get("lost_quantity", 0) or 0
     total_assigned = await _get_total_assigned(equipment_id)
 
     if payload.total_quantity is not None:
@@ -196,10 +210,10 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
         if payload.broken_quantity < 0:
             raise HTTPException(status_code=400, detail="Ilosc zdana do naprawy nie moze byc ujemna")
 
-    if total_assigned + new_broken > new_total:
+    if total_assigned + new_broken + cur_lost > new_total:
         raise HTTPException(
             status_code=400,
-            detail=f"Suma przypisanych ({total_assigned}) i zdanych do naprawy ({new_broken}) przekracza ilosc calkowita ({new_total})."
+            detail=f"Suma przypisanych ({total_assigned}), zdanych do naprawy ({new_broken}) i zaginionych ({cur_lost}) przekracza ilosc calkowita ({new_total})."
         )
 
     if payload.total_quantity is not None:
@@ -214,11 +228,38 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
     total_assigned2 = await _get_total_assigned(equipment_id)
     broken2 = eq2.get("broken_quantity", 0) or 0
     lost2 = eq2.get("lost_quantity", 0) or 0
-    return {**eq2,
+    # Return thumb in 'photo' for list compatibility
+    photo_for_resp = eq2.get("photo_thumb") or eq2.get("photo")
+    eq2_out = {**eq2, "photo": photo_for_resp}
+    eq2_out.pop("photo_thumb", None)
+    return {**eq2_out,
             "broken_quantity": broken2,
             "lost_quantity": lost2,
             "assigned_quantity": total_assigned2,
             "available_quantity": max(0, eq2["total_quantity"] - total_assigned2 - broken2 - lost2)}
+
+
+@router.get("/equipment/single/{equipment_id}")
+async def get_equipment_single(equipment_id: str,
+                                current_user: dict = Depends(get_current_user)):
+    """Returns a single equipment doc with the FULL photo (not thumb).
+    Used by the admin edit modal which needs the high-res image.
+    Path uses /single/ prefix to avoid clashing with future verb-like routes.
+    """
+    eq = await db.equipment.find_one({"id": equipment_id}, {"_id": 0})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+    total_assigned = await _get_total_assigned(equipment_id)
+    broken = eq.get("broken_quantity", 0) or 0
+    lost = eq.get("lost_quantity", 0) or 0
+    total = eq.get("total_quantity", 0)
+    # Keep both fields available: photo (full) and photo_thumb
+    return {**eq,
+            "category": eq.get("category") or "electronics",
+            "broken_quantity": broken,
+            "lost_quantity": lost,
+            "assigned_quantity": total_assigned,
+            "available_quantity": max(0, total - total_assigned - broken - lost)}
 
 
 @router.delete("/equipment/{equipment_id}")
@@ -344,7 +385,11 @@ async def my_equipment(
         eq_cat = eq.get("category") or "electronics"
         if category and eq_cat != category:
             continue
-        result.append({**eq, "category": eq_cat, "quantity": a["quantity"], "assigned_at": a.get("assigned_at")})
+        # Use thumb in 'photo' field for list rendering
+        photo_for_list = eq.get("photo_thumb") or eq.get("photo")
+        eq_out = {**eq, "photo": photo_for_list}
+        eq_out.pop("photo_thumb", None)
+        result.append({**eq_out, "category": eq_cat, "quantity": a["quantity"], "assigned_at": a.get("assigned_at")})
     return result
 
 

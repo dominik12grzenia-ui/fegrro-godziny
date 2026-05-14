@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 import os
 import logging
+import asyncio
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -112,6 +113,65 @@ app.add_middleware(SecurityHeadersMiddleware)
 scheduler = AsyncIOScheduler()
 
 
+async def _migrate_thumbnails():
+    """One-time background migration: generate photo_thumb for docs that already
+    have a photo but no thumb. Safe to run on every startup (idempotent).
+    Logs progress; tolerates failures per-document.
+    """
+    try:
+        from image_utils import make_thumbnail, PIL_AVAILABLE
+    except Exception:
+        logger.warning("[thumb-migration] image_utils import failed - skipping")
+        return
+    if not PIL_AVAILABLE:
+        logger.warning("[thumb-migration] Pillow not installed - skipping")
+        return
+
+    # (collection_name, photo_field, thumb_field, max_size)
+    targets = [
+        ("equipment", "photo", "photo_thumb", 96),
+        ("warehouse_materials", "photo", "photo_thumb", 96),
+        ("clothing_types", "photo", "photo_thumb", 96),
+    ]
+    total_done = 0
+    for coll_name, photo_field, thumb_field, size in targets:
+        try:
+            query = {
+                photo_field: {"$exists": True, "$nin": [None, ""]},
+                "$or": [
+                    {thumb_field: {"$exists": False}},
+                    {thumb_field: None},
+                    {thumb_field: ""},
+                ],
+            }
+            done = 0
+            # Project only id + photo to avoid huge memory; iterate one-by-one
+            cursor = db[coll_name].find(query, {"_id": 0, "id": 1, photo_field: 1})
+            async for doc in cursor:
+                photo = doc.get(photo_field)
+                if not photo:
+                    continue
+                thumb = make_thumbnail(photo, max_size=size)
+                if thumb:
+                    await db[coll_name].update_one(
+                        {"id": doc["id"]},
+                        {"$set": {thumb_field: thumb}},
+                    )
+                    done += 1
+                # Yield to event loop every 10 items so we don't block startup
+                if done % 10 == 0:
+                    await asyncio.sleep(0)
+            if done:
+                logger.info(f"[thumb-migration] {coll_name}: generated {done} thumbnails")
+            total_done += done
+        except Exception as e:
+            logger.warning(f"[thumb-migration] {coll_name} failed: {e}")
+    if total_done:
+        logger.info(f"[thumb-migration] DONE - total {total_done} thumbnails generated")
+    else:
+        logger.info("[thumb-migration] nothing to do (all thumbnails present)")
+
+
 @app.on_event("startup")
 async def startup_event():
     # Ensure critical indexes for faster queries (safe to call repeatedly)
@@ -141,6 +201,9 @@ async def startup_event():
         await db.equipment_orders.create_index("foreman_id")
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
+
+    # Async one-time thumbnail migration (non-blocking; runs in background)
+    asyncio.create_task(_migrate_thumbnails())
 
     # Create admin user if not exists, or sync password from env if ADMIN_PASSWORD is set
     admin_email = os.environ.get("ADMIN_EMAIL", "admin@fegrro.pl")

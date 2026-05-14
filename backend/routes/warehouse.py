@@ -17,6 +17,7 @@ import uuid
 
 from database import db
 from auth import get_current_admin, get_current_user, get_current_admin_or_warehouse
+from image_utils import make_thumbnail
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -73,15 +74,32 @@ async def list_materials(
     if not include_inactive:
         query["$or"] = [{"is_active": {"$exists": False}}, {"is_active": True}]
     materials = await db.warehouse_materials.find(query, {"_id": 0}).sort("name", 1).to_list(2000)
+    # Replace photo with thumb for list view (saves bandwidth)
+    for m in materials:
+        thumb = m.get("photo_thumb")
+        if thumb:
+            m["photo"] = thumb
+        m.pop("photo_thumb", None)
     return materials
+
+
+@router.get("/warehouse/materials/single/{material_id}")
+async def get_material_single(material_id: str, current_user: dict = Depends(get_current_user)):
+    """Single material with FULL photo (for edit modal)."""
+    mat = await db.warehouse_materials.find_one({"id": material_id}, {"_id": 0})
+    if not mat:
+        raise HTTPException(status_code=404, detail="Material nie znaleziony")
+    return mat
 
 
 @router.post("/warehouse/materials")
 async def create_material(payload: MaterialCreate, current_user: dict = Depends(get_current_admin)):
+    photo_thumb = make_thumbnail(payload.photo) if payload.photo else None
     doc = {
         "id": str(uuid.uuid4()),
         "name": payload.name.strip(),
         "photo": payload.photo,
+        "photo_thumb": photo_thumb,
         "unit": (payload.unit or "szt.").strip(),
         "current_stock": float(payload.current_stock or 0),
         "note": (payload.note or "").strip() or None,
@@ -90,7 +108,10 @@ async def create_material(payload: MaterialCreate, current_user: dict = Depends(
     }
     await db.warehouse_materials.insert_one(doc)
     doc.pop("_id", None)
-    return doc
+    # Return thumb in photo for list-style consumers
+    doc_out = {**doc, "photo": photo_thumb or payload.photo}
+    doc_out.pop("photo_thumb", None)
+    return doc_out
 
 
 @router.put("/warehouse/materials/{material_id}")
@@ -105,11 +126,17 @@ async def update_material(material_id: str, payload: MaterialUpdate,
         update_doc["unit"] = update_doc["unit"].strip() or "szt."
     if "current_stock" in update_doc:
         update_doc["current_stock"] = float(update_doc["current_stock"])
+    if "photo" in update_doc:
+        update_doc["photo_thumb"] = make_thumbnail(update_doc["photo"])
     update_doc["updated_at"] = datetime.now().isoformat()
     result = await db.warehouse_materials.update_one({"id": material_id}, {"$set": update_doc})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Material nie znaleziony")
-    return await db.warehouse_materials.find_one({"id": material_id}, {"_id": 0})
+    mat = await db.warehouse_materials.find_one({"id": material_id}, {"_id": 0})
+    photo_for_list = mat.get("photo_thumb") or mat.get("photo")
+    mat_out = {**mat, "photo": photo_for_list}
+    mat_out.pop("photo_thumb", None)
+    return mat_out
 
 
 @router.delete("/warehouse/materials/{material_id}")

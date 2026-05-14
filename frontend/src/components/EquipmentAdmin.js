@@ -299,6 +299,19 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     }
   };
 
+  // Open edit modal: show thumb immediately, then fetch full-res photo in background
+  const handleOpenEdit = async (eq) => {
+    setEditingEq({ ...eq, variants_edit: ((eq.variants || []).join(', ')) });
+    try {
+      const full = await api.get(`/equipment/single/${eq.id}`);
+      setEditingEq((prev) => (prev && prev.id === eq.id
+        ? { ...prev, photo: full.data?.photo || prev.photo }
+        : prev));
+    } catch {
+      // ignore - keep thumb
+    }
+  };
+
   const handleMarkLost = async (shortage) => {
     const missing = shortage.missing_quantity || 0;
     if (missing <= 0) {
@@ -489,7 +502,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                             </div>
                           )}
                           <button
-                            onClick={() => setEditingEq({ ...eq, variants_edit: ((eq.variants || []).join(', ')) })}
+                            onClick={() => handleOpenEdit(eq)}
                             className="text-[#CBD5E1] font-semibold hover:text-[#5F7151] text-left"
                             data-testid={`equipment-name-${eq.id}`}
                           >

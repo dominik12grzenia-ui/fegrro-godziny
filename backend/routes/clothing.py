@@ -26,6 +26,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 
 from database import db
 from auth import get_current_user, get_current_admin, get_current_admin_or_warehouse
+from image_utils import make_thumbnail
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -259,12 +260,27 @@ async def _compute_remaining(ct: dict, employee_id: str) -> dict:
 @router.get("/clothing/types")
 async def list_clothing_types(current_user: dict = Depends(get_current_user)):
     items = await db.clothing_types.find({}, {"_id": 0}).sort("name", 1).to_list(500)
+    for it in items:
+        thumb = it.get("photo_thumb")
+        if thumb:
+            it["photo"] = thumb
+        it.pop("photo_thumb", None)
     return items
+
+
+@router.get("/clothing/types/single/{type_id}")
+async def get_clothing_type_single(type_id: str, current_user: dict = Depends(get_current_user)):
+    """Single clothing type with FULL photo (for edit modal / detail view)."""
+    doc = await db.clothing_types.find_one({"id": type_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Pozycja nie znaleziona")
+    return doc
 
 
 @router.post("/clothing/types")
 async def create_clothing_type(payload: ClothingTypeCreate,
                                  current_user: dict = Depends(get_current_admin)):
+    photo_thumb = make_thumbnail(payload.photo) if payload.photo else None
     doc = {
         "id": str(uuid.uuid4()),
         "name": payload.name.strip(),
@@ -276,6 +292,7 @@ async def create_clothing_type(payload: ClothingTypeCreate,
         "requires_height": payload.requires_height,
         "requires_body_type": payload.requires_body_type,
         "photo": payload.photo,
+        "photo_thumb": photo_thumb,
         "tier_group": (payload.tier_group or "").strip() or None,
         "tier_level": int(payload.tier_level or 1),
         "is_active": True,
@@ -283,7 +300,9 @@ async def create_clothing_type(payload: ClothingTypeCreate,
     }
     await db.clothing_types.insert_one(doc)
     doc.pop("_id", None)
-    return doc
+    doc_out = {**doc, "photo": photo_thumb or payload.photo}
+    doc_out.pop("photo_thumb", None)
+    return doc_out
 
 
 @router.put("/clothing/types/{type_id}")
@@ -294,11 +313,16 @@ async def update_clothing_type(type_id: str, payload: ClothingTypeUpdate,
         raise HTTPException(status_code=400, detail="Brak pol do aktualizacji")
     if "name" in update_doc:
         update_doc["name"] = update_doc["name"].strip()
+    if "photo" in update_doc:
+        update_doc["photo_thumb"] = make_thumbnail(update_doc["photo"])
     result = await db.clothing_types.update_one({"id": type_id}, {"$set": update_doc})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Pozycja nie znaleziona")
     doc = await db.clothing_types.find_one({"id": type_id}, {"_id": 0})
-    return doc
+    photo_for_list = doc.get("photo_thumb") or doc.get("photo")
+    doc_out = {**doc, "photo": photo_for_list}
+    doc_out.pop("photo_thumb", None)
+    return doc_out
 
 
 @router.delete("/clothing/types/{type_id}")
