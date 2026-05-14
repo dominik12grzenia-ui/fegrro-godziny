@@ -283,3 +283,25 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 - **Email diagnostyka**: Resend confirmed `last_event=delivered` na biuro@fegrro.pl (domena `fegrro.pl` status=verified). Mail dochodzi do skrzynki - jeśli user nie widzi maila, sprawdzić folder Spam.
 - **Testy**: 6/6 pytest backend (`test_iter22_badges.py`) + Playwright admin/foreman badge UI 100% pass
 
+
+## Completed (2026-02-14) - Iteration 28: Globalna zmiana "Ubrania" -> "Odzież" + workflow "Zaginione"
+
+### Rename "Ubrania" -> "Odzież"
+- Frontend (8 plików): AdminDashboard (zakładka), WarehouseDashboard (zakładka + tekst), ClothingAdmin (tytuły podzakładek + toasty + nazwa pliku PDF), ClothingOrderPublic (nagłówek), BhpEmployees (confirm), PublicHours (push info), admin/ToolsTab (opis magazyniera), WarehouseConfirmContext (komunikat confirm).
+- Backend: clothing.py (email subject/HTML + push title/body), daily_summary.py (sekcja maila), PDF title + filename `zamowienie_odziezy_*.pdf`.
+- Klucze techniczne (collection `clothing_orders`, data-testid `clothing-*`) celowo niezmienione.
+
+### Workflow "Zaginione" (Lost) dla niezgodności inwentaryzacji
+- **Equipment model**: nowe pole `lost_quantity` (default 0). `available_quantity = total - assigned - broken - lost`. Walidacje (PUT /equipment, POST /equipment/assign) uwzględniają `lost_quantity`.
+- **Nowy endpoint** `POST /api/equipment/inventory/shortages/{id}/mark-lost`:
+  - dekrementuje `equipment_assignments.quantity` o `missing_quantity` (delete jeśli 0)
+  - inkrementuje `equipment.lost_quantity` o tę samą wartość
+  - zamyka shortage: `status=resolved`, `resolution=lost`
+  - dodaje wpis historii `marked_lost` + push do brygadzisty
+  - idempotentne: drugie wywołanie zwraca 400
+- **Endpoint** `POST /api/equipment/inventory/shortages/{id}/resolve` rozszerzony o `resolution=found` (nie zmienia stanów; tylko zamyka jako "znalezione"). Drugie wywołanie zwraca 400.
+- **Frontend EquipmentAdmin**:
+  - nowa kolumna **"Zaginione"** w tabeli sprzętu, między "Zdane do magazynu do naprawy" i "Dostepne w magazynie" (`data-testid="lost-{eq_id}"`)
+  - w karcie "Zgloszone niezgodnosci sprzetu" zamiast jednego przycisku "Rozpatrzono" są dwa: **"Oznacz zaginione"** (`data-testid="mark-lost-{id}"`, czerwony) i **"Znalezione"** (`data-testid="resolve-shortage-{id}"`, outline). Oba z confirm.
+- **Testy**: 5/5 pytest backend (`test_iter28_lost_workflow.py`), 100% Playwright frontend assertions zielone.
+
