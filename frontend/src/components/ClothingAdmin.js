@@ -47,7 +47,7 @@ export const ClothingAdmin = () => {
       setOrders(flatOrders);
       setLoading(false);
     } catch (e) {
-      toast.error('Blad pobierania danych ubran');
+      toast.error('Blad pobierania danych odziezy');
       setLoading(false);
     }
   }, []);
@@ -196,7 +196,7 @@ export const ClothingAdmin = () => {
       const a = document.createElement('a');
       const ts = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
       a.href = url;
-      a.download = `zamowienie_ubran_${ts}.pdf`;
+      a.download = `zamowienie_odziezy_${ts}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -328,7 +328,7 @@ export const ClothingAdmin = () => {
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
                 <Shirt className="h-5 w-5 text-[#5F7151]" />
-                {subtab === 'orders' ? 'Zamówione ubrania' : 'Wydane ubrania'}
+                {subtab === 'orders' ? 'Zamówiona odzież' : 'Wydana odzież'}
               </CardTitle>
               {subtab === 'orders' && (
                 <div className="flex flex-wrap gap-2">
@@ -570,7 +570,7 @@ export const ClothingAdmin = () => {
                               type="button"
                               className="text-[#E8836A] hover:text-white text-[10px] font-semibold px-2 py-1 rounded bg-[#3D2E2E] hover:bg-[#E8836A]/30"
                               onClick={async () => {
-                                if (!window.confirm(`Trwale usunac ${row.employee_name}?\nUsunie wszystkie dokumenty, wydania BHP i zamowienia ubran. NIEODWRACALNE.`)) return;
+                                if (!window.confirm(`Trwale usunac ${row.employee_name}?\nUsunie wszystkie dokumenty, wydania BHP i zamowienia odziezy. NIEODWRACALNE.`)) return;
                                 const typed = window.prompt(`Aby potwierdzic, wpisz: ${row.employee_name}`);
                                 if (typed !== row.employee_name) { toast.error('Nazwa nie pasuje'); return; }
                                 try {

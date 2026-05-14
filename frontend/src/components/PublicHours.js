@@ -532,7 +532,7 @@ export const PublicHours = () => {
               <div className="flex-1 min-w-[200px]">
                 <h3 className="text-[#CBD5E1] font-semibold text-sm mb-1">Powiadomienia o zamowieniach</h3>
                 <p className="text-xs text-[#94A3B8]">
-                  Wlacz aby dostac powiadomienie na telefon gdy Twoje ubranie zostanie wydane lub przekazane do dostawcy.
+                  Wlacz aby dostac powiadomienie na telefon gdy Twoja odziez zostanie wydana lub przekazana do dostawcy.
                 </p>
               </div>
               <PublicPushButton token={token} />

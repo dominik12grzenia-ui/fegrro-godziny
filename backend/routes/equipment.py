@@ -121,13 +121,15 @@ async def list_equipment(
     for item in items:
         total_assigned = sums.get(item["id"], 0)
         broken = item.get("broken_quantity", 0) or 0
+        lost = item.get("lost_quantity", 0) or 0
         total = item.get("total_quantity", 0)
         result.append({
             **item,
             "category": item.get("category") or "electronics",
             "broken_quantity": broken,
+            "lost_quantity": lost,
             "assigned_quantity": total_assigned,
-            "available_quantity": max(0, total - total_assigned - broken)
+            "available_quantity": max(0, total - total_assigned - broken - lost)
         })
     return result
 
@@ -144,6 +146,7 @@ async def create_equipment(payload: EquipmentCreate,
         "brand": (payload.brand or "").strip() or None,
         "total_quantity": payload.total_quantity,
         "broken_quantity": 0,
+        "lost_quantity": 0,
         "photo": payload.photo,
         "status": "working",
         "category": payload.category or "electronics",
@@ -156,7 +159,7 @@ async def create_equipment(payload: EquipmentCreate,
     await _add_history(eq_id, "created", current_user["sub"],
                         await _get_user_name(current_user["sub"]),
                         {"total_quantity": payload.total_quantity, "name": payload.name})
-    return {**doc, "assigned_quantity": 0, "available_quantity": payload.total_quantity}
+    return {**doc, "assigned_quantity": 0, "lost_quantity": 0, "available_quantity": payload.total_quantity}
 
 
 @router.put("/equipment/{equipment_id}")
@@ -210,10 +213,12 @@ async def update_equipment(equipment_id: str, payload: EquipmentUpdate,
     eq2 = await db.equipment.find_one({"id": equipment_id}, {"_id": 0})
     total_assigned2 = await _get_total_assigned(equipment_id)
     broken2 = eq2.get("broken_quantity", 0) or 0
+    lost2 = eq2.get("lost_quantity", 0) or 0
     return {**eq2,
             "broken_quantity": broken2,
+            "lost_quantity": lost2,
             "assigned_quantity": total_assigned2,
-            "available_quantity": max(0, eq2["total_quantity"] - total_assigned2 - broken2)}
+            "available_quantity": max(0, eq2["total_quantity"] - total_assigned2 - broken2 - lost2)}
 
 
 @router.delete("/equipment/{equipment_id}")
@@ -262,9 +267,10 @@ async def set_assignment(payload: AssignmentSet,
     others = await db.equipment_assignments.aggregate(pipeline).to_list(1)
     other_sum = others[0]["total"] if others else 0
     broken = eq.get("broken_quantity", 0) or 0
+    lost = eq.get("lost_quantity", 0) or 0
 
-    if other_sum + payload.quantity + broken > eq["total_quantity"]:
-        available = eq["total_quantity"] - other_sum - broken
+    if other_sum + payload.quantity + broken + lost > eq["total_quantity"]:
+        available = eq["total_quantity"] - other_sum - broken - lost
         raise HTTPException(
             status_code=400,
             detail=f"Brak wystarczajacej ilosci. Dostepne w magazynie: {max(0, available)} szt."
@@ -1155,18 +1161,102 @@ async def list_shortages(check_id: Optional[str] = None,
 @router.post("/equipment/inventory/shortages/{shortage_id}/resolve")
 async def resolve_shortage(shortage_id: str,
                             current_user: dict = Depends(get_current_admin)):
-    """Mark a shortage as reviewed/resolved by admin."""
+    """Mark a shortage as reviewed/resolved by admin (no stock changes - 'found' case)."""
     actor_name = await _get_user_name(current_user["sub"])
-    result = await db.inventory_shortages.update_one(
+    sh = await db.inventory_shortages.find_one({"id": shortage_id}, {"_id": 0})
+    if not sh:
+        raise HTTPException(status_code=404, detail="Zgloszenie nie znalezione")
+    if sh.get("status") != "open":
+        raise HTTPException(status_code=400, detail="Zgloszenie juz rozpatrzone")
+    await db.inventory_shortages.update_one(
         {"id": shortage_id},
         {"$set": {"status": "resolved",
+                  "resolution": "found",
                   "resolved_by": current_user["sub"],
                   "resolved_by_name": actor_name,
                   "resolved_at": datetime.now().isoformat()}},
     )
-    if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Zgloszenie nie znalezione")
     return {"message": "Zgloszenie rozpatrzone"}
+
+
+@router.post("/equipment/inventory/shortages/{shortage_id}/mark-lost")
+async def mark_shortage_lost(shortage_id: str,
+                              current_user: dict = Depends(get_current_admin)):
+    """Mark a shortage as lost: deduct missing qty from foreman's assignment
+    and increment equipment.lost_quantity. Closes the shortage with resolution='lost'.
+    """
+    sh = await db.inventory_shortages.find_one({"id": shortage_id}, {"_id": 0})
+    if not sh:
+        raise HTTPException(status_code=404, detail="Zgloszenie nie znalezione")
+    if sh.get("status") != "open":
+        raise HTTPException(status_code=400, detail="Zgloszenie juz rozpatrzone")
+
+    equipment_id = sh["equipment_id"]
+    foreman_id = sh["foreman_id"]
+    missing = int(sh.get("missing_quantity") or 0)
+    if missing <= 0:
+        raise HTTPException(status_code=400, detail="Brak ilosci do oznaczenia jako zaginione")
+
+    # Decrement foreman's assignment (delete if reaches 0)
+    own = await db.equipment_assignments.find_one(
+        {"equipment_id": equipment_id, "foreman_id": foreman_id},
+        {"_id": 0, "quantity": 1},
+    )
+    cur_qty = int((own or {}).get("quantity") or 0)
+    new_qty = max(0, cur_qty - missing)
+    if new_qty == 0:
+        await db.equipment_assignments.delete_one(
+            {"equipment_id": equipment_id, "foreman_id": foreman_id}
+        )
+    else:
+        await db.equipment_assignments.update_one(
+            {"equipment_id": equipment_id, "foreman_id": foreman_id},
+            {"$set": {"quantity": new_qty,
+                      "assigned_at": datetime.now().isoformat(),
+                      "assigned_by": current_user["sub"]}},
+        )
+
+    # Increment lost_quantity on equipment
+    await db.equipment.update_one(
+        {"id": equipment_id},
+        {"$inc": {"lost_quantity": missing},
+         "$set": {"updated_at": datetime.now().isoformat()}},
+    )
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.inventory_shortages.update_one(
+        {"id": shortage_id},
+        {"$set": {"status": "resolved",
+                  "resolution": "lost",
+                  "lost_quantity": missing,
+                  "resolved_by": current_user["sub"],
+                  "resolved_by_name": actor_name,
+                  "resolved_at": datetime.now().isoformat()}},
+    )
+
+    await _add_history(equipment_id, "marked_lost", current_user["sub"], actor_name,
+                       {"foreman_id": foreman_id,
+                        "foreman_name": sh.get("foreman_name"),
+                        "quantity": missing,
+                        "shortage_id": shortage_id,
+                        "check_id": sh.get("check_id")})
+
+    # Notify foreman that admin deducted lost items
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=foreman_id,
+            title="Oznaczono jako zaginione",
+            body=f"{sh.get('equipment_name','Sprzet')} - {missing} szt. odjete z Twojego stanu",
+            url="/worker/dashboard",
+            tag=f"lost-{equipment_id}-{shortage_id}",
+        )
+    except Exception:
+        pass
+
+    return {"message": "Oznaczono jako zaginione",
+            "missing_quantity": missing,
+            "new_assigned_quantity": new_qty}
 
 
 @router.post("/equipment/inventory/{check_id}/confirm")

@@ -1,4 +1,4 @@
-"""Clothing (ubrania robocze) routes.
+"""Clothing (odziez robocza) routes.
 
 Workflow:
 - Admin defines clothing types with yearly limit, order window (months), and usage period
@@ -44,9 +44,9 @@ async def _send_clothing_order_email(order: dict, employee_name: str, type_name:
     except ImportError:
         logger.warning("httpx not available - cannot send email")
         return
-    subject = f"FeGrro: zamowienie ubran od {employee_name}"
+    subject = f"FeGrro: zamowienie odziezy od {employee_name}"
     html = f"""
-    <h2>Nowe zamowienie ubran</h2>
+    <h2>Nowe zamowienie odziezy</h2>
     <p><strong>Pracownik:</strong> {employee_name}</p>
     <p><strong>Pozycja:</strong> {type_name}</p>
     <p><strong>Ilosc:</strong> {order.get('quantity')}</p>
@@ -397,8 +397,8 @@ async def mark_order_issued(order_id: str,
         url = f"/hours/{emp['public_token']}" if emp and emp.get("public_token") else "/"
         await send_push_to_employee(
             employee_id=order["employee_id"],
-            title="Ubranie gotowe do odbioru",
-            body=f"{order.get('clothing_type_name', 'Ubranie')} x{order.get('quantity', 1)}",
+            title="Odziez gotowa do odbioru",
+            body=f"{order.get('clothing_type_name', 'Odziez')} x{order.get('quantity', 1)}",
             url=url,
             tag=f"clothing-issued-{order_id}",
             require_interaction=True,
@@ -465,7 +465,7 @@ async def mark_order_forwarded(order_id: str,
         await send_push_to_employee(
             employee_id=order["employee_id"],
             title="Zamowienie w realizacji",
-            body=f"{order.get('clothing_type_name', 'Ubranie')} - przekazane do dostawcy",
+            body=f"{order.get('clothing_type_name', 'Odziez')} - przekazane do dostawcy",
             url=url,
             tag=f"clothing-forwarded-{order_id}",
         )
@@ -783,7 +783,7 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
     try:
         from routes.push import send_push_to_admins
         await send_push_to_admins(
-            title="Nowe zamowienie ubran",
+            title="Nowe zamowienie odziezy",
             body=f"{employee['full_name']}: {payload.quantity} x {ct['name']}",
             url="/admin/dashboard",
             tag=f"clothing-order-{order['id']}",
@@ -915,7 +915,7 @@ async def export_orders_pdf(
     )
 
     elements = [
-        Paragraph("FeGrro - Zamowienie ubran", title_style),
+        Paragraph("FeGrro - Zamowienie odziezy", title_style),
         Paragraph(
             _ascii(f"Status: {status} | Wygenerowano: {datetime.now().strftime('%Y-%m-%d %H:%M')}"),
             sub_style,
@@ -1104,7 +1104,7 @@ async def export_orders_pdf(
     pdf_bytes = buffer.getvalue()
     buffer.close()
 
-    filename = f"zamowienie_ubran_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+    filename = f"zamowienie_odziezy_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

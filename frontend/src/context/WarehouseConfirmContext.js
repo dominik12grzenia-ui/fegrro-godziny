@@ -33,7 +33,7 @@ const CONFIRM_PATTERNS = [
   [/\/warehouse\/orders\/[^/]+\/status$/, 'Zmienić status zamówienia materiałów?'],
   [/\/warehouse\/orders\/[^/]+\/items\/[^/]+$/, 'Usunąć tę pozycję z zamówienia?'],
   [/\/warehouse\/materials\/[^/]+\/stock$/, 'Zaktualizować stan magazynowy?'],
-  [/\/clothing\/orders\/[^/]+\/issue$/, 'Oznaczyć ubranie jako wydane?'],
+  [/\/clothing\/orders\/[^/]+\/issue$/, 'Oznaczyć odzież jako wydaną?'],
   [/\/clothing\/orders\/[^/]+\/forward$/, 'Oznaczyć jako przekazane do realizacji?'],
   [/\/bhp\/issuances$/, 'Wydać artykuł BHP pracownikowi?'],
 ];

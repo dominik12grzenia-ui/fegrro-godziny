@@ -107,14 +107,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
     const sumOthers = assignments
       .filter((a) => a.equipment_id === eq.id && a.foreman_id !== foremanId)
       .reduce((s, a) => s + (a.quantity || 0), 0);
-    return Math.max(0, eq.total_quantity - (eq.broken_quantity || 0) - sumOthers);
+    return Math.max(0, eq.total_quantity - (eq.broken_quantity || 0) - (eq.lost_quantity || 0) - sumOthers);
   };
 
   const maxBrokenFor = (eq) => {
     const totalAssigned = assignments
       .filter((a) => a.equipment_id === eq.id)
       .reduce((s, a) => s + (a.quantity || 0), 0);
-    return Math.max(0, eq.total_quantity - totalAssigned);
+    return Math.max(0, eq.total_quantity - totalAssigned - (eq.lost_quantity || 0));
   };
 
   const handleAssignChange = async (eqId, foremanId, value) => {
@@ -288,9 +288,30 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   };
 
   const handleResolveShortage = async (shortageId) => {
+    if (!window.confirm('Oznaczyc zgloszenie jako rozpatrzone? (sprzet sie znalazl - bez zmian na stanie)')) return;
     try {
       await api.post(`/equipment/inventory/shortages/${shortageId}/resolve`);
       toast.success('Zgloszenie rozpatrzone');
+      refreshAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const handleMarkLost = async (shortage) => {
+    const missing = shortage.missing_quantity || 0;
+    if (missing <= 0) {
+      toast.error('Brak ilosci do oznaczenia jako zaginione');
+      return;
+    }
+    if (!window.confirm(
+      `Oznaczyc ${missing} szt. "${shortage.equipment_name}" jako ZAGINIONE?\n\n` +
+      `Ilosc zostanie odjeta od stanu brygadzisty ${shortage.foreman_name} i dodana do kolumny "Zaginione".\n\n` +
+      `Operacja NIEODWRACALNA.`
+    )) return;
+    try {
+      await api.post(`/equipment/inventory/shortages/${shortage.id}/mark-lost`);
+      toast.success('Oznaczono jako zaginione');
       refreshAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Blad');
@@ -378,7 +399,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                 <thead className="sticky top-0 z-30 bg-[#2A384C]">
                   {/* Top totals row: per-foreman totals */}
                   <tr>
-                    <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={6}></th>
+                    <th className="border border-[#334155] p-2 bg-[#1E293B]" colSpan={7}></th>
                     {visibleForemen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
@@ -405,6 +426,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                     </th>
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">
                       Zdane do magazynu do naprawy
+                    </th>
+                    <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[90px]">
+                      Zaginione
                     </th>
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
                       Dostepne w magazynie
@@ -500,6 +524,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                           className="w-16 bg-[#1E293B] border border-[#334155] text-[#E8836A] rounded px-2 py-1 text-center"
                           data-testid={`broken-input-${eq.id}`}
                         />
+                      </td>
+                      <td className="border border-[#334155] p-2 text-center">
+                        <span
+                          className={(eq.lost_quantity || 0) > 0 ? 'text-[#E8836A] font-bold' : 'text-[#64748B]'}
+                          data-testid={`lost-${eq.id}`}
+                        >
+                          {eq.lost_quantity || 0}
+                        </span>
                       </td>
                       <td className="border border-[#334155] p-2 text-center">
                         <span
@@ -676,14 +708,27 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       />
                     </a>
                   )}
-                  <Button
-                    size="sm"
-                    onClick={() => handleResolveShortage(s.id)}
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
-                    data-testid={`resolve-shortage-${s.id}`}
-                  >
-                    <Check className="h-4 w-4 mr-1" /> Rozpatrzono
-                  </Button>
+                  <div className="flex flex-col gap-2 items-stretch">
+                    <Button
+                      size="sm"
+                      onClick={() => handleMarkLost(s)}
+                      className="bg-[#9b3a2a] hover:bg-[#7a2d20] text-white"
+                      data-testid={`mark-lost-${s.id}`}
+                      title="Odejmij brakujace szt. od brygadzisty i zapisz jako zaginione"
+                    >
+                      <X className="h-4 w-4 mr-1" /> Oznacz zaginione
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResolveShortage(s.id)}
+                      className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
+                      data-testid={`resolve-shortage-${s.id}`}
+                      title="Sprzet sie znalazl - bez zmian na stanie"
+                    >
+                      <Check className="h-4 w-4 mr-1" /> Znalezione
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>

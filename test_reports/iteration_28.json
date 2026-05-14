@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 28: tested 'Zaginione' (Lost) workflow + 'Ubrania'->'Odzież' rename. 5/5 backend pytest passed. UI confirmed: Odzież tab, no 'Ubrania' remains, 'Zaginione' column ordered correctly between 'Zdane do magazynu do naprawy' and 'Dostepne', mark-lost/resolve-shortage buttons render with correct data-testid.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter28_lost_workflow.py",
+    "/app/test_reports/pytest/pytest_iter28_lost.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "/app/frontend/src/components/EquipmentAdmin.js is large (700+ lines) and could be split (shortages panel, lost column, table rendering) for maintainability.",
+    "mark_shortage_lost endpoint does not roll back if the equipment $inc fails after assignment was already decremented; consider transactional (motor session) or compensating logic.",
+    "Inconsistency: list_equipment trims response with broken/lost defaults to 0, but ad-hoc reads in other routes still use .get('lost_quantity', 0) without persisting. Old docs work due to graceful default, so OK."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter28_lost_workflow.py"
+  ],
+  "success_rate": {"backend": "100% (5/5)", "frontend": "100% (UI assertions all green)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "Created 3 TEST_LOST_* equipment items (auto-deleted at fixture teardown). Started multiple inventory checks (electronics) - prior active checks were auto-finished.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Tests assume an existing foreman in DB. Test file: /app/backend/tests/test_iter28_lost_workflow.py. To run: REACT_APP_BACKEND_URL=<preview_url> pytest backend/tests/test_iter28_lost_workflow.py -v. Tests create+delete their own equipment so safe to re-run. Inventory checks created may linger as 'finished' rows in inventory_checks collection.",
+  "verified_flows": [
+    "GET /api/equipment?category=electronics returns lost_quantity=0 for new items",
+    "available_quantity formula = total - assigned - broken - lost",
+    "POST /api/equipment/inventory/shortages/{id}/mark-lost: foreman.quantity-=missing, equipment.lost_quantity+=missing, status=resolved/resolution=lost",
+    "Second mark-lost on same shortage returns 400",
+    "POST /api/equipment/inventory/shortages/{id}/resolve: resolution=found, no stock changes, second call returns 400",
+    "POST /api/equipment/assign rejects when other+new+broken+lost > total",
+    "PUT /api/equipment/{id} broken_quantity validation includes lost_quantity",
+    "Frontend AdminDashboard tab labelled 'Odzież' (not 'Ubrania')",
+    "Frontend EquipmentAdmin table has 'Zaginione' column ordered between 'Zdane do magazynu' and 'Dostepne'",
+    "Frontend has data-testid mark-lost-{id} and resolve-shortage-{id} on shortage rows",
+    "ClothingAdmin shows 'Zamówiona odzież' (not 'ubrania')",
+    "No occurrences of 'ubran' or 'Ubrani' in frontend/src or backend/routes (grep clean)"
+  ]
+}

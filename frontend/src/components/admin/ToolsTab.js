@@ -64,7 +64,7 @@ const WarehouseKeepersCard = () => {
       <CardContent className="space-y-4">
         <p className="text-sm text-[#94A3B8]">
           Magazynier wchodzi przez <strong>jeden link</strong> (poniżej) - bez wpisywania hasła.
-          Widzi sprzęt, materiały, ubrania i BHP - może wydawać i przypisywać. Każda akcja wymaga potwierdzenia.
+          Widzi sprzęt, materiały, odzież i BHP - może wydawać i przypisywać. Każda akcja wymaga potwierdzenia.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Input

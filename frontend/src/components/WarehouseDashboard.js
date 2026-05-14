@@ -116,7 +116,7 @@ export default function WarehouseDashboard() {
         {/* Banner */}
         <div className="bg-[#7C5C00]/20 border-b border-[#E8B76A]/40 px-4 py-2 text-center">
           <p className="text-[#E8B76A] text-xs">
-            Tryb magazyniera: każde wydanie sprzętu / materiału / ubrań wymaga potwierdzenia.
+            Tryb magazyniera: każde wydanie sprzętu / materiału / odzieży wymaga potwierdzenia.
           </p>
         </div>
 
@@ -138,7 +138,7 @@ export default function WarehouseDashboard() {
                 <Box className="h-3.5 w-3.5 mr-1" /> Materiały <Badge n={pendingCounts.warehouse} />
               </TabsTrigger>
               <TabsTrigger value="clothing" data-testid="wh-clothing-tab" className="whitespace-nowrap">
-                <Shirt className="h-3.5 w-3.5 mr-1" /> Ubrania <Badge n={pendingCounts.clothing} />
+                <Shirt className="h-3.5 w-3.5 mr-1" /> Odzież <Badge n={pendingCounts.clothing} />
               </TabsTrigger>
               <TabsTrigger value="bhp" data-testid="wh-bhp-tab" className="whitespace-nowrap">
                 <ShieldCheck className="h-3.5 w-3.5 mr-1" /> BHP

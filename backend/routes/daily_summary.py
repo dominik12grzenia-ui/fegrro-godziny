@@ -8,7 +8,7 @@ przydatne do testow i do "wymus".
 Email zawiera:
 - Zamowienia sprzetu zlozone dzisiaj (per kategoria)
 - Zamowienia materialow zlozone dzisiaj
-- Zamowienia ubran zlozone dzisiaj
+- Zamowienia odziezy zlozone dzisiaj
 - Nieobecnosci zgloszone dzisiaj
 - Prosby o uzupelnienie godzin wciaz oczekujace
 - Co jest "do zrobienia" przez admina (pending + partial)
@@ -132,7 +132,7 @@ def _render_html(summary: dict) -> str:
                 )
             parts.append("</ul>")
         if summary["cl_today"]:
-            parts.append(f"<h4>Ubrania ({len(summary['cl_today'])})</h4><ul>")
+            parts.append(f"<h4>Odziez ({len(summary['cl_today'])})</h4><ul>")
             for it in summary["cl_today"]:
                 parts.append(
                     f"<li>{it.get('employee_name','?')}: {it.get('quantity','?')} x "
@@ -156,7 +156,7 @@ def _render_html(summary: dict) -> str:
     if summary["wh_open"]:
         pending_lines.append(f"<li>Zamowien materialow czeka na wydanie: <strong>{summary['wh_open']}</strong></li>")
     if summary["cl_open"]:
-        pending_lines.append(f"<li>Zamowien ubran czeka na wydanie: <strong>{summary['cl_open']}</strong></li>")
+        pending_lines.append(f"<li>Zamowien odziezy czeka na wydanie: <strong>{summary['cl_open']}</strong></li>")
     if summary["pending_reqs"]:
         pending_lines.append(f"<li>Prosb o uzupelnienie godzin: <strong>{summary['pending_reqs']}</strong></li>")
     if pending_lines:

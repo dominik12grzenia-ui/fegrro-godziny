@@ -243,7 +243,7 @@ export const BhpEmployees = () => {
 
   const hardDelete = async (emp) => {
     const confirm1 = window.confirm(
-      `Trwale usunac ${emp.full_name}?\n\nTo usunie pracownika oraz WSZYSTKIE jego dokumenty, wydania BHP i zamowienia ubran. Operacja NIEODWRACALNA.`,
+      `Trwale usunac ${emp.full_name}?\n\nTo usunie pracownika oraz WSZYSTKIE jego dokumenty, wydania BHP i zamowienia odziezy. Operacja NIEODWRACALNA.`,
     );
     if (!confirm1) return;
     const typed = window.prompt(`Aby potwierdzic, wpisz: ${emp.full_name}`);

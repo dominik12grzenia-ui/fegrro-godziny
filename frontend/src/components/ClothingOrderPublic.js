@@ -91,7 +91,7 @@ export const ClothingOrderPublic = ({ token }) => {
         <CardHeader className="pb-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
             <Shirt className="h-4 w-4 text-[#5F7151]" />
-            Ubrania robocze
+            Odzież robocza
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -115,7 +115,7 @@ export const ClothingOrderPublic = ({ token }) => {
         <CardHeader className="pb-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
             <Shirt className="h-4 w-4 text-[#5F7151]" />
-            Ubrania robocze
+            Odzież robocza
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
