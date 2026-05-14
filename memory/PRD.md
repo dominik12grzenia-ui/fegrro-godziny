@@ -329,3 +329,22 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
 
 ### Testy
 - Iteration_29.json: 100% frontend assertions pass; splash dziala, UA toggle zmienia teksty instant, localStorage zachowuje. Backend smoke 200. Admin login bez regresji.
+
+
+## Completed (2026-02-14) - Iteration 30: Thumbnails 96x96 (~1300x mniej w listach)
+
+### Problem
+Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pelne base64 zdjecia (~200KB/szt × ~30 szt = **2 MB transfer**). Zakladki ladowaly sie 1.6-2.2s.
+
+### Rozwiazanie
+- **Nowy modul `/app/backend/image_utils.py`** (`make_thumbnail`) - Pillow JPEG 96×96 q=75 (~500 B per thumb).
+- Equipment/Materials/Clothing types - POST/PUT generuje `photo_thumb`, GET lista zwraca thumb w polu `photo`. Nowy GET `/single/{id}` zwraca pelne photo (edit modal).
+- **Migracja non-blocking** przy starcie (`asyncio.create_task(_migrate_thumbnails())`) - idempotentna, generuje brakujace thumby raz.
+- **Frontend EquipmentAdmin**: `handleOpenEdit(eq)` -> w tle fetch `/equipment/single/{id}` -> podmiana na pelne photo do edycji.
+
+### Pomiary
+- 1500×1500 JPEG (~50 KB base64) -> thumb 480 B = **99% mniej**.
+- List response 4 items: **1523 B** zamiast ~2 MB - **~1300× mniej**. Zakladka **<300 ms** zamiast 2 s na 4G.
+
+### Testy
+- 9/9 pytest backend (`test_iter30_thumbnails.py`) + 5/5 iter28 regression PASS. Frontend renderuje OK.
