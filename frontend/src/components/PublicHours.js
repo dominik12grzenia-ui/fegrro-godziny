@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { SkeletonBox, SkeletonCards, SkeletonList } from './ui/skeletons';
 import { Button } from './ui/button';
 import { ChevronLeft, ChevronRight, Clock, Wallet, AlertTriangle, CalendarOff, X, Download, Share, PlusSquare } from 'lucide-react';
 import { format, getDaysInMonth, getDay, addDays } from 'date-fns';
@@ -9,6 +10,8 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { ClothingOrderPublic } from './ClothingOrderPublic';
 import { PublicPushButton } from './PublicPushButton';
+import { LanguageToggle } from './LanguageToggle';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -18,6 +21,7 @@ const HOLIDAY_BORDER = '#DC2626';
 
 export const PublicHours = () => {
   const { token } = useParams();
+  const { t } = useLanguage();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -154,8 +158,12 @@ export const PublicHours = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F7151]" />
+      <div className="min-h-screen bg-[#1E293B] p-4">
+        <div className="max-w-2xl mx-auto space-y-4">
+          <SkeletonBox style={{ height: 80 }} />
+          <SkeletonCards count={2} />
+          <SkeletonList rows={4} />
+        </div>
       </div>
     );
   }
@@ -214,11 +222,14 @@ export const PublicHours = () => {
       {/* Header */}
       <div className="bg-[#2A384C] text-white p-4 shadow-lg">
         <div className="max-w-lg mx-auto">
-          <div className="flex items-center justify-center mb-1">
-            <img src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg" alt="FeGrro" className="h-8 mr-3" />
-            <h1 className="text-xl font-bold">{data.employee_name}</h1>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <img src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg" alt="FeGrro" className="h-8 shrink-0" />
+              <h1 className="text-xl font-bold truncate">{data.employee_name}</h1>
+            </div>
+            <LanguageToggle />
           </div>
-          <p className="text-center text-[#94A3B8] text-sm">Godziny pracy</p>
+          <p className="text-center text-[#94A3B8] text-sm">{t('public.hours_section')}</p>
         </div>
       </div>
 
@@ -362,7 +373,7 @@ export const PublicHours = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
                 <Wallet className="h-4 w-4 text-[#E8836A]" />
-                Zaliczki
+                {t('public.advances_section')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -378,7 +389,7 @@ export const PublicHours = () => {
                 </div>
               ))}
               <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#E8836A]/30">
-                <span className="text-[#94A3B8] text-sm">Suma zaliczek:</span>
+                <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
                 <span className="text-[#E8836A] font-bold text-lg" data-testid="public-advance-total">{advances.total} zl</span>
               </div>
             </CardContent>
@@ -391,7 +402,7 @@ export const PublicHours = () => {
             <CardHeader className="pb-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
                 <AlertTriangle className="h-4 w-4 text-[#DC2626]" />
-                Kary
+                {t('public.penalties_section')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -417,7 +428,7 @@ export const PublicHours = () => {
                 </div>
               ))}
               <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#DC2626]/30">
-                <span className="text-[#94A3B8] text-sm">Suma kar:</span>
+                <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
                 <span className="text-[#DC2626] font-bold text-lg" data-testid="public-penalty-total">{penalties.total} zl</span>
               </div>
             </CardContent>
@@ -429,7 +440,7 @@ export const PublicHours = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
               <CalendarOff className="h-4 w-4 text-[#E8836A]" />
-              Zglos nieobecnosc / Повiдомити про вiдсутнiсть
+              {t('public.report_absence')}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">

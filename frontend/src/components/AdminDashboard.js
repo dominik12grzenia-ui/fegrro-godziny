@@ -6,6 +6,7 @@ import PushNotificationButton from './PushNotificationButton';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
+import { SkeletonBox, SkeletonCards, SkeletonTable } from './ui/skeletons';
 import { 
   Users, Building2, Clock, FileText, LogOut, 
   CheckCircle, XCircle, MapPin, Phone, Calendar,
@@ -228,10 +229,12 @@ export const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F7151] mx-auto"></div>
-          <p className="mt-4 text-[#94A3B8]">Wczytywanie...</p>
+      <div className="min-h-screen bg-[#1E293B] p-4">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <SkeletonBox style={{ height: 64 }} />
+          <SkeletonCards count={4} />
+          <SkeletonBox style={{ height: 120 }} />
+          <SkeletonTable rows={8} cols={6} />
         </div>
       </div>
     );

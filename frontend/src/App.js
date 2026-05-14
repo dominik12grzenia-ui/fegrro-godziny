@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
 import { AssignmentManager } from './components/AssignmentManager';
@@ -146,13 +147,15 @@ function AppRoutes() {
 
 function App() {
   return (
-    <AuthProvider>
-      <div className="App">
-        <AppRoutes />
-        <PWAInstallPrompt />
-        <Toaster position="top-center" richColors />
-      </div>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <div className="App">
+          <AppRoutes />
+          <PWAInstallPrompt />
+          <Toaster position="top-center" richColors />
+        </div>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }
 

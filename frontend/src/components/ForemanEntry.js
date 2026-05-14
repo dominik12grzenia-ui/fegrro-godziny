@@ -6,6 +6,8 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card';
 import { toast } from 'sonner';
+import { LanguageToggle } from './LanguageToggle';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export const ForemanEntry = () => {
   const [firstName, setFirstName] = useState('');
@@ -15,6 +17,7 @@ export const ForemanEntry = () => {
   const [loading, setLoading] = useState(false);
   const { loginForeman, user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!authLoading && user && user.role === 'foreman') {
@@ -78,6 +81,7 @@ export const ForemanEntry = () => {
 
   return (
     <div className="min-h-screen bg-[#1E293B] flex items-center justify-center p-6">
+      <div className="absolute top-4 right-4"><LanguageToggle /></div>
       <Card className="w-full max-w-md bg-[#2A384C] border-[#334155] shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
@@ -87,13 +91,13 @@ export const ForemanEntry = () => {
               className="h-16"
             />
           </div>
-          <CardTitle className="text-2xl font-bold text-[#6B8E4E]">Logowanie Brygadzisty</CardTitle>
-          <CardDescription className="text-[#94A3B8]">Podaj imie, nazwisko i haslo otrzymane od administratora</CardDescription>
+          <CardTitle className="text-2xl font-bold text-[#6B8E4E]">{t('login.foreman_title')}</CardTitle>
+          <CardDescription className="text-[#94A3B8]">{t('login.full_name')} + {t('login.password')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-[#CBD5E1]">Imie</Label>
+              <Label htmlFor="firstName" className="text-[#CBD5E1]">{t('login.first_name')}</Label>
               <Input
                 id="firstName"
                 type="text"
@@ -106,7 +110,7 @@ export const ForemanEntry = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-[#CBD5E1]">Nazwisko</Label>
+              <Label htmlFor="lastName" className="text-[#CBD5E1]">{t('login.last_name')}</Label>
               <Input
                 id="lastName"
                 type="text"
@@ -119,7 +123,7 @@ export const ForemanEntry = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[#CBD5E1]">Haslo</Label>
+              <Label htmlFor="password" className="text-[#CBD5E1]">{t('login.password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -142,11 +146,8 @@ export const ForemanEntry = () => {
               disabled={loading}
               data-testid="foreman-login-btn"
             >
-              {loading ? 'Logowanie...' : 'Zaloguj sie'}
+              {loading ? t('common.loading') : t('login.sign_in')}
             </Button>
-            <p className="text-xs text-[#64748B] text-center pt-2">
-              Nie masz konta? Skontaktuj sie z administratorem - tylko on moze utworzyc konto brygadzisty i ustawic haslo.
-            </p>
           </form>
         </CardContent>
       </Card>

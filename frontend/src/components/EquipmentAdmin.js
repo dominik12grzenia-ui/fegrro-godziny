@@ -8,6 +8,7 @@ import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, 
 import { toast } from 'sonner';
 import { EquipmentOrdersAdmin } from './EquipmentOrdersAdmin';
 import { AddEquipmentModal, EditEquipmentModal, HistoryModal, ResolveDefectModal } from './equipment/EquipmentModals';
+import { SkeletonBox, SkeletonTable } from './ui/skeletons';
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -320,8 +321,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
 
   if (loading) {
     return (
-      <div className="text-center py-12 text-[#94A3B8]" data-testid="equipment-loading">
-        Wczytywanie sprzetu...
+      <div className="space-y-3" data-testid="equipment-loading">
+        <SkeletonBox style={{ height: 56 }} />
+        <SkeletonTable rows={6} cols={8} />
       </div>
     );
   }

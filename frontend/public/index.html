@@ -79,7 +79,42 @@
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
+        <style>
+          /* Splash screen - widoczny zaraz po HTML parse, znika gdy React zamontuje */
+          #fegrro-splash{position:fixed;inset:0;z-index:99999;background:#0F172A;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:Inter,system-ui,-apple-system,sans-serif;color:#CBD5E1;transition:opacity .25s ease-out;will-change:opacity}
+          #fegrro-splash.hide{opacity:0;pointer-events:none}
+          #fegrro-splash .logo{font-size:42px;font-weight:600;letter-spacing:.5px;color:#5F7151;margin-bottom:24px;font-family:Inter,system-ui,-apple-system,sans-serif}
+          #fegrro-splash .ring{width:42px;height:42px;border:3px solid #1E293B;border-top-color:#5F7151;border-radius:50%;animation:fg-spin .9s linear infinite}
+          #fegrro-splash .hint{margin-top:18px;font-size:13px;color:#64748B}
+          @keyframes fg-spin{to{transform:rotate(360deg)}}
+          /* Hide splash automatically when #root has any child rendered */
+          #root:not(:empty) ~ #fegrro-splash{opacity:0;pointer-events:none}
+        </style>
         <div id="root"></div>
+        <div id="fegrro-splash" aria-hidden="true">
+          <div class="logo">FeGrro</div>
+          <div class="ring"></div>
+          <div class="hint">Ladowanie aplikacji...</div>
+        </div>
+        <script>
+          // Bezpieczne ukrycie splasha po pelnym mount (max 8s fallback gdyby cos)
+          (function(){
+            var done=false;
+            function hide(){if(done)return;done=true;var el=document.getElementById('fegrro-splash');if(el){el.classList.add('hide');setTimeout(function(){if(el.parentNode)el.parentNode.removeChild(el);},400);}}
+            // 1) gdy root dostanie pierwsze dziecko (React mount)
+            var obs=new MutationObserver(function(){
+              var r=document.getElementById('root');
+              if(r && r.childElementCount>0){hide();obs.disconnect();}
+            });
+            try{obs.observe(document.getElementById('root'),{childList:true});}catch(e){}
+            // 2) fallback po 8s na wypadek mega cold-startu
+            setTimeout(hide,8000);
+            // 3) gdy strona idzie do background nie kasuj splasha, wroci po focusie
+            document.addEventListener('DOMContentLoaded',function(){
+              setTimeout(function(){var r=document.getElementById('root');if(r && r.childElementCount>0)hide();},50);
+            });
+          })();
+        </script>
         <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.

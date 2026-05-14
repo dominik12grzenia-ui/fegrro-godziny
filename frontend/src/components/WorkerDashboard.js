@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
+import { SkeletonBox, SkeletonCards, SkeletonList } from './ui/skeletons';
 import { Input } from './ui/input';
 import { LogOut, Calendar, AlertCircle, Send, Users } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,6 +12,8 @@ import { pl } from 'date-fns/locale';
 import { LocationsButton } from './LocationsButton';
 import { InventoryCheckModal } from './InventoryCheckModal';
 import PushNotificationButton from './PushNotificationButton';
+import { LanguageToggle } from './LanguageToggle';
+import { useLanguage } from '../i18n/LanguageContext';
 import { useCachedApi } from '../context/apiCache';
 
 // Lazy-load heavy equipment section. We trigger preload immediately on mount
@@ -29,6 +32,7 @@ const HOLIDAY_BORDER = '#DC2626';
 export const WorkerDashboard = () => {
   const { user, logout, isImpersonating, stopImpersonation } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
 
   // Order counts for tab badges (foreman's own pending+partial equipment orders)
@@ -416,10 +420,12 @@ export const WorkerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F7151] mx-auto" />
-          <p className="mt-4 text-[#CBD5E1]">Wczytywanie...</p>
+      <div className="min-h-screen bg-[#1E293B] p-4">
+        <div className="max-w-3xl mx-auto space-y-4">
+          <SkeletonBox style={{ height: 56 }} />
+          <SkeletonCards count={2} />
+          <SkeletonBox style={{ height: 80 }} />
+          <SkeletonList rows={5} />
         </div>
       </div>
     );
@@ -429,8 +435,9 @@ export const WorkerDashboard = () => {
   if (!foremanData || !foremanData.assigned_sites || foremanData.assigned_sites.length === 0) {
     return (
       <div className="min-h-screen bg-[#1E293B]">
-        <div className="bg-[#2A384C] text-white p-4 shadow-lg flex items-center justify-between">
-          <h1 className="text-xl font-bold">Witaj, {user?.full_name}!</h1>
+        <div className="bg-[#2A384C] text-white p-4 shadow-lg flex items-center gap-3 justify-between">
+          <h1 className="text-xl font-bold flex-1 min-w-0 truncate">{t('foreman.greeting', { name: user?.full_name })}</h1>
+          <LanguageToggle />
           <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#334155]" data-testid="logout-btn">
             <LogOut className="h-5 w-5" />
           </Button>
@@ -439,9 +446,9 @@ export const WorkerDashboard = () => {
           <Card className="bg-[#2A384C] border-[#334155] max-w-md w-full">
             <CardContent className="pt-6 text-center">
               <AlertCircle className="h-16 w-16 text-[#5F7151] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-[#CBD5E1] mb-2">Oczekiwanie na przypisanie</h2>
+              <h2 className="text-xl font-bold text-[#CBD5E1] mb-2">{t('foreman.greeting', { name: '' })}</h2>
               <p className="text-[#94A3B8]">
-                Twoje konto zostalo zarejestrowane. Administrator musi przypisac Ci budowy. Poczekaj na aktywacje.
+                {t('foreman.no_sites')}
               </p>
             </CardContent>
           </Card>
@@ -481,13 +488,14 @@ export const WorkerDashboard = () => {
       )}
       {/* Header */}
       <div className="bg-[#2A384C] text-white shadow-lg shrink-0">
-        <div className="max-w-full mx-auto p-4 flex items-center gap-4">
-          <div className="flex-1">
-            <h1 className="text-xl sm:text-2xl font-bold">{user?.full_name}</h1>
+        <div className="max-w-full mx-auto p-4 flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold truncate">{user?.full_name}</h1>
             <p className="text-[#94A3B8] text-sm">
-              Budowy: {mySites.map(s => s.name).join(', ')} | {monthLabel}
+              {t('common.site')}: {mySites.map(s => s.name).join(', ')} | {monthLabel}
             </p>
           </div>
+          <LanguageToggle />
           <LocationsButton />
           <PushNotificationButton compact />
           <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#334155]" data-testid="logout-btn">
@@ -505,7 +513,7 @@ export const WorkerDashboard = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
               data-testid="foreman-tab-electronics"
             >
-              Elektronarzędzia
+              {t('common.tools')}
               {orderCounts.electronics > 0 && (
                 <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.electronics}
@@ -517,7 +525,7 @@ export const WorkerDashboard = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'accessories' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
               data-testid="foreman-tab-accessories"
             >
-              Akcesoria
+              {t('common.accessories')}
               {orderCounts.accessories > 0 && (
                 <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.accessories}
@@ -529,7 +537,7 @@ export const WorkerDashboard = () => {
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'formwork' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
               data-testid="foreman-tab-formwork"
             >
-              Szalunki
+              {t('common.formwork')}
               {orderCounts.formwork > 0 && (
                 <span className="ml-1.5 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.formwork}

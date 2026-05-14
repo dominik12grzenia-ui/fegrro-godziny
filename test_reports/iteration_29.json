@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 29: Frontend-only review of (1) splash screen, (2) skeleton loaders and (3) PL/UA i18n toggle. All critical flows pass. Splash hides correctly after React mount. ForemanEntry shows LanguageToggle; clicking 'UA' translates Logowanie brygadzisty -> Вхід для бригадира, Zaloguj -> Увійти, Imie -> Ім'я, Haslo -> Пароль. Choice persists in localStorage('fegrro_lang'='uk') across reload. Clicking 'PL' reverts. No toggle on /login or /admin/dashboard (admin login still works -> no regression from LanguageProvider). EquipmentAdmin shows skeleton-table during initial fetch when admin opens Elektronarzedzia tab. Backend smoke OK: /api/auth/admin/login=200, /api/equipment=200.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Note: GET / redirects to /foreman (Home = <Navigate to='/foreman'/>), so '/' DOES show the language toggle. The review_request listed '/' under 'admin pages with NO toggle'. This is a documentation/intent mismatch, not a bug - '/' is functionally the foreman entry. If the intent was to make '/' the admin landing, the redirect target should change.",
+    "STRINGS dict at /app/frontend/src/i18n/strings.js mixes Polish ASCII (Imie, Haslo, Sprzet) without diacritics in some keys while the UI elsewhere uses full diacritics. Consider unifying for consistency in PL spelling.",
+    "Splash recovery relies on MutationObserver + 8s fallback - works correctly in tests but if React error boundary fires before first child mount the splash will stay until 8s. Could add a window error listener to force hide on uncaught render errors."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "100% (smoke OK)", "frontend": "100% on assertions executed (PublicHours/WorkerDashboard live UI skipped - empty employees collection / no approved foreman in DB; code paths verified by grep)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "DB currently has 0 employees so /hours/{token} cannot be exercised live. WorkerDashboard live UI also needs an approved foreman. To test PublicHours/WorkerDashboard end-to-end with i18n+skeleton, seed at least one employee with public_token and one approved foreman. All i18n+skeleton code paths are wired (grep-verified) but only ForemanEntry login screen + AdminDashboard + EquipmentAdmin tabs were UI-verified.",
+  "verified_flows": [
+    "Splash #fegrro-splash visible at DOMContentLoaded, removed after #root has children",
+    "/foreman renders LanguageToggle (data-testid='language-toggle')",
+    "Click lang-btn-uk: 'Logowanie brygadzisty'->'Вхід для бригадира', 'Zaloguj'->'Увійти', 'Imie'->'Ім'я', 'Haslo'->'Пароль'",
+    "localStorage 'fegrro_lang' set to 'uk' and persists across reload",
+    "Click lang-btn-pl reverts texts",
+    "/login: no language-toggle, no toggle on /admin/dashboard",
+    "Admin login (admin@fegrro.pl) succeeds, dashboard renders -> LanguageProvider does not break admin",
+    "EquipmentAdmin: clicking 'Elektronarzedzia' tab briefly shows [data-testid='skeleton-table'] during fetch, then real table",
+    "Backend smoke: POST /api/auth/admin/login=200, GET /api/equipment?category=electronics (auth)=200"
+  ]
+}
