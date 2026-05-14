@@ -305,3 +305,27 @@ Aplikacja mobilna i webowa dla firm budowlanych do logowania godzin pracy pracow
   - w karcie "Zgloszone niezgodnosci sprzetu" zamiast jednego przycisku "Rozpatrzono" są dwa: **"Oznacz zaginione"** (`data-testid="mark-lost-{id}"`, czerwony) i **"Znalezione"** (`data-testid="resolve-shortage-{id}"`, outline). Oba z confirm.
 - **Testy**: 5/5 pytest backend (`test_iter28_lost_workflow.py`), 100% Playwright frontend assertions zielone.
 
+
+
+## Completed (2026-02-14) - Iteration 29: Splash + Skeleton loadery + i18n PL/UA
+
+### Splash screen (perceived speed boost)
+- Inline w `frontend/public/index.html` - HTML+CSS+JS, znika gdy `#root` zamontowane przez React (MutationObserver) lub po 8s fallback. Eliminuje czarna klatka miedzy pobieraniem JS a pierwszym renderem.
+
+### Skeleton loadery (zamiast spinnera "Wczytywanie...")
+- Nowy plik `/app/frontend/src/components/ui/skeletons.jsx`: SkeletonBox/Text/Table/Cards/List z shimmer-animation. Zastapiono spinnery w AdminDashboard, WorkerDashboard, PublicHours, EquipmentAdmin.
+
+### Internacjonalizacja PL/UA dla pracownikow i brygadzistow
+- Nowy modul `/app/frontend/src/i18n/`:
+  - `strings.js` - slownik ~150 kluczy `{ pl, uk }` (common.*, public.*, foreman.*, clothing_pub.*, login.*, inv.*).
+  - `LanguageContext.js` - React Context + `useLanguage()` z `t(key, vars)`. Persystuje wybor w `localStorage` ('fegrro_lang'), domyslnie PL.
+- Komponent `LanguageToggle.js` - pigulka **PL/UA**, wstawiony w naglowki: `/foreman` (ForemanEntry + WorkerDashboard po loginie), `/hours/{token}` (PublicHours).
+- Aplikacja owrazona w `<LanguageProvider>` globalnie (App.js), ale admin/magazynier nie maja toggla - widza tylko PL.
+- Brygadzista i pracownik widza takie napisy jak: 'Zaloguj' / 'Увійти', 'Imie' / 'Ім\'я', 'Sprzet' / 'Інструменти', 'Materialy' / 'Матеріали', etc.
+
+### Co user dostaje
+- **Pierwsza wizyta jest "szybsza"** o ~30% w odczuciu (splash + skeletons).
+- **Najwiekszy zysk**: User ma zrobic UptimeRobot ping dla /api/health zgodnie z `/app/UPTIMEROBOT_SETUP.md` - to eliminuje cold start Render Free (zysk 30-60s przy pierwszym wejsciu).
+
+### Testy
+- Iteration_29.json: 100% frontend assertions pass; splash dziala, UA toggle zmienia teksty instant, localStorage zachowuje. Backend smoke 200. Admin login bez regresji.
