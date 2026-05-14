@@ -60,7 +60,7 @@ const PendingItemRow = ({ row, onIssue, onRemove }) => {
 };
 
 export const WarehouseAdmin = () => {
-  const [subtab, setSubtab] = useState('materials');
+  const [subtab, setSubtab] = useState('orders');
   const [materials, setMaterials] = useState([]);
   const [orders, setOrders] = useState([]);
   const [foremen, setForemen] = useState([]);

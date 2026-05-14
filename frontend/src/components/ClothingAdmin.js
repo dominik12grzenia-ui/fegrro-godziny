@@ -3,14 +3,14 @@ import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Shirt, Plus, Trash2, Check, Edit, X, Download } from 'lucide-react';
+import { Shirt, Plus, Trash2, Check, Edit, X, Download, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { BODY_TYPES } from './BodySilhouettes';
 
 const MONTHS = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paz', 'Lis', 'Gru'];
 
 export const ClothingAdmin = () => {
-  const [subtab, setSubtab] = useState('types');
+  const [subtab, setSubtab] = useState('orders');
   const [types, setTypes] = useState([]);
   const [orders, setOrders] = useState([]);
   const [grouped, setGrouped] = useState([]);
@@ -156,6 +156,17 @@ export const ClothingAdmin = () => {
     }
   };
 
+  const unmarkIssued = async (order) => {
+    if (!window.confirm('Cofnac wydanie? Zamowienie wroci na liste do wydania.')) return;
+    try {
+      await api.post(`/clothing/orders/${order.id}/unissue`);
+      toast.success('Cofnieto wydanie');
+      fetchAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Blad');
+    }
+  };
+
   const toggleForwarded = async (order) => {
     try {
       const res = await api.post(`/clothing/orders/${order.id}/forward`);
@@ -203,18 +214,25 @@ export const ClothingAdmin = () => {
       {/* Sub-tabs */}
       <div className="flex gap-2 flex-wrap">
         <button
-          onClick={() => setSubtab('types')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'types' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
-          data-testid="clothing-subtab-types"
-        >
-          Przydział
-        </button>
-        <button
           onClick={() => setSubtab('orders')}
           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
           data-testid="clothing-subtab-orders"
         >
           Zamówione ({orders.filter(o => o.status !== 'issued').length})
+        </button>
+        <button
+          onClick={() => setSubtab('issued')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issued' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="clothing-subtab-issued"
+        >
+          Wydane ({orders.filter(o => o.status === 'issued').length})
+        </button>
+        <button
+          onClick={() => setSubtab('types')}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'types' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          data-testid="clothing-subtab-types"
+        >
+          Przydział
         </button>
         <button
           onClick={() => setSubtab('summary')}
@@ -304,51 +322,79 @@ export const ClothingAdmin = () => {
       )}
 
       {/* ORDERS sub-tab - grouped by employee */}
-      {subtab === 'orders' && (
+      {(subtab === 'orders' || subtab === 'issued') && (
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Shirt className="h-5 w-5 text-[#5F7151]" /> Zamówione ubrania
+                <Shirt className="h-5 w-5 text-[#5F7151]" />
+                {subtab === 'orders' ? 'Zamówione ubrania' : 'Wydane ubrania'}
               </CardTitle>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => exportOrdersPdf('ordered')}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
-                  data-testid="export-orders-pdf-pending"
-                  title="Tylko nowe zamowienia, ktorych nie oznaczono jako 'Przekazane do realizacji'"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1" /> PDF do dostawcy (nowe)
-                </Button>
+              {subtab === 'orders' && (
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    onClick={() => exportOrdersPdf('ordered')}
+                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
+                    data-testid="export-orders-pdf-pending"
+                    title="Tylko nowe zamowienia, ktorych nie oznaczono jako 'Przekazane do realizacji'"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" /> PDF do dostawcy (nowe)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportOrdersPdf('include_forwarded')}
+                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
+                    data-testid="export-orders-pdf-pending-and-forwarded"
+                    title="Wszystkie niewydane, lacznie z przekazanymi do realizacji"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" /> PDF (niewydane)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => exportOrdersPdf('all')}
+                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
+                    data-testid="export-orders-pdf-all"
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1" /> PDF (wszystkie)
+                  </Button>
+                </div>
+              )}
+              {subtab === 'issued' && (
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => exportOrdersPdf('include_forwarded')}
+                  onClick={() => exportOrdersPdf('issued')}
                   className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
-                  data-testid="export-orders-pdf-pending-and-forwarded"
-                  title="Wszystkie niewydane, lacznie z przekazanymi do realizacji"
+                  data-testid="export-orders-pdf-issued"
                 >
-                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (niewydane)
+                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (wydane)
                 </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => exportOrdersPdf('all')}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
-                  data-testid="export-orders-pdf-all"
-                >
-                  <Download className="h-3.5 w-3.5 mr-1" /> PDF (wszystkie)
-                </Button>
-              </div>
+              )}
             </div>
           </CardHeader>
           <CardContent>
-            {grouped.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak zamówień.</p>
-            ) : (
-              <div className="space-y-4">
-                {grouped.map((row) => {
+            {(() => {
+              const groupedFiltered = grouped
+                .map((row) => ({
+                  ...row,
+                  orders: row.orders.filter((o) =>
+                    subtab === 'orders' ? o.status !== 'issued' : o.status === 'issued'
+                  ),
+                }))
+                .filter((row) => row.orders.length > 0);
+              if (groupedFiltered.length === 0) {
+                return (
+                  <p className="text-[#94A3B8]">
+                    {subtab === 'orders' ? 'Brak zamówień do wydania.' : 'Brak wydanych zamówień.'}
+                  </p>
+                );
+              }
+              return (
+                <div className="space-y-4">
+                  {groupedFiltered.map((row) => {
                   const p = row.clothing_profile || {};
                   const btInfo = BODY_TYPES.find((b) => b.value === p.body_type);
                   const BtIcon = btInfo?.Icon;
@@ -384,21 +430,34 @@ export const ClothingAdmin = () => {
                           return (
                             <div
                               key={o.id}
-                              className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded ${bgClass}`}
+                              className={`p-2 rounded ${bgClass}`}
                               data-testid={`order-${o.id}`}
                             >
-                              <div className="flex-1 min-w-0">
+                              {/* Title + status badge: one clean line that wraps as needed */}
+                              <div className="text-sm leading-snug break-words">
                                 <span className={`font-semibold ${issued ? 'text-[#6B8E4E]' : forwarded ? 'text-[#E8B76A]' : 'text-[#E8B76A]'}`}>{o.clothing_type_name}</span>
-                                <span className="text-[#94A3B8] ml-2">x {o.quantity}</span>
-                                {issued && <span className="ml-2 text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase">Wydane</span>}
-                                {forwarded && <span className="ml-2 text-[10px] bg-[#E8B76A]/30 text-[#E8B76A] px-2 py-0.5 rounded font-semibold uppercase">Przekazane do realizacji</span>}
-                                <p className="text-[11px] text-[#64748B] mt-0.5">
-                                  {new Date(o.created_at).toLocaleString('pl-PL')}
-                                  {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
-                                  {forwarded && o.forwarded_at && ` · Przekazane: ${new Date(o.forwarded_at).toLocaleString('pl-PL')}`}
-                                </p>
+                                <span className="text-[#94A3B8] ml-2 whitespace-nowrap">x {o.quantity}</span>
+                                {issued && <span className="ml-2 inline-block text-[10px] bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold uppercase whitespace-nowrap">Wydane</span>}
+                                {forwarded && <span className="ml-2 inline-block text-[10px] bg-[#E8B76A]/30 text-[#E8B76A] px-2 py-0.5 rounded font-semibold whitespace-nowrap">Przekazane do realizacji</span>}
                               </div>
-                              <div className="flex gap-1 shrink-0">
+                              <p className="text-[11px] text-[#64748B] mt-1">
+                                {new Date(o.created_at).toLocaleString('pl-PL')}
+                                {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
+                                {forwarded && o.forwarded_at && ` · Przekazane: ${new Date(o.forwarded_at).toLocaleString('pl-PL')}`}
+                              </p>
+                              {/* Action buttons on their own row so they never wrap into the title */}
+                              <div className="flex gap-1 flex-wrap mt-2">
+                                {issued && (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => unmarkIssued(o)}
+                                    variant="outline"
+                                    className="border-[#475569] bg-[#1E293B] text-[#CBD5E1] hover:bg-[#334155] text-xs h-7"
+                                    data-testid={`unissue-order-${o.id}`}
+                                  >
+                                    <Undo2 className="h-3 w-3 mr-1" /> Cofnij wydanie
+                                  </Button>
+                                )}
                                 {!issued && (
                                   <Button
                                     size="sm"
@@ -417,7 +476,7 @@ export const ClothingAdmin = () => {
                                     <Check className="h-3 w-3 mr-1" /> Wydane
                                   </Button>
                                 )}
-                                <Button size="sm" variant="ghost" onClick={() => deleteOrder(o)} className="text-[#E8836A] h-7 px-2" data-testid={`del-order-${o.id}`}>
+                                <Button size="sm" variant="ghost" onClick={() => deleteOrder(o)} className="text-[#E8836A] h-7 px-2 ml-auto" data-testid={`del-order-${o.id}`}>
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
                               </div>
@@ -427,9 +486,10 @@ export const ClothingAdmin = () => {
                       </div>
                     </div>
                   );
-                })}
-              </div>
-            )}
+                  })}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       )}

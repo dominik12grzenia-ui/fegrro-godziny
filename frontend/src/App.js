@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { AdminLogin } from './components/AdminLogin';
 import { AdminDashboard } from './components/AdminDashboard';
@@ -58,9 +58,32 @@ const ProtectedWorkerRoute = ({ children }) => {
 
 const Home = () => <Navigate to="/foreman" replace />;
 
+/**
+ * Listens to messages from the service worker (push-notification clicks) and
+ * navigates the SPA accordingly. Without this, SW.client.navigate() can't
+ * cross the SPA route boundary on iOS/Safari standalone.
+ */
+function SwNavigationBridge() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const onMessage = (event) => {
+      const data = event.data;
+      if (data && data.type === 'NAVIGATE' && data.url) {
+        try { navigate(data.url, { replace: false }); }
+        catch (_e) { window.location.href = data.url; }
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [navigate]);
+  return null;
+}
+
 function AppRoutes() {
   return (
     <BrowserRouter>
+      <SwNavigationBridge />
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<AdminLogin />} />

@@ -408,6 +408,26 @@ async def mark_order_issued(order_id: str,
     return {"message": "Oznaczono jako wydane"}
 
 
+@router.post("/clothing/orders/{order_id}/unissue")
+async def unmark_order_issued(order_id: str,
+                                current_user: dict = Depends(get_current_admin_or_warehouse)):
+    """Revert an order from 'issued' back to 'ordered' (e.g. wrong size, returned).
+
+    Resets issued_at/issued_by metadata so the order re-appears on the pending
+    list and in the supplier PDF.
+    """
+    order = await db.clothing_orders.find_one({"id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Zamowienie nie znalezione")
+    if order.get("status") != "issued":
+        raise HTTPException(status_code=400, detail="Zamowienie nie bylo wydane")
+    await db.clothing_orders.update_one(
+        {"id": order_id},
+        {"$set": {"status": "ordered"}, "$unset": {"issued_at": "", "issued_by": ""}}
+    )
+    return {"message": "Cofnieto wydanie", "status": "ordered"}
+
+
 @router.post("/clothing/orders/{order_id}/forward")
 async def mark_order_forwarded(order_id: str,
                                 current_user: dict = Depends(get_current_admin_or_warehouse)):

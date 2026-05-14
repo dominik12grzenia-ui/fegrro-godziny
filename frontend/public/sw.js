@@ -7,7 +7,7 @@
 //
 // Brak fetch handlera == przegladarka idzie wprost do sieci. Vercel ustawia
 // no-cache na index.html/sw.js/manifest, wiec kazdy deploy jest natychmiast widoczny.
-const SW_VERSION = 'fegrro-push-2026-02-13-01';
+const SW_VERSION = 'fegrro-push-2026-02-13-02-nav';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
@@ -64,20 +64,28 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = (event.notification.data && event.notification.data.url) || '/';
+  // Build a fully-qualified target URL on this origin so navigation is reliable
+  // across PWA/standalone modes (Safari iOS in particular).
+  const rawUrl = (event.notification.data && event.notification.data.url) || '/';
+  const targetUrl = new URL(rawUrl, self.location.origin).href;
+
   event.waitUntil((async () => {
     const allClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // 1) Find any open tab on our origin and tell it to navigate via postMessage.
+    //    This is more reliable than client.navigate() in iOS Safari and Chrome
+    //    standalone PWAs where navigate() silently fails.
     for (const c of allClients) {
       try {
-        if ('focus' in c) {
+        if (new URL(c.url).origin === self.location.origin) {
           await c.focus();
-          if (c.url !== targetUrl && 'navigate' in c) {
-            try { await c.navigate(targetUrl); } catch (_e) { /* cross-origin etc. */ }
-          }
+          c.postMessage({ type: 'NAVIGATE', url: rawUrl });
           return;
         }
       } catch (_e) { /* ignore */ }
     }
-    if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    // 2) Fallback: open a brand-new tab on the target URL.
+    if (self.clients.openWindow) {
+      return self.clients.openWindow(targetUrl);
+    }
   })());
 });
