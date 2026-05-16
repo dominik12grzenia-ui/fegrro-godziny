@@ -1,0 +1,29 @@
+{
+  "summary": "Iter33: Verified fixed-salary feature + housing removal. Backend 5/5 PASSED (test_iter33_fixed_salary.py) + iter31 (12/12 after housing_zl test cleanup) + iter32 (17/17 regression) = 34/34. Frontend Playwright: column order correct (Pracownik, Stala, Godziny, Stawka, Kwota godzin, Zal., Kary, Dodatki+, Kierowca+, Inne-, Inne+, Wyplata, Akcje), no 'Mieszk' anywhere, payroll-fixed-{id} checkbox toggles between editable rate / editable fixed_salary_amount with rate-readonly span, real-time payout updates to 5000.00 zl when fixed_salary_amount set to 5000, toggle back to hourly restores rate editable & hamount span. PDF generation succeeds (>5KB) and does not contain 'mieszkanie' in body.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter33_fixed_salary.py",
+    "/app/test_reports/pytest/pytest_iter33_fixed_salary.xml",
+    "/app/test_reports/pytest/pytest_iter33_combined.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/payroll.py _calc: when is_fixed=True and hours>0, rate_effective = fixed_amt/hours and advances_zl = adv_h * rate_effective. This means advance hours scale proportionally to the fixed salary distribution. Confirmed correct per spec but worth documenting in code comments to avoid future confusion.",
+    "PayrollRecord uses Pydantic without 'extra=forbid'. PUT with stale housing_zl from old clients silently passes (ignored). Acceptable for backward compatibility; alternative would be model_config = ConfigDict(extra='ignore') for explicit intent.",
+    "PUT /payroll loop coerces all non-is_fixed_salary fields via float(v or 0). If someone sends booleans for numeric fields they'd be converted (e.g. True->1.0) — minor robustness concern, low priority.",
+    "Frontend NumCell uses key={emp}-{field}-{initial} which re-mounts on each save; works for live recompute but loses focus mid-typing on slow saves. Current debounce-on-blur pattern mitigates this. OK.",
+    "PayrollAdmin.js stale comment at line 3-7 still mentions 'mieszkanie -' in the dosier; this is just a top-of-module docstring in payroll.py and was updated, but the module docstring should be revisited to fully reflect feature changes.",
+    "FRONTEND: rate read-only span uses text-[#94A3B8] (low contrast on #1E293B background). Consider #CBD5E1 for better readability — minor."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter33_fixed_salary.py",
+    "/app/backend/tests/test_iter31_payroll.py"
+  ],
+  "success_rate": {"backend": "100% (34/34: 5 iter33 + 12 iter31 + 17 iter32)", "frontend": "100% (8/8 UI checks: headers, no Mieszk, toggle ON/OFF, rate readonly span, fixed_salary_amount editable, live payout=5000, hamount span, no Mieszk in DOM)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "Each run: creates TEST_iter33_{6char} employee for year=2026 month=3, deleted at end of module via fixture teardown. iter31 stale test (housing_zl) updated to expected new schema. Existing 'Jan Testowy' (is_fixed_salary=True) in DB used as a real row but not modified destructively.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Selectors: [data-testid='payroll-fixed-{id}'] (checkbox), [data-testid='payroll-rate-readonly-{id}'] (span when fixed=true), [data-testid='payroll-input-{id}-rate'] (NumCell hourly), [data-testid='payroll-input-{id}-fixed_salary_amount'] (NumCell fixed), [data-testid='payroll-hamount-{id}'] (span when hourly), [data-testid='payroll-payout-{id}']. Header text 'Stala' confirms feature column. No 'Mieszk' header anywhere. Admin login route: /login (not /admin). Iter28 lost-workflow tests still hit a pre-existing pytest fixture URL bug (env var not propagated by relative imports) — unrelated to iter33 — see iter32 report."
+}

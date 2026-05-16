@@ -34,9 +34,10 @@ logger = logging.getLogger(__name__)
 # ============= Models =============
 class PayrollRecord(BaseModel):
     rate: Optional[float] = Field(default=0.0)  # zl/h
+    is_fixed_salary: Optional[bool] = Field(default=False)  # stala pensja - kwota dzielona przez godziny
+    fixed_salary_amount: Optional[float] = Field(default=0.0)  # gdy is_fixed_salary -> kwota wpisana zamiast rate*godziny
     advances_hours: Optional[float] = Field(default=0.0)  # zaliczki w godzinach
     penalties_zl: Optional[float] = Field(default=0.0)
-    housing_zl: Optional[float] = Field(default=0.0)  # mieszkanie - minus
     other_minus_zl: Optional[float] = Field(default=0.0)
     bonus_zl: Optional[float] = Field(default=0.0)  # dodatki + plus
     driver_zl: Optional[float] = Field(default=0.0)
@@ -45,19 +46,27 @@ class PayrollRecord(BaseModel):
 
 def _calc(hours: float, rec: dict) -> dict:
     rate = float(rec.get("rate") or 0)
+    is_fixed = bool(rec.get("is_fixed_salary") or False)
+    fixed_amt = float(rec.get("fixed_salary_amount") or 0)
     adv_h = float(rec.get("advances_hours") or 0)
     pen = float(rec.get("penalties_zl") or 0)
-    house = float(rec.get("housing_zl") or 0)
     o_minus = float(rec.get("other_minus_zl") or 0)
     bonus = float(rec.get("bonus_zl") or 0)
     driver = float(rec.get("driver_zl") or 0)
     o_plus = float(rec.get("other_plus_zl") or 0)
-    hours_amount = round(hours * rate, 2)
-    advances_zl = round(adv_h * rate, 2)
-    payout = round(hours_amount - advances_zl - pen - house - o_minus + bonus + driver + o_plus, 2)
+    if is_fixed:
+        # Kwota godzin = wpisana stala pensja; stawka_eff = pensja / godziny
+        hours_amount = round(fixed_amt, 2)
+        rate_eff = round(fixed_amt / hours, 2) if hours > 0 else 0.0
+    else:
+        hours_amount = round(hours * rate, 2)
+        rate_eff = round(rate, 2)
+    advances_zl = round(adv_h * rate_eff, 2)
+    payout = round(hours_amount - advances_zl - pen - o_minus + bonus + driver + o_plus, 2)
     return {
         "hours_amount": hours_amount,
         "advances_zl": advances_zl,
+        "rate_effective": rate_eff,
         "payout": payout,
     }
 
@@ -141,9 +150,10 @@ async def list_payroll(
             "sites_breakdown": sites_breakdown,
             "record": {
                 "rate": float(rec.get("rate") or 0),
+                "is_fixed_salary": bool(rec.get("is_fixed_salary") or False),
+                "fixed_salary_amount": float(rec.get("fixed_salary_amount") or 0),
                 "advances_hours": float(rec.get("advances_hours") or 0),
                 "penalties_zl": float(rec.get("penalties_zl") or 0),
-                "housing_zl": float(rec.get("housing_zl") or 0),
                 "other_minus_zl": float(rec.get("other_minus_zl") or 0),
                 "bonus_zl": float(rec.get("bonus_zl") or 0),
                 "driver_zl": float(rec.get("driver_zl") or 0),
@@ -169,7 +179,13 @@ async def update_payroll(
     payload: PayrollRecord = Body(...),
     current_user: dict = Depends(get_current_admin),
 ):
-    update = {k: float(v or 0) for k, v in payload.model_dump(exclude_unset=True).items()}
+    raw = payload.model_dump(exclude_unset=True)
+    update = {}
+    for k, v in raw.items():
+        if k == "is_fixed_salary":
+            update[k] = bool(v)
+        else:
+            update[k] = float(v or 0)
     update.update({
         "employee_id": employee_id,
         "year": year,
@@ -235,18 +251,18 @@ def _draw_card(c, x, y, w, h, employee: dict, year: int, month: int, fonts):
     rec = employee.get("record", {})
     comp = employee.get("computed", {})
     hours = employee.get("total_hours", 0)
-    rate = float(rec.get("rate") or 0)
+    rate = float(comp.get("rate_effective") or rec.get("rate") or 0)
+    is_fixed = bool(rec.get("is_fixed_salary"))
 
     lines = [
         ("Godziny", f"{hours:g} h", "X"),
-        ("Stawka", f"{rate:.2f} zl", "="),
+        ("Stawka" + (" (st.)" if is_fixed else ""), f"{rate:.2f} zl", "="),
         ("Kwota godzin", f"{comp.get('hours_amount', 0):.2f} zl", ""),
         ("Zaliczki -", f"{comp.get('advances_zl', 0):.2f} zl", ""),
         ("Kary -", f"{rec.get('penalties_zl', 0):.2f} zl", ""),
-        ("Mieszkanie -", f"{rec.get('housing_zl', 0):.2f} zl", ""),
-        ("Inne -", f"{rec.get('other_minus_zl', 0):.2f} zl", ""),
         ("Dodatki +", f"{rec.get('bonus_zl', 0):.2f} zl", ""),
         ("Kierowca +", f"{rec.get('driver_zl', 0):.2f} zl", ""),
+        ("Inne -", f"{rec.get('other_minus_zl', 0):.2f} zl", ""),
         ("Inne +", f"{rec.get('other_plus_zl', 0):.2f} zl", ""),
     ]
     line_h = (h - 2 * pad - 18) / (len(lines) + 1)

@@ -63,9 +63,12 @@ class TestPayrollList:
                       "sites_breakdown", "record", "computed"]:
                 assert k in row, f"missing {k} in row: {row.keys()}"
             rec = row["record"]
-            assert set(["rate", "advances_hours", "penalties_zl", "housing_zl",
+            # iter33: housing_zl removed; is_fixed_salary + fixed_salary_amount added
+            assert set(["rate", "advances_hours", "penalties_zl",
                         "other_minus_zl", "bonus_zl", "driver_zl",
-                        "other_plus_zl"]).issubset(rec.keys())
+                        "other_plus_zl", "is_fixed_salary",
+                        "fixed_salary_amount"]).issubset(rec.keys())
+            assert "housing_zl" not in rec
             comp = row["computed"]
             assert set(["hours_amount", "advances_zl", "payout"]).issubset(comp.keys())
 
@@ -101,7 +104,6 @@ class TestPayrollUpdate:
             "rate": 35.0,
             "advances_hours": 2.0,
             "penalties_zl": 0.0,
-            "housing_zl": 0.0,
             "other_minus_zl": 0.0,
             "bonus_zl": 100.0,
             "driver_zl": 0.0,
@@ -136,7 +138,7 @@ class TestPayrollUpdate:
         hours = emp["total_hours"]
         payload = {
             "rate": 40.0, "advances_hours": 1.0,
-            "penalties_zl": 50.0, "housing_zl": 200.0, "other_minus_zl": 30.0,
+            "penalties_zl": 50.0, "other_minus_zl": 30.0,
             "bonus_zl": 150.0, "driver_zl": 80.0, "other_plus_zl": 20.0,
         }
         r = requests.put(
@@ -150,8 +152,9 @@ class TestPayrollUpdate:
                 headers=admin_headers, timeout=15
             ).json()["rows"] if x["employee_id"] == emp_id
         )
+        # iter33: housing removed from formula
         expected = round(
-            hours * 40 - 1 * 40 - 50 - 200 - 30 + 150 + 80 + 20, 2
+            hours * 40 - 1 * 40 - 50 - 30 + 150 + 80 + 20, 2
         )
         assert row["computed"]["payout"] == expected
 

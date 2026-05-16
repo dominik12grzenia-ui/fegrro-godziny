@@ -157,17 +157,25 @@ export const PayrollAdmin = () => {
         const rows = d.rows.map((r) => {
           if (r.employee_id !== row.employee_id) return r;
           const rate = parseFloat(newRec.rate || 0);
+          const is_fixed = !!newRec.is_fixed_salary;
+          const fixed_amt = parseFloat(newRec.fixed_salary_amount || 0);
           const adv_h = parseFloat(newRec.advances_hours || 0);
           const pen = parseFloat(newRec.penalties_zl || 0);
-          const house = parseFloat(newRec.housing_zl || 0);
           const o_minus = parseFloat(newRec.other_minus_zl || 0);
           const bonus = parseFloat(newRec.bonus_zl || 0);
           const driver = parseFloat(newRec.driver_zl || 0);
           const o_plus = parseFloat(newRec.other_plus_zl || 0);
-          const hours_amount = +(r.total_hours * rate).toFixed(2);
-          const advances_zl = +(adv_h * rate).toFixed(2);
-          const payout = +(hours_amount - advances_zl - pen - house - o_minus + bonus + driver + o_plus).toFixed(2);
-          return { ...r, record: newRec, computed: { hours_amount, advances_zl, payout } };
+          let hours_amount, rate_effective;
+          if (is_fixed) {
+            hours_amount = +fixed_amt.toFixed(2);
+            rate_effective = r.total_hours > 0 ? +(fixed_amt / r.total_hours).toFixed(2) : 0;
+          } else {
+            hours_amount = +(r.total_hours * rate).toFixed(2);
+            rate_effective = +rate.toFixed(2);
+          }
+          const advances_zl = +(adv_h * rate_effective).toFixed(2);
+          const payout = +(hours_amount - advances_zl - pen - o_minus + bonus + driver + o_plus).toFixed(2);
+          return { ...r, record: newRec, computed: { hours_amount, advances_zl, rate_effective, payout } };
         });
         return { ...d, rows };
       });
@@ -182,6 +190,10 @@ export const PayrollAdmin = () => {
     const num = value === '' ? 0 : parseFloat(value);
     if (Number.isNaN(num)) return;
     saveRecord(row, { [field]: num });
+  };
+
+  const handleToggleFixed = (row) => {
+    saveRecord(row, { is_fixed_salary: !row.record.is_fixed_salary });
   };
 
   const downloadPdf = async (onlySelected) => {
@@ -291,15 +303,15 @@ export const PayrollAdmin = () => {
                       />
                     </th>
                     <th className="p-2 text-left">Pracownik</th>
+                    <th className="p-2 text-center">Stala</th>
                     <th className="p-2 text-right">Godziny</th>
                     <th className="p-2 text-right">Stawka zl/h</th>
                     <th className="p-2 text-right">Kwota godzin</th>
                     <th className="p-2 text-right">Zal. (h)</th>
                     <th className="p-2 text-right">Kary zl</th>
-                    <th className="p-2 text-right">Mieszk. zl</th>
-                    <th className="p-2 text-right">Inne -</th>
                     <th className="p-2 text-right">Dodatki +</th>
                     <th className="p-2 text-right">Kierowca +</th>
+                    <th className="p-2 text-right">Inne -</th>
                     <th className="p-2 text-right">Inne +</th>
                     <th className="p-2 text-right">Wyplata</th>
                     <th className="p-2 text-center">Akcje</th>
@@ -320,14 +332,35 @@ export const PayrollAdmin = () => {
                           </button>
                         </td>
                         <td className="p-2 text-right text-white font-semibold">{r.total_hours}</td>
-                        <td className="p-2 text-right"><NumCell row={r} field="rate" handleNum={handleNum} step="0.5" /></td>
-                        <td className="p-2 text-right text-[#94A3B8]">{r.computed.hours_amount.toFixed(2)}</td>
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={!!r.record.is_fixed_salary}
+                            onChange={() => handleToggleFixed(r)}
+                            data-testid={`payroll-fixed-${r.employee_id}`}
+                            title="Stala pensja - wpisz kwote w 'Kwota godzin', stawka liczy sie automatycznie"
+                            className="h-4 w-4 accent-[#5F7151] cursor-pointer"
+                          />
+                        </td>
+                        <td className="p-2 text-right">
+                          {r.record.is_fixed_salary ? (
+                            <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{(r.computed.rate_effective ?? 0).toFixed(2)}</span>
+                          ) : (
+                            <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" />
+                          )}
+                        </td>
+                        <td className="p-2 text-right">
+                          {r.record.is_fixed_salary ? (
+                            <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" />
+                          ) : (
+                            <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{r.computed.hours_amount.toFixed(2)}</span>
+                          )}
+                        </td>
                         <td className="p-2 text-right"><NumCell row={r} field="advances_hours" handleNum={handleNum} step="0.5" /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="penalties_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="housing_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{r.computed.payout.toFixed(2)} zl</td>
                         <td className="p-2 text-center">
