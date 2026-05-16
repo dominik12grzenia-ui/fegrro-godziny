@@ -367,3 +367,29 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 
 ### Testy
 - Backend 12/12 pytest PASS + RBAC 401/403. Frontend renders OK, PDF download dziala (~42KB dla 1 pracownika).
+
+
+## Completed (2026-02-16) - Iteration 32: Zarzadzanie pracownikami + RBAC potwierdzony
+
+### Backend - CRUD pracownikow + cascade delete
+- `POST /api/employees/{id}/archive` - soft archive (is_archived=true, currently_active=false, archived_at, archived_by).
+- `POST /api/employees/{id}/unarchive` - przywraca.
+- `DELETE /api/employees/{id}` - **wymaga is_archived=true** (inaczej 400). Cascade czysci 9 kolekcji: hour_entries, assignments, advances, penalties, absences, clothing_orders, bhp_documents, bhp_issuances, payroll_records. Zwraca counter usunietych dokumentow.
+- `GET /api/employees?include_archived=true` - opcjonalnie pokazuje wszystkich; default ukrywa zarchiwizowanych.
+
+### Frontend - UI w zakladce Wyplaty
+- Przycisk **"Dodaj pracownika"** w naglowku → modal z polami imie+nazwisko, telefon.
+- Kolumna **"Akcje"** w tabeli z ikona archiwizacji per wiersz.
+- Sekcja **"Archiwum pracownikow (N)"** rozwijana pod tabela z przyciskami **Przywroc** / **Usun trwale** per zarchiwizowany.
+- Wszystkie destrukcyjne akcje wymagaja `window.confirm`.
+- Input refs (fallback) zapobiegaja race condition przy szybkim submitcie.
+
+### Security potwierdzony
+- Wszystkie endpointy payroll uzywaja `get_current_admin` - **foreman/pracownik dostaja 403**.
+- WorkerDashboard, PublicHours, ForemanEntry NIE zawieraja zadnej referencji do "Wyplaty" (grep clean).
+- Zakladka renderuje sie tylko w AdminDashboard.
+
+### Testy
+- Backend 17/17 pytest PASS (`test_iter32_employee_mgmt.py`).
+- Regression iter28 5/5, iter31 12/12 - zielone.
+- Frontend zweryfikowany e2e przez Playwright: modal, archive, archived list, unarchive, delete.

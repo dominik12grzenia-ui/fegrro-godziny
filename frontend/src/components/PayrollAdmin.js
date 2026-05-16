@@ -25,6 +25,8 @@ export const PayrollAdmin = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
+  const nameInputRef = React.useRef(null);
+  const phoneInputRef = React.useRef(null);
   const [showArchived, setShowArchived] = useState(false);
   const [archived, setArchived] = useState([]);
 
@@ -51,13 +53,15 @@ export const PayrollAdmin = () => {
   useEffect(() => { fetchArchived(); }, [fetchArchived]);
 
   const handleAdd = async () => {
-    const name = newName.trim();
+    // Fallback do ref jezeli stan nie zsynchronizowany (race przy onClick)
+    const name = (newName || nameInputRef.current?.value || '').trim();
+    const phone = (newPhone || phoneInputRef.current?.value || '').trim();
     if (!name || name.split(/\s+/).length < 2) {
       toast.error('Podaj imie i nazwisko');
       return;
     }
     try {
-      await api.post('/employees', { full_name: name, phone_number: newPhone.trim() || null });
+      await api.post('/employees', { full_name: name, phone_number: phone || null });
       toast.success(`Dodano: ${name}`);
       setShowAdd(false); setNewName(''); setNewPhone('');
       fetchData();
@@ -432,6 +436,7 @@ export const PayrollAdmin = () => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Imie i nazwisko</label>
               <Input
+                ref={nameInputRef}
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Jan Kowalski"
@@ -443,6 +448,7 @@ export const PayrollAdmin = () => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Telefon (opcjonalnie)</label>
               <Input
+                ref={phoneInputRef}
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="+48..."
