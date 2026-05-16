@@ -14,7 +14,9 @@ const shimmer = {
 if (typeof document !== 'undefined' && !document.getElementById('fegrro-shimmer-css')) {
   const s = document.createElement('style');
   s.id = 'fegrro-shimmer-css';
-  s.textContent = '@keyframes fegrro-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}';
+  s.textContent = '@keyframes fegrro-shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}'
+    + '.no-spinner::-webkit-outer-spin-button,.no-spinner::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}'
+    + '.no-spinner{-moz-appearance:textfield;appearance:textfield}';
   document.head.appendChild(s);
 }
 

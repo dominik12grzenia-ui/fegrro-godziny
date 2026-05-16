@@ -1,0 +1,29 @@
+{
+  "summary": "Iter35: auto advances/penalties from db.advances/db.penalties + UI read-only Zaliczki/Kary + no-spinner CSS. Backend 10/10 PASSED (test_iter35_payroll_auto.py): auto fields present, advances_hours/penalties_zl removed from record, payout formula correct, multi-advance summation, PUT with/without legacy fields tolerated, PDFs generated. Frontend verified live: TH headers 'Zaliczki' (no '(h)'), 'Kary' (no 'zl'); payroll-adv-auto-{eid} and payroll-pen-auto-{eid} are SPAN (read-only) for all 5 visible employees; input[type=number] has computed appearance:textfield (no spinners) and ::-webkit-inner-spin-button -webkit-appearance: textfield; .no-spinner CSS injected by skeletons.jsx. Iter34 lock/unlock regression still PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter35_payroll_auto.py",
+    "/app/test_reports/pytest/pytest_iter35_payroll.xml"
+  ],
+  "action_items": [
+    "Older payroll tests (test_iter31_payroll.py, test_iter33_fixed_salary.py) reference removed legacy schema (advances_hours/penalties_zl in record) and old payout formula -> 5 tests fail by design. Recommend: rewrite those tests to match new schema or delete and mark iter35 as the canonical payroll test suite. Not blocking iter35 features."
+  ],
+  "critical_code_review_comments": [
+    "routes/payroll.py PayrollRecord still accepts legacy advances_hours/penalties_zl/housing_zl as Optional fields. They are persisted via update_one $set (raw.items() loop) into payroll_records collection, which clutters DB with deprecated columns. Consider stripping them from `raw` before persisting: raw.pop('advances_hours', None); raw.pop('penalties_zl', None); raw.pop('housing_zl', None).",
+    "routes/payroll.py list_payroll: For each request makes 4 sequential db round-trips (employees, hour_entries agg, sites, payroll_records) + 2 more for advances/penalties + 1 for lock. asyncio.gather of independent queries (employees+sites+advances+penalties+lock) would cut latency ~30-40%.",
+    "routes/payroll.py: defaults_cache pulled by $in on missing_emp_ids - if 200+ employees this lookup is fine, but sort([year,month]) on a large payroll_records collection without compound index (employee_id, year, month) could become slow.",
+    "skeletons.jsx side-effect CSS injection runs on import; if PayrollAdmin is lazy-loaded and CSS rule needed BEFORE PayrollAdmin renders (e.g., other input[number] elsewhere), spinners may still appear. Consider moving .no-spinner CSS to a global stylesheet (index.css) for guaranteed availability.",
+    "PayrollAdmin.js still has many client-side optimistic update branches; refactor into a small reducer for payout recomputation - 3+ duplicate formulas spotted across saveRecord/onChange handlers."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter35_payroll_auto.py"
+  ],
+  "success_rate": {"backend": "100% iter35 (10/10) + iter34 regression OK", "frontend": "100% (all 5 visual checks: headers, span elements, count=5, appearance=textfield, CSS injection)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "Test employee TEST_iter35 created in year=2027 month=9 with rate=30, bonus=100, 2 advances (250+100=350), 1 penalty (50). Cleanup via module-scoped fixture (delete advances/penalties/employee).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Live response shape: rows[i].auto_advances_zl + auto_penalties_zl exist; record has only {rate, is_fixed_salary, fixed_salary_amount, other_minus_zl, bonus_zl, driver_zl, other_plus_zl}. computed.advances_zl == auto_advances_zl, computed.penalties_zl == auto_penalties_zl. PUT tolerates advances_hours/penalties_zl/housing_zl (no crash) but they are IGNORED in computation. Frontend testids: payroll-adv-auto-{eid} and payroll-pen-auto-{eid} are <span>, payroll-input-{eid}-{field} inputs have class 'no-spinner'. iter31/iter33 backend tests need rewrite to new schema - 5 failures are expected breaking changes per product decision.",
+  "rca of the issue": "N/A - feature works end-to-end as designed."
+}

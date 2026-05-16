@@ -35,38 +35,40 @@ logger = logging.getLogger(__name__)
 # ============= Models =============
 class PayrollRecord(BaseModel):
     rate: Optional[float] = Field(default=0.0)  # zl/h
-    is_fixed_salary: Optional[bool] = Field(default=False)  # stala pensja - kwota dzielona przez godziny
-    fixed_salary_amount: Optional[float] = Field(default=0.0)  # gdy is_fixed_salary -> kwota wpisana zamiast rate*godziny
-    advances_hours: Optional[float] = Field(default=0.0)  # zaliczki w godzinach
-    penalties_zl: Optional[float] = Field(default=0.0)
+    is_fixed_salary: Optional[bool] = Field(default=False)
+    fixed_salary_amount: Optional[float] = Field(default=0.0)
+    # advances_zl i penalties_zl sa AUTO z tabel db.advances/db.penalties - nie pole tutaj
     other_minus_zl: Optional[float] = Field(default=0.0)
-    bonus_zl: Optional[float] = Field(default=0.0)  # dodatki + plus
+    bonus_zl: Optional[float] = Field(default=0.0)
     driver_zl: Optional[float] = Field(default=0.0)
     other_plus_zl: Optional[float] = Field(default=0.0)
+    # Legacy fields - tolerated but ignored in computation
+    advances_hours: Optional[float] = Field(default=None)
+    penalties_zl: Optional[float] = Field(default=None)
+    housing_zl: Optional[float] = Field(default=None)
 
 
-def _calc(hours: float, rec: dict) -> dict:
+def _calc(hours: float, rec: dict, auto_advances_zl: float = 0.0, auto_penalties_zl: float = 0.0) -> dict:
     rate = float(rec.get("rate") or 0)
     is_fixed = bool(rec.get("is_fixed_salary") or False)
     fixed_amt = float(rec.get("fixed_salary_amount") or 0)
-    adv_h = float(rec.get("advances_hours") or 0)
-    pen = float(rec.get("penalties_zl") or 0)
     o_minus = float(rec.get("other_minus_zl") or 0)
     bonus = float(rec.get("bonus_zl") or 0)
     driver = float(rec.get("driver_zl") or 0)
     o_plus = float(rec.get("other_plus_zl") or 0)
     if is_fixed:
-        # Kwota godzin = wpisana stala pensja; stawka_eff = pensja / godziny
         hours_amount = round(fixed_amt, 2)
         rate_eff = round(fixed_amt / hours, 2) if hours > 0 else 0.0
     else:
         hours_amount = round(hours * rate, 2)
         rate_eff = round(rate, 2)
-    advances_zl = round(adv_h * rate_eff, 2)
-    payout = round(hours_amount - advances_zl - pen - o_minus + bonus + driver + o_plus, 2)
+    advances_zl = round(auto_advances_zl, 2)
+    penalties_zl = round(auto_penalties_zl, 2)
+    payout = round(hours_amount - advances_zl - penalties_zl - o_minus + bonus + driver + o_plus, 2)
     return {
         "hours_amount": hours_amount,
         "advances_zl": advances_zl,
+        "penalties_zl": penalties_zl,
         "rate_effective": rate_eff,
         "payout": payout,
     }
@@ -157,6 +159,20 @@ async def list_payroll(
                 "fixed_salary_amount": float(r.get("fixed_salary_amount") or 0),
             }
 
+    # Agregacja zaliczek (advances) i kar (penalties) per pracownik - auto z tabel
+    adv_rows = await db.advances.find(
+        {"year": year, "month": month}, {"_id": 0, "employee_id": 1, "amount": 1}
+    ).to_list(5000)
+    auto_adv: dict = {}
+    for a in adv_rows:
+        auto_adv[a["employee_id"]] = auto_adv.get(a["employee_id"], 0.0) + float(a.get("amount") or 0)
+    pen_rows = await db.penalties.find(
+        {"year": year, "month": month}, {"_id": 0, "employee_id": 1, "amount": 1}
+    ).to_list(5000)
+    auto_pen: dict = {}
+    for p in pen_rows:
+        auto_pen[p["employee_id"]] = auto_pen.get(p["employee_id"], 0.0) + float(p.get("amount") or 0)
+
     # Lock status biezacego miesiaca
     lock_doc = await db.payroll_locks.find_one(
         {"year": year, "month": month},
@@ -182,7 +198,9 @@ async def list_payroll(
         if not rec and emp_id in defaults_cache:
             rec = defaults_cache[emp_id]
             defaulted = True
-        computed = _calc(total_hours, rec)
+        emp_adv = auto_adv.get(emp_id, 0.0)
+        emp_pen = auto_pen.get(emp_id, 0.0)
+        computed = _calc(total_hours, rec, auto_advances_zl=emp_adv, auto_penalties_zl=emp_pen)
         result.append({
             "employee_id": emp_id,
             "full_name": emp.get("full_name"),
@@ -192,13 +210,13 @@ async def list_payroll(
                 "rate": float(rec.get("rate") or 0),
                 "is_fixed_salary": bool(rec.get("is_fixed_salary") or False),
                 "fixed_salary_amount": float(rec.get("fixed_salary_amount") or 0),
-                "advances_hours": float(rec.get("advances_hours") or 0),
-                "penalties_zl": float(rec.get("penalties_zl") or 0),
                 "other_minus_zl": float(rec.get("other_minus_zl") or 0),
                 "bonus_zl": float(rec.get("bonus_zl") or 0),
                 "driver_zl": float(rec.get("driver_zl") or 0),
                 "other_plus_zl": float(rec.get("other_plus_zl") or 0),
             },
+            "auto_advances_zl": round(emp_adv, 2),
+            "auto_penalties_zl": round(emp_pen, 2),
             "defaulted_from_prev": defaulted,
             "computed": computed,
         })
@@ -409,7 +427,7 @@ def _draw_card(c, x, y, w, h, employee: dict, year: int, month: int, fonts):
         ("Stawka" + (" (st.)" if is_fixed else ""), f"{rate:.2f} zl", "="),
         ("Kwota godzin", f"{comp.get('hours_amount', 0):.2f} zl", ""),
         ("Zaliczki -", f"{comp.get('advances_zl', 0):.2f} zl", ""),
-        ("Kary -", f"{rec.get('penalties_zl', 0):.2f} zl", ""),
+        ("Kary -", f"{comp.get('penalties_zl', 0):.2f} zl", ""),
         ("Dodatki +", f"{rec.get('bonus_zl', 0):.2f} zl", ""),
         ("Kierowca +", f"{rec.get('driver_zl', 0):.2f} zl", ""),
         ("Inne -", f"{rec.get('other_minus_zl', 0):.2f} zl", ""),
@@ -544,7 +562,7 @@ async def generate_payroll_report_pdf(
     # Build table data
     headers = [
         "#", "Pracownik", "Godz.", "Stala", "Stawka", "Kwota godz.",
-        "Zal.(h)", "Kary", "Dodatki+", "Kierowca+", "Inne-", "Inne+", "Wyplata",
+        "Zaliczki", "Kary", "Dodatki+", "Kierowca+", "Inne-", "Inne+", "Wyplata",
     ]
     data = [headers]
     for i, r in enumerate(rows, 1):
@@ -558,8 +576,8 @@ async def generate_payroll_report_pdf(
             "TAK" if rec.get("is_fixed_salary") else "",
             f"{float(rate_disp or 0):.2f}",
             f"{comp['hours_amount']:.2f}",
-            f"{rec['advances_hours']:g}",
-            f"{rec['penalties_zl']:.2f}",
+            f"{comp['advances_zl']:.2f}",
+            f"{comp['penalties_zl']:.2f}",
             f"{rec['bonus_zl']:.2f}",
             f"{rec['driver_zl']:.2f}",
             f"{rec['other_minus_zl']:.2f}",
@@ -574,7 +592,7 @@ async def generate_payroll_report_pdf(
     ])
 
     col_widths = [10*mm, 50*mm, 14*mm, 12*mm, 18*mm, 22*mm,
-                  16*mm, 18*mm, 20*mm, 20*mm, 18*mm, 18*mm, 26*mm]
+                  18*mm, 18*mm, 20*mm, 20*mm, 18*mm, 18*mm, 26*mm]
     tbl = Table(data, colWidths=col_widths, repeatRows=1)
     tbl.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, 0), f_bold, 8),

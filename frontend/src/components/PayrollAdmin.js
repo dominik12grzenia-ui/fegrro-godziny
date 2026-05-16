@@ -147,8 +147,6 @@ export const PayrollAdmin = () => {
     rate: 'Stawka zl/h',
     is_fixed_salary: 'Stala pensja',
     fixed_salary_amount: 'Kwota stalej pensji',
-    advances_hours: 'Zaliczki (h)',
-    penalties_zl: 'Kary',
     other_minus_zl: 'Inne -',
     bonus_zl: 'Dodatki',
     driver_zl: 'Kierowca',
@@ -213,12 +211,12 @@ export const PayrollAdmin = () => {
           const rate = parseFloat(newRec.rate || 0);
           const is_fixed = !!newRec.is_fixed_salary;
           const fixed_amt = parseFloat(newRec.fixed_salary_amount || 0);
-          const adv_h = parseFloat(newRec.advances_hours || 0);
-          const pen = parseFloat(newRec.penalties_zl || 0);
           const o_minus = parseFloat(newRec.other_minus_zl || 0);
           const bonus = parseFloat(newRec.bonus_zl || 0);
           const driver = parseFloat(newRec.driver_zl || 0);
           const o_plus = parseFloat(newRec.other_plus_zl || 0);
+          const adv_auto = parseFloat(r.auto_advances_zl || 0);
+          const pen_auto = parseFloat(r.auto_penalties_zl || 0);
           let hours_amount, rate_effective;
           if (is_fixed) {
             hours_amount = +fixed_amt.toFixed(2);
@@ -227,9 +225,8 @@ export const PayrollAdmin = () => {
             hours_amount = +(r.total_hours * rate).toFixed(2);
             rate_effective = +rate.toFixed(2);
           }
-          const advances_zl = +(adv_h * rate_effective).toFixed(2);
-          const payout = +(hours_amount - advances_zl - pen - o_minus + bonus + driver + o_plus).toFixed(2);
-          return { ...r, record: newRec, computed: { hours_amount, advances_zl, rate_effective, payout } };
+          const payout = +(hours_amount - adv_auto - pen_auto - o_minus + bonus + driver + o_plus).toFixed(2);
+          return { ...r, record: newRec, computed: { hours_amount, advances_zl: adv_auto, penalties_zl: pen_auto, rate_effective, payout } };
         });
         return { ...d, rows };
       });
@@ -407,8 +404,8 @@ export const PayrollAdmin = () => {
                     <th className="p-2 text-right">Godziny</th>
                     <th className="p-2 text-right">Stawka zl/h</th>
                     <th className="p-2 text-right">Kwota godzin</th>
-                    <th className="p-2 text-right">Zal. (h)</th>
-                    <th className="p-2 text-right">Kary zl</th>
+                    <th className="p-2 text-right">Zaliczki</th>
+                    <th className="p-2 text-right">Kary</th>
                     <th className="p-2 text-right">Dodatki +</th>
                     <th className="p-2 text-right">Kierowca +</th>
                     <th className="p-2 text-right">Inne -</th>
@@ -457,8 +454,8 @@ export const PayrollAdmin = () => {
                             <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{r.computed.hours_amount.toFixed(2)}</span>
                           )}
                         </td>
-                        <td className="p-2 text-right"><NumCell row={r} field="advances_hours" handleNum={handleNum} step="0.5" disabled={isLocked} /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="penalties_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><span className="text-[#E8836A] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{(r.auto_advances_zl || 0).toFixed(2)}</span></td>
+                        <td className="p-2 text-right"><span className="text-[#DC2626] font-semibold" data-testid={`payroll-pen-auto-${r.employee_id}`} title="Suma z tabeli kar (read-only)">{(r.auto_penalties_zl || 0).toFixed(2)}</span></td>
                         <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
@@ -671,7 +668,7 @@ const NumCell = ({ row, field, handleNum, step, disabled }) => {
         const v = e.target.value;
         if (parseFloat(v || 0) !== initial) handleNum(row, field, v);
       }}
-      className={`w-20 bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`no-spinner w-20 bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       data-testid={`payroll-input-${row.employee_id}-${field}`}
     />
   );
