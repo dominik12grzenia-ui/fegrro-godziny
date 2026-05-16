@@ -393,3 +393,22 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 - Backend 17/17 pytest PASS (`test_iter32_employee_mgmt.py`).
 - Regression iter28 5/5, iter31 12/12 - zielone.
 - Frontend zweryfikowany e2e przez Playwright: modal, archive, archived list, unarchive, delete.
+
+
+## Completed (2026-02-16) - Iteration 33: Stala pensja + uproszczenie kolumn
+
+### Stala pensja (fixed salary)
+- Nowy checkbox **"Stala"** w tabeli wyplat. Gdy zaznaczony: Stawka zl/h read-only (pokazuje efektywna stawke fixed/godziny), Kwota godzin edytowalna (user wpisuje stala pensje).
+- Backend: nowe pola `is_fixed_salary` (bool), `fixed_salary_amount` (float). computed.rate_effective zwracane do UI.
+
+### Uproszczenie kolumn
+- **Usunieto kolumne Mieszkanie** (housing_zl). Backend backward-compatible.
+- **Inne -** i **Inne +** obok siebie na koncu tabeli (po Dodatki+/Kierowca+).
+- PDF karteczki rowniez bez Mieszkanie, Inne-/Inne+ na koncu.
+
+### Formula payout
+- Hourly: `hours×rate − adv_h×rate − penalties − other_minus + bonus + driver + other_plus`
+- Fixed: `fixed_amt − adv_h×rate_eff − penalties − other_minus + bonus + driver + other_plus`
+
+### Testy
+- 34/34 backend (iter31+iter32+iter33), 8/8 frontend Playwright.
