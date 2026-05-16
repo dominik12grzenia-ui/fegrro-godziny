@@ -4,7 +4,7 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search, UserPlus, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search, UserPlus, Archive, ArchiveRestore, Trash2, Lock, Unlock, History, FileSpreadsheet } from 'lucide-react';
 import { toast } from 'sonner';
 import { SkeletonTable } from './ui/skeletons';
 
@@ -29,6 +29,8 @@ export const PayrollAdmin = () => {
   const phoneInputRef = React.useRef(null);
   const [showArchived, setShowArchived] = useState(false);
   const [archived, setArchived] = useState([]);
+  const [auditFor, setAuditFor] = useState(null);  // {emp_id, name}
+  const [auditEntries, setAuditEntries] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -105,6 +107,58 @@ export const PayrollAdmin = () => {
       toast.error(e.response?.data?.detail || 'Blad usuwania');
     }
   };
+
+  const isLocked = !!data?.locked;
+  const lockInfo = data?.lock_info;
+
+  const handleLockToggle = async () => {
+    try {
+      if (isLocked) {
+        if (!window.confirm(`Odblokowac wyplate za ${PL_MONTHS[month - 1]} ${year}? Pola znow beda edytowalne.`)) return;
+        await api.post(`/payroll/unlock?year=${year}&month=${month}`);
+        toast.success('Odblokowano - mozna edytowac');
+      } else {
+        if (!window.confirm(
+          `Zamknac wyplate za ${PL_MONTHS[month - 1]} ${year}?\n\n` +
+          'Po zamknieciu pola beda tylko do odczytu - nikt nie zmodyfikuje danych. ' +
+          'Mozesz w kazdej chwili odblokowac.'
+        )) return;
+        await api.post(`/payroll/lock?year=${year}&month=${month}`);
+        toast.success('Zamknieto - pola tylko do odczytu');
+      }
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const openAudit = async (row) => {
+    setAuditFor({ id: row.employee_id, name: row.full_name });
+    setAuditEntries([]);
+    try {
+      const res = await api.get(`/payroll/${row.employee_id}/audit?year=${year}&month=${month}`);
+      setAuditEntries(res.data.entries || []);
+    } catch {
+      toast.error('Blad pobierania historii');
+    }
+  };
+
+  const fieldLabels = {
+    rate: 'Stawka zl/h',
+    is_fixed_salary: 'Stala pensja',
+    fixed_salary_amount: 'Kwota stalej pensji',
+    advances_hours: 'Zaliczki (h)',
+    penalties_zl: 'Kary',
+    other_minus_zl: 'Inne -',
+    bonus_zl: 'Dodatki',
+    driver_zl: 'Kierowca',
+    other_plus_zl: 'Inne +',
+  };
+  const fmtVal = (field, v) => {
+    if (field === 'is_fixed_salary') return v ? 'TAK' : 'NIE';
+    return Number(v ?? 0).toFixed(2);
+  };
+
 
   const changeMonth = (delta) => {
     let m = month + delta;
@@ -224,6 +278,28 @@ export const PayrollAdmin = () => {
     }
   };
 
+  const downloadReport = async () => {
+    setDownloading(true);
+    try {
+      const res = await api.post(
+        `/payroll/pdf/report?year=${year}&month=${month}`,
+        {},
+        { responseType: 'blob' }
+      );
+      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `raport_wyplat_${PL_MONTHS[month - 1]}_${year}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Raport wygenerowany');
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad generowania raportu');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header: month picker + actions */}
@@ -251,16 +327,28 @@ export const PayrollAdmin = () => {
               />
             </div>
             <div className="ml-auto flex gap-2 flex-wrap">
-              <Button onClick={() => setShowAdd(true)} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-employee">
+              <Button onClick={handleLockToggle}
+                className={isLocked
+                  ? "bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
+                  : "bg-[#334155] hover:bg-[#475569] text-[#CBD5E1]"}
+                data-testid="payroll-lock-toggle"
+              >
+                {isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiac</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiac</>}
+              </Button>
+              <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-employee">
                 <UserPlus className="h-4 w-4 mr-1" /> Dodaj pracownika
+              </Button>
+              <Button onClick={downloadReport} disabled={downloading}
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white" data-testid="payroll-pdf-report">
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Raport PDF
               </Button>
               <Button onClick={() => downloadPdf(true)} disabled={downloading || selected.size === 0}
                 className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-pdf-selected">
-                <Download className="h-4 w-4 mr-1" /> PDF wybranych ({selected.size})
+                <Download className="h-4 w-4 mr-1" /> Karteczki ({selected.size})
               </Button>
               <Button onClick={() => downloadPdf(false)} disabled={downloading}
                 variant="outline" className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]" data-testid="payroll-pdf-all">
-                <Download className="h-4 w-4 mr-1" /> PDF wszystkich
+                <Download className="h-4 w-4 mr-1" /> Karteczki wszystkich
               </Button>
             </div>
           </div>
@@ -278,6 +366,18 @@ export const PayrollAdmin = () => {
                 <div className="text-[#94A3B8]">Suma wyplat</div>
                 <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{data.totals.total_payout.toFixed(2)} zl</div>
               </div>
+            </div>
+          )}
+          {isLocked && (
+            <div className="bg-[#E8B76A]/15 border border-[#E8B76A] rounded p-3 text-[#FCD34D] text-sm flex items-center gap-2" data-testid="payroll-locked-banner">
+              <Lock className="h-4 w-4 shrink-0" />
+              <span>
+                <strong>Miesiac zamkniety</strong>
+                {lockInfo && (
+                  <> &middot; {lockInfo.locked_at?.slice(0, 10)} przez {lockInfo.locked_by_name}</>
+                )}
+                {' '}- pola sa tylko do odczytu. Kliknij <em>"Odblokuj miesiac"</em> aby edytowac.
+              </span>
             </div>
           )}
         </CardContent>
@@ -337,39 +437,49 @@ export const PayrollAdmin = () => {
                             type="checkbox"
                             checked={!!r.record.is_fixed_salary}
                             onChange={() => handleToggleFixed(r)}
+                            disabled={isLocked}
                             data-testid={`payroll-fixed-${r.employee_id}`}
                             title="Stala pensja - wpisz kwote w 'Kwota godzin', stawka liczy sie automatycznie"
-                            className="h-4 w-4 accent-[#5F7151] cursor-pointer"
+                            className={`h-4 w-4 accent-[#5F7151] cursor-pointer ${isLocked ? 'opacity-50' : ''}`}
                           />
                         </td>
                         <td className="p-2 text-right">
                           {r.record.is_fixed_salary ? (
                             <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{(r.computed.rate_effective ?? 0).toFixed(2)}</span>
                           ) : (
-                            <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" />
+                            <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" disabled={isLocked} />
                           )}
                         </td>
                         <td className="p-2 text-right">
                           {r.record.is_fixed_salary ? (
-                            <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" />
+                            <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" disabled={isLocked} />
                           ) : (
                             <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{r.computed.hours_amount.toFixed(2)}</span>
                           )}
                         </td>
-                        <td className="p-2 text-right"><NumCell row={r} field="advances_hours" handleNum={handleNum} step="0.5" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="penalties_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="advances_hours" handleNum={handleNum} step="0.5" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="penalties_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{r.computed.payout.toFixed(2)} zl</td>
                         <td className="p-2 text-center">
                           <div className="flex items-center gap-1 justify-center">
                             {savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}
                             <button
+                              onClick={() => openAudit(r)}
+                              className="p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#5F7151]"
+                              title="Historia zmian"
+                              data-testid={`payroll-audit-${r.employee_id}`}
+                            >
+                              <History className="h-4 w-4" />
+                            </button>
+                            <button
                               onClick={() => handleArchive(r)}
-                              className="p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#E8B76A]"
-                              title="Zarchiwizuj"
+                              disabled={isLocked}
+                              className={`p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#E8B76A] ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              title={isLocked ? 'Najpierw odblokuj miesiac' : 'Zarchiwizuj'}
                               data-testid={`payroll-archive-${r.employee_id}`}
                             >
                               <Archive className="h-4 w-4" />
@@ -459,6 +569,49 @@ export const PayrollAdmin = () => {
         )}
       </Card>
 
+      {/* Modal: historia zmian audytu */}
+      <Dialog open={!!auditFor} onOpenChange={(o) => !o && setAuditFor(null)}>
+        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1] max-w-2xl" data-testid="payroll-audit-modal">
+          <DialogHeader>
+            <DialogTitle className="text-white">Historia zmian - {auditFor?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="max-h-[60vh] overflow-y-auto">
+            {auditEntries.length === 0 ? (
+              <div className="text-[#64748B] text-sm py-4 text-center">Brak zmian w tym miesiacu.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead className="bg-[#1E293B] sticky top-0">
+                  <tr>
+                    <th className="p-2 text-left text-[#94A3B8]">Data</th>
+                    <th className="p-2 text-left text-[#94A3B8]">Pole</th>
+                    <th className="p-2 text-right text-[#94A3B8]">Stara</th>
+                    <th className="p-2 text-right text-[#94A3B8]">Nowa</th>
+                    <th className="p-2 text-left text-[#94A3B8]">Kto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {auditEntries.map((e) => (
+                    <tr key={e.id} className="border-t border-[#334155]">
+                      <td className="p-2 text-[#CBD5E1] whitespace-nowrap">{e.changed_at.replace('T', ' ').slice(0, 16)}</td>
+                      <td className="p-2 text-[#CBD5E1]">{fieldLabels[e.field] || e.field}</td>
+                      <td className="p-2 text-right text-[#94A3B8] line-through">{fmtVal(e.field, e.old_value)}</td>
+                      <td className="p-2 text-right text-[#5F7151] font-bold">{fmtVal(e.field, e.new_value)}</td>
+                      <td className="p-2 text-[#94A3B8]">{e.changed_by_name}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAuditFor(null)} className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">
+              Zamknij
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       {/* Modal: dodaj pracownika */}
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1]" data-testid="payroll-add-modal">
@@ -504,7 +657,7 @@ export const PayrollAdmin = () => {
   );
 };
 
-const NumCell = ({ row, field, handleNum, step }) => {
+const NumCell = ({ row, field, handleNum, step, disabled }) => {
   const initial = row.record[field] || 0;
   return (
     <input
@@ -513,11 +666,12 @@ const NumCell = ({ row, field, handleNum, step }) => {
       min="0"
       defaultValue={initial}
       key={`${row.employee_id}-${field}-${initial}`}
+      disabled={disabled}
       onBlur={(e) => {
         const v = e.target.value;
         if (parseFloat(v || 0) !== initial) handleNum(row, field, v);
       }}
-      className="w-20 bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-right text-sm"
+      className={`w-20 bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       data-testid={`payroll-input-${row.employee_id}-${field}`}
     />
   );
