@@ -85,7 +85,11 @@ export const HoursTable = () => {
       const metaMap = {};
       hoursRes.data.forEach(entry => {
         const key = `${entry.employee_id}-${entry.work_date}`;
-        hoursMap[key] = entry.hours_worked;
+        // Defensywne rzutowanie (legacy moglo zapisac string)
+        const hw = typeof entry.hours_worked === 'number'
+          ? entry.hours_worked
+          : parseFloat(entry.hours_worked) || 0;
+        hoursMap[key] = hw;
         metaMap[key] = {
           updatedBy: entry.updated_by_name || entry.created_by_name || null,
           updatedAt: entry.updated_at || entry.created_at || null
@@ -872,9 +876,10 @@ export const HoursTable = () => {
                     {isAdmin && <td className="border border-[#334155] p-0 bg-[#0F172A]"></td>}
                     {days.map(d => {
                       const dayTotal = filteredEmployees.reduce((sum, emp) => sum + (hourEntries[`${emp.id}-${d.date}`] || 0), 0);
+                      const dayTotalRounded = Math.round(dayTotal * 100) / 100;
                       return (
                         <td key={`dsum-${d.day}`} className="border border-[#334155] p-0 text-center bg-[#0F172A]">
-                          <span className="text-[#5F7151] text-[10px] font-bold">{dayTotal || ''}</span>
+                          <span className="text-[#5F7151] text-[10px] font-bold">{dayTotalRounded || ''}</span>
                         </td>
                       );
                     })}
@@ -885,22 +890,22 @@ export const HoursTable = () => {
                       }, 0);
                       return (
                         <td key={`ssum-${site.id}`} className="border border-[#334155] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
-                          <span className="text-white font-bold text-xs">{siteTotal}</span>
+                          <span className="text-white font-bold text-xs">{Math.round(siteTotal * 100) / 100}</span>
                         </td>
                       );
                     })}
                     <td className="border border-[#334155] p-1 text-center bg-[#0F172A]">
-                      <span className="text-[#E8836A] font-bold text-xs">{filteredEmployees.reduce((sum, emp) => sum + getEmployeeHoursBySite(emp.id).unassigned, 0)}</span>
+                      <span className="text-[#E8836A] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => sum + getEmployeeHoursBySite(emp.id).unassigned, 0) * 100) / 100}</span>
                     </td>
                     <td className="border border-[#334155] p-1 text-center bg-[#0F172A]">
-                      <span className="text-[#5F7151] font-bold text-xs">{filteredEmployees.reduce((sum, emp) => { const { hoursBySite, unassigned } = getEmployeeHoursBySite(emp.id); return sum + Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned; }, 0)}</span>
+                      <span className="text-[#5F7151] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => { const { hoursBySite, unassigned } = getEmployeeHoursBySite(emp.id); return sum + Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned; }, 0) * 100) / 100}</span>
                     </td>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredEmployees.map(employee => {
                     const { hoursBySite, unassigned } = getEmployeeHoursBySite(employee.id);
-                    const totalHours = Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned;
+                    const totalHours = Math.round((Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned) * 100) / 100;
 
                     return (
                       <tr

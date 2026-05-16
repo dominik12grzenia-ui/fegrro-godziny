@@ -95,15 +95,20 @@ async def list_payroll(
     ).sort("full_name", 1).to_list(1000)
 
     start = f"{year:04d}-{month:02d}-01"
-    end_day = 31
-    end = f"{year:04d}-{month:02d}-{end_day:02d}"
+    # Inclusive upper bound: use first day of next month exclusive boundary
+    # via < end_excl, but our work_date is string. Day 31 covers all months.
+    end = f"{year:04d}-{month:02d}-31"
 
-    # Agregacja godzin per (employee, site)
+    # Agregacja godzin per (employee, site). Cast hours_worked to double to be
+    # defensive (legacy entries with string values would otherwise contribute 0).
     pipeline = [
         {"$match": {"work_date": {"$gte": start, "$lte": end}}},
         {"$group": {
             "_id": {"emp": "$employee_id", "site": "$site_id"},
-            "total": {"$sum": "$hours_worked"},
+            "total": {"$sum": {"$convert": {"input": "$hours_worked",
+                                              "to": "double",
+                                              "onError": 0,
+                                              "onNull": 0}}},
         }},
     ]
     breakdown_map: dict = {}  # emp_id -> {site_id: hours}
@@ -637,3 +642,173 @@ async def generate_payroll_report_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ============= GET diagnostics: weryfikacja godzin =============
+@router.get("/payroll/hours-diagnostics")
+async def payroll_hours_diagnostics(
+    year: int = Query(...),
+    month: int = Query(..., ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Diagnostyka rozbieznosci godzin: dla kazdego pracownika porownuje
+    sume z aggregacji (taka jak w Wyplatach) z lista surowych wpisow
+    (taka jaka pobiera HoursTable). Wyrzuca pracownikow z roznicami,
+    duplikaty oraz wpisy z bledami typu.
+
+    Zwraca: {
+      year, month,
+      total_entries, total_hours_aggregated,
+      total_hours_grouped_by_emp_date,
+      mismatches: [{employee_id, full_name, agg_hours, grouped_hours,
+                     diff, duplicate_dates: [...], bad_type_count}],
+      orphan_employee_entries: int,  # wpisy z employee_id ktorego nie ma w bazie
+      type_issues: int,  # wpisy gdzie hours_worked nie jest liczba
+    }
+    """
+    start = f"{year:04d}-{month:02d}-01"
+    end = f"{year:04d}-{month:02d}-31"
+
+    # 1) Aggregacja per employee (taka sama logika jak list_payroll)
+    agg_pipeline = [
+        {"$match": {"work_date": {"$gte": start, "$lte": end}}},
+        {"$group": {
+            "_id": "$employee_id",
+            "total": {"$sum": {"$convert": {"input": "$hours_worked",
+                                              "to": "double",
+                                              "onError": 0, "onNull": 0}}},
+            "cnt": {"$sum": 1},
+        }},
+    ]
+    agg_by_emp: dict = {}
+    total_entries = 0
+    async for r in db.hour_entries.aggregate(agg_pipeline):
+        emp = r["_id"]
+        agg_by_emp[emp] = float(r.get("total") or 0)
+        total_entries += int(r.get("cnt") or 0)
+
+    # 2) Surowe wpisy - tak jak HoursTable laduje przez /api/hours
+    raw_entries = await db.hour_entries.find(
+        {"work_date": {"$gte": start, "$lte": end}},
+        {"_id": 0, "employee_id": 1, "work_date": 1, "hours_worked": 1},
+    ).to_list(length=None)
+
+    # Grupowanie a-la frontend (jeden wpis na employee_id+work_date - duplikaty wycinaja sie)
+    grouped: dict = {}  # emp -> {date: hours}
+    duplicates: dict = {}  # emp -> set(dates)
+    type_issues = 0
+    for e in raw_entries:
+        emp = e.get("employee_id")
+        if not emp:
+            continue
+        d = e.get("work_date")
+        hv = e.get("hours_worked")
+        if not isinstance(hv, (int, float)):
+            type_issues += 1
+            try:
+                hv = float(hv)
+            except (ValueError, TypeError):
+                hv = 0.0
+        if emp not in grouped:
+            grouped[emp] = {}
+        if d in grouped[emp]:
+            duplicates.setdefault(emp, set()).add(d)
+            # Nadpisuje jak frontend (ostatni wygrywa)
+        grouped[emp][d] = float(hv or 0)
+
+    # Mapa nazw
+    emp_ids = list(set(list(agg_by_emp.keys()) + list(grouped.keys())))
+    emp_docs = await db.employees.find(
+        {"id": {"$in": [e for e in emp_ids if e]}},
+        {"_id": 0, "id": 1, "full_name": 1, "is_archived": 1},
+    ).to_list(2000)
+    name_map = {e["id"]: e.get("full_name") for e in emp_docs}
+    known_emp_ids = set(name_map.keys())
+
+    mismatches = []
+    orphans = 0
+    for emp in emp_ids:
+        agg_h = round(agg_by_emp.get(emp, 0.0), 2)
+        grouped_h = round(sum(grouped.get(emp, {}).values()), 2)
+        dup_dates = sorted(duplicates.get(emp, set()))
+        is_orphan = emp not in known_emp_ids
+        if is_orphan:
+            orphans += 1
+        diff = round(agg_h - grouped_h, 2)
+        if abs(diff) >= 0.01 or dup_dates or is_orphan:
+            mismatches.append({
+                "employee_id": emp,
+                "full_name": name_map.get(emp) or "(NIEZNANY PRACOWNIK)",
+                "is_orphan": is_orphan,
+                "agg_hours": agg_h,
+                "grouped_hours": grouped_h,
+                "diff": diff,
+                "duplicate_dates": dup_dates,
+            })
+    mismatches.sort(key=lambda x: -abs(x["diff"]))
+
+    return {
+        "year": year,
+        "month": month,
+        "total_entries_in_month": len(raw_entries),
+        "total_entries_aggregated": total_entries,
+        "total_hours_aggregated": round(sum(agg_by_emp.values()), 2),
+        "total_hours_grouped": round(sum(sum(v.values()) for v in grouped.values()), 2),
+        "type_issues": type_issues,
+        "orphan_employee_entries": orphans,
+        "mismatches": mismatches,
+    }
+
+
+# ============= POST: napraw duplikaty godzin (admin) =============
+@router.post("/payroll/hours-diagnostics/fix-duplicates")
+async def fix_hours_duplicates(
+    year: int = Query(...),
+    month: int = Query(..., ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Usuwa duplikaty hour_entries (employee_id, work_date) zachowujac
+    najpozniejszy wpis (po updated_at, fallback created_at).
+    Dodatkowo konwertuje pola hours_worked z stringa na liczbe gdzie trzeba.
+    """
+    start = f"{year:04d}-{month:02d}-01"
+    end = f"{year:04d}-{month:02d}-31"
+
+    # Pobierz wszystkie wpisy posortowane malejaco po updated_at (najnowsze pierwsze)
+    entries = await db.hour_entries.find(
+        {"work_date": {"$gte": start, "$lte": end}},
+        {"_id": 0, "id": 1, "employee_id": 1, "work_date": 1,
+         "hours_worked": 1, "updated_at": 1, "created_at": 1},
+    ).to_list(length=None)
+    entries.sort(key=lambda e: (e.get("updated_at") or e.get("created_at") or ""), reverse=True)
+
+    seen: set = set()
+    to_delete: list = []
+    type_fixes: list = []
+    for e in entries:
+        key = (e.get("employee_id"), e.get("work_date"))
+        if key in seen:
+            to_delete.append(e["id"])
+        else:
+            seen.add(key)
+            hv = e.get("hours_worked")
+            if not isinstance(hv, (int, float)):
+                try:
+                    type_fixes.append((e["id"], float(hv or 0)))
+                except (ValueError, TypeError):
+                    type_fixes.append((e["id"], 0.0))
+
+    deleted = 0
+    for eid in to_delete:
+        r = await db.hour_entries.delete_one({"id": eid})
+        deleted += r.deleted_count
+    fixed_types = 0
+    for eid, val in type_fixes:
+        await db.hour_entries.update_one({"id": eid}, {"$set": {"hours_worked": float(val)}})
+        fixed_types += 1
+
+    return {
+        "year": year, "month": month,
+        "deleted_duplicates": deleted,
+        "fixed_type_entries": fixed_types,
+    }

@@ -148,6 +148,9 @@ async def get_hour_entries(
     if start_date and end_date:
         query["work_date"] = {"$gte": start_date, "$lte": end_date}
     
+    # NO HARD LIMIT: 50 emp x 31 days = 1550 entries/month easily exceeds 1000.
+    # Silent truncation was the root cause of discrepancies between HoursTable
+    # and Payroll (backend aggregation has no limit). Use length=None.
     entries = await db.hour_entries.find(
         query,
         {
@@ -157,7 +160,7 @@ async def get_hour_entries(
             "created_at": 1, "created_by": 1, "created_by_name": 1,
             "updated_by_name": 1, "updated_at": 1
         }
-    ).to_list(1000)
+    ).to_list(length=None)
     return entries
 
 

@@ -31,6 +31,8 @@ export const PayrollAdmin = () => {
   const [archived, setArchived] = useState([]);
   const [auditFor, setAuditFor] = useState(null);  // {emp_id, name}
   const [auditEntries, setAuditEntries] = useState([]);
+  const [diagnostics, setDiagnostics] = useState(null);  // wynik /payroll/hours-diagnostics
+  const [diagLoading, setDiagLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -140,6 +142,44 @@ export const PayrollAdmin = () => {
       setAuditEntries(res.data.entries || []);
     } catch {
       toast.error('Blad pobierania historii');
+    }
+  };
+
+  const runDiagnostics = async () => {
+    setDiagLoading(true);
+    try {
+      const res = await api.get(`/payroll/hours-diagnostics?year=${year}&month=${month}`);
+      setDiagnostics(res.data);
+      const mismatch_count = (res.data.mismatches || []).length;
+      if (mismatch_count === 0) {
+        toast.success('Brak rozbieznosci - godziny zgodne miedzy zakladkami');
+      } else {
+        toast.error(`Znaleziono ${mismatch_count} rozbieznosci - sprawdz szczegoly`);
+      }
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad diagnostyki');
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
+  const fixDuplicates = async () => {
+    if (!window.confirm(
+      'Naprawic duplikaty godzin w tym miesiacu?\n\n' +
+      'Dla kazdego pracownika i daty zostanie zachowany TYLKO najnowszy wpis ' +
+      '(po polu updated_at). Stare zostana usuniete. Operacja nieodwracalna.'
+    )) return;
+    setDiagLoading(true);
+    try {
+      const res = await api.post(`/payroll/hours-diagnostics/fix-duplicates?year=${year}&month=${month}`);
+      toast.success(`Usunieto ${res.data.deleted_duplicates} duplikatow, naprawiono ${res.data.fixed_type_entries} bledow typu`);
+      // Odswiez diagnostyke i dane wyplat
+      await runDiagnostics();
+      await fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad naprawy');
+    } finally {
+      setDiagLoading(false);
     }
   };
 
@@ -346,6 +386,11 @@ export const PayrollAdmin = () => {
               <Button onClick={() => downloadPdf(false)} disabled={downloading}
                 variant="outline" className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]" data-testid="payroll-pdf-all">
                 <Download className="h-4 w-4 mr-1" /> Karteczki wszystkich
+              </Button>
+              <Button onClick={runDiagnostics} disabled={diagLoading}
+                variant="outline" className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+                data-testid="payroll-diagnostics-btn">
+                Weryfikuj godziny
               </Button>
             </div>
           </div>
@@ -619,7 +664,95 @@ export const PayrollAdmin = () => {
       </Dialog>
 
 
-      {/* Modal: dodaj pracownika */}
+      {/* Modal: diagnostyka godzin */}
+      <Dialog open={!!diagnostics} onOpenChange={(o) => !o && setDiagnostics(null)}>
+        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1] max-w-3xl max-h-[85vh] overflow-auto" data-testid="payroll-diagnostics-modal">
+          <DialogHeader>
+            <DialogTitle className="text-white">Weryfikacja godzin {PL_MONTHS[month-1]} {year}</DialogTitle>
+          </DialogHeader>
+          {diagnostics && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
+                <div className="bg-[#1E293B] rounded p-2">
+                  <div className="text-[#94A3B8] text-xs">Wpisy ogolem</div>
+                  <div className="text-white font-bold">{diagnostics.total_entries_in_month}</div>
+                </div>
+                <div className="bg-[#1E293B] rounded p-2">
+                  <div className="text-[#94A3B8] text-xs">Suma godz. (agregacja)</div>
+                  <div className="text-white font-bold">{diagnostics.total_hours_aggregated}h</div>
+                </div>
+                <div className="bg-[#1E293B] rounded p-2">
+                  <div className="text-[#94A3B8] text-xs">Suma godz. (grupowane)</div>
+                  <div className="text-white font-bold">{diagnostics.total_hours_grouped}h</div>
+                </div>
+                <div className="bg-[#1E293B] rounded p-2">
+                  <div className="text-[#94A3B8] text-xs">Bledy typu / sieroty</div>
+                  <div className="text-white font-bold">{diagnostics.type_issues} / {diagnostics.orphan_employee_entries}</div>
+                </div>
+              </div>
+
+              {diagnostics.mismatches.length === 0 ? (
+                <div className="bg-[#5F7151]/20 border border-[#5F7151] rounded p-3 text-[#A7C09A] text-sm" data-testid="diagnostics-ok">
+                  Wszystko sie zgadza - sumy godzin w zakladce <strong>Godziny</strong> sa identyczne jak w <strong>Wyplatach</strong>.
+                </div>
+              ) : (
+                <>
+                  <div className="bg-[#E8836A]/15 border border-[#E8836A] rounded p-3 text-[#FCD34D] text-sm">
+                    Znaleziono <strong>{diagnostics.mismatches.length}</strong> rozbieznosci. Po naprawie godziny beda identyczne w obu zakladkach.
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-[#1E293B] text-[#94A3B8]">
+                        <tr>
+                          <th className="p-2 text-left">Pracownik</th>
+                          <th className="p-2 text-right">Agreg.</th>
+                          <th className="p-2 text-right">Grupow.</th>
+                          <th className="p-2 text-right">Roznica</th>
+                          <th className="p-2 text-left">Duplikaty (daty)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {diagnostics.mismatches.map((m) => (
+                          <tr key={m.employee_id} className="border-t border-[#334155]" data-testid={`diagnostics-row-${m.employee_id}`}>
+                            <td className="p-2 text-white">
+                              {m.full_name}
+                              {m.is_orphan && <span className="ml-1 text-[#E8836A]">(sierota)</span>}
+                            </td>
+                            <td className="p-2 text-right">{m.agg_hours}</td>
+                            <td className="p-2 text-right">{m.grouped_hours}</td>
+                            <td className={`p-2 text-right font-bold ${Math.abs(m.diff) >= 0.01 ? 'text-[#E8836A]' : 'text-[#94A3B8]'}`}>
+                              {m.diff > 0 ? '+' : ''}{m.diff}
+                            </td>
+                            <td className="p-2 text-[#94A3B8]">
+                              {m.duplicate_dates.length > 0 ? m.duplicate_dates.join(', ') : '-'}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+          <DialogFooter className="flex justify-between">
+            {diagnostics && diagnostics.mismatches.some(m => m.duplicate_dates.length > 0) && (
+              <Button onClick={fixDuplicates} disabled={diagLoading}
+                className="bg-[#E8836A] hover:bg-[#D9744F] text-white"
+                data-testid="diagnostics-fix-duplicates">
+                Napraw duplikaty
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => setDiagnostics(null)}
+              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white"
+              data-testid="diagnostics-close">
+              Zamknij
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1]" data-testid="payroll-add-modal">
           <DialogHeader>

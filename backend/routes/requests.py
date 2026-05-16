@@ -79,13 +79,19 @@ async def review_request(
     if review.status == RequestStatus.APPROVED:
         request_data = await db.hour_requests.find_one({"id": request_id})
         if request_data:
+            # PREVENT DUPLICATES: usun istniejace wpisy dla tego pracownika+daty
+            # zanim wstawimy nowy (taki sam wzorzec jak w POST /hours)
+            await db.hour_entries.delete_many({
+                "employee_id": request_data["employee_id"],
+                "work_date": request_data["work_date"],
+            })
             entry_id = str(uuid.uuid4())
             entry_doc = {
                 "id": entry_id,
                 "employee_id": request_data["employee_id"],
                 "site_id": request_data["site_id"],
                 "work_date": request_data["work_date"],
-                "hours_worked": request_data["hours_worked"],
+                "hours_worked": float(request_data["hours_worked"] or 0),
                 "is_absent": False,
                 "notes": f"Approved by admin: {request_data.get('reason', '')}",
                 "created_at": datetime.now().isoformat(),

@@ -451,3 +451,31 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 
 - Zmiany **kompatybilne wstecz** - pracownicy i wszystkie dane zostaja po deployu Render.
 - Brak destrukcyjnych migracji w startup_event.
+
+
+## Iteration 36 (2026-05-16) — Naprawa rozbieznosci godzin
+
+### Problem
+Suma godzin w zakladce **Godziny** (HoursTable) rozniła sie od sumy godzin w zakladce **Wyplaty** (PayrollAdmin), np. dla "FAIG GULIYEV". Backend agregacja sumowała wszystkie wpisy `hour_entries` per pracownik, podczas gdy frontend grupowal po `(employee_id, work_date)` i nadpisywal duplikaty.
+
+### Root causes (znalezione i naprawione)
+1. **`GET /api/hours` limit `.to_list(1000)`** — przy 50 prac. × 28 dni = 1400 wpisow, frontend silentnie tracil dane. **Fix**: `to_list(length=None)`.
+2. **Duplikaty `hour_entries`** dla tej samej pary `(employee_id, work_date)` — historyczne dane lub stary kod. Backend sumowal, frontend nadpisywal. **Fix**: nowy POST `/api/payroll/hours-diagnostics/fix-duplicates`.
+3. **`hours_worked` jako string** w starych wpisach — MongoDB `$sum` zwracal 0 dla stringa. **Fix**: agregacja uzywa `$convert` z `onError:0, onNull:0`; diagnostyka raportuje `type_issues`.
+4. **POST `/api/requests/{id}/review`** wstawial nowy hour_entry bez usuwania istniejacych dla tej pary — mogl tworzyc duplikaty. **Fix**: `delete_many` przed `insert_one` (jak w POST `/api/hours`).
+5. **Wyswietlanie totals**: floating-point precision w sumach frontend. **Fix**: `Math.round(x * 100) / 100`.
+
+### Nowe endpointy
+- `GET /api/payroll/hours-diagnostics?year&month` — porownuje agregacje vs grupowanie a-la frontend; zwraca listę pracownikow z rozbieznosciami, listę dat duplikatow, liczbe wpisow z bledami typu.
+- `POST /api/payroll/hours-diagnostics/fix-duplicates?year&month` — usuwa duplikaty (zachowuje najnowszy po `updated_at`) i naprawia bledy typu `hours_worked`.
+
+### UI (PayrollAdmin)
+- Nowy przycisk **"Weryfikuj godziny"** w toolbar (kolor pomaranczowy).
+- Modal `payroll-diagnostics-modal` pokazuje kafelki (wpisy ogolem, suma agregacji vs grupowanie, bledy typu/sieroty) i tabele rozbieznosci.
+- Jezeli wykryto duplikaty, pojawia sie przycisk **"Napraw duplikaty"** (zachowuje najnowszy wpis).
+- Test ID: `payroll-diagnostics-btn`, `payroll-diagnostics-modal`, `diagnostics-fix-duplicates`, `diagnostics-ok`, `diagnostics-row-{employee_id}`.
+
+### Prevencja regresji
+- POST `/api/hours` i POST `/api/requests/review` zawsze wykonuja `delete_many` przed `insert_one` dla pary `(employee_id, work_date)` → nowe duplikaty nie powstana.
+- Agregacja backend uzywa `$convert` — odporna na string `hours_worked`.
+- `GET /api/hours` bez limitu → frontend zawsze ma komplet danych.
