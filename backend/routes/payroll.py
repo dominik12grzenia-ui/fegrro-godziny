@@ -261,6 +261,9 @@ async def update_payroll(
         )
 
     raw = payload.model_dump(exclude_unset=True)
+    # Strip legacy fields (kept Optional in model for backward compat only)
+    for legacy in ("advances_hours", "penalties_zl", "housing_zl"):
+        raw.pop(legacy, None)
     update = {}
     for k, v in raw.items():
         if k == "is_fixed_salary":

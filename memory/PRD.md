@@ -430,5 +430,24 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 - 15/15 backend iter34 + 47/48 regression PASS. Frontend e2e PASS.
 
 ### Bezpieczenstwo danych
+
+## Completed (2026-02-16) - Iteration 35: Auto zaliczki/kary z tabel + bez spinnerow w inputach
+
+### Backend
+- **Zaliczki i kary automatyczne** z istniejacych kolekcji `db.advances` i `db.penalties`. GET `/api/payroll` agreguje wszystkie wpisy z (year,month) per pracownik i zwraca `auto_advances_zl` + `auto_penalties_zl` w response.
+- **Formula payout (nowa)**: `hours_amount - auto_advances_zl - auto_penalties_zl - other_minus + bonus + driver + other_plus`.
+- **Usuniete pola** z PayrollRecord: `advances_hours`, `penalties_zl`, `housing_zl` (zostawione Optional dla legacy compat, ale strip-owane przed zapisem do DB).
+- **Multiple advances/penalties** sa sumowane (np. 2 zaliczki po 100 + 150 = `auto_advances_zl=250`).
+
+### Frontend
+- Kolumny **Zaliczki** i **Kary** w tabeli sa teraz read-only span (pomaranczowy/czerwony), pobierane z `auto_advances_zl`/`auto_penalties_zl`.
+- **Strzalki (spinnery) usuniete** ze wszystkich input[type=number] przez globalna klase `.no-spinner` (webkit + moz appearance).
+- Optymistyczna aktualizacja payout uzywa auto wartosci ze stanu (nie z payload).
+
+### Testy
+- 10/10 backend iter35 PASS + iter34 regression OK.
+- Frontend e2e: naglowki, span elementy zaliczek/kar, brak spinnerow, CSS injection.
+- 5 starych testow iter31/33 oczekiwane breaking failures (schema change).
+
 - Zmiany **kompatybilne wstecz** - pracownicy i wszystkie dane zostaja po deployu Render.
 - Brak destrukcyjnych migracji w startup_event.
