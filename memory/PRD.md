@@ -479,3 +479,12 @@ Suma godzin w zakladce **Godziny** (HoursTable) rozniła sie od sumy godzin w za
 - POST `/api/hours` i POST `/api/requests/review` zawsze wykonuja `delete_many` przed `insert_one` dla pary `(employee_id, work_date)` → nowe duplikaty nie powstana.
 - Agregacja backend uzywa `$convert` — odporna na string `hours_worked`.
 - `GET /api/hours` bez limitu → frontend zawsze ma komplet danych.
+
+### Badge ostrzegawczy (2026-05-16)
+- Po wejsciu na zakladke Wyplaty automatycznie odpala sie cichy GET `/payroll/hours-diagnostics`.
+- Jezeli `mismatch_count > 0` lub `type_issues > 0`, kafelek **"Suma godzin"** zyskuje:
+  - zolta ramka `border-[#E8B76A]`,
+  - animowana zolta kropka w prawym gornym rogu (`payroll-hours-warning-badge`, `animate-ping`),
+  - tooltip z liczba rozbieznosci i duplikatow,
+  - klikalny — otwiera modal diagnostyki bez koniecznosci szukania przycisku "Weryfikuj godziny".
+- Badge znika automatycznie po `fix-duplicates` (auto-refresh).

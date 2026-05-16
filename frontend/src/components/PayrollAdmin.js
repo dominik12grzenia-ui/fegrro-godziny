@@ -33,6 +33,7 @@ export const PayrollAdmin = () => {
   const [auditEntries, setAuditEntries] = useState([]);
   const [diagnostics, setDiagnostics] = useState(null);  // wynik /payroll/hours-diagnostics
   const [diagLoading, setDiagLoading] = useState(false);
+  const [diagAuto, setDiagAuto] = useState(null);  // auto-check w tle (tylko liczby) - {mismatch_count, type_issues}
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -46,6 +47,22 @@ export const PayrollAdmin = () => {
     }
   }, [year, month]);
 
+  // Auto-check w tle: po zaladowaniu wyplat sprawdz czy sa rozbieznosci
+  // (cichy fetch, tylko ustawia liczniki dla badge na kafelku).
+  const checkDiagnosticsSilent = useCallback(async () => {
+    try {
+      const res = await api.get(`/payroll/hours-diagnostics?year=${year}&month=${month}`);
+      setDiagAuto({
+        mismatch_count: (res.data.mismatches || []).length,
+        duplicate_count: (res.data.mismatches || []).filter(m => m.duplicate_dates.length > 0).length,
+        type_issues: res.data.type_issues || 0,
+        orphan_count: res.data.orphan_employee_entries || 0,
+      });
+    } catch {
+      setDiagAuto(null);
+    }
+  }, [year, month]);
+
   const fetchArchived = useCallback(async () => {
     try {
       const res = await api.get('/employees?include_archived=true');
@@ -55,6 +72,7 @@ export const PayrollAdmin = () => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { fetchArchived(); }, [fetchArchived]);
+  useEffect(() => { checkDiagnosticsSilent(); }, [checkDiagnosticsSilent]);
 
   const handleAdd = async () => {
     // Fallback do ref jezeli stan nie zsynchronizowany (race przy onClick)
@@ -150,6 +168,13 @@ export const PayrollAdmin = () => {
     try {
       const res = await api.get(`/payroll/hours-diagnostics?year=${year}&month=${month}`);
       setDiagnostics(res.data);
+      // Zsynchronizuj badge na kafelku
+      setDiagAuto({
+        mismatch_count: (res.data.mismatches || []).length,
+        duplicate_count: (res.data.mismatches || []).filter(m => m.duplicate_dates.length > 0).length,
+        type_issues: res.data.type_issues || 0,
+        orphan_count: res.data.orphan_employee_entries || 0,
+      });
       const mismatch_count = (res.data.mismatches || []).length;
       if (mismatch_count === 0) {
         toast.success('Brak rozbieznosci - godziny zgodne miedzy zakladkami');
@@ -176,6 +201,7 @@ export const PayrollAdmin = () => {
       // Odswiez diagnostyke i dane wyplat
       await runDiagnostics();
       await fetchData();
+      await checkDiagnosticsSilent();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad naprawy');
     } finally {
@@ -396,10 +422,33 @@ export const PayrollAdmin = () => {
           </div>
           {data?.totals && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-              <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
+              <button
+                type="button"
+                onClick={() => diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) ? runDiagnostics() : null}
+                className={`relative bg-[#1E293B] rounded p-2 border text-left transition-colors ${
+                  diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0)
+                    ? 'border-[#E8B76A] hover:bg-[#334155] cursor-pointer'
+                    : 'border-[#334155] cursor-default'
+                }`}
+                data-testid="payroll-tile-hours"
+                title={
+                  diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0)
+                    ? `Wykryto ${diagAuto.mismatch_count} rozbieznosci${diagAuto.duplicate_count > 0 ? `, w tym ${diagAuto.duplicate_count} z duplikatami` : ''}${diagAuto.type_issues > 0 ? `, ${diagAuto.type_issues} bledow typu` : ''}. Kliknij aby zobaczyc szczegoly.`
+                    : ''
+                }
+              >
                 <div className="text-[#94A3B8]">Suma godzin</div>
                 <div className="text-white font-bold text-lg" data-testid="payroll-total-hours">{data.totals.total_hours} h</div>
-              </div>
+                {diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) && (
+                  <span
+                    className="absolute top-1.5 right-1.5 flex h-3 w-3"
+                    data-testid="payroll-hours-warning-badge"
+                  >
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E8B76A] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E8B76A]"></span>
+                  </span>
+                )}
+              </button>
               <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
                 <div className="text-[#94A3B8]">Suma kwot z godzin</div>
                 <div className="text-white font-bold text-lg">{data.totals.total_hours_amount.toFixed(2)} zl</div>
