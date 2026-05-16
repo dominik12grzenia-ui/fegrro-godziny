@@ -412,3 +412,23 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 
 ### Testy
 - 34/34 backend (iter31+iter32+iter33), 8/8 frontend Playwright.
+
+
+## Completed (2026-02-16) - Iteration 34: Auto-copy stawki + Audit log + Lock/Unlock + Raport PDF + cleanup Tools
+
+### Backend
+- **Auto-copy domyslnej stawki**: GET `/api/payroll` dla pracownika bez rekordu w biezacym miesiacu kopiuje (rate, is_fixed_salary, fixed_salary_amount) z najnowszego poprzedniego miesiaca. Pole `defaulted_from_prev`. NIE zapisuje az do pierwszego PUT.
+- **Audit log**: kolekcja `payroll_audit` (field-level). PUT generuje wpisy {field, old_value, new_value, changed_by_name, changed_at}. GET `/api/payroll/{eid}/audit?year&month` zwraca history.
+- **Lock/Unlock**: kolekcja `payroll_locks`. POST `/payroll/lock` zamyka miesiac, POST `/payroll/unlock` otwiera. PUT na zablokowanym -> **423 Locked**. GET payroll zwraca `locked` + `lock_info`.
+- **Pelny PDF raport miesieczny**: POST `/payroll/pdf/report` - A4 landscape, tabela wszystkich pracownikow (13 kolumn) + sumy + rozpiska godzin per budowa.
+
+### Frontend
+- **PayrollAdmin**: Lock/Unlock toggle, banner "Miesiac zamkniety", inputs dimowane gdy locked, ikona History per wiersz z modalem audit, przycisk **Raport PDF** obok karteczek.
+- **Tools tab**: usunieto 3 sekcje Excel/Cron - 445 linii kodu.
+
+### Testy
+- 15/15 backend iter34 + 47/48 regression PASS. Frontend e2e PASS.
+
+### Bezpieczenstwo danych
+- Zmiany **kompatybilne wstecz** - pracownicy i wszystkie dane zostaja po deployu Render.
+- Brak destrukcyjnych migracji w startup_event.
