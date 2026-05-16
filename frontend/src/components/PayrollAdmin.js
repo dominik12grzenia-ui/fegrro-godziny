@@ -3,7 +3,8 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search, UserPlus, Archive, ArchiveRestore, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SkeletonTable } from './ui/skeletons';
 
@@ -21,6 +22,11 @@ export const PayrollAdmin = () => {
   const [filter, setFilter] = useState('');
   const [savingId, setSavingId] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [archived, setArchived] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -34,7 +40,67 @@ export const PayrollAdmin = () => {
     }
   }, [year, month]);
 
+  const fetchArchived = useCallback(async () => {
+    try {
+      const res = await api.get('/employees?include_archived=true');
+      setArchived(res.data.filter((e) => e.is_archived));
+    } catch {}
+  }, []);
+
   useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => { fetchArchived(); }, [fetchArchived]);
+
+  const handleAdd = async () => {
+    const name = newName.trim();
+    if (!name || name.split(/\s+/).length < 2) {
+      toast.error('Podaj imie i nazwisko');
+      return;
+    }
+    try {
+      await api.post('/employees', { full_name: name, phone_number: newPhone.trim() || null });
+      toast.success(`Dodano: ${name}`);
+      setShowAdd(false); setNewName(''); setNewPhone('');
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad dodawania');
+    }
+  };
+
+  const handleArchive = async (row) => {
+    if (!window.confirm(`Zarchiwizowac ${row.full_name}?\n\nPracownik znika z aktywnych list ale jego dane pozostaja.`)) return;
+    try {
+      await api.post(`/employees/${row.employee_id}/archive`);
+      toast.success(`Zarchiwizowano: ${row.full_name}`);
+      fetchData(); fetchArchived();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad archiwizacji');
+    }
+  };
+
+  const handleUnarchive = async (emp) => {
+    try {
+      await api.post(`/employees/${emp.id}/unarchive`);
+      toast.success(`Przywrocono: ${emp.full_name}`);
+      fetchData(); fetchArchived();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const handleHardDelete = async (emp) => {
+    if (!window.confirm(
+      `TRWALE usunac ${emp.full_name}?\n\n` +
+      'Usunie wszystkie dane: godziny, zaliczki, kary, nieobecnosci, BHP, odziez, wyplaty.\n\n' +
+      'Operacja NIEODWRACALNA.'
+    )) return;
+    try {
+      const res = await api.delete(`/employees/${emp.id}`);
+      toast.success(`Usunieto trwale: ${emp.full_name}`);
+      fetchData(); fetchArchived();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad usuwania');
+    }
+  };
 
   const changeMonth = (delta) => {
     let m = month + delta;
@@ -168,7 +234,10 @@ export const PayrollAdmin = () => {
                 data-testid="payroll-search"
               />
             </div>
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex gap-2 flex-wrap">
+              <Button onClick={() => setShowAdd(true)} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-employee">
+                <UserPlus className="h-4 w-4 mr-1" /> Dodaj pracownika
+              </Button>
               <Button onClick={() => downloadPdf(true)} disabled={downloading || selected.size === 0}
                 className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-pdf-selected">
                 <Download className="h-4 w-4 mr-1" /> PDF wybranych ({selected.size})
@@ -209,10 +278,12 @@ export const PayrollAdmin = () => {
                 <thead className="bg-[#1E293B] text-[#CBD5E1]">
                   <tr>
                     <th className="p-2 text-left">
-                      <Checkbox
+                      <input
+                        type="checkbox"
                         checked={visibleRows.length > 0 && visibleRows.every((r) => selected.has(r.employee_id))}
-                        onCheckedChange={toggleSelectAllVisible}
+                        onChange={toggleSelectAllVisible}
                         data-testid="payroll-select-all"
+                        className="h-4 w-4 accent-[#5F7151] cursor-pointer"
                       />
                     </th>
                     <th className="p-2 text-left">Pracownik</th>
@@ -227,7 +298,7 @@ export const PayrollAdmin = () => {
                     <th className="p-2 text-right">Kierowca +</th>
                     <th className="p-2 text-right">Inne +</th>
                     <th className="p-2 text-right">Wyplata</th>
-                    <th className="p-2"></th>
+                    <th className="p-2 text-center">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -255,7 +326,19 @@ export const PayrollAdmin = () => {
                         <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" /></td>
                         <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{r.computed.payout.toFixed(2)} zl</td>
-                        <td className="p-2 text-center">{savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}</td>
+                        <td className="p-2 text-center">
+                          <div className="flex items-center gap-1 justify-center">
+                            {savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}
+                            <button
+                              onClick={() => handleArchive(r)}
+                              className="p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#E8B76A]"
+                              title="Zarchiwizuj"
+                              data-testid={`payroll-archive-${r.employee_id}`}
+                            >
+                              <Archive className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </td>
                       </tr>
                       {expanded.has(r.employee_id) && (
                         <tr className="bg-[#0F172A]">
@@ -284,6 +367,100 @@ export const PayrollAdmin = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Archiwum */}
+      <Card className="bg-[#2A384C] border-[#334155]">
+        <CardHeader className="pb-2">
+          <button
+            onClick={() => setShowArchived((v) => !v)}
+            className="flex items-center gap-2 text-[#CBD5E1] hover:text-white"
+            data-testid="payroll-toggle-archived"
+          >
+            {showArchived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            <Archive className="h-4 w-4 text-[#E8B76A]" />
+            <span className="font-semibold">Archiwum pracownikow ({archived.length})</span>
+          </button>
+        </CardHeader>
+        {showArchived && (
+          <CardContent>
+            {archived.length === 0 ? (
+              <div className="text-[#64748B] text-sm py-2">Brak zarchiwizowanych pracownikow.</div>
+            ) : (
+              <div className="space-y-2" data-testid="payroll-archived-list">
+                {archived.map((emp) => (
+                  <div key={emp.id} className="flex items-center justify-between bg-[#1E293B] border border-[#334155] rounded p-3">
+                    <div>
+                      <div className="text-[#CBD5E1] font-medium">{emp.full_name}</div>
+                      <div className="text-xs text-[#64748B]">
+                        {emp.phone_number || '(brak telefonu)'}
+                        {emp.archived_at && <> &middot; zarchiwizowano {emp.archived_at.slice(0, 10)}</>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm" variant="outline"
+                        onClick={() => handleUnarchive(emp)}
+                        className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
+                        data-testid={`payroll-unarchive-${emp.id}`}
+                      >
+                        <ArchiveRestore className="h-4 w-4 mr-1" /> Przywroc
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleHardDelete(emp)}
+                        className="bg-[#9b3a2a] hover:bg-[#7a2d20] text-white"
+                        data-testid={`payroll-delete-${emp.id}`}
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Usun trwale
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Modal: dodaj pracownika */}
+      <Dialog open={showAdd} onOpenChange={setShowAdd}>
+        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1]" data-testid="payroll-add-modal">
+          <DialogHeader>
+            <DialogTitle className="text-white">Dodaj pracownika</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Imie i nazwisko</label>
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Jan Kowalski"
+                className="bg-[#1E293B] border-[#334155] text-white"
+                data-testid="payroll-add-name"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Telefon (opcjonalnie)</label>
+              <Input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="+48..."
+                className="bg-[#1E293B] border-[#334155] text-white"
+                data-testid="payroll-add-phone"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">
+              Anuluj
+            </Button>
+            <Button onClick={handleAdd} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-submit">
+              <UserPlus className="h-4 w-4 mr-1" /> Dodaj
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

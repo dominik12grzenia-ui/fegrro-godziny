@@ -14,6 +14,7 @@ router = APIRouter()
 @router.get("/employees")
 async def get_employees(
     active_only: bool = True,
+    include_archived: bool = False,
     month: int = None,
     year: int = None,
     current_user: dict = Depends(get_current_user)
@@ -26,8 +27,10 @@ async def get_employees(
             {"active_months": month_key},
             {"currently_active": True, "active_months": {"$exists": False}}
         ]
-    elif active_only:
+    elif active_only and not include_archived:
         query["currently_active"] = True
+    if not include_archived:
+        query["$and"] = [{"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}]
     
     employees = await db.employees.find(
         query,
@@ -35,10 +38,89 @@ async def get_employees(
             "_id": 0,
             "id": 1, "full_name": 1, "phone_number": 1,
             "user_id": 1, "currently_active": 1, "assigned_sites": 1,
-            "active_months": 1, "created_at": 1, "updated_at": 1, "sync_source": 1
+            "active_months": 1, "created_at": 1, "updated_at": 1, "sync_source": 1,
+            "is_archived": 1, "archived_at": 1
         }
     ).sort("full_name", 1).to_list(1000)
     return employees
+
+
+@router.post("/employees/{employee_id}/archive")
+async def archive_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Soft-archive employee. Hides from active lists but keeps history."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {
+            "is_archived": True,
+            "currently_active": False,
+            "archived_at": datetime.now().isoformat(),
+            "archived_by": current_user["sub"],
+            "updated_at": datetime.now().isoformat(),
+        }},
+    )
+    return {"message": f"Zarchiwizowano: {emp.get('full_name')}", "employee_id": employee_id}
+
+
+@router.post("/employees/{employee_id}/unarchive")
+async def unarchive_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Restore archived employee back to active."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {
+            "is_archived": False,
+            "currently_active": True,
+            "updated_at": datetime.now().isoformat(),
+        },
+         "$unset": {"archived_at": "", "archived_by": ""}},
+    )
+    return {"message": f"Przywrocono: {emp.get('full_name')}", "employee_id": employee_id}
+
+
+@router.delete("/employees/{employee_id}")
+async def delete_employee(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Hard-delete employee + all related data. ONLY allowed for already-archived employees."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    if not emp.get("is_archived"):
+        raise HTTPException(
+            status_code=400,
+            detail="Najpierw zarchiwizuj pracownika - dopiero potem mozna usunac trwale.",
+        )
+    # Cascade clean-up
+    counters = {
+        "hour_entries": await db.hour_entries.delete_many({"employee_id": employee_id}),
+        "assignments": await db.assignments.delete_many({"employee_id": employee_id}),
+        "advances": await db.advances.delete_many({"employee_id": employee_id}),
+        "penalties": await db.penalties.delete_many({"employee_id": employee_id}),
+        "absences": await db.absences.delete_many({"employee_id": employee_id}),
+        "clothing_orders": await db.clothing_orders.delete_many({"employee_id": employee_id}),
+        "bhp_documents": await db.bhp_documents.delete_many({"employee_id": employee_id}),
+        "bhp_issuances": await db.bhp_issuances.delete_many({"employee_id": employee_id}),
+        "payroll_records": await db.payroll_records.delete_many({"employee_id": employee_id}),
+    }
+    await db.employees.delete_one({"id": employee_id})
+    deleted_summary = {k: v.deleted_count for k, v in counters.items()}
+    return {
+        "message": f"Trwale usunieto: {emp.get('full_name')}",
+        "employee_id": employee_id,
+        "cascaded": deleted_summary,
+    }
 
 
 @router.post("/employees", response_model=Employee)
