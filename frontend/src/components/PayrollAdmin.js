@@ -218,9 +218,15 @@ export const PayrollAdmin = () => {
     driver_zl: 'Kierowca',
     other_plus_zl: 'Inne +',
   };
+  // Formater: usuwa zera po kropce. 0.00→"0", 12.00→"12", 12.50→"12.5", 12.55→"12.55"
+  const fmt = (v) => {
+    const n = Number(v ?? 0);
+    if (!isFinite(n)) return '0';
+    return n.toFixed(2).replace(/\.?0+$/, '') || '0';
+  };
   const fmtVal = (field, v) => {
     if (field === 'is_fixed_salary') return v ? 'TAK' : 'NIE';
-    return Number(v ?? 0).toFixed(2);
+    return fmt(v);
   };
 
 
@@ -451,21 +457,21 @@ export const PayrollAdmin = () => {
               </button>
               <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
                 <div className="text-[#94A3B8]">Suma kwot z godzin</div>
-                <div className="text-white font-bold text-lg">{data.totals.total_hours_amount.toFixed(2)} zl</div>
+                <div className="text-white font-bold text-lg">{fmt(data.totals.total_hours_amount)} zl</div>
               </div>
               <div className="bg-[#1E293B] rounded p-2 border border-[#E8836A]">
                 <div className="text-[#94A3B8]">Kwota godz. - kary + dodatki + kierowca</div>
                 <div className="text-[#E8836A] font-bold text-lg" data-testid="payroll-total-gross-net">
-                  {(data.rows.reduce((s, r) => s
+                  {fmt(data.rows.reduce((s, r) => s
                     + (r.computed.hours_amount || 0)
                     - (r.computed.penalties_zl || 0)
                     + (r.record.bonus_zl || 0)
-                    + (r.record.driver_zl || 0), 0)).toFixed(2)} zl
+                    + (r.record.driver_zl || 0), 0))} zl
                 </div>
               </div>
               <div className="bg-[#1E293B] rounded p-2 border border-[#5F7151]">
                 <div className="text-[#94A3B8]">Suma wyplat (po zaliczkach)</div>
-                <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{data.totals.total_payout.toFixed(2)} zl</div>
+                <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zl</div>
               </div>
             </div>
           )}
@@ -546,7 +552,7 @@ export const PayrollAdmin = () => {
                         </td>
                         <td className="p-2 text-right">
                           {r.record.is_fixed_salary ? (
-                            <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{(r.computed.rate_effective ?? 0).toFixed(2)}</span>
+                            <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{fmt(r.computed.rate_effective)}</span>
                           ) : (
                             <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" disabled={isLocked} />
                           )}
@@ -555,16 +561,16 @@ export const PayrollAdmin = () => {
                           {r.record.is_fixed_salary ? (
                             <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" disabled={isLocked} />
                           ) : (
-                            <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{r.computed.hours_amount.toFixed(2)}</span>
+                            <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{fmt(r.computed.hours_amount)}</span>
                           )}
                         </td>
-                        <td className="p-2 text-right"><span className="text-[#E8836A] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{(r.auto_advances_zl || 0).toFixed(2)}</span></td>
-                        <td className="p-2 text-right"><span className="text-[#DC2626] font-semibold" data-testid={`payroll-pen-auto-${r.employee_id}`} title="Suma z tabeli kar (read-only)">{(r.auto_penalties_zl || 0).toFixed(2)}</span></td>
+                        <td className="p-2 text-right"><span className="text-[#E8836A] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{fmt(r.auto_advances_zl)}</span></td>
+                        <td className="p-2 text-right"><span className="text-[#DC2626] font-semibold" data-testid={`payroll-pen-auto-${r.employee_id}`} title="Suma z tabeli kar (read-only)">{fmt(r.auto_penalties_zl)}</span></td>
                         <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{r.computed.payout.toFixed(2)} zl</td>
+                        <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zl</td>
                         <td className="p-2 text-center">
                           <div className="flex items-center gap-1 justify-center">
                             {savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}
