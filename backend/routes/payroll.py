@@ -132,8 +132,8 @@ async def list_payroll(
     rec_map = {r["employee_id"]: r for r in records}
 
     # AUTO-COPY: dla pracownikow ktorzy NIE maja jeszcze rekordu w tym miesiacu,
-    # bierzemy DEFAULTS (rate, is_fixed_salary, fixed_salary_amount) z najnowszego
-    # poprzedniego miesiaca. Nie zapisujemy - tylko prezentujemy w UI.
+    # bierzemy DEFAULTS (rate, fixed pensja, driver, bonus) z najnowszego poprzedniego
+    # miesiaca. Nie zapisujemy - tylko prezentujemy w UI; pierwszy zapis utrwala wartosci.
     missing_emp_ids = [e["id"] for e in emps if e["id"] not in rec_map]
     defaults_cache: dict = {}  # emp_id -> dict z polami defaultowymi
     if missing_emp_ids:
@@ -147,7 +147,8 @@ async def list_payroll(
                 ],
             },
             {"_id": 0, "employee_id": 1, "year": 1, "month": 1,
-             "rate": 1, "is_fixed_salary": 1, "fixed_salary_amount": 1},
+             "rate": 1, "is_fixed_salary": 1, "fixed_salary_amount": 1,
+             "driver_zl": 1, "bonus_zl": 1},
         ).sort([("year", -1), ("month", -1)])
         async for r in cursor:
             eid = r["employee_id"]
@@ -157,6 +158,8 @@ async def list_payroll(
                 "rate": float(r.get("rate") or 0),
                 "is_fixed_salary": bool(r.get("is_fixed_salary") or False),
                 "fixed_salary_amount": float(r.get("fixed_salary_amount") or 0),
+                "driver_zl": float(r.get("driver_zl") or 0),
+                "bonus_zl": float(r.get("bonus_zl") or 0),
             }
 
     # Agregacja zaliczek (advances) i kar (penalties) per pracownik - auto z tabel
