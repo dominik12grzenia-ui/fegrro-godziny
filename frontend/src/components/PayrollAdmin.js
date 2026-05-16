@@ -350,7 +350,7 @@ export const PayrollAdmin = () => {
             </div>
           </div>
           {data?.totals && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
               <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
                 <div className="text-[#94A3B8]">Suma godzin</div>
                 <div className="text-white font-bold text-lg" data-testid="payroll-total-hours">{data.totals.total_hours} h</div>
@@ -359,8 +359,18 @@ export const PayrollAdmin = () => {
                 <div className="text-[#94A3B8]">Suma kwot z godzin</div>
                 <div className="text-white font-bold text-lg">{data.totals.total_hours_amount.toFixed(2)} zl</div>
               </div>
+              <div className="bg-[#1E293B] rounded p-2 border border-[#E8836A]">
+                <div className="text-[#94A3B8]">Kwota godz. - kary + dodatki + kierowca</div>
+                <div className="text-[#E8836A] font-bold text-lg" data-testid="payroll-total-gross-net">
+                  {(data.rows.reduce((s, r) => s
+                    + (r.computed.hours_amount || 0)
+                    - (r.computed.penalties_zl || 0)
+                    + (r.record.bonus_zl || 0)
+                    + (r.record.driver_zl || 0), 0)).toFixed(2)} zl
+                </div>
+              </div>
               <div className="bg-[#1E293B] rounded p-2 border border-[#5F7151]">
-                <div className="text-[#94A3B8]">Suma wyplat</div>
+                <div className="text-[#94A3B8]">Suma wyplat (po zaliczkach)</div>
                 <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{data.totals.total_payout.toFixed(2)} zl</div>
               </div>
             </div>
