@@ -3,7 +3,6 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Checkbox } from './ui/checkbox';
 import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { SkeletonTable } from './ui/skeletons';
@@ -238,7 +237,7 @@ export const PayrollAdmin = () => {
                   {visibleRows.map((r, idx) => (
                     <React.Fragment key={r.employee_id}>
                       <tr className={idx % 2 === 0 ? 'bg-[#1E293B]/40' : ''} data-testid={`payroll-row-${r.employee_id}`}>
-                        <td className="p-2"><Checkbox checked={selected.has(r.employee_id)} onCheckedChange={() => toggleSelected(r.employee_id)} data-testid={`payroll-check-${r.employee_id}`} /></td>
+                        <td className="p-2"><input type="checkbox" checked={selected.has(r.employee_id)} onChange={() => toggleSelected(r.employee_id)} data-testid={`payroll-check-${r.employee_id}`} className="h-4 w-4 accent-[#5F7151] cursor-pointer" /></td>
                         <td className="p-2 text-[#CBD5E1] font-medium">
                           <button onClick={() => toggleExpanded(r.employee_id)} className="flex items-center gap-1 hover:text-white text-left">
                             {expanded.has(r.employee_id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}

@@ -348,3 +348,22 @@ Listy /api/equipment, /api/warehouse/materials, /api/clothing/types zwracaly pel
 
 ### Testy
 - 9/9 pytest backend (`test_iter30_thumbnails.py`) + 5/5 iter28 regression PASS. Frontend renderuje OK.
+
+
+## Completed (2026-02-16) - Iteration 31: Zakladka Wyplaty + generator PDF z karteczkami
+
+### Backend (nowy router /app/backend/routes/payroll.py)
+- `GET /api/payroll?year&month` - lista wszystkich aktywnych pracownikow z agregowanymi godzinami z hour_entries, rozpiska per budowa (sites_breakdown), zapisanym payroll_record (8 pol) + computed (hours_amount, advances_zl, payout).
+- `PUT /api/payroll/{employee_id}?year&month` - upsert payroll_record (rate, advances_hours, penalties_zl, housing_zl, other_minus_zl, bonus_zl, driver_zl, other_plus_zl).
+- `POST /api/payroll/pdf?year&month` body {employee_ids?} - generuje PDF reportlab: **6 karteczek na A4** (2 kolumny × 3 rzedy), multi-strona dla wiecej.
+- Formula: **payout = hours×rate − adv_h×rate − penalties − housing − other_minus + bonus + driver + other_plus**.
+
+### Frontend (nowy /app/frontend/src/components/PayrollAdmin.js)
+- Nowa zakladka **Wyplaty** w AdminDashboard (miedzy BHP i Narzedzia).
+- Selektor miesiac/rok, wyszukiwarka, sumy kontrolne.
+- Tabela: 13 kolumn z edytowalnymi 8 polami (auto-save onBlur, optymistyczne odswiezenie payout).
+- Expander per pracownik → rozpiska godzin per budowa.
+- Checkboxy native + select-all; przyciski **PDF wybranych (N)** / **PDF wszystkich** (blob download).
+
+### Testy
+- Backend 12/12 pytest PASS + RBAC 401/403. Frontend renders OK, PDF download dziala (~42KB dla 1 pracownika).

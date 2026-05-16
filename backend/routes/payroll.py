@@ -284,7 +284,7 @@ async def generate_payroll_pdf(
     # Reuse list_payroll logic
     full = await list_payroll(year=year, month=month, current_user=current_user)
     rows = full["rows"]
-    if payload.employee_ids:
+    if payload.employee_ids is not None:
         wanted = set(payload.employee_ids)
         rows = [r for r in rows if r["employee_id"] in wanted]
     if not rows:
