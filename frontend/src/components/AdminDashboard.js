@@ -27,6 +27,7 @@ const sitesTabImport = () => import('./admin/SitesTab').then((m) => ({ default: 
 const foremenTabImport = () => import('./admin/ForemenTab').then((m) => ({ default: m.ForemenTab }));
 const requestsTabImport = () => import('./admin/RequestsTab').then((m) => ({ default: m.RequestsTab }));
 const toolsTabImport = () => import('./admin/ToolsTab').then((m) => ({ default: m.ToolsTab }));
+const payrollAdminImport = () => import('./PayrollAdmin').then((m) => ({ default: m.PayrollAdmin }));
 
 const EquipmentAdmin = lazy(equipmentAdminImport);
 const ClothingAdmin = lazy(clothingAdminImport);
@@ -36,6 +37,7 @@ const SitesTab = lazy(sitesTabImport);
 const ForemenTab = lazy(foremenTabImport);
 const RequestsTab = lazy(requestsTabImport);
 const ToolsTab = lazy(toolsTabImport);
+const PayrollAdmin = lazy(payrollAdminImport);
 
 const TabSpinner = () => (
   <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
@@ -425,6 +427,7 @@ export const AdminDashboard = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
+              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0">Wyplaty</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>
             </TabsList>
           </div>
@@ -508,6 +511,12 @@ export const AdminDashboard = () => {
           <TabsContent value="bhp" className="space-y-4 bg-[#1E293B]">
             <Suspense fallback={<TabSpinner />}>
               <BhpAdmin />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="payroll" className="space-y-4 bg-[#1E293B]">
+            <Suspense fallback={<TabSpinner />}>
+              <PayrollAdmin />
             </Suspense>
           </TabsContent>
 

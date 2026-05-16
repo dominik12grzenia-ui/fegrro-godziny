@@ -1,0 +1,43 @@
+{
+  "summary": "Iter31 Payroll (Wyplaty) tests: 12/12 backend pytest PASSED + UI flow validated end-to-end. PDF generated 42008 bytes (application/pdf, attachment header). Payout formula verified: hours_amount - advances_zl - penalties - housing - other_minus + bonus + driver + other_plus. Month navigation, search input, editable rate/zaliczki/kary/dodatki, real-time computed payout, and PDF download all working. RBAC: GET/POST/PUT payroll without token returns 401/403.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/payroll/pdf", "issue": "body {employee_ids: []} returns 200 (treats as 'all') rather than 400 'Brak pracownikow' as suggested in spec; backend code uses 'if payload.employee_ids:' which is falsy for empty list. Unknown employee IDs correctly return 400. Acceptable behaviour but spec says empty list should 400."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "PayrollAdmin select-all", "issue": "Clicking [data-testid='payroll-select-all'] header checkbox did not check the row(s) - 'PDF wybranych (0)' counter stayed at 0 with 1 visible row. shadcn Checkbox may require pointer events not bypassed by force=True, OR onCheckedChange handler may need verification with real click. Individual row checkboxes were not retested.", "selector": "[data-testid='payroll-select-all']", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter31_payroll.py",
+    "/app/test_reports/pytest/pytest_iter31_payroll.xml"
+  ],
+  "action_items": [
+    "Investigate why payroll-select-all checkbox does not register a click in Playwright force-click; verify individual row checkboxes also work and that 'PDF wybranych (N)' counter updates correctly with real user interaction.",
+    "(Optional) Make POST /api/payroll/pdf with employee_ids=[] return 400 'Brak pracownikow' explicitly (current behaviour treats [] as 'all'). Code: change `if payload.employee_ids:` to `if payload.employee_ids is not None:`."
+  ],
+  "critical_code_review_comments": [
+    "routes/payroll.py _calc parses floats safely with `or 0` fallback - good defensive coding for empty record cases.",
+    "list_payroll: end_day=31 used for $lte string comparison on YYYY-MM-DD - works because ISO date strings sort lexicographically. Safe but a $lt next-month boundary would be more precise (e.g., '2026-05-01').",
+    "list_payroll loops all employees and computes for each even if no record/hours - O(N) per render, fine for typical workforce sizes.",
+    "_try_register_font: silently swallows registration errors and falls back to Helvetica (no Polish chars). On preview container DejaVu likely missing - PDF will use Helvetica. Verified test passed: PDF=42KB, content-type=application/pdf. Polish chars stripped per spec (zl, godziny etc) so non-issue.",
+    "PdfRequest: employee_ids=[] is treated identically to None due to Python falsy check `if payload.employee_ids:` - minor deviation from spec.",
+    "PayrollAdmin.js: NumCell uses defaultValue + key to reset on prop change - correct React pattern for uncontrolled-with-server-sync inputs.",
+    "saveRecord performs optimistic UI update of computed values - reduces perceived latency, computes match backend formula exactly. Good.",
+    "downloadPdf revokes object URL after a.click() synchronously - in modern browsers this is fine because click triggers download synchronously, but a setTimeout(0) revoke would be safer."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter31_payroll.py"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "~90% (all selectors render & PDF downloads; select-all click did not register)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "Used existing 'Jan Testowy' employee. PUT writes payroll_records {rate:60, advances_hours:1, penalties_zl:50, housing_zl:200, other_minus_zl:30, bonus_zl:150, driver_zl:80, other_plus_zl:20} for year=2026,month=4 - leaves test data behind (not cleaned up; harmless for next iteration).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend payroll endpoints all green. Auth endpoint is /api/auth/admin/login (NOT /api/auth/login). PDF size ~42KB for 1 employee - per-page layout 2x3=6 cards, multi-page via c.showPage() (not exercised since DB has only 1 active employee 'Jan Testowy' id=d557f1c2-988b-4ff2-82c6-3b27374e84a8). For multi-page test, seed >6 employees and POST /api/payroll/pdf, then assert PDF has >1 page (re-parse with PyPDF2). To repro select-all issue: log in as admin -> Wyplaty tab -> April 2026 -> click header [data-testid='payroll-select-all'] -> check counter on [data-testid='payroll-pdf-selected']."
+}

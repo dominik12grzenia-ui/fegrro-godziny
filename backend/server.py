@@ -35,6 +35,7 @@ from routes.clothing import router as clothing_router
 from routes.bhp import router as bhp_router
 from routes.warehouse import router as warehouse_router
 from routes.push import router as push_router
+from routes.payroll import router as payroll_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -67,6 +68,7 @@ api_router.include_router(clothing_router)
 api_router.include_router(bhp_router)
 api_router.include_router(warehouse_router)
 api_router.include_router(push_router)
+api_router.include_router(payroll_router)
 
 
 # Health check
