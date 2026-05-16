@@ -103,7 +103,7 @@ async def list_payroll(
         {"$match": {"work_date": {"$gte": start, "$lte": end}}},
         {"$group": {
             "_id": {"emp": "$employee_id", "site": "$site_id"},
-            "total": {"$sum": "$hours"},
+            "total": {"$sum": "$hours_worked"},
         }},
     ]
     breakdown_map: dict = {}  # emp_id -> {site_id: hours}

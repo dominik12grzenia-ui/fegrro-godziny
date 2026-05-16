@@ -60,13 +60,13 @@ def _workdays_in_month(year: int, month: int) -> int:
 
 
 async def _sum_hours_in_month(year: int, month: int) -> float:
-    """Suma hour_entries.hours dla danego miesiaca."""
+    """Suma hour_entries.hours_worked dla danego miesiaca."""
     start = f"{year:04d}-{month:02d}-01"
     last_day = calendar.monthrange(year, month)[1]
     end = f"{year:04d}-{month:02d}-{last_day:02d}"
     pipeline = [
         {"$match": {"work_date": {"$gte": start, "$lte": end}}},
-        {"$group": {"_id": None, "total": {"$sum": "$hours"}}},
+        {"$group": {"_id": None, "total": {"$sum": "$hours_worked"}}},
     ]
     async for row in db.hour_entries.aggregate(pipeline):
         return float(row.get("total") or 0)
