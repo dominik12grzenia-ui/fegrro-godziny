@@ -812,3 +812,48 @@ async def fix_hours_duplicates(
         "deleted_duplicates": deleted,
         "fixed_type_entries": fixed_types,
     }
+
+
+
+# ============= POST: usun wpisy osieroconych pracownikow =============
+@router.post("/payroll/hours-diagnostics/delete-orphans")
+async def delete_orphan_hour_entries(
+    year: int = Query(...),
+    month: int = Query(..., ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Usuwa wpisy hour_entries dla biezacego miesiaca, ktorych employee_id
+    nie istnieje juz w kolekcji employees (osierocone wpisy).
+    """
+    start = f"{year:04d}-{month:02d}-01"
+    end = f"{year:04d}-{month:02d}-31"
+
+    # Wszystkie employee_id z wpisow w tym miesiacu
+    entries = await db.hour_entries.find(
+        {"work_date": {"$gte": start, "$lte": end}},
+        {"_id": 0, "id": 1, "employee_id": 1},
+    ).to_list(length=None)
+    emp_ids_in_entries = list({e.get("employee_id") for e in entries if e.get("employee_id")})
+
+    # Ktore z nich istnieja w employees (lacznie z archiwalnymi)
+    existing_docs = await db.employees.find(
+        {"id": {"$in": emp_ids_in_entries}},
+        {"_id": 0, "id": 1},
+    ).to_list(length=None)
+    existing = {d["id"] for d in existing_docs}
+
+    orphan_emp_ids = [e for e in emp_ids_in_entries if e not in existing]
+    if not orphan_emp_ids:
+        return {"year": year, "month": month, "deleted_entries": 0, "orphan_employee_ids": []}
+
+    result = await db.hour_entries.delete_many({
+        "work_date": {"$gte": start, "$lte": end},
+        "employee_id": {"$in": orphan_emp_ids},
+    })
+
+    return {
+        "year": year,
+        "month": month,
+        "deleted_entries": result.deleted_count,
+        "orphan_employee_ids": orphan_emp_ids,
+    }

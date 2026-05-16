@@ -488,3 +488,12 @@ Suma godzin w zakladce **Godziny** (HoursTable) rozniła sie od sumy godzin w za
   - tooltip z liczba rozbieznosci i duplikatow,
   - klikalny — otwiera modal diagnostyki bez koniecznosci szukania przycisku "Weryfikuj godziny".
 - Badge znika automatycznie po `fix-duplicates` (auto-refresh).
+
+### Czyszczenie osieroconych wpisow (2026-05-16)
+- Nowy endpoint `POST /api/payroll/hours-diagnostics/delete-orphans?year&month` — usuwa wszystkie `hour_entries` dla biezacego miesiaca, ktorych `employee_id` nie istnieje juz w kolekcji `employees`.
+- Modal diagnostyki: gdy lista zawiera pracownika z flaga `is_orphan: true`, pojawia sie czerwony przycisk **"Usun wpisy osieroconych"** (test ID: `diagnostics-delete-orphans`).
+- Skraca proces: jeden klik usuwa wszystkie "zywe ducha" pracownikow ktorzy zostali trwale usunieci a ich godziny zostaly w bazie.
+
+### Formatowanie liczb (2026-05-16)
+- Helper `fmt(v)` w PayrollAdmin: `0.00→"0"`, `12.00→"12"`, `12.50→"12.5"`, `12.55→"12.55"`.
+- Zastosowane do kafelkow oraz tabeli (kolumny: stawka, kwota godzin, zaliczki, kary, wyplata).

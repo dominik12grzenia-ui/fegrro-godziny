@@ -209,6 +209,26 @@ export const PayrollAdmin = () => {
     }
   };
 
+  const deleteOrphans = async () => {
+    if (!window.confirm(
+      'Usunac wpisy godzin dla osieroconych pracownikow w tym miesiacu?\n\n' +
+      'To wpisy, ktorych wlasciciel nie istnieje juz w bazie (np. po trwalym usunieciu pracownika). ' +
+      'Operacja nieodwracalna.'
+    )) return;
+    setDiagLoading(true);
+    try {
+      const res = await api.post(`/payroll/hours-diagnostics/delete-orphans?year=${year}&month=${month}`);
+      toast.success(`Usunieto ${res.data.deleted_entries} osieroconych wpisow`);
+      await runDiagnostics();
+      await fetchData();
+      await checkDiagnosticsSilent();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad usuwania');
+    } finally {
+      setDiagLoading(false);
+    }
+  };
+
   const fieldLabels = {
     rate: 'Stawka zl/h',
     is_fixed_salary: 'Stala pensja',
@@ -790,12 +810,19 @@ export const PayrollAdmin = () => {
               )}
             </div>
           )}
-          <DialogFooter className="flex justify-between">
+          <DialogFooter className="flex justify-between flex-wrap gap-2">
             {diagnostics && diagnostics.mismatches.some(m => m.duplicate_dates.length > 0) && (
               <Button onClick={fixDuplicates} disabled={diagLoading}
                 className="bg-[#E8836A] hover:bg-[#D9744F] text-white"
                 data-testid="diagnostics-fix-duplicates">
                 Napraw duplikaty
+              </Button>
+            )}
+            {diagnostics && diagnostics.mismatches.some(m => m.is_orphan) && (
+              <Button onClick={deleteOrphans} disabled={diagLoading}
+                className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+                data-testid="diagnostics-delete-orphans">
+                Usun wpisy osieroconych
               </Button>
             )}
             <Button variant="outline" onClick={() => setDiagnostics(null)}
