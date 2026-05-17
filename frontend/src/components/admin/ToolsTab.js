@@ -548,39 +548,6 @@ export const ToolsTab = ({
       <WarehouseKeepersCard />
       <FakturowniaApiCard />
       <EmployeeLinksCard />
-
-      {/* Rotate worker tokens */}
-      <Card className="bg-[#2A384C] border-[#334155]">
-        <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <RefreshCw className="h-5 w-5 text-[#E8836A]" />
-            Unieważnij wszystkie linki pracowników
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-[#94A3B8] mb-3">
-            Wygeneruje nowe tokeny dla <strong>wszystkich</strong> pracowników. Stare linki natychmiast przestaną działać.
-            Po tym wejdź w zakładkę Pracownicy i wyślij nowe linki wybranym osobom.
-          </p>
-          <Button
-            onClick={async () => {
-              if (!window.confirm('Unieważnic wszystkie aktualne linki pracowników? Tej operacji nie da się cofnąć - stare linki staną się nieaktywne, trzeba będzie wysłać nowe.')) return;
-              try {
-                const res = await api.post('/employees/rotate-tokens');
-                toast.success(res.data.message);
-                fetchData();
-              } catch (err) {
-                toast.error(err.response?.data?.detail || 'Blad');
-              }
-            }}
-            className="bg-[#7F2D2D] hover:bg-[#5C1F1F] text-white"
-            data-testid="rotate-worker-tokens-btn"
-          >
-            <AlertTriangle className="h-4 w-4 mr-2" />
-            Unieważnij i wygeneruj nowe tokeny
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 };
