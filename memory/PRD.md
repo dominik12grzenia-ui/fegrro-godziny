@@ -1,3 +1,19 @@
+## Iteration 44 (2026-05-17) — Manualne budowy w tabeli godzin
+
+### Problem
+Budowy dodane przez UI (np. DRUTEX w Finanse → Budowy) nie pokazywaly sie w tabeli godzin, mimo `show_in_hours=true` i poprawnego `finance_budowa_id` w construction_sites.
+
+### Diagnoza
+`HoursTable.js` linia 77 mial filter `s.excel_column` - akceptowal tylko sites zsynchronizowane z Excela (legacy). Sites dodane manualnie maja `excel_column=null` ale zawsze maja `finance_budowa_id`.
+
+### Naprawa
+Filter zmieniony na `s.excel_column || s.finance_budowa_id` - akceptuje:
+1. Sites z Excel (legacy)
+2. Sites z linkiem do finance_budowy (manual, dodane w UI z Finanse → Budowy)
+
+`show_in_hours=false` dalej dziala (backend `_remove_from_sites` usuwa caly site, wiec nie ma go w `/api/sites` w ogole).
+
+
 ## Iteration 43 (2026-05-17) — Poprawki UX
 
 ### Kolejnosc kolumn w PayrollAdmin
