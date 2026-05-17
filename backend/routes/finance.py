@@ -134,6 +134,16 @@ class ZapisUpdate(BaseModel):
     notes: Optional[str] = None
 
 
+class InvoiceUpdate(BaseModel):
+    """Aktualizacja naglowka faktury - admin moze przypisac kod_id/budowa_id/notes."""
+    kod_id: Optional[str] = None
+    budowa_id: Optional[str] = None
+    notes: Optional[str] = None
+    # Pozwalamy tez na 'unassign' poprzez przeslanie None - rozni sie od exclude_unset
+    clear_kod: Optional[bool] = False
+    clear_budowa: Optional[bool] = False
+
+
 # ============= KODY =============
 @router.get("/finance/kody")
 async def list_kody(current_user: dict = Depends(get_current_admin)):
@@ -429,6 +439,125 @@ async def delete_zapis(zapis_id: str, current_user: dict = Depends(get_current_a
     return {"message": "Usunieto"}
 
 
+# ============= FAKTURY (naglowki) =============
+@router.get("/finance/invoices")
+async def list_invoices(
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Zwraca naglowki faktur + ich pozycje + zapisy standalone (manual bez parent_invoice_id).
+
+    Wszystkie wpisy zwracane jako jednolita lista 'rows' posortowana po dacie malejaco
+    z polem 'is_invoice' (True/False) i 'positions' (gdy is_invoice=True).
+    """
+    q_inv: dict = {}
+    q_zap: dict = {}
+    if year is not None and month is not None:
+        start = f"{year:04d}-{month:02d}-01"
+        end = f"{year:04d}-{month:02d}-31"
+        q_inv["date"] = {"$gte": start, "$lte": end}
+        q_zap["date"] = {"$gte": start, "$lte": end}
+    elif year is not None:
+        q_inv["date"] = {"$gte": f"{year:04d}-01-01", "$lte": f"{year:04d}-12-31"}
+        q_zap["date"] = {"$gte": f"{year:04d}-01-01", "$lte": f"{year:04d}-12-31"}
+
+    invoices = await db.finance_invoices.find(q_inv, {"_id": 0}).sort("date", -1).to_list(length=None)
+    inv_ids = [i["id"] for i in invoices]
+    # Pozycje z faktur (parent_invoice_id w inv_ids)
+    positions = await db.finance_zapisy.find(
+        {"parent_invoice_id": {"$in": inv_ids}}, {"_id": 0}
+    ).to_list(length=None)
+    # Standalone zapisy (bez parent_invoice_id) w okresie
+    standalone_q = {**q_zap, "$or": [{"parent_invoice_id": None}, {"parent_invoice_id": {"$exists": False}}]}
+    standalone = await db.finance_zapisy.find(standalone_q, {"_id": 0}).to_list(length=None)
+
+    pos_by_inv: dict = {}
+    for p in positions:
+        pos_by_inv.setdefault(p.get("parent_invoice_id"), []).append(p)
+
+    rows = []
+    for inv in invoices:
+        inv_positions = sorted(pos_by_inv.get(inv["id"], []),
+                                key=lambda z: z.get("pozycja_nazwa", ""))
+        # Obliczamy "pozostalo": netto faktury - suma przypisanych pozycji
+        assigned_positions_sum = sum(
+            float(p.get("netto") or 0) for p in inv_positions if p.get("kod_id")
+        )
+        remainder = round(float(inv.get("netto") or 0) - assigned_positions_sum, 2)
+        rows.append({
+            **inv,
+            "is_invoice": True,
+            "positions": inv_positions,
+            "assigned_positions_sum": round(assigned_positions_sum, 2),
+            "remainder_netto": remainder,
+        })
+    for z in standalone:
+        rows.append({**z, "is_invoice": False, "positions": []})
+    rows.sort(key=lambda r: r.get("date") or "", reverse=True)
+    return {"rows": rows, "total": len(rows)}
+
+
+@router.put("/finance/invoices/{invoice_id}")
+async def update_invoice(invoice_id: str, payload: InvoiceUpdate,
+                          current_user: dict = Depends(get_current_admin)):
+    existing = await db.finance_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Faktura nie znaleziona")
+    upd: dict = {}
+    if payload.clear_kod:
+        upd["kod_id"] = None
+        upd["kod_category"] = None
+    elif payload.kod_id is not None:
+        kod = await db.finance_kody.find_one({"id": payload.kod_id}, {"_id": 0, "category": 1})
+        if not kod:
+            raise HTTPException(status_code=400, detail="Nieznany kod")
+        upd["kod_id"] = payload.kod_id
+        upd["kod_category"] = kod["category"]
+    if payload.clear_budowa:
+        upd["budowa_id"] = None
+    elif payload.budowa_id is not None:
+        bud = await db.finance_budowy.find_one({"id": payload.budowa_id}, {"_id": 0, "id": 1})
+        if not bud:
+            raise HTTPException(status_code=400, detail="Nieznana budowa")
+        upd["budowa_id"] = payload.budowa_id
+    if payload.notes is not None:
+        upd["notes"] = payload.notes
+    upd["updated_at"] = datetime.now().isoformat()
+    upd["updated_by"] = current_user["sub"]
+    await db.finance_invoices.update_one({"id": invoice_id}, {"$set": upd})
+    return {"message": "Zaktualizowano"}
+
+
+@router.delete("/finance/invoices/{invoice_id}")
+async def delete_invoice(invoice_id: str, current_user: dict = Depends(get_current_admin)):
+    """Usuwa naglowek faktury + KASKADA wszystkie jej pozycje."""
+    res = await db.finance_invoices.delete_one({"id": invoice_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Faktura nie znaleziona")
+    del_pos = await db.finance_zapisy.delete_many({"parent_invoice_id": invoice_id})
+    return {"message": "Usunieto", "positions_deleted": del_pos.deleted_count}
+
+
+@router.post("/finance/reset-fakturownia-data")
+async def reset_fakturownia_data(
+    confirm: str = Query(..., description="Musi byc 'RESET' aby potwierdzic"),
+    current_user: dict = Depends(get_current_admin),
+):
+    """JEDNORAZOWY reset: usuwa wszystkie faktury (naglowki) i pozycje z source=fakturownia.
+    Pozostawia zapisy manualne. Po resecie nalezy ponownie zsynchronizowac z Fakturowni.
+    """
+    if confirm != "RESET":
+        raise HTTPException(status_code=400, detail="Potwierdz: confirm=RESET")
+    deleted_inv = await db.finance_invoices.delete_many({"source": "fakturownia"})
+    deleted_zap = await db.finance_zapisy.delete_many({"source": "fakturownia"})
+    return {
+        "message": "Wyczyszczono dane Fakturowni",
+        "invoices_deleted": deleted_inv.deleted_count,
+        "positions_deleted": deleted_zap.deleted_count,
+    }
+
+
 # ============= RACHUNEK WYNIKOW =============
 @router.get("/finance/rachunek-wynikow")
 async def rachunek_wynikow(
@@ -440,13 +569,46 @@ async def rachunek_wynikow(
     # Pobierz wszystkie zapisy w tym roku
     zapisy = await db.finance_zapisy.find(
         {"year": year},
-        {"_id": 0, "month": 1, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1},
+        {"_id": 0, "month": 1, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1,
+         "parent_invoice_id": 1},
     ).to_list(length=None)
+
+    # Pobierz naglowki faktur z tego roku - dla kazdej faktury z kod_id obliczamy "reszta"
+    # = netto faktury - suma przypisanych pozycji tej samej faktury. Reszta wnosi do aggregacji.
+    invoices = await db.finance_invoices.find(
+        {"year": year},
+        {"_id": 0, "id": 1, "month": 1, "netto": 1, "kod_id": 1, "kod_category": 1, "budowa_id": 1},
+    ).to_list(length=None)
+    # Mapa: invoice_id -> suma przypisanych pozycji
+    assigned_pos_by_inv: dict = {}
+    for z in zapisy:
+        if z.get("kod_id") and z.get("parent_invoice_id"):
+            assigned_pos_by_inv[z["parent_invoice_id"]] = (
+                assigned_pos_by_inv.get(z["parent_invoice_id"], 0.0) + float(z.get("netto") or 0)
+            )
+    # Wirtualne zapisy z resztami faktur
+    virtual_zapisy = []
+    for inv in invoices:
+        if not inv.get("kod_id"):
+            continue
+        remainder = float(inv.get("netto") or 0) - assigned_pos_by_inv.get(inv["id"], 0.0)
+        if remainder <= 0:
+            continue
+        virtual_zapisy.append({
+            "month": inv["month"],
+            "kod_id": inv["kod_id"],
+            "kod_category": inv.get("kod_category") or "",
+            "netto": round(remainder, 2),
+            "budowa_id": inv.get("budowa_id"),
+        })
+    zapisy_all = zapisy + virtual_zapisy
 
     # Agregacja: sum_by_kod[kod_id][month] = netto
     sum_by_kod: dict = {}
     sum_by_cat: dict = {}  # category -> {month: netto}
-    for z in zapisy:
+    for z in zapisy_all:
+        if not z.get("kod_id"):
+            continue
         m = z["month"]
         kod = z["kod_id"]
         cat = z.get("kod_category") or ""
@@ -467,7 +629,7 @@ async def rachunek_wynikow(
     dw_pct = {b["id"]: float(b.get("kaucja_dw_pct") or 2.0) / 100.0 for b in dw_budowy}
     kaucja_gir = {m: 0.0 for m in range(1, 13)}
     kaucja_dw = {m: 0.0 for m in range(1, 13)}
-    for z in zapisy:
+    for z in zapisy_all:
         if z.get("kod_id") == "PZS":
             m = z["month"]
             v = float(z.get("netto") or 0)
@@ -618,8 +780,32 @@ async def sprzedaz(
     budowy = await db.finance_budowy.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
     zapisy = await db.finance_zapisy.find(
         {"year": year},
-        {"_id": 0, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1},
+        {"_id": 0, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1,
+         "parent_invoice_id": 1},
     ).to_list(length=None)
+    # Faktury - reszty
+    invoices = await db.finance_invoices.find(
+        {"year": year},
+        {"_id": 0, "id": 1, "netto": 1, "kod_id": 1, "kod_category": 1, "budowa_id": 1},
+    ).to_list(length=None)
+    assigned_pos_by_inv: dict = {}
+    for z in zapisy:
+        if z.get("kod_id") and z.get("parent_invoice_id"):
+            assigned_pos_by_inv[z["parent_invoice_id"]] = (
+                assigned_pos_by_inv.get(z["parent_invoice_id"], 0.0) + float(z.get("netto") or 0)
+            )
+    for inv in invoices:
+        if not inv.get("kod_id"):
+            continue
+        remainder = float(inv.get("netto") or 0) - assigned_pos_by_inv.get(inv["id"], 0.0)
+        if remainder <= 0:
+            continue
+        zapisy.append({
+            "kod_id": inv["kod_id"],
+            "kod_category": inv.get("kod_category") or "",
+            "netto": round(remainder, 2),
+            "budowa_id": inv.get("budowa_id"),
+        })
 
     # Sumaryczne kwoty z zapisow
     def sum_by_kod(kod_id, budowa_id=None):
@@ -1103,10 +1289,20 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     ).to_list(length=None)
     existing_by_pos = {e.get("fakturownia_position_id"): e for e in existing if e.get("fakturownia_position_id")}
 
+    # Naglowki faktur - mapa po fakturownia_invoice_id
+    existing_invoices = await db.finance_invoices.find(
+        {"source": "fakturownia"},
+        {"_id": 0, "id": 1, "fakturownia_invoice_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
+    ).to_list(length=None)
+    existing_inv_by_fid = {e.get("fakturownia_invoice_id"): e for e in existing_invoices}
+
     created = 0
     updated = 0
     skipped = 0
+    invoices_created = 0
+    invoices_updated = 0
     new_position_ids: set = set()
+    new_invoice_fids: set = set()
 
     for inv in all_invoices:
         inv_id = inv.get("id")
@@ -1114,18 +1310,76 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         issue_date = inv.get("sell_date") or inv.get("issue_date") or inv.get("transaction_date")
         if not issue_date:
             issue_date = f"{yr:04d}-{mo:02d}-01"
-        # Dla sprzedazowej: kontrahent = buyer (klient kupujacy od nas).
-        # Dla kosztowej:    kontrahent = seller (od kogo kupujemy).
-        # Fakturownia w API zwraca buyer_* dla nabywcy. Dla obu trybow buyer_name jest sensowny.
         kontrahent = (inv.get("buyer_name") or inv.get("seller_name") or "").strip()
         nr_fakt = (inv.get("number") or "").strip()
+        inv_netto = float(inv.get("price_net") or 0)
+        inv_brutto = float(inv.get("price_gross") or 0)
         positions = inv.get("positions") or []
+
+        try:
+            d = datetime.strptime(issue_date, "%Y-%m-%d")
+            iso_date = issue_date
+            year_v, month_v = d.year, d.month
+        except ValueError:
+            iso_date = date_from
+            year_v, month_v = yr, mo
+
+        # Auto-kod dla sprzedazowych
+        auto_kod_id = "PZS" if is_income else None
+        auto_kod_category = "PZS" if is_income else None
+
+        # ==== UPSERT naglowek faktury ====
+        new_invoice_fids.add(inv_id)
+        existing_inv = existing_inv_by_fid.get(inv_id)
+        if existing_inv:
+            inv_set = {
+                "date": iso_date, "year": year_v, "month": month_v,
+                "kontrahent": kontrahent,
+                "netto": round(inv_netto, 2),
+                "brutto": round(inv_brutto, 2),
+                "nr_faktury": nr_fakt,
+                "is_income": is_income,
+                "updated_at": datetime.now().isoformat(),
+                "updated_by": user_id,
+            }
+            # Jezeli sprzedazowa i jeszcze nie ma kodu - ustaw PZS
+            if auto_kod_id and not existing_inv.get("kod_id"):
+                inv_set["kod_id"] = auto_kod_id
+                inv_set["kod_category"] = auto_kod_category
+            await db.finance_invoices.update_one(
+                {"id": existing_inv["id"]}, {"$set": inv_set}
+            )
+            invoice_internal_id = existing_inv["id"]
+            invoices_updated += 1
+        else:
+            invoice_internal_id = str(uuid.uuid4())
+            inv_doc = {
+                "id": invoice_internal_id,
+                "date": iso_date, "year": year_v, "month": month_v,
+                "kontrahent": kontrahent,
+                "netto": round(inv_netto, 2),
+                "brutto": round(inv_brutto, 2),
+                "kod_id": auto_kod_id,
+                "kod_category": auto_kod_category,
+                "budowa_id": None,
+                "nr_faktury": nr_fakt,
+                "is_income": is_income,
+                "notes": "",
+                "source": "fakturownia",
+                "fakturownia_invoice_id": inv_id,
+                "created_at": datetime.now().isoformat(),
+                "created_by": user_id,
+            }
+            await db.finance_invoices.insert_one(inv_doc)
+            invoices_created += 1
+
+        # ==== UPSERT pozycje ====
         if not positions:
             positions = [{
                 "id": f"inv_{inv_id}_total",
                 "name": "(brak pozycji - kwota laczna)",
-                "total_price_net": float(inv.get("price_net") or 0),
-                "total_price_gross": float(inv.get("price_gross") or 0),
+                "total_price_net": inv_netto,
+                "total_price_gross": inv_brutto,
             }]
 
         for pos_idx, pos in enumerate(positions):
@@ -1139,46 +1393,31 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 skipped += 1
                 continue
             existing_z = existing_by_pos.get(pos_id)
-            try:
-                d = datetime.strptime(issue_date, "%Y-%m-%d")
-                iso_date = issue_date
-                year_v, month_v = d.year, d.month
-            except ValueError:
-                iso_date = date_from
-                year_v, month_v = yr, mo
-
-            # Dla SPRZEDAZOWEJ - automatycznie przypisz kod_id=PZS (Przychody Sprzedazy)
-            auto_kod_id = "PZS" if is_income else None
-            auto_kod_category = "PZS" if is_income else None
 
             if existing_z:
-                if not existing_z.get("kod_id"):
-                    set_doc = {
-                        "date": iso_date, "year": year_v, "month": month_v,
-                        "kontrahent": kontrahent, "netto": round(netto, 2),
-                        "brutto": round(brutto, 2),
-                        "nr_faktury": nr_fakt, "pozycja_nazwa": name,
-                        "is_income": is_income,
-                        "updated_at": datetime.now().isoformat(),
-                        "updated_by": user_id,
-                    }
-                    # Jezeli to sprzedazowa i wciaz nie ma kodu, ustaw PZS
-                    if auto_kod_id:
-                        set_doc["kod_id"] = auto_kod_id
-                        set_doc["kod_category"] = auto_kod_category
-                    await db.finance_zapisy.update_one(
-                        {"id": existing_z["id"]}, {"$set": set_doc},
-                    )
-                    updated += 1
-                else:
-                    skipped += 1
+                set_doc = {
+                    "date": iso_date, "year": year_v, "month": month_v,
+                    "kontrahent": kontrahent, "netto": round(netto, 2),
+                    "brutto": round(brutto, 2),
+                    "nr_faktury": nr_fakt, "pozycja_nazwa": name,
+                    "is_income": is_income,
+                    "parent_invoice_id": invoice_internal_id,
+                    "updated_at": datetime.now().isoformat(),
+                    "updated_by": user_id,
+                }
+                # NOWA logika: pozycje NIE dostaja auto-kodu PZS - admin decyduje czy przypisac
+                # do calej faktury (naglowek) czy per pozycja
+                await db.finance_zapisy.update_one(
+                    {"id": existing_z["id"]}, {"$set": set_doc},
+                )
+                updated += 1
             else:
                 doc = {
                     "id": str(uuid.uuid4()),
                     "date": iso_date, "year": year_v, "month": month_v,
                     "kontrahent": kontrahent,
                     "netto": round(netto, 2), "brutto": round(brutto, 2),
-                    "kod_id": auto_kod_id, "kod_category": auto_kod_category,
+                    "kod_id": None, "kod_category": None,
                     "budowa_id": None,
                     "nr_faktury": nr_fakt,
                     "pozycja_nazwa": name,
@@ -1187,6 +1426,7 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                     "source": "fakturownia",
                     "fakturownia_invoice_id": inv_id,
                     "fakturownia_position_id": pos_id,
+                    "parent_invoice_id": invoice_internal_id,
                     "created_at": datetime.now().isoformat(),
                     "created_by": user_id,
                 }
@@ -1213,6 +1453,8 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     summary = {
         "year": yr, "month": mo,
         "invoices_fetched": len(all_invoices),
+        "invoices_created": invoices_created,
+        "invoices_updated": invoices_updated,
         "positions_created": created,
         "positions_updated": updated,
         "positions_removed": removed,

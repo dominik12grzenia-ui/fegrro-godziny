@@ -1,3 +1,35 @@
+## Iteration 39 (2026-05-17) — Faktury + pozycje (split invoice)
+
+### Problem rozwiazany
+Wczesniej sync z Fakturowni tworzyl 1 zapis na POZYCJE faktury (X pozycji = X wierszy). Admin nie widzial nagłówka faktury, nie mogł przypisac calej faktury "spotem", a tylko per pozycja - co bylo mecz przy fakturach z 40+ pozycjami.
+
+### Nowy data model
+- **Nowa kolekcja `finance_invoices`** (naglowki faktur z Fakturowni): id, fakturownia_invoice_id, nr_faktury, kontrahent, date, year/month, netto, brutto, is_income, kod_id, kod_category, budowa_id, source, notes
+- **`finance_zapisy`** (pozycje) zyskuje pole `parent_invoice_id` linkujace do naglowka
+
+### Logika nieduplikacji
+Faktura wnosi do aggregacji **(netto − suma_przypisanych_pozycji)**. Pozycje wnosza swoja netto. Brak dublowania - faktura z netto=9694.65 i jedna pozycja 130.47 przypisana do KBB_STAL daje:
+- KBB_STAL: 130.47 (pozycja)
+- KBB_BETON (na ktore faktura przypisana): 9564.18 (remainder)
+- Suma: 9694.65 = netto faktury
+
+### Backend endpointy
+- `GET /api/finance/invoices?year&month` - lista mieszana: faktury z `is_invoice=true` (+ positions + remainder_netto + assigned_positions_sum) i standalone manual zapisy z `is_invoice=false`. Sortowanie po dacie malejaco.
+- `PUT /api/finance/invoices/{id}` - przypisanie kod_id/budowa_id (z `clear_kod/clear_budowa` flagami dla odpinania)
+- `DELETE /api/finance/invoices/{id}` - usuniecie naglowka + KASKADA pozycji
+- `POST /api/finance/reset-fakturownia-data?confirm=RESET` - JEDNORAZOWY reset wszystkich faktur i pozycji z source=fakturownia
+- Aggregations (`rachunek-wynikow`, `sprzedaz`) uwzgledniaja wirtualne wpisy z remainder faktur
+
+### Frontend
+- `ZapisyPanel` przerobiony: zagnieżdzona tabela. Naglowek faktury = parent row, pozycje schowane, rozwijane ▶/▼. Każdy poziom (faktura i pozycja) ma własne dropdowny `Kod kosztu` i `Budowa`. Naglowek pokazuje "Reszta: X zl" gdy niektore pozycje sa przypisane osobno.
+- Standalone manual zapisy widoczne jako solo-row w tej samej liscie, mieszane chronologicznie.
+- Sortowanie wg daty malejaco, badge "FAKTUROWNIA" + "SPRZEDAZ" + "RECZNY".
+
+### Auto-kod
+- Faktury sprzedazowe (income=yes) → naglowek automatycznie dostaje kod_id=PZS
+- Pozycje NIE dostaja juz auto-kodu (wczesniej mialy PZS) - admin decyduje czy przypisac wsobie czy do calej faktury
+
+
 ## Iteration 38 (2026-05-17) — Production deploy fixes + Fakturownia sync warnings
 
 ### Backend fixes

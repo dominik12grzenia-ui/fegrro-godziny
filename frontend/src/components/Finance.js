@@ -328,16 +328,17 @@ const BudowyPanel = () => {
   );
 };
 
-// =========================== ZAPISY ===========================
+// =========================== ZAPISY / FAKTURY ===========================
 const ZapisyPanel = ({ year }) => {
   const [month, setMonth] = useState(0); // 0 = caly rok
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState([]); // mixed: invoices + standalone
   const [budowy, setBudowy] = useState([]);
   const [kody, setKody] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filterUnassigned, setFilterUnassigned] = useState(false);
+  const [expanded, setExpanded] = useState({}); // invoice_id -> bool
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
@@ -347,12 +348,12 @@ const ZapisyPanel = ({ year }) => {
     setLoading(true);
     try {
       const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
-      const [zRes, bRes, kRes] = await Promise.all([
-        api.get(`/finance/zapisy${qs}`),
+      const [iRes, bRes, kRes] = await Promise.all([
+        api.get(`/finance/invoices${qs}`),
         api.get('/finance/budowy?include_archived=true'),
         api.get('/finance/kody'),
       ]);
-      setRows(zRes.data.rows);
+      setRows(iRes.data.rows);
       setBudowy(bRes.data.rows);
       setKody(kRes.data.rows);
     } catch {
@@ -403,9 +404,28 @@ const ZapisyPanel = ({ year }) => {
     setShowAdd(true);
   };
 
-  const quickAssign = async (z, field, value) => {
+  // Quick assign dla pozycji (finance_zapisy)
+  const quickAssignPos = async (z, field, value) => {
     try {
       await api.put(`/finance/zapisy/${z.id}`, { [field]: value });
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
+  };
+
+  // Quick assign dla naglowka faktury (finance_invoices)
+  const quickAssignInv = async (inv, field, value) => {
+    try {
+      const payload = {};
+      if (field === 'kod_id') {
+        if (!value) payload.clear_kod = true;
+        else payload.kod_id = value;
+      } else if (field === 'budowa_id') {
+        if (!value) payload.clear_budowa = true;
+        else payload.budowa_id = value;
+      }
+      await api.put(`/finance/invoices/${inv.id}`, payload);
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
@@ -418,9 +438,27 @@ const ZapisyPanel = ({ year }) => {
     catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
   };
 
+  const removeInvoice = async (inv) => {
+    if (!window.confirm(`Usunac FAKTURE ${inv.nr_faktury || ''} (${inv.kontrahent}) ${fmt(inv.netto)} zl i WSZYSTKIE jej pozycje?`)) return;
+    try {
+      const r = await api.delete(`/finance/invoices/${inv.id}`);
+      toast.success(`Usunieto fakture + ${r.data.positions_deleted} pozycji`);
+      fetchData();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+  };
+
+  // Suma netto i licznik nieprzypisanych (naglowek bez kod_id i bez pozycji z kod_id)
   const totalNetto = rows.reduce((s, r) => s + (r.netto || 0), 0);
-  const unassignedCount = rows.filter(r => r.source === 'fakturownia' && !r.kod_id).length;
-  const filteredRows = filterUnassigned ? rows.filter(r => r.source === 'fakturownia' && !r.kod_id) : rows;
+  const isUnassignedRow = (r) => {
+    if (r.is_invoice) {
+      if (r.kod_id) return false;
+      const anyAssignedPos = (r.positions || []).some(p => p.kod_id);
+      return !anyAssignedPos;
+    }
+    return r.source === 'fakturownia' && !r.kod_id;
+  };
+  const unassignedCount = rows.filter(isUnassignedRow).length;
+  const filteredRows = filterUnassigned ? rows.filter(isUnassignedRow) : rows;
 
   const syncCurrent = async () => {
     if (!window.confirm(
@@ -437,11 +475,35 @@ const ZapisyPanel = ({ year }) => {
     }
   };
 
+  const renderKodSelect = (val, onChange, testid, isUnassignedHighlight = false) => (
+    <select value={val || ''} onChange={onChange}
+      className={`w-full bg-[#1E293B] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#E8B76A] text-[#E8B76A]' : 'border-[#334155] text-white'}`}
+      data-testid={testid}>
+      <option value="">— przypisz kod —</option>
+      {['PZS','PZSV','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
+        const ck = kody.filter(k => k.category === cat);
+        if (!ck.length) return null;
+        return <optgroup key={cat} label={cat}>
+          {ck.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+        </optgroup>;
+      })}
+    </select>
+  );
+
+  const renderBudowaSelect = (val, onChange, testid) => (
+    <select value={val || ''} onChange={onChange}
+      className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-1 py-1 text-xs"
+      data-testid={testid}>
+      <option value="">— bez budowy —</option>
+      {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+    </select>
+  );
+
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
         <CardTitle className="text-white">
-          Zapisy ksiegowe ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmt(totalNetto)} zl)
+          Faktury i zapisy ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmt(totalNetto)} zl)
           {unassignedCount > 0 && !filterUnassigned && (
             <button onClick={() => setFilterUnassigned(true)}
               className="ml-3 px-2 py-0.5 text-xs bg-[#E8B76A]/20 text-[#E8B76A] rounded hover:bg-[#E8B76A]/30"
@@ -480,9 +542,10 @@ const ZapisyPanel = ({ year }) => {
         <table className="w-full text-sm">
           <thead className="bg-[#1E293B] text-[#94A3B8]">
             <tr>
+              <th className="p-2 text-left w-8"></th>
               <th className="p-2 text-left">Data</th>
               <th className="p-2 text-left">Kontrahent / Faktura</th>
-              <th className="p-2 text-left">Pozycja</th>
+              <th className="p-2 text-left">Pozycja / Reszta</th>
               <th className="p-2 text-left">Kod kosztu</th>
               <th className="p-2 text-left">Budowa</th>
               <th className="p-2 text-right">Netto</th>
@@ -490,57 +553,110 @@ const ZapisyPanel = ({ year }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((z) => {
-              const isFakturownia = z.source === 'fakturownia';
-              const isUnassigned = isFakturownia && !z.kod_id;
+            {filteredRows.map((r) => {
+              if (r.is_invoice) {
+                const isOpen = !!expanded[r.id];
+                const unassigned = !r.kod_id && !(r.positions || []).some(p => p.kod_id);
+                const hasAssignedPositions = (r.positions || []).some(p => p.kod_id);
+                return (
+                  <React.Fragment key={r.id}>
+                    <tr className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
+                      unassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : ''
+                    }`} data-testid={`finance-invoice-row-${r.id}`}>
+                      <td className="p-2 text-center">
+                        {(r.positions || []).length > 0 && (
+                          <button onClick={() => setExpanded(s => ({ ...s, [r.id]: !s[r.id] }))}
+                            className="text-[#94A3B8] hover:text-white" data-testid={`finance-invoice-toggle-${r.id}`}>
+                            {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                          </button>
+                        )}
+                      </td>
+                      <td className="p-2 text-white text-xs whitespace-nowrap">{r.date}</td>
+                      <td className="p-2 text-[#CBD5E1] text-xs">
+                        <div className="font-semibold">{r.kontrahent || '-'}</div>
+                        {r.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{r.nr_faktury}</div>}
+                        <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">FAKTUROWNIA</span>
+                        {r.is_income && <span className="inline-block mt-0.5 ml-1 text-[10px] bg-[#5F7151]/30 text-[#5F7151] px-1 rounded">SPRZEDAZ</span>}
+                      </td>
+                      <td className="p-2 text-[#94A3B8] text-xs italic">
+                        {(r.positions || []).length} {(r.positions || []).length === 1 ? 'pozycja' : 'pozycji'}
+                        {hasAssignedPositions && r.kod_id && (
+                          <div className="text-[10px] text-[#E8B76A] mt-0.5" title="Naglowek faktury wnosi do aggregacji TYLKO reszte (netto - przypisane pozycje)">
+                            Reszta: {fmt(r.remainder_netto)} zl
+                          </div>
+                        )}
+                        {hasAssignedPositions && !r.kod_id && (
+                          <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                            Przypisano w pozycjach: {fmt(r.assigned_positions_sum)} zl
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-2 text-xs">
+                        {renderKodSelect(r.kod_id, (e) => quickAssignInv(r, 'kod_id', e.target.value),
+                          `finance-invoice-kod-${r.id}`, unassigned)}
+                      </td>
+                      <td className="p-2 text-xs">
+                        {renderBudowaSelect(r.budowa_id, (e) => quickAssignInv(r, 'budowa_id', e.target.value),
+                          `finance-invoice-budowa-${r.id}`)}
+                      </td>
+                      <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmt(r.netto)}</td>
+                      <td className="p-2 text-right">
+                        <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun fakture + pozycje"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                      </td>
+                    </tr>
+                    {isOpen && (r.positions || []).map((p) => (
+                      <tr key={p.id} className="border-t border-[#334155] bg-[#1E293B]/50">
+                        <td></td>
+                        <td className="p-2 text-[#94A3B8] text-[10px]"></td>
+                        <td className="p-2 text-[#94A3B8] text-xs pl-6">
+                          <span className="text-[#475569]">└</span> pozycja
+                        </td>
+                        <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={p.pozycja_nazwa}>{p.pozycja_nazwa || '-'}</td>
+                        <td className="p-2 text-xs">
+                          {renderKodSelect(p.kod_id, (e) => quickAssignPos(p, 'kod_id', e.target.value),
+                            `finance-pos-kod-${p.id}`)}
+                        </td>
+                        <td className="p-2 text-xs">
+                          {renderBudowaSelect(p.budowa_id, (e) => quickAssignPos(p, 'budowa_id', e.target.value),
+                            `finance-pos-budowa-${p.id}`)}
+                        </td>
+                        <td className="p-2 text-right text-[#CBD5E1] font-mono whitespace-nowrap">{fmt(p.netto)}</td>
+                        <td className="p-2 text-right"></td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                );
+              }
+              // STANDALONE zapis (manual)
+              const z = r;
+              const isUnassigned = z.source === 'fakturownia' && !z.kod_id;
               return (
-              <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
-                isUnassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : '')
-              }`} data-testid={`finance-zapis-row-${z.id}`}>
-                <td className="p-2 text-white text-xs whitespace-nowrap">{z.date}</td>
-                <td className="p-2 text-[#CBD5E1] text-xs">
-                  <div>{z.kontrahent || '-'}</div>
-                  {z.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{z.nr_faktury}</div>}
-                  {isFakturownia && <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">FAKTUROWNIA</span>}
-                  {z.source && z.source.startsWith('auto_') && (
-                    <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">AUTO</span>
-                  )}
-                </td>
-                <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
-                <td className="p-2 text-xs">
-                  {isFakturownia ? (
-                    <select value={z.kod_id || ''} onChange={(e) => quickAssign(z, 'kod_id', e.target.value)}
-                      className={`w-full bg-[#1E293B] border rounded px-1 py-1 text-xs ${isUnassigned ? 'border-[#E8B76A] text-[#E8B76A]' : 'border-[#334155] text-white'}`}
-                      data-testid={`finance-quick-kod-${z.id}`}>
-                      <option value="">— przypisz kod —</option>
-                      {['PZS','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
-                        const ck = kody.filter(k => k.category === cat);
-                        if (!ck.length) return null;
-                        return <optgroup key={cat} label={cat}>
-                          {ck.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-                        </optgroup>;
-                      })}
-                    </select>
-                  ) : <span className="text-[#CBD5E1]">{kodName(z.kod_id)}</span>}
-                </td>
-                <td className="p-2 text-xs">
-                  {isFakturownia ? (
-                    <select value={z.budowa_id || ''} onChange={(e) => quickAssign(z, 'budowa_id', e.target.value)}
-                      className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-1 py-1 text-xs"
-                      data-testid={`finance-quick-budowa-${z.id}`}>
-                      <option value="">— bez budowy —</option>
-                      {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                  ) : <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>}
-                </td>
-                <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmt(z.netto)}</td>
-                <td className="p-2 text-right">
-                  <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
-                    <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
-                  </div>
-                </td>
-              </tr>
+                <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
+                  isUnassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : '')
+                }`} data-testid={`finance-zapis-row-${z.id}`}>
+                  <td></td>
+                  <td className="p-2 text-white text-xs whitespace-nowrap">{z.date}</td>
+                  <td className="p-2 text-[#CBD5E1] text-xs">
+                    <div>{z.kontrahent || '-'}</div>
+                    {z.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{z.nr_faktury}</div>}
+                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#475569]/40 text-[#CBD5E1] px-1 rounded">RECZNY</span>}
+                    {z.source && z.source.startsWith('auto_') && <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">AUTO</span>}
+                  </td>
+                  <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
+                  <td className="p-2 text-xs">
+                    <span className="text-[#CBD5E1]">{kodName(z.kod_id)}</span>
+                  </td>
+                  <td className="p-2 text-xs">
+                    <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>
+                  </td>
+                  <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmt(z.netto)}</td>
+                  <td className="p-2 text-right">
+                    <div className="flex items-center gap-1 justify-end">
+                      <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
+                      <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                    </div>
+                  </td>
+                </tr>
               );
             })}
           </tbody>
