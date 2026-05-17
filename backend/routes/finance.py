@@ -1139,14 +1139,45 @@ async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict
 
     emp_ids = list(hours_per_emp_full.keys())
 
-    # Doloz pracownikow ktorzy maja payroll_record dla tego miesiaca ale BEZ godzin w hour_entries
-    # (np. fixed_salary, kierowca, bonus solo). Ich wyplata idzie cala do "bez budowy".
+    # Doloz pracownikow z payroll_record dla tego miesiaca BEZ godzin
     payroll_only_emp_ids = await db.payroll_records.distinct(
         "employee_id", {"year": year, "month": month, "employee_id": {"$nin": emp_ids}}
     )
     for eid in payroll_only_emp_ids:
         emp_ids.append(eid)
-        hours_per_emp_full[eid] = 0.0  # 0 godzin -> cala wyplata do kp_no_budowa
+        hours_per_emp_full[eid] = 0.0
+
+    # KLUCZOWE: Doloz tez wszystkich AKTYWNYCH pracownikow (zgodnie z logika /api/payroll).
+    # Niektorzy maja fixed_salary lub driver z poprzedniego miesiaca (fallback)
+    # i nie pojawiaja sie w payroll_records[year=Y,month=M] ale w UI Wyplaty maja niezerowa wyplate.
+    month_start = f"{year:04d}-{month:02d}-01"
+    if month == 12:
+        month_end_iso = f"{year:04d}-12-31T23:59:59"
+    else:
+        month_end_iso = f"{year:04d}-{month+1:02d}-01T00:00:00"
+    active_emps_query = {
+        "$and": [
+            {"$or": [
+                {"is_deleted": {"$exists": False}},
+                {"is_deleted": False},
+                {"deleted_at": {"$gte": month_start}},
+            ]},
+            {"$or": [
+                {"created_at": {"$lte": month_end_iso}},
+                {"created_at": {"$exists": False}},
+            ]},
+            {"$or": [
+                {"is_archived": {"$exists": False}},
+                {"is_archived": False},
+                {"archived_at": {"$gte": month_start}},
+            ]},
+        ],
+    }
+    active_emp_ids = await db.employees.distinct("id", active_emps_query)
+    for eid in active_emp_ids:
+        if eid not in hours_per_emp_full:
+            emp_ids.append(eid)
+            hours_per_emp_full[eid] = 0.0
 
     payroll_recs = {}
     if emp_ids:
