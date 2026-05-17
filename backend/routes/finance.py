@@ -1027,36 +1027,41 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
 
     base_url = f"https://{domain}.fakturownia.pl/invoices.json"
     all_invoices: list = []
-    page = 1
+    # Pobieramy dwa zbiory: faktury KOSZTOWE (income=no) i SPRZEDAZOWE (income=yes)
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            while True:
-                params = {
-                    "api_token": api_token,
-                    "income": "no",
-                    "include_positions": "true",
-                    "period": "more",
-                    "date_from": date_from,
-                    "date_to": date_to,
-                    "page": str(page),
-                    "per_page": "100",
-                }
-                resp = await client.get(base_url, params=params)
-                if resp.status_code == 401:
-                    raise HTTPException(status_code=400, detail="Fakturownia: nieprawidlowy klucz API")
-                if resp.status_code == 404:
-                    raise HTTPException(status_code=400, detail=f"Fakturownia: subdomena '{domain}' nie istnieje")
-                resp.raise_for_status()
-                data = resp.json()
-                page_invoices = data if isinstance(data, list) else data.get("invoices", [])
-                if not page_invoices:
-                    break
-                all_invoices.extend(page_invoices)
-                if len(page_invoices) < 100:
-                    break
-                page += 1
-                if page > 50:
-                    break
+            for income_mode in ("no", "yes"):
+                page = 1
+                while True:
+                    params = {
+                        "api_token": api_token,
+                        "income": income_mode,
+                        "include_positions": "true",
+                        "period": "more",
+                        "date_from": date_from,
+                        "date_to": date_to,
+                        "page": str(page),
+                        "per_page": "100",
+                    }
+                    resp = await client.get(base_url, params=params)
+                    if resp.status_code == 401:
+                        raise HTTPException(status_code=400, detail="Fakturownia: nieprawidlowy klucz API")
+                    if resp.status_code == 404:
+                        raise HTTPException(status_code=400, detail=f"Fakturownia: subdomena '{domain}' nie istnieje")
+                    resp.raise_for_status()
+                    data = resp.json()
+                    page_invoices = data if isinstance(data, list) else data.get("invoices", [])
+                    if not page_invoices:
+                        break
+                    # Oznacz typ faktury dla pozniejszego processingu
+                    for inv in page_invoices:
+                        inv["_income_type"] = income_mode  # "yes" = sprzedazowa, "no" = kosztowa
+                    all_invoices.extend(page_invoices)
+                    if len(page_invoices) < 100:
+                        break
+                    page += 1
+                    if page > 50:
+                        break
     except httpx.HTTPError as e:
         logger.error(f"[fakturownia] HTTP error: {e}")
         raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
@@ -1076,9 +1081,13 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
 
     for inv in all_invoices:
         inv_id = inv.get("id")
+        is_income = inv.get("_income_type") == "yes"  # sprzedazowa
         issue_date = inv.get("sell_date") or inv.get("issue_date") or inv.get("transaction_date")
         if not issue_date:
             issue_date = f"{yr:04d}-{mo:02d}-01"
+        # Dla sprzedazowej: kontrahent = buyer (klient kupujacy od nas).
+        # Dla kosztowej:    kontrahent = seller (od kogo kupujemy).
+        # Fakturownia w API zwraca buyer_* dla nabywcy. Dla obu trybow buyer_name jest sensowny.
         kontrahent = (inv.get("buyer_name") or inv.get("seller_name") or "").strip()
         nr_fakt = (inv.get("number") or "").strip()
         positions = inv.get("positions") or []
@@ -1109,34 +1118,42 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 iso_date = date_from
                 year_v, month_v = yr, mo
 
+            # Dla SPRZEDAZOWEJ - automatycznie przypisz kod_id=PZS (Przychody Sprzedazy)
+            auto_kod_id = "PZS" if is_income else None
+            auto_kod_category = "PZS" if is_income else None
+
             if existing_z:
-                # NIE rusza kwoty/danych - admin moze chciec zachowac stan po recznej edycji
-                # Tylko aktualizuje dane wtedy gdy admin jeszcze nie przypisal kodu
                 if not existing_z.get("kod_id"):
+                    set_doc = {
+                        "date": iso_date, "year": year_v, "month": month_v,
+                        "kontrahent": kontrahent, "netto": round(netto, 2),
+                        "brutto": round(brutto, 2),
+                        "nr_faktury": nr_fakt, "pozycja_nazwa": name,
+                        "is_income": is_income,
+                        "updated_at": datetime.now().isoformat(),
+                        "updated_by": user_id,
+                    }
+                    # Jezeli to sprzedazowa i wciaz nie ma kodu, ustaw PZS
+                    if auto_kod_id:
+                        set_doc["kod_id"] = auto_kod_id
+                        set_doc["kod_category"] = auto_kod_category
                     await db.finance_zapisy.update_one(
-                        {"id": existing_z["id"]},
-                        {"$set": {
-                            "date": iso_date, "year": year_v, "month": month_v,
-                            "kontrahent": kontrahent, "netto": round(netto, 2),
-                            "brutto": round(brutto, 2),
-                            "nr_faktury": nr_fakt, "pozycja_nazwa": name,
-                            "updated_at": datetime.now().isoformat(),
-                            "updated_by": user_id,
-                        }},
+                        {"id": existing_z["id"]}, {"$set": set_doc},
                     )
                     updated += 1
                 else:
-                    skipped += 1  # juz dopisana przez admina - nie ruszam
+                    skipped += 1
             else:
                 doc = {
                     "id": str(uuid.uuid4()),
                     "date": iso_date, "year": year_v, "month": month_v,
                     "kontrahent": kontrahent,
                     "netto": round(netto, 2), "brutto": round(brutto, 2),
-                    "kod_id": None, "kod_category": None,
+                    "kod_id": auto_kod_id, "kod_category": auto_kod_category,
                     "budowa_id": None,
                     "nr_faktury": nr_fakt,
                     "pozycja_nazwa": name,
+                    "is_income": is_income,
                     "notes": "",
                     "source": "fakturownia",
                     "fakturownia_invoice_id": inv_id,
@@ -1231,31 +1248,32 @@ async def sync_from_fakturownia(
                 last_day = 31 if m2 in (1,3,5,7,8,10,12) else (30 if m2 != 2 else 29)
                 date_to = f"{y2:04d}-{m2:02d}-{last_day:02d}"
                 async with httpx.AsyncClient(timeout=30.0) as client:
-                    page = 1
-                    while True:
-                        params = {"api_token": api_token, "income": "no",
-                                   "include_positions": "true", "period": "more",
-                                   "date_from": date_from, "date_to": date_to,
-                                   "page": str(page), "per_page": "100"}
-                        resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
-                                                 params=params)
-                        if resp.status_code != 200:
-                            break
-                        invs = resp.json()
-                        if not isinstance(invs, list):
-                            invs = invs.get("invoices", [])
-                        if not invs:
-                            break
-                        for inv in invs:
-                            for pos_idx, pos in enumerate(inv.get("positions", [])):
-                                raw = pos.get("id")
-                                pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
-                                valid_pos_ids.add(pid)
-                        if len(invs) < 100:
-                            break
-                        page += 1
-                        if page > 50:
-                            break
+                    for inc_mode in ("no", "yes"):
+                        page = 1
+                        while True:
+                            params = {"api_token": api_token, "income": inc_mode,
+                                       "include_positions": "true", "period": "more",
+                                       "date_from": date_from, "date_to": date_to,
+                                       "page": str(page), "per_page": "100"}
+                            resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
+                                                     params=params)
+                            if resp.status_code != 200:
+                                break
+                            invs = resp.json()
+                            if not isinstance(invs, list):
+                                invs = invs.get("invoices", [])
+                            if not invs:
+                                break
+                            for inv in invs:
+                                for pos_idx, pos in enumerate(inv.get("positions", [])):
+                                    raw = pos.get("id")
+                                    pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
+                                    valid_pos_ids.add(pid)
+                            if len(invs) < 100:
+                                break
+                            page += 1
+                            if page > 50:
+                                break
                 if m2 == 12:
                     y2, m2 = y2 + 1, 1
                 else:
@@ -1324,31 +1342,32 @@ async def cron_fakturownia_sync():
                 date_from = f"{y:04d}-{m:02d}-01"
                 last_day = 31 if m in (1,3,5,7,8,10,12) else (30 if m != 2 else 29)
                 date_to = f"{y:04d}-{m:02d}-{last_day:02d}"
-                page = 1
-                while True:
-                    params = {"api_token": api_token, "income": "no",
-                               "include_positions": "true", "period": "more",
-                               "date_from": date_from, "date_to": date_to,
-                               "page": str(page), "per_page": "100"}
-                    resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
-                                             params=params)
-                    if resp.status_code != 200:
-                        break
-                    invs = resp.json()
-                    if not isinstance(invs, list):
-                        invs = invs.get("invoices", [])
-                    if not invs:
-                        break
-                    for inv in invs:
-                        for pos_idx, pos in enumerate(inv.get("positions", [])):
-                            raw = pos.get("id")
-                            pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
-                            valid_pos_ids.add(pid)
-                    if len(invs) < 100:
-                        break
-                    page += 1
-                    if page > 50:
-                        break
+                for inc_mode in ("no", "yes"):
+                    page = 1
+                    while True:
+                        params = {"api_token": api_token, "income": inc_mode,
+                                   "include_positions": "true", "period": "more",
+                                   "date_from": date_from, "date_to": date_to,
+                                   "page": str(page), "per_page": "100"}
+                        resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
+                                                 params=params)
+                        if resp.status_code != 200:
+                            break
+                        invs = resp.json()
+                        if not isinstance(invs, list):
+                            invs = invs.get("invoices", [])
+                        if not invs:
+                            break
+                        for inv in invs:
+                            for pos_idx, pos in enumerate(inv.get("positions", [])):
+                                raw = pos.get("id")
+                                pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
+                                valid_pos_ids.add(pid)
+                        if len(invs) < 100:
+                            break
+                        page += 1
+                        if page > 50:
+                            break
 
         del_res = await db.finance_zapisy.delete_many({
             "source": "fakturownia",

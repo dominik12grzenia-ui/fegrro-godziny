@@ -230,6 +230,39 @@ async def generate_all_links(
     return results
 
 
+@router.post("/employees/{employee_id}/rotate-token")
+async def rotate_single_token(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin)
+):
+    """Unievaznia link KONKRETNEGO pracownika - generuje nowy token."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    new_token = secrets.token_urlsafe(16)
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {"public_token": new_token}}
+    )
+    return {"token": new_token, "employee_id": employee_id, "message": f"Nowy link dla {emp['full_name']}"}
+
+
+@router.post("/employees/{employee_id}/revoke-token")
+async def revoke_single_token(
+    employee_id: str,
+    current_user: dict = Depends(get_current_admin)
+):
+    """Uniewaznia link pracownika - usuwa token, dopoki admin nie wygeneruje nowego."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1, "full_name": 1})
+    if not emp:
+        raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$unset": {"public_token": ""}}
+    )
+    return {"employee_id": employee_id, "message": f"Uniewazniono link {emp['full_name']}"}
+
+
 @router.post("/employees/rotate-tokens")
 async def rotate_all_public_tokens(
     current_user: dict = Depends(get_current_admin)

@@ -69,6 +69,168 @@ const FakturowniaActions = ({ onChange }) => {
   );
 };
 
+const EmployeeLinksCard = () => {
+  const [employees, setEmployees] = useState([]);
+  const [showOnlyWithToken, setShowOnlyWithToken] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [busy, setBusy] = useState(null);
+
+  const fetchEmployees = async () => {
+    setLoading(true);
+    try {
+      const r = await api.get('/employees?include_archived=false');
+      setEmployees(r.data || []);
+    } catch (_e) {
+      toast.error('Blad pobierania pracownikow');
+    } finally { setLoading(false); }
+  };
+  useEffect(() => { fetchEmployees(); }, []);
+
+  const generateLink = async (emp) => {
+    setBusy(emp.id);
+    try {
+      const r = await api.post(`/employees/${emp.id}/rotate-token`);
+      toast.success(`Wygenerowano link dla ${emp.full_name}`);
+      // Optimistic update
+      setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: r.data.token } : e));
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    } finally { setBusy(null); }
+  };
+
+  const revokeLink = async (emp) => {
+    if (!window.confirm(`Uniewaznic link dla ${emp.full_name}?\n\nLink przestanie dzialac do czasu wygenerowania nowego.`)) return;
+    setBusy(emp.id);
+    try {
+      await api.post(`/employees/${emp.id}/revoke-token`);
+      toast.success(`Uniewazniono link ${emp.full_name}`);
+      setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: null } : e));
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    } finally { setBusy(null); }
+  };
+
+  const generateAll = async () => {
+    if (!window.confirm(
+      'Wygenerowac linki dla WSZYSTKICH aktywnych pracownikow (nie zarchiwizowanych)?\n\n' +
+      'Pracownicy ktorzy juz maja link otrzymaja NOWY (stary przestanie dzialac).'
+    )) return;
+    setBusy('all');
+    try {
+      let ok = 0, fail = 0;
+      for (const emp of employees) {
+        try { await api.post(`/employees/${emp.id}/rotate-token`); ok++; }
+        catch { fail++; }
+      }
+      toast.success(`Wygenerowano ${ok} linkow${fail > 0 ? `, blad: ${fail}` : ''}`);
+      fetchEmployees();
+    } finally { setBusy(null); }
+  };
+
+  const revokeAll = async () => {
+    if (!window.confirm('Uniewaznic linki WSZYSTKICH pracownikow?\n\nDo czasu wygenerowania nowych nikt nie wejdzie przez stary link.')) return;
+    setBusy('all-revoke');
+    try {
+      let ok = 0;
+      for (const emp of employees) {
+        if (emp.public_token) {
+          try { await api.post(`/employees/${emp.id}/revoke-token`); ok++; } catch { /* skip */ }
+        }
+      }
+      toast.success(`Uniewazniono ${ok} linkow`);
+      fetchEmployees();
+    } finally { setBusy(null); }
+  };
+
+  const copyLink = (emp) => {
+    const url = `${window.location.origin}/worker/${emp.public_token}`;
+    navigator.clipboard.writeText(url);
+    toast.success('Skopiowano link do schowka');
+  };
+
+  const filtered = showOnlyWithToken ? employees.filter(e => e.public_token) : employees;
+  const withTokenCount = employees.filter(e => e.public_token).length;
+
+  return (
+    <Card className="bg-[#2A384C] border-[#334155]">
+      <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <LinkIcon className="h-5 w-5 text-[#5F7151]" />
+          Linki dla pracownikow ({withTokenCount} z {employees.length})
+        </CardTitle>
+        <div className="flex gap-2">
+          <Button onClick={generateAll} disabled={busy === 'all'}
+            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="generate-all-links-btn">
+            {busy === 'all' ? 'Generowanie...' : 'Generuj WSZYSTKIE linki'}
+          </Button>
+          <Button onClick={revokeAll} disabled={busy === 'all-revoke' || withTokenCount === 0}
+            variant="outline" className="border-[#DC2626] text-[#DC2626] hover:bg-[#7F1D1D] hover:text-white"
+            data-testid="revoke-all-links-btn">
+            {busy === 'all-revoke' ? '...' : 'Uniewaznij wszystkie'}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        <div className="px-4 py-2 border-b border-[#334155]">
+          <label className="flex items-center gap-2 text-xs text-[#94A3B8] cursor-pointer">
+            <input type="checkbox" checked={showOnlyWithToken} onChange={(e) => setShowOnlyWithToken(e.target.checked)}
+              className="accent-[#5F7151]" data-testid="links-filter-checkbox" />
+            Pokaz tylko z aktywnym linkiem
+          </label>
+        </div>
+        {loading ? <div className="p-4 text-[#94A3B8]">Ladowanie...</div> :
+        filtered.length === 0 ? <div className="p-4 text-[#94A3B8]">{showOnlyWithToken ? 'Zaden pracownik nie ma jeszcze linku' : 'Brak aktywnych pracownikow'}</div> :
+        <table className="w-full text-sm">
+          <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
+            <tr>
+              <th className="p-2 text-left">Pracownik</th>
+              <th className="p-2 text-center">Status linku</th>
+              <th className="p-2 text-right">Akcje</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map(emp => (
+              <tr key={emp.id} className="border-t border-[#334155] hover:bg-[#1E293B]/50" data-testid={`emp-link-row-${emp.id}`}>
+                <td className="p-2 text-white">{emp.full_name}</td>
+                <td className="p-2 text-center">
+                  {emp.public_token ? (
+                    <span className="text-[#5F7151] text-xs">● Aktywny</span>
+                  ) : (
+                    <span className="text-[#94A3B8] text-xs">○ Brak</span>
+                  )}
+                </td>
+                <td className="p-2 text-right">
+                  <div className="flex gap-1 justify-end">
+                    {emp.public_token && (
+                      <Button onClick={() => copyLink(emp)} size="sm" variant="outline"
+                        className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white h-7 px-2"
+                        data-testid={`emp-copy-link-${emp.id}`}>
+                        <Copy className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button onClick={() => generateLink(emp)} disabled={busy === emp.id} size="sm"
+                      className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-7 px-2 text-xs"
+                      data-testid={`emp-generate-link-${emp.id}`}>
+                      {busy === emp.id ? '...' : (emp.public_token ? 'Nowy link' : 'Generuj')}
+                    </Button>
+                    {emp.public_token && (
+                      <Button onClick={() => revokeLink(emp)} disabled={busy === emp.id} size="sm" variant="outline"
+                        className="border-[#DC2626] text-[#DC2626] hover:bg-[#7F1D1D] hover:text-white h-7 px-2 text-xs"
+                        data-testid={`emp-revoke-link-${emp.id}`}>
+                        Uniewaznij
+                      </Button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>}
+      </CardContent>
+    </Card>
+  );
+};
+
 const FakturowniaApiCard = () => {
   const [settings, setSettings] = useState(null);
   const [apiKey, setApiKey] = useState('');
@@ -89,14 +251,18 @@ const FakturowniaApiCard = () => {
     try {
       const payload = {};
       if (apiKey.trim()) payload.fakturownia_api_key = apiKey.trim();
-      if (domain.trim() !== (settings?.fakturownia_domain || '')) payload.fakturownia_domain = domain.trim();
-      if (Object.keys(payload).length === 0) {
-        toast.info('Brak zmian do zapisania');
-        return;
-      }
+      payload.fakturownia_domain = domain.trim();  // zawsze wysylam, naprawia race przy 1szym setup
       await api.put('/finance/settings', payload);
-      toast.success('Zapisano ustawienia Fakturowni');
+      toast.success('Zapisano. Klikam Test polaczenia...');
       setApiKey('');
+      // Auto-test po zapisaniu
+      try {
+        const t = await api.post('/finance/test-fakturownia');
+        if (t.data.ok) toast.success(`Polaczenie OK: ${t.data.company_name || t.data.prefix}`);
+        else toast.error(`Test nieudany: ${t.data.error}`);
+      } catch (e2) {
+        toast.error(e2.response?.data?.detail || 'Blad testu polaczenia');
+      }
       fetchSettings();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad zapisu');
@@ -115,7 +281,8 @@ const FakturowniaApiCard = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-[#94A3B8]">
-          Klucz API z Fakturowni — uzywany do automatycznego pobierania kosztow (faktury wchodzace).
+          Klucz API z Fakturowni — uzywany do automatycznego pobierania kosztow i sprzedazy (faktury wchodzace i wychodzace).
+          Auto-sync co 30 min od stycznia 2026.
           Wygeneruj na <a href="https://app.fakturownia.pl" target="_blank" rel="noreferrer" className="text-[#5F7151] underline">app.fakturownia.pl → Ustawienia → API</a>.
         </p>
         <div>
@@ -134,15 +301,12 @@ const FakturowniaApiCard = () => {
         <Button onClick={save} disabled={saving} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
           data-testid="fakturownia-save-btn">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Zapisywanie...' : 'Zapisz'}
+          {saving ? 'Zapisywanie...' : 'Zapisz + Test'}
         </Button>
         <FakturowniaActions onChange={fetchSettings} />
-        {settings?.last_sync_at && (
+        {settings?.last_fakturownia_sync_at && (
           <p className="text-xs text-[#94A3B8] mt-2 pt-2 border-t border-[#334155]">
-            Ostatnia synchronizacja: <span className="text-[#CBD5E1]">{settings.last_sync_at.slice(0, 16).replace('T', ' ')}</span>
-            {settings.last_sync_summary && (
-              <span className="ml-2">- {settings.last_sync_summary.g_zapisy} godzin + {settings.last_sync_summary.kp_zapisy} wyplat ({settings.last_sync_summary.total_godziny}h, {settings.last_sync_summary.total_kp?.toFixed(2)} zl)</span>
-            )}
+            Ostatni auto-sync z Fakturowni: <span className="text-[#CBD5E1]">{settings.last_fakturownia_sync_at.slice(0, 16).replace('T', ' ')}</span>
           </p>
         )}
       </CardContent>
@@ -353,6 +517,7 @@ export const ToolsTab = ({
 
       <WarehouseKeepersCard />
       <FakturowniaApiCard />
+      <EmployeeLinksCard />
 
       {/* Rotate worker tokens */}
       <Card className="bg-[#2A384C] border-[#334155]">
