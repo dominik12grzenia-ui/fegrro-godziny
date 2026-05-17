@@ -33,13 +33,14 @@ const FakturowniaActions = ({ onChange }) => {
 
   const sync = async () => {
     if (!window.confirm(
-      'Pobrac faktury kosztowe z Fakturowni za biezacy miesiac?\n\n' +
-      'Kazda pozycja stanie sie osobnym wpisem - mozesz potem przypisac kod i budowe.'
+      'Pobrac WSZYSTKIE faktury kosztowe z Fakturowni od stycznia 2026 do biezacego miesiaca?\n\n' +
+      'Pierwszy import moze potrwac kilkanascie sekund. ' +
+      'Idempotentnie - powtarzanie nie dubluje istniejacych pozycji.'
     )) return;
     setSyncing(true);
     try {
-      const r = await api.post('/finance/sync-from-fakturownia');
-      toast.success(`Pobrano ${r.data.invoices_fetched} faktur: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych pozycji`);
+      const r = await api.post('/finance/sync-from-fakturownia?from_year=2026&from_month=1');
+      toast.success(`Pobrano ${r.data.invoices_fetched} faktur z ${r.data.months_processed} miesiecy: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych`);
       onChange && onChange();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad pobierania');
@@ -56,7 +57,7 @@ const FakturowniaActions = ({ onChange }) => {
       <Button onClick={sync} disabled={syncing}
         className="bg-[#E8B76A] hover:bg-[#D9A656] text-[#1E293B] font-semibold"
         data-testid="fakturownia-sync-btn">
-        {syncing ? 'Pobieranie...' : 'Pobierz faktury z biezacego miesiaca'}
+        {syncing ? 'Pobieranie...' : 'Pobierz faktury (od stycznia 2026)'}
       </Button>
       {testResult && testResult.ok && (
         <span className="text-xs text-[#5F7151] self-center ml-2">✓ {testResult.company_name || testResult.prefix}</span>

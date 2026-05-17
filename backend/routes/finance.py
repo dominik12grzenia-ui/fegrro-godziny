@@ -937,8 +937,24 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
 
 
 # ============= FAKTUROWNIA: Pobranie faktur kosztowych z pozycjami =============
-async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_system") -> dict:
-    """Logika pobierania faktur z Fakturowni - wywolywalna z endpointu i crona."""
+def _iter_months(y1: int, m1: int, y2: int, m2: int):
+    """Generator par (year, month) od (y1, m1) do (y2, m2) wlacznie."""
+    y, m = y1, m1
+    while (y, m) <= (y2, m2):
+        yield (y, m)
+        if m == 12:
+            y, m = y + 1, 1
+        else:
+            m += 1
+
+
+async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_system",
+                                 skip_removal: bool = False) -> dict:
+    """Logika pobierania faktur z Fakturowni - wywolywalna z endpointu i crona.
+    skip_removal=True - nie usuwaj pozycji ktorych brak w Fakturowni (uzywane w range mode,
+    gdzie globalny cleanup robimy raz na koncu, by uniknac usuwania pozycji z sell_date w innym
+    miesiacu niz aktualnie pobierany).
+    """
     settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
     api_token = settings.get("fakturownia_api_key")
     domain = settings.get("fakturownia_domain")
@@ -1077,18 +1093,19 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     # Usun pozycje ktorych juz NIE ma w Fakturowni TYLKO te bez przypisanego kod_id
     # ALE TYLKO w obrebie pobranego okresu (yr,mo) - inne miesiace zostawiamy.
     removed = 0
-    for pos_id, ez in existing_by_pos.items():
-        if pos_id in new_position_ids:
-            continue
-        if ez.get("kod_id"):
-            continue
-        # Sprawdz miesiac istniejacego wpisu - jezeli jest w naszym pobieranym okresie, mozemy usunac
-        full = await db.finance_zapisy.find_one(
-            {"id": ez["id"]}, {"_id": 0, "year": 1, "month": 1}
-        )
-        if full and full.get("year") == yr and full.get("month") == mo:
-            await db.finance_zapisy.delete_one({"id": ez["id"]})
-            removed += 1
+    if not skip_removal:
+        for pos_id, ez in existing_by_pos.items():
+            if pos_id in new_position_ids:
+                continue
+            if ez.get("kod_id"):
+                continue
+            # Sprawdz miesiac istniejacego wpisu - jezeli jest w naszym pobieranym okresie, mozemy usunac
+            full = await db.finance_zapisy.find_one(
+                {"id": ez["id"]}, {"_id": 0, "year": 1, "month": 1}
+            )
+            if full and full.get("year") == yr and full.get("month") == mo:
+                await db.finance_zapisy.delete_one({"id": ez["id"]})
+                removed += 1
 
     summary = {
         "year": yr, "month": mo,
@@ -1112,23 +1129,122 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
 async def sync_from_fakturownia(
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None, ge=1, le=12),
+    from_year: Optional[int] = Query(None, description="Pobierz od roku (wlacznie)"),
+    from_month: Optional[int] = Query(None, ge=1, le=12),
     current_user: dict = Depends(get_current_admin),
 ):
-    """Pobiera faktury kosztowe z Fakturowni dla danego miesiaca (domyslnie biezacy).
+    """Pobiera faktury kosztowe z Fakturowni.
+
+    Tryby:
+    - Pojedynczy miesiac: ?year=2026&month=5
+    - Zakres od daty do dzisiaj: ?from_year=2026&from_month=1 (pobierze wszystkie miesiace 01-bieżący)
+    - Bez parametrow: biezacy miesiac
 
     Kazda POZYCJA faktury staje sie osobnym wpisem w finance_zapisy.
     Idempotentnie - re-sync NIE rusza wpisow ktore admin juz dopisal kodem.
     """
     now = datetime.now()
+    # Tryb zakresu (from_year+from_month -> dzis)
+    if from_year is not None and from_month is not None:
+        results = []
+        y, m = from_year, from_month
+        while (y, m) <= (now.year, now.month):
+            # W range mode: skip per-month removal, zrobimy globalny cleanup na koncu
+            res = await _do_fakturownia_sync(y, m, current_user["sub"], skip_removal=True)
+            results.append(res)
+            # Zbieraj wszystkie nowo pobrane position_ids z calego zakresu
+            # (informacja ta jest niedostepna w response - musimy zrobic inaczej)
+            if m == 12:
+                y, m = y + 1, 1
+            else:
+                m += 1
+        # GLOBALNY CLEANUP: usun wszystkie wpisy fakturownia z naszego zakresu (year,month w from..to)
+        # ktore nie maja kod_id i ktorych position_id NIE istnieje juz w Fakturowni.
+        # Pobierz ponownie wszystkie aktualne position_ids z Fakturowni w naszym zakresie -
+        # uzyjemy zoptymalizowanego skrotu: zaktualizowane wpisy maja `updated_at` z ostatniej minuty.
+        # Prostsze podejscie: pobierz wszystkie pos_id z Fakturowni dla calego zakresu i porownaj.
+        settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+        api_token = settings.get("fakturownia_api_key")
+        domain = settings.get("fakturownia_domain")
+        valid_pos_ids: set = set()
+        if api_token and domain:
+            y2, m2 = from_year, from_month
+            while (y2, m2) <= (now.year, now.month):
+                date_from = f"{y2:04d}-{m2:02d}-01"
+                last_day = 31 if m2 in (1,3,5,7,8,10,12) else (30 if m2 != 2 else 29)
+                date_to = f"{y2:04d}-{m2:02d}-{last_day:02d}"
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    page = 1
+                    while True:
+                        params = {"api_token": api_token, "income": "no",
+                                   "include_positions": "true", "period": "more",
+                                   "date_from": date_from, "date_to": date_to,
+                                   "page": str(page), "per_page": "100"}
+                        resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
+                                                 params=params)
+                        if resp.status_code != 200:
+                            break
+                        invs = resp.json()
+                        if not isinstance(invs, list):
+                            invs = invs.get("invoices", [])
+                        if not invs:
+                            break
+                        for inv in invs:
+                            for pos_idx, pos in enumerate(inv.get("positions", [])):
+                                raw = pos.get("id")
+                                pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
+                                valid_pos_ids.add(pid)
+                        if len(invs) < 100:
+                            break
+                        page += 1
+                        if page > 50:
+                            break
+                if m2 == 12:
+                    y2, m2 = y2 + 1, 1
+                else:
+                    m2 += 1
+        # Usun wpisy fakturownia bez kod_id w zakresie ktorych pos_id NIE ma w valid_pos_ids
+        orphan_filter = {
+            "source": "fakturownia",
+            "kod_id": None,
+            "fakturownia_position_id": {"$nin": list(valid_pos_ids)},
+            "$or": [
+                {"year": yy, "month": mm}
+                for yy, mm in _iter_months(from_year, from_month, now.year, now.month)
+            ],
+        }
+        del_res = await db.finance_zapisy.delete_many(orphan_filter)
+        total_removed = del_res.deleted_count
+
+        total_created = sum(r["positions_created"] for r in results)
+        total_updated = sum(r["positions_updated"] for r in results)
+        total_invoices = sum(r["invoices_fetched"] for r in results)
+        return {
+            "mode": "range",
+            "from": f"{from_year:04d}-{from_month:02d}",
+            "to": f"{now.year:04d}-{now.month:02d}",
+            "months_processed": len(results),
+            "invoices_fetched": total_invoices,
+            "positions_created": total_created,
+            "positions_updated": total_updated,
+            "positions_removed": total_removed,
+            "per_month": results,
+        }
+    # Pojedynczy miesiac
     yr, mo = year or now.year, month or now.month
     return await _do_fakturownia_sync(yr, mo, current_user["sub"])
 
 
 # ============= CRON: auto-sync Fakturowni co 30 minut =============
+# Konfigurowalny start (default: styczen 2026)
+SYNC_FROM_YEAR = 2026
+SYNC_FROM_MONTH = 1
+
+
 async def cron_fakturownia_sync():
     """Wywolywane przez scheduler co 30 minut. Cicho ignoruje brak konfiguracji.
-    Pobiera tylko BIEZACY miesiac. Idempotentnie - nie dubluje, nie nadpisuje
-    wpisow ktore admin juz przypisal kodem.
+    Pobiera WSZYSTKIE miesiace od SYNC_FROM_YEAR-SYNC_FROM_MONTH do biezacego.
+    Idempotentnie - nie dubluje, nie nadpisuje wpisow ktore admin juz przypisal kodem.
     """
     try:
         settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
@@ -1136,10 +1252,59 @@ async def cron_fakturownia_sync():
             logger.debug("[cron_fakturownia] brak konfiguracji - skip")
             return
         now = datetime.now()
-        result = await _do_fakturownia_sync(now.year, now.month, "cron_system")
-        logger.info(f"[cron_fakturownia] OK: {result['positions_created']} nowych, "
-                     f"{result['positions_updated']} zaktualizowanych, "
-                     f"{result['positions_removed']} usunietych")
+        total_created = total_updated = 0
+        for y, m in _iter_months(SYNC_FROM_YEAR, SYNC_FROM_MONTH, now.year, now.month):
+            res = await _do_fakturownia_sync(y, m, "cron_system", skip_removal=True)
+            total_created += res["positions_created"]
+            total_updated += res["positions_updated"]
+
+        # Globalny cleanup: pobierz wszystkie valid pos_ids w zakresie
+        api_token = settings["fakturownia_api_key"]
+        domain = settings["fakturownia_domain"]
+        valid_pos_ids: set = set()
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            for y, m in _iter_months(SYNC_FROM_YEAR, SYNC_FROM_MONTH, now.year, now.month):
+                date_from = f"{y:04d}-{m:02d}-01"
+                last_day = 31 if m in (1,3,5,7,8,10,12) else (30 if m != 2 else 29)
+                date_to = f"{y:04d}-{m:02d}-{last_day:02d}"
+                page = 1
+                while True:
+                    params = {"api_token": api_token, "income": "no",
+                               "include_positions": "true", "period": "more",
+                               "date_from": date_from, "date_to": date_to,
+                               "page": str(page), "per_page": "100"}
+                    resp = await client.get(f"https://{domain}.fakturownia.pl/invoices.json",
+                                             params=params)
+                    if resp.status_code != 200:
+                        break
+                    invs = resp.json()
+                    if not isinstance(invs, list):
+                        invs = invs.get("invoices", [])
+                    if not invs:
+                        break
+                    for inv in invs:
+                        for pos_idx, pos in enumerate(inv.get("positions", [])):
+                            raw = pos.get("id")
+                            pid = str(raw) if raw else f"inv_{inv.get('id')}_idx{pos_idx}"
+                            valid_pos_ids.add(pid)
+                    if len(invs) < 100:
+                        break
+                    page += 1
+                    if page > 50:
+                        break
+
+        del_res = await db.finance_zapisy.delete_many({
+            "source": "fakturownia",
+            "kod_id": None,
+            "fakturownia_position_id": {"$nin": list(valid_pos_ids)},
+            "$or": [{"year": yy, "month": mm}
+                     for yy, mm in _iter_months(SYNC_FROM_YEAR, SYNC_FROM_MONTH, now.year, now.month)],
+        })
+        total_removed = del_res.deleted_count
+        logger.info(f"[cron_fakturownia] OK: {total_created} nowych, "
+                     f"{total_updated} zaktualizowanych, "
+                     f"{total_removed} usunietych "
+                     f"(zakres {SYNC_FROM_YEAR:04d}-{SYNC_FROM_MONTH:02d} -> {now.year:04d}-{now.month:02d})")
     except HTTPException as e:
         logger.warning(f"[cron_fakturownia] {e.detail}")
     except Exception as e:
