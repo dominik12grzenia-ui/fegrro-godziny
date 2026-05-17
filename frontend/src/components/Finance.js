@@ -338,6 +338,8 @@ const ZapisyPanel = ({ year }) => {
   const [filterUnassigned, setFilterUnassigned] = useState(false);
   const [filterType, setFilterType] = useState('all'); // 'all' | 'cost' | 'income'
   const [expanded, setExpanded] = useState({}); // invoice_id -> bool
+  const [payrollExpected, setPayrollExpected] = useState(null); // {month, year, total_koszt}
+  const [syncingPayroll, setSyncingPayroll] = useState(false);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
     kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
@@ -355,6 +357,53 @@ const ZapisyPanel = ({ year }) => {
       setRows(iRes.data.rows);
       setBudowy(bRes.data.rows);
       setKody(kRes.data.rows);
+      // Fetch oczekiwana suma wyplat (dla wybranego miesiaca lub calego roku)
+      if (month > 0) {
+        try {
+          const pRes = await api.get(`/payroll?year=${year}&month=${month}`);
+          const prows = pRes.data?.rows || [];
+          let totalKoszt = 0;
+          for (const r of prows) {
+            const rec = r.record || {};
+            const h = Number(r.total_hours) || 0;
+            const rate = Number(rec.rate) || 0;
+            const fixed = Number(rec.fixed_salary_amount) || 0;
+            const is_fixed = !!rec.is_fixed_salary;
+            const ha = is_fixed ? fixed : h * rate;
+            const bonus = Number(rec.bonus_zl) || 0;
+            const driver = Number(rec.driver_zl) || 0;
+            const op = Number(rec.other_plus_zl) || 0;
+            const om = Number(rec.other_minus_zl) || 0;
+            const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
+            totalKoszt += ha + bonus + driver + op - om - pen;
+          }
+          setPayrollExpected({ year, month, total: totalKoszt });
+        } catch { setPayrollExpected(null); }
+      } else {
+        // Caly rok: suma 12 miesiecy
+        try {
+          let totalKoszt = 0;
+          for (let m = 1; m <= 12; m++) {
+            const pRes = await api.get(`/payroll?year=${year}&month=${m}`);
+            const prows = pRes.data?.rows || [];
+            for (const r of prows) {
+              const rec = r.record || {};
+              const h = Number(r.total_hours) || 0;
+              const rate = Number(rec.rate) || 0;
+              const fixed = Number(rec.fixed_salary_amount) || 0;
+              const is_fixed = !!rec.is_fixed_salary;
+              const ha = is_fixed ? fixed : h * rate;
+              const bonus = Number(rec.bonus_zl) || 0;
+              const driver = Number(rec.driver_zl) || 0;
+              const op = Number(rec.other_plus_zl) || 0;
+              const om = Number(rec.other_minus_zl) || 0;
+              const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
+              totalKoszt += ha + bonus + driver + op - om - pen;
+            }
+          }
+          setPayrollExpected({ year, month: 0, total: totalKoszt });
+        } catch { setPayrollExpected(null); }
+      }
     } catch {
       toast.error('Blad pobierania zapisow');
     } finally { setLoading(false); }
@@ -486,6 +535,30 @@ const ZapisyPanel = ({ year }) => {
     }
   };
 
+  const syncAllMonths = async () => {
+    if (!window.confirm(
+      'Resynchronizowac WSZYSTKIE miesiace od stycznia 2026?\n\n' +
+      'Stare auto-zapisy zostana nadpisane, reczne wpisy nietkniete.'
+    )) return;
+    setSyncingPayroll(true);
+    try {
+      const r = await api.post('/finance/sync-all-months?from_year=2026&from_month=1');
+      toast.success(`Sync OK: ${r.data.months_processed} mc, ${fmtPLN(r.data.total_kp || 0)}`);
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad synchronizacji');
+    } finally { setSyncingPayroll(false); }
+  };
+
+  // Suma KP auto-zapisanych w zapisach (dla porownania z payrollExpected)
+  const actualKpSum = rows.reduce((s, r) => {
+    if (r.is_invoice) return s;
+    if (r.kod_id === 'KP_WYNAGRODZENIA' && r.source === 'auto_payroll') return s + (r.netto || 0);
+    return s;
+  }, 0);
+  const expectedKp = payrollExpected?.total || 0;
+  const kpMismatch = payrollExpected !== null && Math.abs(actualKpSum - expectedKp) > 1.0;
+
   const renderKodSelect = (val, onChange, testid, isUnassignedHighlight = false) => (
     <select value={val || ''} onChange={onChange}
       className={`w-full bg-[#1E293B] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#E8B76A] text-[#E8B76A]' : 'border-[#334155] text-white'}`}
@@ -564,6 +637,28 @@ const ZapisyPanel = ({ year }) => {
           </Button>
         </div>
       </CardHeader>
+      {kpMismatch && (
+        <div className="mx-4 mb-3 flex items-start gap-3 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-4 py-3 text-sm"
+          data-testid="finance-payroll-mismatch-banner">
+          <AlertTriangle className="h-5 w-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-[#FCA5A5]">
+              Niezgodnosc kosztu wynagrodzen {month > 0 ? `${PL_MONTHS_SHORT[month-1]} ${year}` : `caly rok ${year}`}
+            </div>
+            <div className="text-[#FCA5A5]/90 text-xs mt-1">
+              W zapisach: <strong>{fmtPLN(actualKpSum)}</strong> | W Wyplatach: <strong>{fmtPLN(expectedKp)}</strong> | Roznica: <strong>{fmtPLN(expectedKp - actualKpSum)}</strong>
+            </div>
+            <div className="text-[#FCA5A5]/60 text-xs mt-1">
+              Mozliwa przyczyna: brak resyncu po zmianach w Wyplatach lub w godzinach. Kliknij ponizej aby wymusic resync.
+            </div>
+          </div>
+          <Button onClick={month > 0 ? syncCurrent : syncAllMonths} disabled={syncingPayroll}
+            className="bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs h-8"
+            data-testid="finance-payroll-mismatch-resync">
+            {syncingPayroll ? 'Sync...' : (month > 0 ? 'Sync ten miesiac' : 'Sync wszystkie')}
+          </Button>
+        </div>
+      )}
       <CardContent className="p-0 overflow-x-auto">
         {loading ? <div className="p-6 text-[#94A3B8]">Ladowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak zapisow w tym okresie.</div> :
