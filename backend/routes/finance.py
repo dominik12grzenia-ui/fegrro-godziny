@@ -259,6 +259,8 @@ async def _sync_to_sites(budowa_id: str, name: str):
         "finance_budowa_id": budowa_id,  # link
         "is_active": True,
         "address": "",
+        "category": "budowa",
+        "visible_to_foremen": True,
         "created_at": datetime.now().isoformat(),
     }
     await db.construction_sites.insert_one(site_doc)
