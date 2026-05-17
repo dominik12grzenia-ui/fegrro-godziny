@@ -64,7 +64,7 @@ export const ClothingOrderPublic = ({ token }) => {
       toast.success('Wymiary zapisane');
       setProfileDirty(false);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     } finally {
       setSavingProfile(false);
     }
@@ -79,7 +79,7 @@ export const ClothingOrderPublic = ({ token }) => {
       toast.success('Zamowienie wyslane');
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 

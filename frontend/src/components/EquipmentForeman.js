@@ -22,7 +22,7 @@ const ACTION_LABELS = {
   defect_reported: 'Zgloszono usterke',
 };
 
-export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elektronarzedzia' }) => {
+export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elektronarzędzia' }) => {
   const [myEquipment, setMyEquipment] = useState([]);
   const [foremen, setForemen] = useState([]);
   const [pendingTransfers, setPendingTransfers] = useState([]);
@@ -126,7 +126,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setHistoryData(r.data);
       setHistoryModal(true);
     } catch (err) {
-      toast.error('Blad pobierania historii');
+      toast.error('Błąd pobierania historii');
     }
   };
 
@@ -137,7 +137,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       return;
     }
     if (Number.isNaN(qty) || qty <= 0 || qty > transferModal.quantity) {
-      toast.error(`Ilosc musi byc 1-${transferModal.quantity}`);
+      toast.error(`Ilość musi być 1-${transferModal.quantity}`);
       return;
     }
     try {
@@ -152,7 +152,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setTransferQty('');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -162,7 +162,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.success('Zaakceptowano przekazanie');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -172,14 +172,14 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.success('Odrzucono przekazanie');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const handleDefect = async () => {
     const qty = parseInt(defectQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > defectModal.quantity) {
-      toast.error(`Ilosc musi byc 1-${defectModal.quantity}`);
+      toast.error(`Ilość musi być 1-${defectModal.quantity}`);
       return;
     }
     try {
@@ -196,14 +196,14 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setDefectPhoto(null);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const handleReturn = async () => {
     const qty = parseInt(returnQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > returnModal.quantity) {
-      toast.error(`Ilosc musi byc 1-${returnModal.quantity}`);
+      toast.error(`Ilość musi być 1-${returnModal.quantity}`);
       return;
     }
     try {
@@ -216,7 +216,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setReturnQty('');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -226,7 +226,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.success('Zwrot potwierdzony');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -242,7 +242,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   };
 
   if (loading) {
-    return <div className="text-[#94A3B8] text-sm">Wczytywanie sprzetu...</div>;
+    return <div className="text-[#94A3B8] text-sm">Wczytywanie sprzętu...</div>;
   }
 
   // BLOCKING modal: if there are pending transfers, force foreman to respond before doing anything else
@@ -258,7 +258,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             <CardHeader>
               <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
                 <Bell className="h-6 w-6 animate-pulse" />
-                Oczekujace przekazanie sprzetu
+                Oczekujace przekazanie sprzętu
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -270,7 +270,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   {t.equipment_name}
                 </p>
                 <p className="text-[#CBD5E1] text-lg mt-1">
-                  Ilosc: <span className="font-bold text-white">{t.quantity} szt.</span>
+                  Ilość: <span className="font-bold text-white">{t.quantity} szt.</span>
                 </p>
                 <p className="text-xs text-[#64748B] mt-2">
                   {new Date(t.created_at).toLocaleString('pl-PL')}
@@ -342,7 +342,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                     className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                     data-testid={`keeper-acknowledge-return-${r.id}`}
                   >
-                    Potwierdz przyjecie
+                    Potwierdź przyjecie
                   </Button>
                 </div>
               ))}
@@ -381,7 +381,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         </CardHeader>
         <CardContent>
           {myEquipment.length === 0 ? (
-            <p className="text-[#94A3B8] text-sm">Nie masz przypisanego sprzetu.</p>
+            <p className="text-[#94A3B8] text-sm">Nie masz przypisanego sprzętu.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
@@ -389,7 +389,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   <tr className="bg-[#1E293B]">
                     <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
                     <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
-                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilosc</th>
+                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilość</th>
                     <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Akcje</th>
                   </tr>
                 </thead>
@@ -495,7 +495,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 </select>
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość *</label>
                 <Input
                   type="number"
                   min="1"
@@ -539,7 +539,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 Posiadasz: <span className="text-[#CBD5E1] font-semibold">{returnModal.quantity} szt.</span>
               </p>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc do zwrotu *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość do zwrotu *</label>
                 <Input
                   type="number"
                   min="1"
@@ -577,7 +577,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc szt.</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość szt.</label>
                 <Input
                   type="number"
                   min="1"
@@ -630,7 +630,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">Moja historia sprzetu</CardTitle>
+              <CardTitle className="text-[#CBD5E1]">Moja historia sprzętu</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setHistoryModal(false)}>
                 <X className="h-4 w-4" />
               </Button>
@@ -713,7 +713,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardHeader>
             <CardContent className="overflow-y-auto">
               {allEquipment.length === 0 ? (
-                <p className="text-[#94A3B8] text-sm">Brak sprzetu.</p>
+                <p className="text-[#94A3B8] text-sm">Brak sprzętu.</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-xs" data-testid="warehouse-overview-table">
@@ -767,7 +767,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 </div>
               )}
               <p className="text-xs text-[#94A3B8] mt-3">
-                Magazynier widzi cale stany sprzetu i kto co posiada. Aby zarzadzac przypisaniami zwroc sie do administratora.
+                Magazynier widzi cale stany sprzętu i kto co posiada. Aby zarzadzac przypisaniami zwroc sie do administratora.
               </p>
             </CardContent>
           </Card>

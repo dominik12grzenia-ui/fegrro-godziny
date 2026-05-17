@@ -16,7 +16,7 @@ const ACTION_LABELS = {
   transfer_rejected: 'Przekazanie odrzucone',
   defect_reported: 'Zgloszono usterke',
   defect_resolved: 'Usterka naprawiona',
-  defect_scrapped: 'Sprzet na zlomie',
+  defect_scrapped: 'Sprzęt na zlomie',
   returned_to_warehouse: 'Zwrot do magazynu',
   return_acknowledged: 'Potwierdzono zwrot',
 };
@@ -27,7 +27,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Dodaj sprzet</CardTitle>
+          <CardTitle className="text-[#CBD5E1]">Dodaj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} data-testid="close-add-modal">
             <X className="h-4 w-4" />
           </Button>
@@ -52,7 +52,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Ilosc dostepnych sztuk *</label>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Ilość dostepnych sztuk *</label>
             <Input
               type="number"
               min="0"
@@ -74,7 +74,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
               data-testid="equipment-variants-input"
             />
             <p className="text-[10px] text-[#64748B] mt-1">
-              Brygadzista bedzie musial wybrac jeden z wariantow przy zamawianiu.
+              Brygadzista będzie musial wybrac jeden z wariantow przy zamawianiu.
             </p>
           </div>
           <div>
@@ -106,7 +106,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
       <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Edytuj sprzet</CardTitle>
+          <CardTitle className="text-[#CBD5E1]">Edytuj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setEditingEq(null)}>
             <X className="h-4 w-4" />
           </Button>
@@ -161,7 +161,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
               className="text-[#E8836A] hover:bg-[#7F2D2D]/30"
               data-testid="delete-from-edit-btn"
             >
-              <Trash2 className="h-4 w-4 mr-1" /> Usun
+              <Trash2 className="h-4 w-4 mr-1" /> Usuń
             </Button>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setEditingEq(null)}>Anuluj</Button>
@@ -241,7 +241,7 @@ export const ResolveDefectModal = ({
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-[#94A3B8]">Gdzie przekazac naprawiony sprzet?</p>
+          <p className="text-sm text-[#94A3B8]">Gdzie przekazac naprawiony sprzęt?</p>
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
               <input
@@ -251,7 +251,7 @@ export const ResolveDefectModal = ({
                 onChange={() => setResolveDest('warehouse')}
                 data-testid="resolve-dest-warehouse"
               />
-              Do magazynu (dostepny w magazynie)
+              Do magazynu (dostępny w magazynie)
             </label>
             <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
               <input
@@ -294,7 +294,7 @@ export const ResolveDefectModal = ({
                   setResolveModal(null);
                   fetchAll();
                 } catch (err) {
-                  toast.error(err.response?.data?.detail || 'Blad');
+                  toast.error(err.response?.data?.detail || 'Błąd');
                 }
               }}
               className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"

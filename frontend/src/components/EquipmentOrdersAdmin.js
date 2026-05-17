@@ -37,7 +37,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
     const raw = issueQty[order.id] ?? String(maxRemaining);
     const qty = parseInt(raw, 10);
     if (!qty || qty <= 0) {
-      toast.error('Podaj prawidlowa ilosc do wydania');
+      toast.error('Podaj prawidlowa ilość do wydania');
       return;
     }
     if (qty > maxRemaining) {
@@ -60,8 +60,8 @@ export const EquipmentOrdersAdmin = ({ category }) => {
       setIssueQty((m) => { const n = { ...m }; delete n[order.id]; return n; });
       toast.success(`Wydano ${qty} szt.`);
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
-      fetchAll(); // tylko gdy blad - synchronizujemy z backendem
+      toast.error(e.response?.data?.detail || 'Błąd');
+      fetchAll(); // tylko gdy błąd - synchronizujemy z backendem
     }
   };
 
@@ -75,7 +75,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
       );
       toast.success('Odrzucono');
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
       fetchAll();
     }
   };

@@ -101,7 +101,7 @@ export const HoursTable = () => {
       setHourMeta(metaMap);
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      toast.error('Nie udalo sie pobrac danych');
+      toast.error('Nie udalo sie pobrać danych');
     } finally {
       setLoading(false);
     }
@@ -210,7 +210,7 @@ export const HoursTable = () => {
     }
     
     if (hours < 0 || hours > 14) {
-      toast.error('Godziny musza byc miedzy 0 a 14');
+      toast.error('Godziny musza być miedzy 0 a 14');
       setEditingCell(null);
       return;
     }
@@ -281,7 +281,7 @@ export const HoursTable = () => {
       newPending[`${employeeId}-${d.date}`] = selectedSiteForAssignment;
     });
     setPendingAssignments(newPending);
-    toast.success('Zaznaczono caly miesiac');
+    toast.success('Zaznaczono caly miesiąc');
   };
 
   const getEmployeesPerSite = () => {
@@ -402,7 +402,7 @@ export const HoursTable = () => {
       const res = await api.get(`/advances?employee_id=${employee.id}&month=${monthNum}&year=${year}`);
       setAdvanceList(res.data);
     } catch (err) {
-      toast.error('Nie udalo sie pobrac zaliczek');
+      toast.error('Nie udalo sie pobrać zaliczek');
     }
   };
 
@@ -466,7 +466,7 @@ export const HoursTable = () => {
         target_month: targetMonth,
         target_year: targetYear
       });
-      toast.success('Zaliczka przeniesiona na nastepny miesiac');
+      toast.success('Zaliczka przeniesiona na nastepny miesiąc');
       setCarryForwardId(null);
       setCarryAmount('');
       const res = await api.get(`/advances?employee_id=${showAdvanceModal.id}&month=${monthNum}&year=${year}`);
@@ -474,7 +474,7 @@ export const HoursTable = () => {
       const summaryRes = await api.get(`/advances/summary?month=${monthNum}&year=${year}`);
       setAdvanceSummary(summaryRes.data);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad przenoszenia zaliczki');
+      toast.error(err.response?.data?.detail || 'Błąd przenoszenia zaliczki');
     }
   };
 
@@ -515,7 +515,7 @@ export const HoursTable = () => {
       const res = await api.get(`/penalties?employee_id=${employee.id}&month=${monthNum}&year=${year}`);
       setPenaltyList(res.data);
     } catch (err) {
-      toast.error('Nie udalo sie pobrac kar');
+      toast.error('Nie udalo sie pobrać kar');
     }
   };
 
@@ -710,7 +710,7 @@ export const HoursTable = () => {
               className="bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white border border-[#5F7151]"
               data-testid="full-month-all-btn"
             >
-              Caly miesiac (wszyscy)
+              Caly miesiąc (wszyscy)
             </Button>
             <Button
               onClick={() => { setPendingAssignments({}); setSelectedSiteForAssignment(null); }}
@@ -968,7 +968,7 @@ export const HoursTable = () => {
                           >
                             {advanceSummary[employee.id] ? (
                               <span className="text-[#E8836A] font-bold text-sm">
-                                {Number(advanceSummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
+                                {Number(advanceSummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                               </span>
                             ) : (
                               <span className="text-[#4A5568] text-xs">-</span>
@@ -983,7 +983,7 @@ export const HoursTable = () => {
                           >
                             {penaltySummary[employee.id] ? (
                               <span className="text-[#DC2626] font-bold text-sm">
-                                {Number(penaltySummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
+                                {Number(penaltySummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                               </span>
                             ) : (
                               <span className="text-[#4A5568] text-xs">-</span>
@@ -1118,7 +1118,7 @@ export const HoursTable = () => {
                 ))}
               </div>
               <p className="text-[10px] text-[#64748B] mt-2">
-                Najedz na komorke z godzinami aby zobaczyc kto je wpisal | Kliknij komorke aby edytowac
+                Najedz na komorke z godzinami aby zobaczyc kto je wpisal | Kliknij komorke aby edytować
               </p>
             </div>
           </CardContent>
@@ -1190,7 +1190,7 @@ export const HoursTable = () => {
               <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma zaliczek:</span>
                 <span className="text-[#E8836A] font-bold text-xl" data-testid="advance-total">
-                  {Number(advanceList.reduce((s, a) => s + a.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
+                  {Number(advanceList.reduce((s, a) => s + a.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                 </span>
               </div>
 
@@ -1200,7 +1200,7 @@ export const HoursTable = () => {
                   {advanceList.map(adv => (
                     <div key={adv.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#CBD5E1] font-bold text-lg">{Number(adv.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl</span>
+                        <span className="text-[#CBD5E1] font-bold text-lg">{Number(adv.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
                         <span className="text-[#64748B] text-[10px]">
                           {adv.created_at ? new Date(adv.created_at).toLocaleString('pl-PL') : ''}
                         </span>
@@ -1261,7 +1261,7 @@ export const HoursTable = () => {
                               className="border-[#6B4444] text-[#E8836A] hover:bg-[#6B4444] h-7 text-[10px] px-2"
                               data-testid={`delete-advance-${adv.id}`}
                             >
-                              Usun
+                              Usuń
                             </Button>
                           </>
                         )}
@@ -1270,7 +1270,7 @@ export const HoursTable = () => {
                   ))}
                 </div>
               ) : (
-                <p className="text-[#64748B] text-sm text-center py-4">Brak zaliczek w tym miesiacu</p>
+                <p className="text-[#64748B] text-sm text-center py-4">Brak zaliczek w tym miesiącu</p>
               )}
 
               {/* Add new advance */}
@@ -1282,7 +1282,7 @@ export const HoursTable = () => {
                     min="0"
                     value={newAdvanceAmount}
                     onChange={e => setNewAdvanceAmount(e.target.value)}
-                    placeholder="Kwota (zl)"
+                    placeholder="Kwota (zł)"
                     className="bg-[#1E293B] text-white border-[#334155] text-sm flex-1"
                     data-testid="new-advance-amount"
                   />
@@ -1332,7 +1332,7 @@ export const HoursTable = () => {
               <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma kar:</span>
                 <span className="text-[#DC2626] font-bold text-xl" data-testid="penalty-total">
-                  {Number(penaltyList.reduce((s, p) => s + p.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
+                  {Number(penaltyList.reduce((s, p) => s + p.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                 </span>
               </div>
 
@@ -1341,7 +1341,7 @@ export const HoursTable = () => {
                   {penaltyList.map(pen => (
                     <div key={pen.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#DC2626] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl</span>
+                        <span className="text-[#DC2626] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
                         <span className="text-[#64748B] text-[10px]">
                           {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
                         </span>
@@ -1365,13 +1365,13 @@ export const HoursTable = () => {
                         className="border-[#6B4444] text-[#DC2626] hover:bg-[#6B4444] h-7 text-[10px] px-2"
                         data-testid={`delete-penalty-${pen.id}`}
                       >
-                        Usun
+                        Usuń
                       </Button>
                     </div>
                   ))}
                 </div>
               ) : (
-                <p className="text-[#64748B] text-sm text-center py-4">Brak kar w tym miesiacu</p>
+                <p className="text-[#64748B] text-sm text-center py-4">Brak kar w tym miesiącu</p>
               )}
 
               <div className="p-3 bg-[#0F172A] rounded-lg border border-[#DC2626]/20">
@@ -1382,7 +1382,7 @@ export const HoursTable = () => {
                     min="0"
                     value={newPenaltyAmount}
                     onChange={e => setNewPenaltyAmount(e.target.value)}
-                    placeholder="Kwota (zl)"
+                    placeholder="Kwota (zł)"
                     className="bg-[#1E293B] text-white border-[#334155] text-sm flex-1"
                     data-testid="new-penalty-amount"
                   />

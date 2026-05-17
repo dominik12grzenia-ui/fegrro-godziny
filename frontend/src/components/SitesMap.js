@@ -56,7 +56,7 @@ export const SitesMap = ({ sites, employees, assignments }) => {
   if (loadError) {
     return (
       <div className="h-full flex items-center justify-center bg-[#1E293B] text-red-400">
-        Blad ladowania mapy: {loadError.message}
+        Błąd ladowania mapy: {loadError.message}
       </div>
     );
   }

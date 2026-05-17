@@ -18,7 +18,7 @@ const fileToBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
-export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarzedzia' }) => {
+export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarzędzia' }) => {
   const [equipment, setEquipment] = useState([]);
   const [foremen, setForemen] = useState([]);
   const [assignments, setAssignments] = useState([]);
@@ -78,7 +78,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       if (invData) setActiveInventory((invData || []).filter((c) => c.category === category && c.status === 'active'));
       if (shData) setShortages((shData || []).filter((s) => s.category === category));
     } catch (e) {
-      toast.error('Blad pobierania danych sprzetu');
+      toast.error('Błąd pobierania danych sprzętu');
       setLoading(false);
     }
   }, [category]);
@@ -121,7 +121,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const handleAssignChange = async (eqId, foremanId, value) => {
     const qty = parseInt(value, 10);
     if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilosc musi byc liczba >= 0');
+      toast.error('Ilość musi być liczba >= 0');
       return;
     }
     try {
@@ -131,7 +131,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       });
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      toast.error(err.response?.data?.detail || 'Błąd zapisu');
       refreshAll();
     }
   };
@@ -139,14 +139,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const handleBrokenChange = async (eqId, value) => {
     const qty = parseInt(value, 10);
     if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilosc musi byc >= 0');
+      toast.error('Ilość musi być >= 0');
       return;
     }
     try {
       await api.put(`/equipment/${eqId}`, { broken_quantity: qty });
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      toast.error(err.response?.data?.detail || 'Błąd zapisu');
       refreshAll();
     }
   };
@@ -154,21 +154,21 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const handleTotalChange = async (eqId, value) => {
     const qty = parseInt(value, 10);
     if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilosc musi byc >= 0');
+      toast.error('Ilość musi być >= 0');
       return;
     }
     try {
       await api.put(`/equipment/${eqId}`, { total_quantity: qty });
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      toast.error(err.response?.data?.detail || 'Błąd zapisu');
       refreshAll();
     }
   };
 
   const handleAdd = async () => {
     if (!form.name.trim() || form.total_quantity === '') {
-      toast.error('Podaj nazwe i ilosc');
+      toast.error('Podaj nazwe i ilość');
       return;
     }
     try {
@@ -184,12 +184,12 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         category,
         variants: variantsArr.length > 0 ? variantsArr : null,
       });
-      toast.success('Sprzet dodany');
+      toast.success('Sprzęt dodany');
       setShowAddModal(false);
       setForm({ name: '', brand: '', total_quantity: '', photo: null, variants: '' });
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad dodawania');
+      toast.error(err.response?.data?.detail || 'Błąd dodawania');
     }
   };
 
@@ -209,18 +209,18 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       setEditingEq(null);
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad zapisu');
+      toast.error(err.response?.data?.detail || 'Błąd zapisu');
     }
   };
 
   const handleDelete = async (eqId) => {
-    if (!window.confirm('Usunac sprzet wraz ze wszystkimi przypisaniami?')) return;
+    if (!window.confirm('Usunac sprzęt wraz ze wszystkimi przypisaniami?')) return;
     try {
       await api.delete(`/equipment/${eqId}`);
       toast.success('Usunieto');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad usuwania');
+      toast.error(err.response?.data?.detail || 'Błąd usuwania');
     }
   };
 
@@ -242,7 +242,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       toast.success(foremanId ? 'Magazynier ustawiony' : 'Magazynier wyczyszczony');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -252,50 +252,50 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       toast.success('Zwrot potwierdzony');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const handleStartInventory = async () => {
     if (!window.confirm(
-      `Rozpoczac inwentaryzacje dla "${title}"?\n\nWszyscy brygadzisci posiadajacy sprzet w tej kategorii zostana zablokowani na ekranie godzin do momentu potwierdzenia kazdej pozycji.`
+      `Rozpoczac inwentaryzacje dla "${title}"?\n\nWszyscy brygadziści posiadajacy sprzęt w tej kategorii zostana zablokowani na ekranie godzin do momentu potwierdzenia kazdej pozycji.`
     )) return;
     setStartingInventory(true);
     try {
       const r = await api.post('/equipment/inventory/start', { category });
       const required = (r.data?.required_foremen || []).length;
       if (required === 0) {
-        toast.warning('Zaden brygadzista nie ma przypisanego sprzetu w tej kategorii');
+        toast.warning('Zaden brygadzista nie ma przypisanego sprzętu w tej kategorii');
       } else {
         toast.success(`Inwentaryzacja rozpoczeta. Wymagane potwierdzenia: ${required}`);
       }
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad rozpoczecia inwentaryzacji');
+      toast.error(err.response?.data?.detail || 'Błąd rozpoczecia inwentaryzacji');
     } finally {
       setStartingInventory(false);
     }
   };
 
   const handleFinishInventory = async (checkId) => {
-    if (!window.confirm('Recznie zakonczyc te inwentaryzacje? Brygadzisci zostana odblokowani bez potwierdzenia.')) return;
+    if (!window.confirm('Recznie zakonczyc te inwentaryzacje? Brygadziści zostana odblokowani bez potwierdzenia.')) return;
     try {
       await api.post(`/equipment/inventory/${checkId}/finish`);
       toast.success('Inwentaryzacja zakonczona');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const handleResolveShortage = async (shortageId) => {
-    if (!window.confirm('Oznaczyc zgloszenie jako rozpatrzone? (sprzet sie znalazl - bez zmian na stanie)')) return;
+    if (!window.confirm('Oznaczyc zgloszenie jako rozpatrzone? (sprzęt sie znalazl - bez zmian na stanie)')) return;
     try {
       await api.post(`/equipment/inventory/shortages/${shortageId}/resolve`);
       toast.success('Zgloszenie rozpatrzone');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -315,12 +315,12 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
   const handleMarkLost = async (shortage) => {
     const missing = shortage.missing_quantity || 0;
     if (missing <= 0) {
-      toast.error('Brak ilosci do oznaczenia jako zaginione');
+      toast.error('Brak ilości do oznaczenia jako zaginione');
       return;
     }
     if (!window.confirm(
       `Oznaczyc ${missing} szt. "${shortage.equipment_name}" jako ZAGINIONE?\n\n` +
-      `Ilosc zostanie odjeta od stanu brygadzisty ${shortage.foreman_name} i dodana do kolumny "Zaginione".\n\n` +
+      `Ilość zostanie odjeta od stanu brygadzisty ${shortage.foreman_name} i dodana do kolumny "Zaginione".\n\n` +
       `Operacja NIEODWRACALNA.`
     )) return;
     try {
@@ -328,7 +328,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
       toast.success('Oznaczono jako zaginione');
       refreshAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -391,14 +391,14 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
               className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
               data-testid="add-equipment-btn"
             >
-              <Plus className="h-4 w-4 mr-2" /> Dodaj sprzet
+              <Plus className="h-4 w-4 mr-2" /> Dodaj sprzęt
             </Button>
             <Button
               onClick={handleStartInventory}
               disabled={startingInventory || activeInventory.length > 0}
               className="bg-[#E8B76A] hover:bg-[#D4A055] text-[#1E293B] font-semibold disabled:opacity-50"
               data-testid="start-inventory-btn"
-              title={activeInventory.length > 0 ? 'Inwentaryzacja juz aktywna' : 'Wymus inwentaryzacje u brygadzistow'}
+              title={activeInventory.length > 0 ? 'Inwentaryzacja juz aktywna' : 'Wymuś inwentaryzacje u brygadzistow'}
             >
               <ClipboardCheck className="h-4 w-4 mr-2" />
               {startingInventory ? 'Uruchamianie...' : 'Inwentaryzacja'}
@@ -407,7 +407,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
         </CardHeader>
         <CardContent>
           {equipment.length === 0 ? (
-            <p className="text-[#94A3B8] text-center py-6">Brak sprzetu. Kliknij "Dodaj sprzet".</p>
+            <p className="text-[#94A3B8] text-center py-6">Brak sprzętu. Kliknij "Dodaj sprzęt".</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="border-collapse text-sm" data-testid="equipment-main-table">
@@ -431,13 +431,13 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       Historia przekazania
                     </th>
                     <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[160px]">
-                      Nazwa sprzetu
+                      Nazwa sprzętu
                     </th>
                     <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[120px]">
                       Marka
                     </th>
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
-                      Ilosc dostepnych sztuk
+                      Ilość dostepnych sztuk
                     </th>
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[120px]">
                       Zdane do magazynu do naprawy
@@ -446,7 +446,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       Zaginione
                     </th>
                     <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[100px]">
-                      Dostepne w magazynie
+                      Dostępne w magazynie
                     </th>
                     {visibleForemen.map((f) => (
                       <th
@@ -579,7 +579,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                                 let v = parseInt(e.target.value || '0', 10);
                                 if (Number.isNaN(v) || v < 0) v = 0;
                                 if (v > maxVal) {
-                                  toast.error(`Max dla tego sprzetu: ${maxVal}`);
+                                  toast.error(`Max dla tego sprzętu: ${maxVal}`);
                                   v = maxVal;
                                   e.target.value = String(maxVal);
                                 }
@@ -604,7 +604,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
             </div>
           )}
           <p className="text-xs text-[#94A3B8] mt-3">
-            Klikaj w nazwe sprzetu, aby edytowac. Wpisz ilosc - inputy maja ograniczenie do dostepnej liczby. Liczby na samej gorze = suma sprzetu u danego brygadzisty.
+            Klikaj w nazwe sprzętu, aby edytować. Wpisz ilość - inputy maja ograniczenie do dostepnej liczby. Liczby na samej gorze = suma sprzętu u danego brygadzisty.
           </p>
         </CardContent>
       </Card>
@@ -679,7 +679,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
           <CardHeader>
             <CardTitle className="text-[#E8B76A] flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
-              Zgloszone niezgodnosci sprzetu ({shortages.length})
+              Zgloszone niezgodnosci sprzętu ({shortages.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -739,7 +739,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       onClick={() => handleResolveShortage(s.id)}
                       className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
                       data-testid={`resolve-shortage-${s.id}`}
-                      title="Sprzet sie znalazl - bez zmian na stanie"
+                      title="Sprzęt sie znalazl - bez zmian na stanie"
                     >
                       <Check className="h-4 w-4 mr-1" /> Znalezione
                     </Button>
@@ -813,7 +813,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                     className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                     data-testid={`acknowledge-return-${r.id}`}
                   >
-                    Potwierdz przyjecie
+                    Potwierdź przyjecie
                   </Button>
                 </div>
               ))}
@@ -915,13 +915,13 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                         <Button
                           size="sm"
                           onClick={async () => {
-                            if (!window.confirm(`Przeniesc "${d.equipment_name}" (${d.quantity} szt.) na zlom? Operacja zmniejszy ilosc calkowita.`)) return;
+                            if (!window.confirm(`Przeniesc "${d.equipment_name}" (${d.quantity} szt.) na zlom? Operacja zmniejszy ilość calkowita.`)) return;
                             try {
                               await api.post(`/equipment/defects/${d.id}/resolve`, { disposition: 'scrapped' });
                               toast.success('Przeniesiono na zlom');
                               refreshAll();
                             } catch (err) {
-                              toast.error(err.response?.data?.detail || 'Blad');
+                              toast.error(err.response?.data?.detail || 'Błąd');
                             }
                           }}
                           className="bg-[#7F2D2D] hover:bg-[#5C1F1F] text-white text-xs h-7"
@@ -935,19 +935,19 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
                       size="sm"
                       variant="ghost"
                       onClick={async () => {
-                        if (!window.confirm('Usunac to zgloszenie usterki na stale?')) return;
+                        if (!window.confirm('Usunac to zgloszenie usterki na stałe?')) return;
                         try {
                           await api.delete(`/equipment/defects/${d.id}`);
                           toast.success('Zgloszenie usuniete');
                           refreshAll();
                         } catch (err) {
-                          toast.error(err.response?.data?.detail || 'Blad');
+                          toast.error(err.response?.data?.detail || 'Błąd');
                         }
                       }}
                       className="text-[#E8836A] hover:bg-[#7F2D2D]/30 text-xs h-7"
                       data-testid={`delete-defect-${d.id}`}
                     >
-                      <Trash2 className="h-3 w-3 mr-1" /> Usun
+                      <Trash2 className="h-3 w-3 mr-1" /> Usuń
                     </Button>
                   </div>
                 </div>
@@ -989,7 +989,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarze
               <span className="flex items-center gap-2">
                 <Trash2 className="h-5 w-5 text-[#E8836A]" /> Zlom i zaginiecia ({scrapped.length})
               </span>
-              <span className="text-xs text-[#94A3B8]">{showScrapped ? 'Ukryj' : 'Pokaz'}</span>
+              <span className="text-xs text-[#94A3B8]">{showScrapped ? 'Ukryj' : 'Pokaż'}</span>
             </CardTitle>
           </CardHeader>
           {showScrapped && (

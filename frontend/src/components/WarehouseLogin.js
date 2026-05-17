@@ -27,7 +27,7 @@ export default function WarehouseLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim() || !password) {
-      toast.error('Podaj nazwe uzytkownika i haslo');
+      toast.error('Podaj nazwe użytkownika i hasło');
       return;
     }
     setBusy(true);
@@ -44,7 +44,7 @@ export default function WarehouseLogin() {
       toast.success(`Witaj, ${full_name}`);
       navigate('/magazynier/dashboard', { replace: true });
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad logowania');
+      toast.error(err.response?.data?.detail || 'Błąd logowania');
     } finally {
       setBusy(false);
     }
@@ -63,7 +63,7 @@ export default function WarehouseLogin() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa uzytkownika</label>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa użytkownika</label>
               <Input
                 type="text"
                 value={fullName}
@@ -75,12 +75,12 @@ export default function WarehouseLogin() {
               />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Haslo</label>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Hasło</label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Haslo"
+                placeholder="Hasło"
                 className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] placeholder:text-[#475569]"
                 data-testid="warehouse-login-password"
                 autoComplete="current-password"

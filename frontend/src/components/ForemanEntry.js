@@ -62,7 +62,7 @@ export const ForemanEntry = () => {
     setError('');
 
     if (!firstName.trim() || !lastName.trim() || !password) {
-      setError('Podaj imie, nazwisko oraz haslo');
+      setError('Podaj imię, nazwisko oraz hasło');
       return;
     }
 

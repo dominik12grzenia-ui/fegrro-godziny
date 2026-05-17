@@ -22,7 +22,7 @@ export const WorkerEntry = () => {
     setError('');
 
     if (!firstName.trim() || !lastName.trim()) {
-      setError('Podaj imie i nazwisko');
+      setError('Podaj imię i nazwisko');
       return;
     }
 
@@ -52,12 +52,12 @@ export const WorkerEntry = () => {
             />
           </div>
           <CardTitle className="text-2xl font-bold text-[#6B8E4E]">Rejestracja Brygadzisty</CardTitle>
-          <CardDescription className="text-[#94A3B8]">Podaj swoje imie i nazwisko</CardDescription>
+          <CardDescription className="text-[#94A3B8]">Podaj swoje imię i nazwisko</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-[#CBD5E1]">Imie</Label>
+              <Label htmlFor="firstName" className="text-[#CBD5E1]">Imię</Label>
               <Input
                 id="firstName"
                 type="text"

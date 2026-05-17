@@ -37,126 +37,126 @@ const fmtPct = (v) => {
 const SUBTABS = [
   { id: 'budowy', label: 'Budowy' },
   { id: 'zapisy', label: 'Zapisy' },
-  { id: 'rw', label: 'Rachunek wynikow' },
-  { id: 'sprzedaz', label: 'Sprzedaz' },
+  { id: 'rw', label: 'Rachunek wyników' },
+  { id: 'sprzedaz', label: 'Sprzedaż' },
 ];
 
 // Slownik kolumn tabeli "Sprzedaz per budowa" - kliknij ikonke (?) zeby zobaczyc pelny opis i wzor
 const SPRZEDAZ_COL_INFO = {
-  Sprzedaz: {
-    title: 'Sprzedaz (PZS)',
-    desc: 'Suma netto faktur sprzedazowych wystawionych dla tej budowy w wybranym okresie.',
-    formula: 'SUMA(faktury sprzedazowe netto dla tej budowy)',
+  Sprzedaż: {
+    title: 'Sprzedaż (PZS)',
+    desc: 'Suma netto faktur sprzedażowych wystawionych dla tej budowy w wybranym okresie.',
+    formula: 'SUMA(faktury sprzedażowe netto dla tej budowy)',
   },
   KP: {
     title: 'KP - Koszty Pracownikow',
-    desc: 'Bezposrednie koszty pracownikow (wynagrodzenia, ZUS, wynagrodzenia na stawkach) przypisane wprost do tej budowy.',
+    desc: 'Bezpośrednie koszty pracownikow (wynagrodzenia, ZUS, wynagrodzenia na stawkach) przypisane wprost do tej budowy.',
     formula: 'SUMA(zapisy KP gdzie budowa = ta budowa)',
   },
   'KP-alok': {
     title: 'KP-alok - Alokowane Koszty Pracownikow',
-    desc: 'Wszystkie koszty pracownikow bez przypisanej budowy (np. wyplaty pracownikow ze stala pensja typu Leszek, KP_STAWKI) rozdzielone pro-rata pomiedzy budowy proporcjonalnie do bezposredniego KP kazdej budowy.',
+    desc: 'Wszystkie koszty pracownikow bez przypisanej budowy (np. wypłaty pracownikow ze stała pensja typu Leszek, KP_STAWKI) rozdzielone pro-rata pomiędzy budowy proporcjonalnie do bezpośredniego KP kazdej budowy.',
     formula: 'KP (bez budowy) * (KP_tej_budowy / suma KP wszystkich budow)',
   },
   KBB: {
-    title: 'KBB - Koszty Bezposrednie Budowy',
-    desc: 'Materialy, najmy maszyn, podwykonawcy, transport - wszystko bezposrednio zwiazane z ta budowa.',
+    title: 'KBB - Koszty Bezpośrednie Budowy',
+    desc: 'Materiały, najmy maszyn, podwykonawcy, transport - wszystko bezposrednio związane z ta budowa.',
     formula: 'SUMA(zapisy KBB gdzie budowa = ta budowa)',
   },
   'KBB-alok': {
-    title: 'KBB-alok - Alokowane Koszty Bezposrednie',
+    title: 'KBB-alok - Alokowane Koszty Bezpośrednie',
     desc: 'KBB nieprzypisane do konkretnej budowy, rozdzielone pro-rata.',
-    formula: 'KBB (bez budowy) * udzial tej budowy',
+    formula: 'KBB (bez budowy) * udział tej budowy',
   },
-  'Marza brutto': {
-    title: 'Marza brutto',
-    desc: 'Pierwsza marza - po odjeciu wylacznie kosztow zmiennych (pracownikow i kosztow bezposrednich).',
-    formula: 'Sprzedaz - (KP + KP-alok + KBB + KBB-alok)',
+  'Marża brutto': {
+    title: 'Marża brutto',
+    desc: 'Pierwsza marża - po odjęciu wylacznie kosztów zmiennych (pracownikow i kosztów bezposrednich).',
+    formula: 'Sprzedaż - (KP + KP-alok + KBB + KBB-alok)',
   },
-  'Marza brutto %': {
-    title: '% Marza brutto',
-    desc: 'Udzial marzy brutto w sprzedazy.',
-    formula: 'Marza brutto / Sprzedaz * 100%',
+  'Marża brutto %': {
+    title: '% Marża brutto',
+    desc: 'Udział marży brutto w sprzedaży.',
+    formula: 'Marża brutto / Sprzedaż * 100%',
   },
   KSB: {
-    title: 'KSB - Koszty Stale Bezposrednie',
-    desc: 'Paliwa, samochody, odziez robocza, sprzet drobny - koszty stale przypisane do tej budowy.',
+    title: 'KSB - Koszty Stałe Bezpośrednie',
+    desc: 'Paliwa, samochody, odzież robocza, sprzęt drobny - koszty stałe przypisane do tej budowy.',
     formula: 'SUMA(zapisy KSB gdzie budowa = ta budowa)',
   },
-  'KSP uklady': {
-    title: 'KSP uklady - Koszty Slawkow/Ukladow',
-    desc: 'Wynajem i amortyzacja ukladow szalunkowych oraz innych dlugoterminowych ukladow, rozdzielone pro-rata pomiedzy budowy.',
-    formula: 'SUMA(KSP_STAWKI + KSP_UKLADY) * udzial tej budowy',
+  'KSP układy': {
+    title: 'KSP układy - Koszty Slawkow/Ukladow',
+    desc: 'Wynajem i amortyzacja układów szalunkowych oraz innych dlugoterminowych układów, rozdzielone pro-rata pomiędzy budowy.',
+    formula: 'SUMA(KSP_STAWKI + KSP_UKLADY) * udział tej budowy',
   },
-  'Marza I': {
-    title: 'Marza I',
-    desc: 'Druga marza - po odjeciu kosztow stalych bezposrednich i ukladow/slawkow.',
-    formula: 'Marza brutto - KSB - KSP uklady',
+  'Marża I': {
+    title: 'Marża I',
+    desc: 'Druga marża - po odjęciu kosztów stałych bezposrednich i układów/sławków.',
+    formula: 'Marża brutto - KSB - KSP układy',
   },
-  'Marza I %': {
-    title: '% Marza I',
-    desc: 'Udzial Marzy I w sprzedazy.',
-    formula: 'Marza I / Sprzedaz * 100%',
+  'Marża I %': {
+    title: '% Marża I',
+    desc: 'Udział Marży I w sprzedaży.',
+    formula: 'Marża I / Sprzedaż * 100%',
   },
   'KSP alok': {
-    title: 'KSP alok - Alokowane Koszty Stale Posrednie',
-    desc: 'Biuro, ksiegowosc, oplaty bankowe, oprogramowanie - koszty administracyjne firmy rozdzielone pro-rata na budowy.',
-    formula: 'SUMA(KSP bez slawkow/ukladow) * udzial tej budowy',
+    title: 'KSP alok - Alokowane Koszty Stałe Pośrednie',
+    desc: 'Biuro, księgowość, oplaty bankowe, oprogramowanie - koszty administracyjne firmy rozdzielone pro-rata na budowy.',
+    formula: 'SUMA(KSP bez sławków/układów) * udział tej budowy',
   },
-  'Marza II': {
-    title: 'Marza II',
-    desc: 'Trzecia marza - po odjeciu wszystkich kosztow operacyjnych firmy.',
-    formula: 'Marza I - KSP alok',
+  'Marża II': {
+    title: 'Marża II',
+    desc: 'Trzecia marża - po odjęciu wszystkich kosztów operacyjnych firmy.',
+    formula: 'Marża I - KSP alok',
   },
-  'Marza II %': {
-    title: '% Marza II',
-    desc: 'Udzial Marzy II w sprzedazy.',
-    formula: 'Marza II / Sprzedaz * 100%',
+  'Marża II %': {
+    title: '% Marża II',
+    desc: 'Udział Marży II w sprzedaży.',
+    formula: 'Marża II / Sprzedaż * 100%',
   },
   'Podatek alok': {
     title: 'Podatek alok - Alokowany Podatek',
-    desc: 'Czesc obciazenia podatkowego (PPE/VAT) przypisana do tej budowy proporcjonalnie do jej udzialu w sprzedazy.',
-    formula: 'SUMA(podatki) * udzial tej budowy',
+    desc: 'Część obciążenia podatkowego (PPE/VAT) przypisana do tej budowy proporcjonalnie do jej udziału w sprzedaży.',
+    formula: 'SUMA(podatki) * udział tej budowy',
   },
-  'Marza III': {
-    title: 'Marza III - Wynik netto',
-    desc: 'Ostateczna marza - zysk netto budowy po wszystkich kosztach i podatkach.',
-    formula: 'Marza II - Podatek alok',
+  'Marża III': {
+    title: 'Marża III - Wynik netto',
+    desc: 'Ostateczna marża - zysk netto budowy po wszystkich kosztach i podatkach.',
+    formula: 'Marża II - Podatek alok',
   },
-  'Marza III %': {
-    title: '% Marza III',
-    desc: 'Marza netto - finalny zysk procentowy budowy.',
-    formula: 'Marza III / Sprzedaz * 100%',
+  'Marża III %': {
+    title: '% Marża III',
+    desc: 'Marża netto - finalny zysk procentowy budowy.',
+    formula: 'Marża III / Sprzedaż * 100%',
   },
   Przychod: {
     title: 'Przychod (widoczny)',
-    desc: 'Faktyczny przychod netto z faktur sprzedazowych - dokladnie ta sama wartosc co Sprzedaz, ale wyswietlana zawsze (nawet gdy szczegoly sa schowane).',
-    formula: 'Sprzedaz netto',
+    desc: 'Faktyczny przychod netto z faktur sprzedażowych - dokladnie ta sama wartość co Sprzedaż, ale wyswietlana zawsze (nawet gdy szczegóły sa schowane).',
+    formula: 'Sprzedaż netto',
   },
   Koszt: {
     title: 'Koszt (widoczny)',
     desc: 'Sumaryczny koszt budowy - wszystko z minusem zsumowane.',
-    formula: 'KP + KP-alok + KBB + KBB-alok + KSB + KSP uklady + KSP alok',
+    formula: 'KP + KP-alok + KBB + KBB-alok + KSB + KSP układy + KSP alok',
   },
   KGIR: {
     title: 'KGIR - Kaucja Gwarancji Inwestora',
-    desc: 'Wartosc kaucji wstrzymanej przez inwestora (zwykle 2% sprzedazy) - zwracana po okresie gwarancyjnym.',
-    formula: 'Sprzedaz * kaucja_gir_pct (domyslnie 2%)',
+    desc: 'Wartość kaucji wstrzymanej przez inwestora (zwykle 2% sprzedaży) - zwracana po okresie gwarancyjnym.',
+    formula: 'Sprzedaż * kaucja_gir_pct (domyślnie 2%)',
   },
   KDW: {
     title: 'KDW - Kaucja Dobrego Wykonania',
-    desc: 'Kaucja na dobre wykonanie / drobne wady (domyslnie 2% sprzedazy) - zwracana po usunieciu wad.',
-    formula: 'Sprzedaz * kaucja_dw_pct (domyslnie 2%)',
+    desc: 'Kaucja na dobre wykonanie / drobne wady (domyślnie 2% sprzedaży) - zwracana po usunieciu wad.',
+    formula: 'Sprzedaż * kaucja_dw_pct (domyślnie 2%)',
   },
-  Roznica: {
-    title: 'Roznica - Wynik finansowy',
-    desc: 'Faktyczny wynik finansowy budowy po odjeciu kosztow i kaucji. To pokazuje ile budowa "zostawia" w firmie.',
+  Różnica: {
+    title: 'Różnica - Wynik finansowy',
+    desc: 'Faktyczny wynik finansowy budowy po odjęciu kosztów i kaucji. To pokazuje ile budowa "zostawia" w firmie.',
     formula: 'Przychod - Koszt - KGIR - KDW',
   },
   'Zysk%': {
     title: '% Zysk',
     desc: 'Procentowy wynik budowy - ile zostalo z kazdej zarobionej zlotowki.',
-    formula: 'Roznica / Przychod * 100%',
+    formula: 'Różnica / Przychod * 100%',
   },
   'Godz.': {
     title: 'Godziny przepracowane',
@@ -171,16 +171,16 @@ const SPRZEDAZ_COL_INFO = {
   'Zysk/Rg': {
     title: 'Zysk na roboczogodzine',
     desc: 'Ile zlotych zysku zostaje z 1 godziny pracy.',
-    formula: 'Roznica / Godziny',
+    formula: 'Różnica / Godziny',
   },
   'Koszt/Rg': {
     title: 'Koszt na roboczogodzine',
-    desc: 'Ile zlotych kosztow generuje 1 godzina pracy.',
+    desc: 'Ile zlotych kosztów generuje 1 godzina pracy.',
     formula: 'Koszt / Godziny',
   },
   'Kszt zmienny': {
     title: 'Koszt zmienny',
-    desc: 'Suma kosztow ktore zmieniaja sie wraz z liczba godzin - KP + KP-alok + KBB + KBB-alok.',
+    desc: 'Suma kosztów ktore zmieniaja sie wraz z liczba godzin - KP + KP-alok + KBB + KBB-alok.',
     formula: 'KP + KP-alok + KBB + KBB-alok',
   },
 };
@@ -239,7 +239,7 @@ const FakturowniaSyncWarning = () => {
 
   if (!s || dismissed) return null;
   if (s.last_fakturownia_sync_status !== 'error') return null;
-  const err = s.last_fakturownia_sync_error || 'Nieznany blad';
+  const err = s.last_fakturownia_sync_error || 'Nieznany błąd';
   const when = s.last_fakturownia_sync_at
     ? new Date(s.last_fakturownia_sync_at).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })
     : '';
@@ -256,7 +256,7 @@ const FakturowniaSyncWarning = () => {
         </div>
         <div className="text-[#FCA5A5]/80 mt-1 break-words">{err}</div>
         <div className="text-[#FCA5A5]/60 text-xs mt-1">
-          Sprawdz klucz API i subdomene w Narzedzia &rarr; Fakturownia. Auto-sync probuje co 30 min.
+          Sprawdź klucz API i subdomene w Narzędzia &rarr; Fakturownia. Auto-sync probuje co 30 min.
         </div>
       </div>
       <button
@@ -309,7 +309,7 @@ export const Finance = () => {
       {active === 'budowy' && <BudowyPanel />}
       {active === 'zapisy' && <ZapisyPanel year={year} />}
       {active === 'rw' && <RachunekWynikowPanel year={year} />}
-      {active === 'sprzedaz' && <SprzedazPanel year={year} />}
+      {active === 'sprzedaż' && <SprzedazPanel year={year} />}
     </div>
   );
 };
@@ -329,7 +329,7 @@ const BudowyPanel = () => {
       const res = await api.get(`/finance/budowy?include_archived=${includeArchived}`);
       setRows(res.data.rows);
     } catch {
-      toast.error('Blad pobierania budow');
+      toast.error('Błąd pobierania budow');
     } finally {
       setLoading(false);
     }
@@ -351,7 +351,7 @@ const BudowyPanel = () => {
       setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0 });
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -370,16 +370,16 @@ const BudowyPanel = () => {
   const archive = async (b) => {
     if (!window.confirm(`Zarchiwizowac "${b.name}"?\n\nDane zapisow zostana w bazie, ale budowa zniknie z listy godzin.`)) return;
     try { await api.post(`/finance/budowy/${b.id}/archive`); toast.success('Zarchiwizowano'); fetchData(); }
-    catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
   const unarchive = async (b) => {
     try { await api.post(`/finance/budowy/${b.id}/unarchive`); toast.success('Przywrocono'); fetchData(); }
-    catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
   const remove = async (b) => {
     if (!window.confirm(`TRWALE usunac "${b.name}"?\n\nMozliwe tylko gdy brak zapisow finansowych.`)) return;
     try { await api.delete(`/finance/budowy/${b.id}`); toast.success('Usunieto'); fetchData(); }
-    catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
   return (
@@ -390,7 +390,7 @@ const BudowyPanel = () => {
           <label className="flex items-center gap-1 text-sm text-[#94A3B8] cursor-pointer">
             <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)}
               className="accent-[#5F7151]" data-testid="finance-show-archived" />
-            Pokaz archiwalne
+            Pokaż archiwalne
           </label>
           <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0 }); setShowAdd(true); }}
             className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-add-budowa">
@@ -399,7 +399,7 @@ const BudowyPanel = () => {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {loading ? <div className="p-6 text-[#94A3B8]">Ladowanie...</div> :
+        {loading ? <div className="p-6 text-[#94A3B8]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak budow. Dodaj pierwsza.</div> :
         <table className="w-full text-sm">
           <thead className="bg-[#1E293B] text-[#94A3B8]">
@@ -431,7 +431,7 @@ const BudowyPanel = () => {
                       ? <button onClick={() => unarchive(b)} className="p-1 hover:bg-[#334155] rounded" title="Przywroc" data-testid={`finance-budowa-unarchive-${b.id}`}><ArchiveRestore className="h-4 w-4 text-[#5F7151]" /></button>
                       : <button onClick={() => archive(b)} className="p-1 hover:bg-[#334155] rounded" title="Archiwizuj" data-testid={`finance-budowa-archive-${b.id}`}><Archive className="h-4 w-4 text-[#94A3B8]" /></button>
                     }
-                    <button onClick={() => remove(b)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun trwale" data-testid={`finance-budowa-delete-${b.id}`}><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                    <button onClick={() => remove(b)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń trwale" data-testid={`finance-budowa-delete-${b.id}`}><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
                   </div>
                 </td>
               </tr>
@@ -455,7 +455,7 @@ const BudowyPanel = () => {
             <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E293B] rounded">
               <input type="checkbox" checked={form.show_in_hours} onChange={(e) => setForm({...form, show_in_hours: e.target.checked})}
                 className="accent-[#5F7151]" data-testid="finance-budowa-show-in-hours" />
-              <span>Pokaz w liscie godzin (przypisywanie pracownikow)</span>
+              <span>Pokaż w liscie godzin (przypisywanie pracownikow)</span>
             </label>
             <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#1E293B] rounded">
               <label className="flex items-center gap-2 cursor-pointer flex-1">
@@ -592,7 +592,7 @@ const ZapisyPanel = ({ year }) => {
         } catch { setPayrollExpected(null); }
       }
     } catch {
-      toast.error('Blad pobierania zapisow');
+      toast.error('Błąd pobierania zapisow');
     } finally { setLoading(false); }
   }, [year, month]);
 
@@ -625,7 +625,7 @@ const ZapisyPanel = ({ year }) => {
       setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -645,7 +645,7 @@ const ZapisyPanel = ({ year }) => {
       await api.put(`/finance/zapisy/${z.id}`, { [field]: value });
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -663,14 +663,14 @@ const ZapisyPanel = ({ year }) => {
       await api.put(`/finance/invoices/${inv.id}`, payload);
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
   const remove = async (z) => {
-    if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zl?`)) return;
+    if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zł?`)) return;
     try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(); }
-    catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+    catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
   const removeInvoice = async (inv) => {
@@ -679,7 +679,7 @@ const ZapisyPanel = ({ year }) => {
       const r = await api.delete(`/finance/invoices/${inv.id}`);
       toast.success(`Usunieto fakture + ${r.data.positions_deleted} pozycji`);
       fetchData();
-    } catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
+    } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
   // Suma netto i licznik nieprzypisanych (naglowek bez kod_id i bez pozycji z kod_id)
@@ -709,22 +709,22 @@ const ZapisyPanel = ({ year }) => {
 
   const syncCurrent = async () => {
     if (!window.confirm(
-      'Synchronizowac godziny i wyplaty z biezacym miesiacem?\n\n' +
-      'Tylko AKTUALNY miesiac - nie przyszly, nie historyczne. ' +
+      'Synchronizowac godziny i wypłaty z bieżącym miesiacem?\n\n' +
+      'Tylko AKTUALNY miesiąc - nie przyszly, nie historyczne. ' +
       'Stare auto-zapisy zostana nadpisane, ale reczne wpisy nie sa ruszane.'
     )) return;
     try {
       const r = await api.post('/finance/sync-current-month');
-      toast.success(`Sync OK: ${r.data.g_zapisy} godzin + ${r.data.kp_zapisy} wyplat (${r.data.total_godziny}h, ${r.data.total_kp?.toFixed(2)} zl)`);
+      toast.success(`Sync OK: ${r.data.g_zapisy} godzin + ${r.data.kp_zapisy} wypłat (${r.data.total_godziny}h, ${r.data.total_kp?.toFixed(2)} zł)`);
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad synchronizacji');
+      toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
     }
   };
 
   const syncAllMonths = async () => {
     if (!window.confirm(
-      'Resynchronizowac WSZYSTKIE miesiace od stycznia 2026?\n\n' +
+      'Resynchronizowac WSZYSTKIE miesiące od stycznia 2026?\n\n' +
       'Stare auto-zapisy zostana nadpisane, reczne wpisy nietkniete.'
     )) return;
     setSyncingPayroll(true);
@@ -733,7 +733,7 @@ const ZapisyPanel = ({ year }) => {
       toast.success(`Sync OK: ${r.data.months_processed} mc, ${fmtPLN(r.data.total_kp || 0)}`);
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad synchronizacji');
+      toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
     } finally { setSyncingPayroll(false); }
   };
 
@@ -785,7 +785,7 @@ const ZapisyPanel = ({ year }) => {
           {filterUnassigned && (
             <button onClick={() => setFilterUnassigned(false)}
               className="ml-3 px-2 py-0.5 text-xs bg-[#334155] text-[#CBD5E1] rounded hover:bg-[#475569]">
-              Pokaz wszystkie
+              Pokaż wszystkie
             </button>
           )}
         </CardTitle>
@@ -804,13 +804,13 @@ const ZapisyPanel = ({ year }) => {
             <button onClick={() => setFilterType('income')}
               className={`px-3 py-1 text-xs font-medium border-l border-[#334155] ${filterType === 'income' ? 'bg-[#5F7151] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
               data-testid="finance-filter-income">
-              Sprzedaz ({incomeCount})
+              Sprzedaż ({incomeCount})
             </button>
           </div>
           <Button onClick={syncCurrent} variant="outline"
             className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
             data-testid="finance-sync-current">
-            Sync biezacy miesiac
+            Sync bieżący miesiąc
           </Button>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
             className="bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-sm"
@@ -830,24 +830,24 @@ const ZapisyPanel = ({ year }) => {
           <AlertTriangle className="h-5 w-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-[#FCA5A5]">
-              Niezgodnosc kosztu wynagrodzen {month > 0 ? `${PL_MONTHS_SHORT[month-1]} ${year}` : `caly rok ${year}`}
+              Niezgodność kosztu wynagrodzeń {month > 0 ? `${PL_MONTHS_SHORT[month-1]} ${year}` : `caly rok ${year}`}
             </div>
             <div className="text-[#FCA5A5]/90 text-xs mt-1">
-              W zapisach: <strong>{fmtPLN(actualKpSum)}</strong> | W Wyplatach: <strong>{fmtPLN(expectedKp)}</strong> | Roznica: <strong>{fmtPLN(expectedKp - actualKpSum)}</strong>
+              W zapisach: <strong>{fmtPLN(actualKpSum)}</strong> | W Wyplatach: <strong>{fmtPLN(expectedKp)}</strong> | Różnica: <strong>{fmtPLN(expectedKp - actualKpSum)}</strong>
             </div>
             <div className="text-[#FCA5A5]/60 text-xs mt-1">
-              Mozliwa przyczyna: brak resyncu po zmianach w Wyplatach lub w godzinach. Kliknij ponizej aby wymusic resync.
+              Możliwa przyczyna: brak resyncu po zmianach w Wyplatach lub w godzinach. Kliknij ponizej aby wymusić resync.
             </div>
           </div>
           <Button onClick={month > 0 ? syncCurrent : syncAllMonths} disabled={syncingPayroll}
             className="bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs h-8"
             data-testid="finance-payroll-mismatch-resync">
-            {syncingPayroll ? 'Sync...' : (month > 0 ? 'Sync ten miesiac' : 'Sync wszystkie')}
+            {syncingPayroll ? 'Sync...' : (month > 0 ? 'Sync ten miesiąc' : 'Sync wszystkie')}
           </Button>
         </div>
       )}
       <CardContent className="p-0 overflow-x-auto">
-        {loading ? <div className="p-6 text-[#94A3B8]">Ladowanie...</div> :
+        {loading ? <div className="p-6 text-[#94A3B8]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak zapisow w tym okresie.</div> :
         <table className="w-full text-sm">
           <thead className="bg-[#1E293B] text-[#94A3B8]">
@@ -911,7 +911,7 @@ const ZapisyPanel = ({ year }) => {
                       </td>
                       <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmtPLN(r.netto)}</td>
                       <td className="p-2 text-right">
-                        <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun fakture + pozycje"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                        <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń fakture + pozycje"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
                       </td>
                     </tr>
                     {isOpen && (r.positions || []).map((p) => (
@@ -963,7 +963,7 @@ const ZapisyPanel = ({ year }) => {
                   <td className="p-2 text-right">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
-                      <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                      <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
                     </div>
                   </td>
                 </tr>
@@ -1023,7 +1023,7 @@ const ZapisyPanel = ({ year }) => {
               </select>
             </div>
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Netto (zl)</label>
+              <label className="text-sm text-[#94A3B8] block mb-1">Netto (zł)</label>
               <Input type="number" step="0.01" value={form.netto} onChange={(e) => setForm({...form, netto: e.target.value})}
                 placeholder="0.00" className="no-spinner bg-[#1E293B] border-[#334155] text-white"
                 data-testid="finance-zapis-netto" />
@@ -1071,7 +1071,7 @@ const RachunekWynikowPanel = ({ year }) => {
       fetchRW();
       fetchAllKody();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -1083,15 +1083,15 @@ const RachunekWynikowPanel = ({ year }) => {
       fetchRW();
       fetchAllKody();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Nie mozna usunac');
+      toast.error(e.response?.data?.detail || 'Nie można usunac');
     }
   };
 
   const fetchRW = () => {
     setLoading(true);
-    api.get(`/finance/rachunek-wynikow?year=${year}`)
+    api.get(`/finance/rachunek-wyników?year=${year}`)
       .then(r => setData(r.data))
-      .catch(() => toast.error('Blad pobierania rachunku'))
+      .catch(() => toast.error('Błąd pobierania rachunku'))
       .finally(() => setLoading(false));
   };
 
@@ -1113,7 +1113,7 @@ const RachunekWynikowPanel = ({ year }) => {
       setNewKod({ name: '', category: 'KBB', order: 100 });
       fetchRW();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -1123,7 +1123,7 @@ const RachunekWynikowPanel = ({ year }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
 
-  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ladowanie...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { summary, ratios, groups } = data;
@@ -1147,7 +1147,7 @@ const RachunekWynikowPanel = ({ year }) => {
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-        <CardTitle className="text-white">Rachunek wynikow {year}</CardTitle>
+        <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
         <Button onClick={() => setShowAddKod(true)}
           className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
@@ -1178,8 +1178,8 @@ const RachunekWynikowPanel = ({ year }) => {
             {renderRow('ILOSC GODZIN', summary.godziny.monthly, summary.godziny.total,
               { labelClass: 'text-[#94A3B8]' })}
 
-            {/* Wskazniki */}
-            <tr><td colSpan={14} className="p-1 bg-[#1E293B] text-[#94A3B8] text-xs uppercase border-y-2 border-[#475569]">Wskazniki / R-G</td></tr>
+            {/* Wskaźniki */}
+            <tr><td colSpan={14} className="p-1 bg-[#1E293B] text-[#94A3B8] text-xs uppercase border-y-2 border-[#475569]">Wskaźniki / R-G</td></tr>
             {renderRow('Koszt R-G (firma + pracownik)', ratios.koszt_rg_firma_pracownik, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Przychody / R-G', ratios.przychody_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Koszty / R-G', ratios.koszty_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
@@ -1228,7 +1228,7 @@ const RachunekWynikowPanel = ({ year }) => {
                           {isCustom && (
                             <button onClick={() => deleteKod(r.kod_id, r.name)}
                               className="text-[#DC2626] hover:text-white opacity-80 hover:opacity-100"
-                              title="Usun kod (tylko gdy nieuzywany)"
+                              title="Usuń kod (tylko gdy nieuzywany)"
                               data-testid={`rw-kod-del-btn-${r.kod_id}`}>
                               <Trash2 className="h-3 w-3" />
                             </button>
@@ -1265,14 +1265,14 @@ const RachunekWynikowPanel = ({ year }) => {
               <select value={newKod.category} onChange={(e) => setNewKod({...newKod, category: e.target.value})}
                 className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-2 text-sm"
                 data-testid="rw-add-kod-category">
-                <option value="KBB">KBB - Koszty budowy bezposrednie</option>
-                <option value="KSB">KSB - Koszty stale budowy</option>
-                <option value="KSP">KSP - Koszty stale przedsiebiorstwa</option>
+                <option value="KBB">KBB - Koszty budowy bezpośrednie</option>
+                <option value="KSB">KSB - Koszty stałe budowy</option>
+                <option value="KSP">KSP - Koszty stałe przedsiebiorstwa</option>
                 <option value="KP">KP - Koszty pracy</option>
               </select>
             </div>
             <div className="text-[10px] text-[#64748B]">
-              Po dodaniu kod bedzie dostepny w dropdownie "Kod kosztu" w Zapisach (faktury i recznych). Mozna usunac kod tylko jesli nie jest uzywany w zadnym zapisie.
+              Po dodaniu kod będzie dostępny w dropdownie "Kod kosztu" w Zapisach (faktury i recznych). Można usunac kod tylko jesli nie jest używany w zadnym zapisie.
             </div>
           </div>
           <DialogFooter>
@@ -1298,13 +1298,13 @@ const SprzedazPanel = ({ year }) => {
   useEffect(() => {
     setLoading(true);
     const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
-    api.get(`/finance/sprzedaz${qs}`)
+    api.get(`/finance/sprzedaż${qs}`)
       .then(r => setData(r.data))
-      .catch(() => toast.error('Blad pobierania sprzedazy'))
+      .catch(() => toast.error('Błąd pobierania sprzedaży'))
       .finally(() => setLoading(false));
   }, [year, month]);
 
-  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ladowanie...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { rows, totals } = data;
@@ -1313,7 +1313,7 @@ const SprzedazPanel = ({ year }) => {
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white">
-          Sprzedaz per budowa {year}{month > 0 ? ` - ${PL_MONTHS_SHORT[month-1]}` : ' (caly rok)'}
+          Sprzedaż per budowa {year}{month > 0 ? ` - ${PL_MONTHS_SHORT[month-1]}` : ' (caly rok)'}
         </CardTitle>
         <div className="flex items-center gap-2">
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
@@ -1325,7 +1325,7 @@ const SprzedazPanel = ({ year }) => {
           <Button variant="outline" onClick={() => setShowDetails(!showDetails)}
             className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
             data-testid="sprzedaz-toggle-details">
-            {showDetails ? <><ChevronDown className="h-4 w-4 mr-1" /> Ukryj szczegoly</> : <><ChevronRight className="h-4 w-4 mr-1" /> Rozwin szczegoly (kol. E-X)</>}
+            {showDetails ? <><ChevronDown className="h-4 w-4 mr-1" /> Ukryj szczegóły</> : <><ChevronRight className="h-4 w-4 mr-1" /> Rozwin szczegóły (kol. E-X)</>}
           </Button>
         </div>
       </CardHeader>
@@ -1336,30 +1336,30 @@ const SprzedazPanel = ({ year }) => {
               <th className="p-2 text-left">#</th>
               <th className="p-2 text-left">Budowa</th>
               {showDetails && <>
-                <InfoHeader label="Sprzedaz" info={SPRZEDAZ_COL_INFO['Sprzedaz']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Sprzedaż" info={SPRZEDAZ_COL_INFO['Sprzedaż']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KP" info={SPRZEDAZ_COL_INFO['KP']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KP-alok" info={SPRZEDAZ_COL_INFO['KP-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KBB" info={SPRZEDAZ_COL_INFO['KBB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KBB-alok" info={SPRZEDAZ_COL_INFO['KBB-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marza brutto" info={SPRZEDAZ_COL_INFO['Marza brutto']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza brutto %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marża brutto" info={SPRZEDAZ_COL_INFO['Marża brutto']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża brutto %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KSB" info={SPRZEDAZ_COL_INFO['KSB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KSP uklady" info={SPRZEDAZ_COL_INFO['KSP uklady']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marza I" info={SPRZEDAZ_COL_INFO['Marza I']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza I %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KSP układy" info={SPRZEDAZ_COL_INFO['KSP układy']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marża I" info={SPRZEDAZ_COL_INFO['Marża I']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża I %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="KSP alok" info={SPRZEDAZ_COL_INFO['KSP alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marza II" info={SPRZEDAZ_COL_INFO['Marza II']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza II %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marża II" info={SPRZEDAZ_COL_INFO['Marża II']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża II %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
                 <InfoHeader label="Podatek alok" info={SPRZEDAZ_COL_INFO['Podatek alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marza III" info={SPRZEDAZ_COL_INFO['Marza III']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza III %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marża III" info={SPRZEDAZ_COL_INFO['Marża III']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża III %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
               </>}
               {/* Y-AI visible */}
               <InfoHeader label="Przychod" info={SPRZEDAZ_COL_INFO['Przychod']} className="p-2 text-right text-[#5F7151] font-bold" />
               <InfoHeader label="Koszt" info={SPRZEDAZ_COL_INFO['Koszt']} className="p-2 text-right text-[#E8836A] font-bold" />
               <InfoHeader label="KGIR" info={SPRZEDAZ_COL_INFO['KGIR']} className="p-2 text-right" />
               <InfoHeader label="KDW" info={SPRZEDAZ_COL_INFO['KDW']} className="p-2 text-right" />
-              <InfoHeader label="Roznica" info={SPRZEDAZ_COL_INFO['Roznica']} className="p-2 text-right text-[#E8B76A] font-bold" />
+              <InfoHeader label="Różnica" info={SPRZEDAZ_COL_INFO['Różnica']} className="p-2 text-right text-[#E8B76A] font-bold" />
               <InfoHeader label="Zysk%" info={SPRZEDAZ_COL_INFO['Zysk%']} className="p-2 text-right" />
               <InfoHeader label="Godz." info={SPRZEDAZ_COL_INFO['Godz.']} className="p-2 text-right" />
               <InfoHeader label="Przych/Rg" info={SPRZEDAZ_COL_INFO['Przych/Rg']} className="p-2 text-right" />
@@ -1377,7 +1377,7 @@ const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-[#94A3B8]">{r.nr}</td>
                 <td className="p-2 text-white font-medium">{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#94A3B8]">(arch)</span>}</td>
                 {showDetails && <>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.sprzedaz)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.sprzedaż)}</td>
                   <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kp)}</td>
                   <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.kp_aloc)}</td>
                   <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kbb)}</td>
@@ -1399,7 +1399,7 @@ const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-right text-[#E8836A] font-semibold">{fmtNum(r.visible.koszt)}</td>
                 <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(r.visible.roznica)}</td>
+                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(r.visible.różnica)}</td>
                 <td className="p-2 text-right text-xs">{fmtPct(r.visible.zysk_pct)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.godziny)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.przychod_rg)}</td>
@@ -1413,7 +1413,7 @@ const SprzedazPanel = ({ year }) => {
               <tr className="border-t-2 border-[#5F7151] bg-[#1E293B]" data-testid="sprzedaz-totals-row">
                 <td className="p-2 text-white font-bold" colSpan={2}>SUMA</td>
                 {showDetails && totals.details && <>
-                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.sprzedaz)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.sprzedaż)}</td>
                   <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp)}</td>
                   <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp_aloc)}</td>
                   <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kbb)}</td>
@@ -1435,7 +1435,7 @@ const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-right text-[#E8836A] font-bold">{fmtNum(totals.visible.koszt)}</td>
                 <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(totals.visible.roznica)}</td>
+                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(totals.visible.różnica)}</td>
                 <td className="p-2 text-right">{fmtPct(totals.visible.zysk_pct)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.godziny)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.przychod_rg)}</td>

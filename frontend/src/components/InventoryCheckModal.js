@@ -6,7 +6,7 @@ import { ClipboardCheck, AlertTriangle, AlertCircle, Camera, X } from 'lucide-re
 import { toast } from 'sonner';
 
 const CATEGORY_LABELS = {
-  electronics: 'Elektronarzedzia',
+  electronics: 'Elektronarzędzia',
   accessories: 'Akcesoria',
   formwork: 'Szalunki',
 };
@@ -43,7 +43,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
     } catch (e) {
       const status = e?.response?.status;
       if (status && status !== 404) {
-        toast.error('Nie udalo sie pobrac inwentaryzacji');
+        toast.error('Nie udalo sie pobrać inwentaryzacji');
       }
     } finally {
       setLoading(false);
@@ -107,16 +107,16 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
     if (!shortageModal) return;
     const qty = parseInt(shortageQty, 10);
     if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Podaj prawidlowa ilosc');
+      toast.error('Podaj prawidlowa ilość');
       return;
     }
     const expected = shortageModal.equipment.assigned_quantity || 0;
     if (qty > expected) {
-      toast.error('Ilosc nie moze byc wieksza niz przypisana');
+      toast.error('Ilość nie moze być większa niz przypisana');
       return;
     }
     if (qty === expected) {
-      toast.error('Jesli masz pelna ilosc, zaznacz checkbox potwierdzenia');
+      toast.error('Jesli masz pełna ilość, zaznacz checkbox potwierdzenia');
       return;
     }
     setShortageSubmitting(true);
@@ -136,7 +136,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
       });
       closeShortage();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad zgloszenia');
+      toast.error(e.response?.data?.detail || 'Błąd zgloszenia');
     } finally {
       setShortageSubmitting(false);
     }
@@ -144,7 +144,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
 
   const handleConfirm = async (check) => {
     if (!allMarked(check)) {
-      toast.error('Zaznacz wszystkie pozycje (potwierdz lub zglos brak).');
+      toast.error('Zaznacz wszystkie pozycje (potwierdź lub zglos brak).');
       return;
     }
     setSubmitting(true);
@@ -160,7 +160,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
         onAllConfirmed?.();
       }
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad potwierdzenia');
+      toast.error(e.response?.data?.detail || 'Błąd potwierdzenia');
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +187,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 Wymagana inwentaryzacja: {CATEGORY_LABELS[check.category] || check.category}
               </h2>
               <p className="text-sm text-[#94A3B8] mt-1">
-                Zaznacz checkbox jesli posiadasz dany sprzet, lub kliknij <b className="text-[#E8B76A]">Brak / Mam mniej</b> aby zglosic niezgodnosc.
+                Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#E8B76A]">Brak / Mam mniej</b> aby zglosic niezgodność.
               </p>
               {checks.length > 1 && (
                 <p className="text-xs text-[#E8B76A] mt-1">
@@ -201,7 +201,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
             {items.length === 0 ? (
               <div className="text-center py-6">
                 <p className="text-[#94A3B8] mb-4">
-                  Nie masz przypisanego sprzetu w tej kategorii.
+                  Nie masz przypisanego sprzętu w tej kategorii.
                 </p>
                 <Button
                   onClick={() => handleConfirm(check)}
@@ -209,7 +209,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                   data-testid="inventory-confirm-empty-btn"
                 >
-                  Potwierdz brak sprzetu
+                  Potwierdź brak sprzętu
                 </Button>
               </div>
             ) : (
@@ -256,7 +256,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                         )}
                         {rep && (
                           <div className="text-xs text-[#E8B76A] mt-0.5">
-                            ✓ Zgloszono niezgodnosc - czeka na admina
+                            ✓ Zgloszono niezgodność - czeka na admina
                           </div>
                         )}
                       </div>
@@ -310,7 +310,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
             <div className="px-5 py-4 border-b border-[#334155] flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-[#E8B76A]" />
-                Zglos niezgodnosc
+                Zglos niezgodność
               </h3>
               <button
                 onClick={closeShortage}
@@ -322,18 +322,18 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <div className="text-sm text-[#94A3B8]">Sprzet</div>
+                <div className="text-sm text-[#94A3B8]">Sprzęt</div>
                 <div className="text-[#CBD5E1] font-semibold">{shortageModal.equipment.name}</div>
                 {shortageModal.equipment.brand && (
                   <div className="text-xs text-[#94A3B8]">{shortageModal.equipment.brand}</div>
                 )}
                 <div className="text-xs text-[#94A3B8] mt-1">
-                  Przypisana ilosc: <b className="text-white">{shortageModal.equipment.assigned_quantity}</b> szt.
+                  Przypisana ilość: <b className="text-white">{shortageModal.equipment.assigned_quantity}</b> szt.
                 </div>
               </div>
               <div>
                 <label className="text-sm text-[#CBD5E1] block mb-1">
-                  Aktualnie posiadana ilosc
+                  Aktualnie posiadana ilość
                 </label>
                 <Input
                   type="number"

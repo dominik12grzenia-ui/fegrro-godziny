@@ -53,7 +53,7 @@ export const PublicHours = () => {
         setPenalties(penaltiesRes.data);
         setAbsences(absencesRes.data);
       } catch (err) {
-        setError('Nieprawidlowy link lub blad serwera');
+        setError('Nieprawidlowy link lub błąd serwera');
       } finally {
         setLoading(false);
       }
@@ -125,7 +125,7 @@ export const PublicHours = () => {
 
   const handleSubmitAbsence = async () => {
     if (selectedAbsenceDates.size === 0) {
-      toast.error('Zaznacz dni nieobecnosci');
+      toast.error('Zaznacz dni nieobecności');
       return;
     }
     setAbsenceSaving(true);
@@ -140,7 +140,7 @@ export const PublicHours = () => {
       const res = await axios.get(`${API}/public/absences/${token}`);
       setAbsences(res.data);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad przy zglaszaniu nieobecnosci');
+      toast.error(err.response?.data?.detail || 'Błąd przy zglaszaniu nieobecności');
     } finally {
       setAbsenceSaving(false);
     }
@@ -152,7 +152,7 @@ export const PublicHours = () => {
       toast.success('Nieobecnosc anulowana');
       setAbsences(prev => prev.filter(a => a.id !== absenceId));
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Nie mozna anulowac');
+      toast.error(err.response?.data?.detail || 'Nie można anulowac');
     }
   };
 
@@ -173,7 +173,7 @@ export const PublicHours = () => {
       <div className="min-h-screen bg-[#1E293B] flex items-center justify-center p-6">
         <Card className="bg-[#2A384C] border-[#334155] max-w-sm w-full">
           <CardContent className="pt-6 text-center">
-            <p className="text-red-400 text-lg">{error || 'Blad'}</p>
+            <p className="text-red-400 text-lg">{error || 'Błąd'}</p>
           </CardContent>
         </Card>
       </div>
@@ -270,7 +270,7 @@ export const PublicHours = () => {
         {/* Day list */}
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[#CBD5E1] text-base">Szczegoly</CardTitle>
+            <CardTitle className="text-[#CBD5E1] text-base">Szczegóły</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-[#334155]">
@@ -380,7 +380,7 @@ export const PublicHours = () => {
               {advances.advances.map((adv, idx) => (
                 <div key={idx} className="flex items-center justify-between p-2 bg-[#1E293B] rounded border border-[#334155]">
                   <div>
-                    <span className="text-[#E8836A] font-bold">{adv.amount} zl</span>
+                    <span className="text-[#E8836A] font-bold">{adv.amount} zł</span>
                     {adv.note && <span className="text-[#94A3B8] text-xs ml-2">{adv.note}</span>}
                   </div>
                   <span className="text-[#64748B] text-[10px]">
@@ -390,7 +390,7 @@ export const PublicHours = () => {
               ))}
               <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#E8836A]/30">
                 <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
-                <span className="text-[#E8836A] font-bold text-lg" data-testid="public-advance-total">{advances.total} zl</span>
+                <span className="text-[#E8836A] font-bold text-lg" data-testid="public-advance-total">{advances.total} zł</span>
               </div>
             </CardContent>
           </Card>
@@ -410,7 +410,7 @@ export const PublicHours = () => {
                 <div key={pen.id || `pen-${idx}`} className="p-2 bg-[#1E293B] rounded border border-[#334155]">
                   <div className="flex items-center justify-between mb-1">
                     <div>
-                      <span className="text-[#DC2626] font-bold">{pen.amount} zl</span>
+                      <span className="text-[#DC2626] font-bold">{pen.amount} zł</span>
                       {pen.description && <span className="text-[#94A3B8] text-xs ml-2">{pen.description}</span>}
                     </div>
                     <span className="text-[#64748B] text-[10px]">
@@ -429,7 +429,7 @@ export const PublicHours = () => {
               ))}
               <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#DC2626]/30">
                 <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
-                <span className="text-[#DC2626] font-bold text-lg" data-testid="public-penalty-total">{penalties.total} zl</span>
+                <span className="text-[#DC2626] font-bold text-lg" data-testid="public-penalty-total">{penalties.total} zł</span>
               </div>
             </CardContent>
           </Card>
@@ -451,7 +451,7 @@ export const PublicHours = () => {
                 data-testid="absence-start-btn"
               >
                 <CalendarOff className="h-4 w-4" />
-                <span>Nie bede w pracy / Не буду на роботi</span>
+                <span>Nie będę w pracy / Не буду на роботi</span>
               </Button>
             ) : (
               <div className="space-y-3">
@@ -543,7 +543,7 @@ export const PublicHours = () => {
               <div className="flex-1 min-w-[200px]">
                 <h3 className="text-[#CBD5E1] font-semibold text-sm mb-1">Powiadomienia o zamowieniach</h3>
                 <p className="text-xs text-[#94A3B8]">
-                  Wlacz aby dostac powiadomienie na telefon gdy Twoja odziez zostanie wydana lub przekazana do dostawcy.
+                  Włącz aby dostac powiadomienie na telefon gdy Twoja odzież zostanie wydana lub przekazana do dostawcy.
                 </p>
               </div>
               <PublicPushButton token={token} />

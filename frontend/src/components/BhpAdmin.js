@@ -49,7 +49,7 @@ export const BhpAdmin = () => {
       setIssuances(isRes.data);
       setEmployees(eRes.data);
     } catch (_e) {
-      toast.error('Blad pobierania danych BHP');
+      toast.error('Błąd pobierania danych BHP');
     } finally {
       setLoading(false);
     }
@@ -91,18 +91,18 @@ export const BhpAdmin = () => {
       setShowAddItem(false);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const deleteItem = async (it) => {
-    if (!window.confirm(`Usunac "${it.name}"? Wszystkie wydania tej pozycji beda tez usuniete.`)) return;
+    if (!window.confirm(`Usunac "${it.name}"? Wszystkie wydania tej pozycji będą tez usuniete.`)) return;
     try {
       await api.delete(`/bhp/items/${it.id}`);
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -116,7 +116,7 @@ export const BhpAdmin = () => {
     if (!issueForm.employee_id) { toast.error('Wybierz pracownika'); return; }
     if (!issueForm.bhp_item_id) { toast.error('Wybierz rzecz BHP'); return; }
     const q = parseInt(issueForm.quantity || '1', 10);
-    if (!q || q < 1) { toast.error('Podaj ilosc'); return; }
+    if (!q || q < 1) { toast.error('Podaj ilość'); return; }
     try {
       await api.post('/bhp/issuances', {
         employee_id: issueForm.employee_id,
@@ -129,7 +129,7 @@ export const BhpAdmin = () => {
       setShowIssue(false);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -140,7 +140,7 @@ export const BhpAdmin = () => {
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -158,7 +158,7 @@ export const BhpAdmin = () => {
     );
   }, [issuances]);
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
 
   const activeItems = items.filter((i) => i.is_active !== false);
 

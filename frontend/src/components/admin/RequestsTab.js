@@ -105,7 +105,7 @@ export const RequestsTab = ({
                             await api.post(`/notifications/${notif.id}/approve`);
                             toast.success('Zatwierdzono');
                             fetchData();
-                          } catch { toast.error('Blad'); }
+                          } catch { toast.error('Błąd'); }
                         }}
                         size="sm"
                         className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
@@ -119,7 +119,7 @@ export const RequestsTab = ({
                             await api.post(`/notifications/${notif.id}/reject`);
                             toast.success('Odrzucono');
                             fetchData();
-                          } catch { toast.error('Blad'); }
+                          } catch { toast.error('Błąd'); }
                         }}
                         size="sm"
                         variant="outline"
@@ -142,7 +142,7 @@ export const RequestsTab = ({
           <CardContent className="pt-4">
             <h3 className="text-[#CBD5E1] font-bold mb-4 flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-[#E8836A]" />
-              Nieobecnosci — do akceptacji ({absenceRequests.length})
+              Nieobecności — do akceptacji ({absenceRequests.length})
             </h3>
             <div className="space-y-3">
               {absenceRequests.map((absence) => (
@@ -158,7 +158,7 @@ export const RequestsTab = ({
                               await api.put(`/absences/${absence.id}/review`, { status: 'approved' });
                               toast.success('Nieobecnosc zatwierdzona');
                               setAbsenceRequests((prev) => prev.filter((a) => a.id !== absence.id));
-                            } catch { toast.error('Blad'); }
+                            } catch { toast.error('Błąd'); }
                           }}
                           className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
                           data-testid={`approve-absence-${absence.id}`}
@@ -173,7 +173,7 @@ export const RequestsTab = ({
                               await api.put(`/absences/${absence.id}/review`, { status: 'rejected' });
                               toast.success('Nieobecnosc odrzucona');
                               setAbsenceRequests((prev) => prev.filter((a) => a.id !== absence.id));
-                            } catch { toast.error('Blad'); }
+                            } catch { toast.error('Błąd'); }
                           }}
                           className="border-red-600 text-red-600 hover:bg-red-900"
                           data-testid={`reject-absence-${absence.id}`}

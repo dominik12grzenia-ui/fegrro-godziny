@@ -71,7 +71,7 @@ export const WarehouseAdmin = () => {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({ name: '', unit: 'szt.', current_stock: '0', note: '', photo: null });
 
-  const [stockAdjust, setStockAdjust] = useState(null); // material object
+  const [stockAdjust, setStockAdjust] = useState(null); // materiał object
   const [adjustVal, setAdjustVal] = useState('');
   const [adjustReason, setAdjustReason] = useState('przyjęcie');
 
@@ -89,7 +89,7 @@ export const WarehouseAdmin = () => {
       setOrders(o.data);
       setForemen(f.data || []);
     } catch (_e) {
-      toast.error('Blad pobierania');
+      toast.error('Błąd pobierania');
     } finally {
       setLoading(false);
     }
@@ -152,7 +152,7 @@ export const WarehouseAdmin = () => {
       setShowItem(false);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -163,7 +163,7 @@ export const WarehouseAdmin = () => {
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -180,19 +180,19 @@ export const WarehouseAdmin = () => {
       setAdjustVal('');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const issueItem = async (orderId, item, qty) => {
     const q = parseFloat(qty);
-    if (isNaN(q) || q <= 0) { toast.error('Podaj ilosc > 0'); return; }
+    if (isNaN(q) || q <= 0) { toast.error('Podaj ilość > 0'); return; }
     try {
       await api.post(`/warehouse/orders/${orderId}/items/${item.material_id}/issue`, { quantity: q });
       toast.success(`Wydano ${item.material_name}`);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -203,18 +203,18 @@ export const WarehouseAdmin = () => {
       toast.success('Usunieto pozycje');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
   const issueOrder = async (order) => {
-    if (!window.confirm(`Oznaczyc zamowienie jako WYDANE?\nStan magazynu zostanie pomniejszony o zamowione ilosci.`)) return;
+    if (!window.confirm(`Oznaczyc zamowienie jako WYDANE?\nStan magazynu zostanie pomniejszony o zamowione ilości.`)) return;
     try {
       await api.put(`/warehouse/orders/${order.id}/status`, { status: 'issued' });
       toast.success('Wydano - stan zaktualizowany');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -225,7 +225,7 @@ export const WarehouseAdmin = () => {
       toast.success('Odrzucono');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -236,7 +236,7 @@ export const WarehouseAdmin = () => {
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -270,7 +270,7 @@ export const WarehouseAdmin = () => {
     [orders, historyForeman],
   );
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
 
   return (
     <div className="space-y-4">
@@ -318,7 +318,7 @@ export const WarehouseAdmin = () => {
               <Button size="sm" onClick={openCreate}
                 className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
                 data-testid="warehouse-add-material-btn">
-                <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj material
+                <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj materiał
               </Button>
             </div>
           </CardHeader>
@@ -507,7 +507,7 @@ export const WarehouseAdmin = () => {
         </Card>
       )}
 
-      {/* Material modal */}
+      {/* Materiał modal */}
       {showItem && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setShowItem(false)}>
@@ -515,7 +515,7 @@ export const WarehouseAdmin = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="text-[#CBD5E1]">
-                  {editing ? 'Edytuj material' : 'Nowy material'}
+                  {editing ? 'Edytuj materiał' : 'Nowy materiał'}
                 </CardTitle>
                 <Button size="sm" variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">
                   <X className="h-4 w-4" />

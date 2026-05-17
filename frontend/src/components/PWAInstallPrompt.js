@@ -63,7 +63,7 @@ export const PWAInstallPrompt = () => {
               <img src="/icon-192x192.png" alt="FeGrro" className="w-12 h-12 rounded-xl" />
               <div>
                 <h3 className="text-[#CBD5E1] font-bold text-sm">Zainstaluj FeGrro Godziny</h3>
-                <p className="text-[#94A3B8] text-xs">Dodaj na pulpit dla szybkiego dostepu</p>
+                <p className="text-[#94A3B8] text-xs">Dodaj na pulpit dla szybkiego dostępu</p>
               </div>
             </div>
             <button onClick={handleDismiss} className="text-[#64748B] hover:text-[#CBD5E1]">
@@ -92,7 +92,7 @@ export const PWAInstallPrompt = () => {
             <div className="flex items-center gap-3">
               <img src="/icon-192x192.png" alt="FeGrro" className="w-12 h-12 rounded-xl" />
               <div>
-                <h3 className="text-[#CBD5E1] font-bold text-sm">Dodaj na ekran glowny</h3>
+                <h3 className="text-[#CBD5E1] font-bold text-sm">Dodaj na ekran główny</h3>
               </div>
             </div>
             <button onClick={handleDismiss} className="text-[#64748B] hover:text-[#CBD5E1]">

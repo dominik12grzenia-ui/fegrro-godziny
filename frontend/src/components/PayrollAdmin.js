@@ -8,7 +8,7 @@ import { ChevronDown, ChevronRight, ChevronLeft, FileText, Download, Search, Use
 import { toast } from 'sonner';
 import { SkeletonTable } from './ui/skeletons';
 
-const PL_MONTHS = ['styczen','luty','marzec','kwiecien','maj','czerwiec','lipiec','sierpien','wrzesien','pazdziernik','listopad','grudzien'];
+const PL_MONTHS = ['styczeń','luty','marzec','kwiecień','maj','czerwiec','lipiec','sierpień','wrzesień','październik','listopad','grudzień'];
 
 const today = new Date();
 
@@ -42,7 +42,7 @@ export const PayrollAdmin = () => {
       const res = await api.get(`/payroll?year=${year}&month=${month}`);
       setData(res.data);
     } catch (e) {
-      toast.error('Blad pobierania wyplat');
+      toast.error('Błąd pobierania wypłat');
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ export const PayrollAdmin = () => {
     const name = (newName || nameInputRef.current?.value || '').trim();
     const phone = (newPhone || phoneInputRef.current?.value || '').trim();
     if (!name || name.split(/\s+/).length < 2) {
-      toast.error('Podaj imie i nazwisko');
+      toast.error('Podaj imię i nazwisko');
       return;
     }
     try {
@@ -89,7 +89,7 @@ export const PayrollAdmin = () => {
       setShowAdd(false); setNewName(''); setNewPhone('');
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad dodawania');
+      toast.error(e.response?.data?.detail || 'Błąd dodawania');
     }
   };
 
@@ -100,7 +100,7 @@ export const PayrollAdmin = () => {
       toast.success(`Zarchiwizowano: ${row.full_name}`);
       fetchData(); fetchArchived();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad archiwizacji');
+      toast.error(e.response?.data?.detail || 'Błąd archiwizacji');
     }
   };
 
@@ -110,14 +110,14 @@ export const PayrollAdmin = () => {
       toast.success(`Przywrocono: ${emp.full_name}`);
       fetchData(); fetchArchived();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
   const handleHardDelete = async (emp) => {
     if (!window.confirm(
       `TRWALE usunac ${emp.full_name}?\n\n` +
-      'Usunie wszystkie dane: godziny, zaliczki, kary, nieobecnosci, BHP, odziez, wyplaty.\n\n' +
+      'Usunie wszystkie dane: godziny, zaliczki, kary, nieobecności, BHP, odzież, wypłaty.\n\n' +
       'Operacja NIEODWRACALNA.'
     )) return;
     try {
@@ -125,7 +125,7 @@ export const PayrollAdmin = () => {
       toast.success(`Usunieto trwale: ${emp.full_name}`);
       fetchData(); fetchArchived();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad usuwania');
+      toast.error(e.response?.data?.detail || 'Błąd usuwania');
     }
   };
 
@@ -135,21 +135,21 @@ export const PayrollAdmin = () => {
   const handleLockToggle = async () => {
     try {
       if (isLocked) {
-        if (!window.confirm(`Odblokowac wyplate za ${PL_MONTHS[month - 1]} ${year}? Pola znow beda edytowalne.`)) return;
+        if (!window.confirm(`Odblokować wypłatę za ${PL_MONTHS[month - 1]} ${year}? Pola znów będą edytowalne.`)) return;
         await api.post(`/payroll/unlock?year=${year}&month=${month}`);
-        toast.success('Odblokowano - mozna edytowac');
+        toast.success('Odblokowano - można edytować');
       } else {
         if (!window.confirm(
-          `Zamknac wyplate za ${PL_MONTHS[month - 1]} ${year}?\n\n` +
-          'Po zamknieciu pola beda tylko do odczytu - nikt nie zmodyfikuje danych. ' +
-          'Mozesz w kazdej chwili odblokowac.'
+          `Zamknąć wypłatę za ${PL_MONTHS[month - 1]} ${year}?\n\n` +
+          'Po zamknieciu pola będą tylko do odczytu - nikt nie zmodyfikuje danych. ' +
+          'Mozesz w kazdej chwili odblokować.'
         )) return;
         await api.post(`/payroll/lock?year=${year}&month=${month}`);
         toast.success('Zamknieto - pola tylko do odczytu');
       }
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -160,7 +160,7 @@ export const PayrollAdmin = () => {
       const res = await api.get(`/payroll/${row.employee_id}/audit?year=${year}&month=${month}`);
       setAuditEntries(res.data.entries || []);
     } catch {
-      toast.error('Blad pobierania historii');
+      toast.error('Błąd pobierania historii');
     }
   };
 
@@ -178,12 +178,12 @@ export const PayrollAdmin = () => {
       });
       const mismatch_count = (res.data.mismatches || []).length;
       if (mismatch_count === 0) {
-        toast.success('Brak rozbieznosci - godziny zgodne miedzy zakladkami');
+        toast.success('Brak rozbieżności - godziny zgodne miedzy zakladkami');
       } else {
-        toast.error(`Znaleziono ${mismatch_count} rozbieznosci - sprawdz szczegoly`);
+        toast.error(`Znaleziono ${mismatch_count} rozbieżności - sprawdź szczegóły`);
       }
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad diagnostyki');
+      toast.error(e.response?.data?.detail || 'Błąd diagnostyki');
     } finally {
       setDiagLoading(false);
     }
@@ -191,7 +191,7 @@ export const PayrollAdmin = () => {
 
   const fixDuplicates = async () => {
     if (!window.confirm(
-      'Naprawic duplikaty godzin w tym miesiacu?\n\n' +
+      'Naprawic duplikaty godzin w tym miesiącu?\n\n' +
       'Dla kazdego pracownika i daty zostanie zachowany TYLKO najnowszy wpis ' +
       '(po polu updated_at). Stare zostana usuniete. Operacja nieodwracalna.'
     )) return;
@@ -204,7 +204,7 @@ export const PayrollAdmin = () => {
       await fetchData();
       await checkDiagnosticsSilent();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad naprawy');
+      toast.error(e.response?.data?.detail || 'Błąd naprawy');
     } finally {
       setDiagLoading(false);
     }
@@ -212,8 +212,8 @@ export const PayrollAdmin = () => {
 
   const deleteOrphans = async () => {
     if (!window.confirm(
-      'Usunac wpisy godzin dla osieroconych pracownikow w tym miesiacu?\n\n' +
-      'To wpisy, ktorych wlasciciel nie istnieje juz w bazie (np. po trwalym usunieciu pracownika). ' +
+      'Usunac wpisy godzin dla osieroconych pracownikow w tym miesiącu?\n\n' +
+      'To wpisy, ktorych właściciel nie istnieje juz w bazie (np. po trwalym usunieciu pracownika). ' +
       'Operacja nieodwracalna.'
     )) return;
     setDiagLoading(true);
@@ -224,16 +224,16 @@ export const PayrollAdmin = () => {
       await fetchData();
       await checkDiagnosticsSilent();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad usuwania');
+      toast.error(e.response?.data?.detail || 'Błąd usuwania');
     } finally {
       setDiagLoading(false);
     }
   };
 
   const fieldLabels = {
-    rate: 'Stawka zl/h',
-    is_fixed_salary: 'Stala pensja',
-    fixed_salary_amount: 'Kwota stalej pensji',
+    rate: 'Stawka zł/h',
+    is_fixed_salary: 'Stała pensja',
+    fixed_salary_amount: 'Kwota stałej pensji',
     other_minus_zl: 'Inne -',
     bonus_zl: 'Dodatki',
     driver_zl: 'Kierowca',
@@ -328,7 +328,7 @@ export const PayrollAdmin = () => {
         return { ...d, rows };
       });
     } catch (e) {
-      toast.error('Blad zapisu');
+      toast.error('Błąd zapisu');
     } finally {
       setSavingId(null);
     }
@@ -366,7 +366,7 @@ export const PayrollAdmin = () => {
       URL.revokeObjectURL(url);
       toast.success('PDF wygenerowany');
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad generowania PDF');
+      toast.error(e.response?.data?.detail || 'Błąd generowania PDF');
     } finally {
       setDownloading(false);
     }
@@ -388,7 +388,7 @@ export const PayrollAdmin = () => {
       URL.revokeObjectURL(url);
       toast.success('Raport wygenerowany');
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad generowania raportu');
+      toast.error(e.response?.data?.detail || 'Błąd generowania raportu');
     } finally {
       setDownloading(false);
     }
@@ -400,7 +400,7 @@ export const PayrollAdmin = () => {
       <Card className="bg-[#2A384C] border-[#334155]">
         <CardHeader className="pb-3">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <FileText className="h-5 w-5 text-[#5F7151]" /> Wyplaty - {PL_MONTHS[month - 1]} {year}
+            <FileText className="h-5 w-5 text-[#5F7151]" /> Wypłaty - {PL_MONTHS[month - 1]} {year}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -427,7 +427,7 @@ export const PayrollAdmin = () => {
                   : "bg-[#334155] hover:bg-[#475569] text-[#CBD5E1]"}
                 data-testid="payroll-lock-toggle"
               >
-                {isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiac</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiac</>}
+                {isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiąc</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiąc</>}
               </Button>
               <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-employee">
                 <UserPlus className="h-4 w-4 mr-1" /> Dodaj pracownika
@@ -464,7 +464,7 @@ export const PayrollAdmin = () => {
                 data-testid="payroll-tile-hours"
                 title={
                   diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0)
-                    ? `Wykryto ${diagAuto.mismatch_count} rozbieznosci${diagAuto.duplicate_count > 0 ? `, w tym ${diagAuto.duplicate_count} z duplikatami` : ''}${diagAuto.type_issues > 0 ? `, ${diagAuto.type_issues} bledow typu` : ''}. Kliknij aby zobaczyc szczegoly.`
+                    ? `Wykryto ${diagAuto.mismatch_count} rozbieżności${diagAuto.duplicate_count > 0 ? `, w tym ${diagAuto.duplicate_count} z duplikatami` : ''}${diagAuto.type_issues > 0 ? `, ${diagAuto.type_issues} bledow typu` : ''}. Kliknij aby zobaczyc szczegóły.`
                     : ''
                 }
               >
@@ -482,7 +482,7 @@ export const PayrollAdmin = () => {
               </button>
               <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
                 <div className="text-[#94A3B8]">Suma kwot z godzin</div>
-                <div className="text-white font-bold text-lg">{fmt(data.totals.total_hours_amount)} zl</div>
+                <div className="text-white font-bold text-lg">{fmt(data.totals.total_hours_amount)} zł</div>
               </div>
               <div className="bg-[#1E293B] rounded p-2 border border-[#E8836A]">
                 <div className="text-[#94A3B8]">Kwota godz. - kary + dodatki + kierowca</div>
@@ -491,12 +491,12 @@ export const PayrollAdmin = () => {
                     + (r.computed.hours_amount || 0)
                     - (r.computed.penalties_zl || 0)
                     + (r.record.bonus_zl || 0)
-                    + (r.record.driver_zl || 0), 0))} zl
+                    + (r.record.driver_zl || 0), 0))} zł
                 </div>
               </div>
               <div className="bg-[#1E293B] rounded p-2 border border-[#5F7151]">
-                <div className="text-[#94A3B8]">Suma wyplat (po zaliczkach)</div>
-                <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zl</div>
+                <div className="text-[#94A3B8]">Suma wypłat (po zaliczkach)</div>
+                <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zł</div>
               </div>
             </div>
           )}
@@ -504,11 +504,11 @@ export const PayrollAdmin = () => {
             <div className="bg-[#E8B76A]/15 border border-[#E8B76A] rounded p-3 text-[#FCD34D] text-sm flex items-center gap-2" data-testid="payroll-locked-banner">
               <Lock className="h-4 w-4 shrink-0" />
               <span>
-                <strong>Miesiac zamkniety</strong>
+                <strong>Miesiąc zamkniety</strong>
                 {lockInfo && (
                   <> &middot; {lockInfo.locked_at?.slice(0, 10)} przez {lockInfo.locked_by_name}</>
                 )}
-                {' '}- pola sa tylko do odczytu. Kliknij <em>"Odblokuj miesiac"</em> aby edytowac.
+                {' '}- pola sa tylko do odczytu. Kliknij <em>"Odblokuj miesiąc"</em> aby edytować.
               </span>
             </div>
           )}
@@ -525,7 +525,7 @@ export const PayrollAdmin = () => {
               data-testid="payroll-toggle-budowa-breakdown"
             >
               {showBudowaBreakdown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <span className="font-semibold">Podzial kosztu wynagrodzen na budowy</span>
+              <span className="font-semibold">Podział kosztu wynagrodzeń na budowy</span>
               <span className="text-xs text-[#94A3B8] font-normal">(pro-rata wg godzin pracownika; zaliczki nie wchodza)</span>
             </button>
           </CardHeader>
@@ -587,7 +587,7 @@ export const PayrollAdmin = () => {
                       <tr>
                         <th className="p-2 text-left">Budowa</th>
                         <th className="p-2 text-right">Godziny</th>
-                        <th className="p-2 text-right text-[#E8836A]">Koszt wynagrodzen</th>
+                        <th className="p-2 text-right text-[#E8836A]">Koszt wynagrodzeń</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -599,20 +599,20 @@ export const PayrollAdmin = () => {
                             {b.id === null ? <span className="text-[#E8B76A]">{b.name}</span> : b.name}
                           </td>
                           <td className="p-2 text-right text-white">{fmt(b.hours)}</td>
-                          <td className="p-2 text-right text-[#E8836A] font-semibold">{fmt(b.koszt)} zl</td>
+                          <td className="p-2 text-right text-[#E8836A] font-semibold">{fmt(b.koszt)} zł</td>
                         </tr>
                       ))}
                       <tr className="border-t-2 border-[#E8836A] bg-[#1E293B] font-bold">
                         <td className="p-2 text-white">SUMA</td>
                         <td className="p-2 text-right text-white">{fmt(sumH)}</td>
-                        <td className="p-2 text-right text-[#E8836A]">{fmt(sumK)} zl</td>
+                        <td className="p-2 text-right text-[#E8836A]">{fmt(sumK)} zł</td>
                       </tr>
                     </tbody>
                   </table>
                 );
               })()}
               <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#334155]">
-                Koszt wynagrodzen = kwota godzin + dodatki + kierowca + inne+ - inne- - kary. Zaliczki <strong>NIE</strong> sa kosztem (to wczesniejsza wyplata, kwota juz w "kwocie godzin").
+                Koszt wynagrodzeń = kwota godzin + dodatki + kierowca + inne+ - inne- - kary. Zaliczki <strong>NIE</strong> sa kosztem (to wczesniejsza wypłata, kwota juz w "kwocie godzin").
               </div>
             </CardContent>
           )}
@@ -640,8 +640,8 @@ export const PayrollAdmin = () => {
                     </th>
                     <th className="p-2 text-left">Pracownik</th>
                     <th className="p-2 text-right">Godziny</th>
-                    <th className="p-2 text-center">Stala</th>
-                    <th className="p-2 text-right">Stawka zl/h</th>
+                    <th className="p-2 text-center">Stała</th>
+                    <th className="p-2 text-right">Stawka zł/h</th>
                     <th className="p-2 text-right">Kwota godzin</th>
                     <th className="p-2 text-right">Zaliczki</th>
                     <th className="p-2 text-right">Kary</th>
@@ -649,7 +649,7 @@ export const PayrollAdmin = () => {
                     <th className="p-2 text-right">Kierowca +</th>
                     <th className="p-2 text-right">Inne -</th>
                     <th className="p-2 text-right">Inne +</th>
-                    <th className="p-2 text-right">Wyplata</th>
+                    <th className="p-2 text-right">Wypłata</th>
                     <th className="p-2 text-center">Akcje</th>
                   </tr>
                 </thead>
@@ -675,7 +675,7 @@ export const PayrollAdmin = () => {
                             onChange={() => handleToggleFixed(r)}
                             disabled={isLocked}
                             data-testid={`payroll-fixed-${r.employee_id}`}
-                            title="Stala pensja - wpisz kwote w 'Kwota godzin', stawka liczy sie automatycznie"
+                            title="Stała pensja - wpisz kwote w 'Kwota godzin', stawka liczy sie automatycznie"
                             className={`h-4 w-4 accent-[#5F7151] cursor-pointer ${isLocked ? 'opacity-50' : ''}`}
                           />
                         </td>
@@ -699,7 +699,7 @@ export const PayrollAdmin = () => {
                         <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zl</td>
+                        <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zł</td>
                         <td className="p-2 text-center">
                           <div className="flex items-center gap-1 justify-center">
                             {savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}
@@ -715,7 +715,7 @@ export const PayrollAdmin = () => {
                               onClick={() => handleArchive(r)}
                               disabled={isLocked}
                               className={`p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#E8B76A] ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
-                              title={isLocked ? 'Najpierw odblokuj miesiac' : 'Zarchiwizuj'}
+                              title={isLocked ? 'Najpierw odblokuj miesiąc' : 'Zarchiwizuj'}
                               data-testid={`payroll-archive-${r.employee_id}`}
                             >
                               <Archive className="h-4 w-4" />
@@ -728,7 +728,7 @@ export const PayrollAdmin = () => {
                           <td colSpan={14} className="p-3">
                             <div className="text-xs text-[#94A3B8] mb-2">Rozpiska godzin per budowa:</div>
                             {r.sites_breakdown.length === 0 ? (
-                              <div className="text-[#64748B] text-sm">Brak godzin w tym miesiacu</div>
+                              <div className="text-[#64748B] text-sm">Brak godzin w tym miesiącu</div>
                             ) : (
                               <div className="flex flex-wrap gap-2">
                                 {r.sites_breakdown.map((s) => (
@@ -794,7 +794,7 @@ export const PayrollAdmin = () => {
                         className="bg-[#9b3a2a] hover:bg-[#7a2d20] text-white"
                         data-testid={`payroll-delete-${emp.id}`}
                       >
-                        <Trash2 className="h-4 w-4 mr-1" /> Usun trwale
+                        <Trash2 className="h-4 w-4 mr-1" /> Usuń trwale
                       </Button>
                     </div>
                   </div>
@@ -813,7 +813,7 @@ export const PayrollAdmin = () => {
           </DialogHeader>
           <div className="max-h-[60vh] overflow-y-auto">
             {auditEntries.length === 0 ? (
-              <div className="text-[#64748B] text-sm py-4 text-center">Brak zmian w tym miesiacu.</div>
+              <div className="text-[#64748B] text-sm py-4 text-center">Brak zmian w tym miesiącu.</div>
             ) : (
               <table className="w-full text-sm">
                 <thead className="bg-[#1E293B] sticky top-0">
@@ -882,7 +882,7 @@ export const PayrollAdmin = () => {
               ) : (
                 <>
                   <div className="bg-[#E8836A]/15 border border-[#E8836A] rounded p-3 text-[#FCD34D] text-sm">
-                    Znaleziono <strong>{diagnostics.mismatches.length}</strong> rozbieznosci. Po naprawie godziny beda identyczne w obu zakladkach.
+                    Znaleziono <strong>{diagnostics.mismatches.length}</strong> rozbieżności. Po naprawie godziny będą identyczne w obu zakladkach.
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
@@ -891,7 +891,7 @@ export const PayrollAdmin = () => {
                           <th className="p-2 text-left">Pracownik</th>
                           <th className="p-2 text-right">Agreg.</th>
                           <th className="p-2 text-right">Grupow.</th>
-                          <th className="p-2 text-right">Roznica</th>
+                          <th className="p-2 text-right">Różnica</th>
                           <th className="p-2 text-left">Duplikaty (daty)</th>
                         </tr>
                       </thead>
@@ -931,7 +931,7 @@ export const PayrollAdmin = () => {
               <Button onClick={deleteOrphans} disabled={diagLoading}
                 className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
                 data-testid="diagnostics-delete-orphans">
-                Usun wpisy osieroconych
+                Usuń wpisy osieroconych
               </Button>
             )}
             <Button variant="outline" onClick={() => setDiagnostics(null)}
@@ -951,7 +951,7 @@ export const PayrollAdmin = () => {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Imie i nazwisko</label>
+              <label className="text-sm text-[#94A3B8] block mb-1">Imię i nazwisko</label>
               <Input
                 ref={nameInputRef}
                 value={newName}

@@ -10,8 +10,8 @@ import {
 import { toast } from 'sonner';
 
 const MONTH_NAMES = [
-  'Styczen', 'Luty', 'Marzec', 'Kwiecien', 'Maj', 'Czerwiec',
-  'Lipiec', 'Sierpien', 'Wrzesien', 'Pazdziernik', 'Listopad', 'Grudzien',
+  'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+  'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień',
 ];
 
 const FakturowniaActions = ({ onChange }) => {
@@ -24,7 +24,7 @@ const FakturowniaActions = ({ onChange }) => {
       const det = e.response.data?.detail || e.response.data?.error;
       return `${fallback} (HTTP ${e.response.status}${det ? ': ' + det : ''})`;
     }
-    if (e.request) return `${fallback} - brak odpowiedzi backendu (sprawdz polaczenie internetowe)`;
+    if (e.request) return `${fallback} - brak odpowiedzi backendu (sprawdź polaczenie internetowe)`;
     return `${fallback}: ${e.message || e}`;
   };
 
@@ -36,7 +36,7 @@ const FakturowniaActions = ({ onChange }) => {
       if (r.data.ok) toast.success(`Polaczenie OK: ${r.data.company_name || r.data.prefix}`);
       else toast.error(r.data.error);
     } catch (e) {
-      const msg = describeError(e, 'Blad testu polaczenia');
+      const msg = describeError(e, 'Błąd testu polaczenia');
       setTestResult({ ok: false, error: msg });
       toast.error(msg);
     } finally { setTesting(false); }
@@ -44,7 +44,7 @@ const FakturowniaActions = ({ onChange }) => {
 
   const sync = async () => {
     if (!window.confirm(
-      'Pobrac WSZYSTKIE faktury kosztowe z Fakturowni od stycznia 2026 do biezacego miesiaca?\n\n' +
+      'Pobrać WSZYSTKIE faktury kosztowe z Fakturowni od stycznia 2026 do biezacego miesiaca?\n\n' +
       'Pierwszy import moze potrwac kilkanascie sekund. ' +
       'Idempotentnie - powtarzanie nie dubluje istniejacych pozycji.'
     )) return;
@@ -54,7 +54,7 @@ const FakturowniaActions = ({ onChange }) => {
       toast.success(`Pobrano ${r.data.invoices_fetched} faktur z ${r.data.months_processed} miesiecy: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych`);
       onChange && onChange();
     } catch (e) {
-      toast.error(describeError(e, 'Blad pobierania'));
+      toast.error(describeError(e, 'Błąd pobierania'));
     } finally { setSyncing(false); }
   };
 
@@ -92,7 +92,7 @@ const EmployeeLinksCard = () => {
       const r = await api.get('/employees?include_archived=false');
       setEmployees(r.data || []);
     } catch (_e) {
-      toast.error('Blad pobierania pracownikow');
+      toast.error('Błąd pobierania pracownikow');
     } finally { setLoading(false); }
   };
   useEffect(() => { fetchEmployees(); }, []);
@@ -106,7 +106,7 @@ const EmployeeLinksCard = () => {
     if (!window.confirm(
       `Wygenerowac linki dla ${missing.length} pracownikow bez linku?\n\n` +
       `Istniejacych ${employees.length - missing.length} linkow NIE rusze ` +
-      `— pracownicy ktorzy juz dostali link beda mogli z niego dalej korzystac.\n\n` +
+      `— pracownicy ktorzy juz dostali link będą mogli z niego dalej korzystac.\n\n` +
       `Aby zrotowac konkretny link (uniewaznic stary), klikaj "Nowy link" przy danym pracowniku.`
     )) return;
     setBusy('all');
@@ -116,7 +116,7 @@ const EmployeeLinksCard = () => {
         try { await api.post(`/employees/${emp.id}/rotate-token?force=false`); ok++; }
         catch { fail++; }
       }
-      toast.success(`Wygenerowano ${ok} nowych linkow${fail > 0 ? `, blad: ${fail}` : ''}`);
+      toast.success(`Wygenerowano ${ok} nowych linkow${fail > 0 ? `, błąd: ${fail}` : ''}`);
       fetchEmployees();
     } finally { setBusy(null); }
   };
@@ -134,7 +134,7 @@ const EmployeeLinksCard = () => {
       toast.success(emp.public_token ? `Zrotowano link dla ${emp.full_name}` : `Wygenerowano link dla ${emp.full_name}`);
       setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: r.data.token } : e));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     } finally { setBusy(null); }
   };
 
@@ -146,7 +146,7 @@ const EmployeeLinksCard = () => {
       toast.success(`Uniewazniono link ${emp.full_name}`);
       setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: null } : e));
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     } finally { setBusy(null); }
   };
 
@@ -198,10 +198,10 @@ const EmployeeLinksCard = () => {
           <label className="flex items-center gap-2 text-xs text-[#94A3B8] cursor-pointer">
             <input type="checkbox" checked={showOnlyWithToken} onChange={(e) => setShowOnlyWithToken(e.target.checked)}
               className="accent-[#5F7151]" data-testid="links-filter-checkbox" />
-            Pokaz tylko z aktywnym linkiem
+            Pokaż tylko z aktywnym linkiem
           </label>
         </div>
-        {loading ? <div className="p-4 text-[#94A3B8]">Ladowanie...</div> :
+        {loading ? <div className="p-4 text-[#94A3B8]">Ładowanie...</div> :
         filtered.length === 0 ? <div className="p-4 text-[#94A3B8]">{showOnlyWithToken ? 'Zaden pracownik nie ma jeszcze linku' : 'Brak aktywnych pracownikow'}</div> :
         <table className="w-full text-sm">
           <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
@@ -295,7 +295,7 @@ const FakturowniaApiCard = () => {
       }
       fetchSettings();
     } catch (e) {
-      toast.error(e.response?.data?.detail || `Blad zapisu (HTTP ${e.response?.status || '?'})`);
+      toast.error(e.response?.data?.detail || `Błąd zapisu (HTTP ${e.response?.status || '?'})`);
     } finally {
       setSaving(false);
     }
@@ -311,7 +311,7 @@ const FakturowniaApiCard = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-sm text-[#94A3B8]">
-          Klucz API z Fakturowni — uzywany do automatycznego pobierania kosztow i sprzedazy (faktury wchodzace i wychodzace).
+          Klucz API z Fakturowni — używany do automatycznego pobierania kosztów i sprzedaży (faktury wchodzace i wychodzace).
           Auto-sync co 30 min od stycznia 2026.
           Wygeneruj na <a href="https://app.fakturownia.pl" target="_blank" rel="noreferrer" className="text-[#5F7151] underline">app.fakturownia.pl → Ustawienia → API</a>.
         </p>
@@ -359,7 +359,7 @@ const WarehouseKeepersCard = () => {
 
   const create = async () => {
     if (!name.trim() || !pwd || pwd.length < 4) {
-      toast.error('Podaj nazwe i haslo (min. 4 znaki)');
+      toast.error('Podaj nazwe i hasło (min. 4 znaki)');
       return;
     }
     try {
@@ -368,7 +368,7 @@ const WarehouseKeepersCard = () => {
       setName(''); setPwd('');
       fetchKeepers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -379,7 +379,7 @@ const WarehouseKeepersCard = () => {
       toast.success('Usunieto');
       fetchKeepers();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -398,7 +398,7 @@ const WarehouseKeepersCard = () => {
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <Input
-            placeholder="Nazwa uzytkownika (np. Jan)"
+            placeholder="Nazwa użytkownika (np. Jan)"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
@@ -406,7 +406,7 @@ const WarehouseKeepersCard = () => {
           />
           <Input
             type="password"
-            placeholder="Haslo (zapasowe logowanie)"
+            placeholder="Hasło (zapasowe logowanie)"
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
             className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
@@ -447,7 +447,7 @@ const WarehouseKeepersCard = () => {
                             toast.success('Nowy link wygenerowany');
                             fetchKeepers();
                           } catch (err) {
-                            toast.error(err.response?.data?.detail || 'Blad');
+                            toast.error(err.response?.data?.detail || 'Błąd');
                           }
                         }}
                         className="text-[#E8B76A] hover:bg-[#E8B76A]/20 text-xs h-7"

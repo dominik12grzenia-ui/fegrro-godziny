@@ -81,7 +81,7 @@ export const PushNotificationButton = ({ compact = false }) => {
   const handleEnable = async () => {
     if (iosNeedsInstall) {
       toast.error(
-        'Na iPhone najpierw dodaj aplikacje do ekranu glownego: udostepnij -> "Do ekranu poczatkowego". Potem otworz aplikacje z ikony i klinij ponownie.',
+        'Na iPhone najpierw dodaj aplikacje do ekranu głównego: udostepnij -> "Do ekranu poczatkowego". Potem otwórz aplikacje z ikony i klinij ponownie.',
         { duration: 8000 }
       );
       return;
@@ -111,7 +111,7 @@ export const PushNotificationButton = ({ compact = false }) => {
       const perm = await Notification.requestPermission();
       setPermission(perm);
       if (perm !== 'granted') {
-        toast.error('Pozwolenie odrzucone. Wlacz powiadomienia w ustawieniach przegladarki.');
+        toast.error('Pozwolenie odrzucone. Włącz powiadomienia w ustawieniach przegladarki.');
         return;
       }
       // Try once; on failure (stale state, race, etc.) retry once after a delay.
@@ -133,7 +133,7 @@ export const PushNotificationButton = ({ compact = false }) => {
       toast.success('Powiadomienia wlaczone');
     } catch (err) {
       console.error('Push enable failed', err);
-      toast.error('Nie udalo sie wlaczyc powiadomien: ' + (err.message || err));
+      toast.error('Nie udalo sie włączyć powiadomien: ' + (err.message || err));
     } finally {
       setBusy(false);
     }
@@ -153,7 +153,7 @@ export const PushNotificationButton = ({ compact = false }) => {
       setSubscribed(false);
       toast.success('Powiadomienia wylaczone');
     } catch (err) {
-      toast.error('Blad: ' + (err.message || err));
+      toast.error('Błąd: ' + (err.message || err));
     } finally {
       setBusy(false);
     }
@@ -162,9 +162,9 @@ export const PushNotificationButton = ({ compact = false }) => {
   const handleTest = async () => {
     try {
       await api.post('/push/test');
-      toast.success('Test wyslany - sprawdz baner powiadomien');
+      toast.success('Test wyslany - sprawdź baner powiadomien');
     } catch (err) {
-      toast.error('Blad testu: ' + (err.response?.data?.detail || err.message));
+      toast.error('Błąd testu: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -204,7 +204,7 @@ export const PushNotificationButton = ({ compact = false }) => {
           data-testid="push-disable-btn"
         >
           <BellOff className="h-4 w-4 mr-1" />
-          Wylacz
+          Wyłącz
         </Button>
       </div>
     );
@@ -221,7 +221,7 @@ export const PushNotificationButton = ({ compact = false }) => {
       data-testid="push-enable-btn"
     >
       <Bell className="h-4 w-4 mr-1" />
-      {compact ? 'Wlacz push' : 'Wlacz powiadomienia push'}
+      {compact ? 'Włącz push' : 'Włącz powiadomienia push'}
     </Button>
   );
 };

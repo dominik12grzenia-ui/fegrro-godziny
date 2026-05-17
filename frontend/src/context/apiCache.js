@@ -56,7 +56,7 @@ export function useCachedApi(key, ttlMs = 10000, enabled = true) {
     const entry = cache.get(key);
     setData(entry?.data); // sync to current cache when key changes
     if (!entry || Date.now() - entry.ts > ttlMs) {
-      refresh(key).catch(() => { /* swallow - subscriber keeps stale */ });
+      refresh(key).catch(() => { /* swallow - subscriber keeps stałe */ });
     }
 
     return () => {

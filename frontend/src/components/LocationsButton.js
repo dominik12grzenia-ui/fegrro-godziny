@@ -43,7 +43,7 @@ export const LocationsButton = () => {
     api
       .get('/sites?active_only=true')
       .then((r) => setSites(r.data || []))
-      .catch(() => toast.error('Blad pobierania lokalizacji'))
+      .catch(() => toast.error('Błąd pobierania lokalizacji'))
       .finally(() => setLoading(false));
   }, [open]);
 

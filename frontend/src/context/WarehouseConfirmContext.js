@@ -85,7 +85,7 @@ export const WarehouseConfirmProvider = ({ children }) => {
         return config;
       } catch (_e) {
         // User cancelled - throw axios-cancel-like error so .catch fires
-        const err = new Error('Anulowano przez uzytkownika');
+        const err = new Error('Anulowano przez użytkownika');
         err.code = 'ERR_WAREHOUSE_CANCELLED';
         throw err;
       }

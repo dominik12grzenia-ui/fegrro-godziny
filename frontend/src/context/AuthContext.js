@@ -173,7 +173,7 @@ export const AuthProvider = ({ children }) => {
       sessionStorage.removeItem('admin_backup_user');
       return { success: true, user: adminUser };
     } catch (_e) {
-      return { success: false, error: 'Blad odczytu danych admina' };
+      return { success: false, error: 'Błąd odczytu danych admina' };
     }
   };
 

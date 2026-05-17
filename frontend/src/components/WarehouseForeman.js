@@ -41,7 +41,7 @@ export const WarehouseForeman = () => {
       setOrders(o.data);
       setSites(s.data || []);
     } catch (_e) {
-      toast.error('Blad pobierania');
+      toast.error('Błąd pobierania');
     } finally {
       setLoading(false);
     }
@@ -96,13 +96,13 @@ export const WarehouseForeman = () => {
       setNote('');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad wysylki');
+      toast.error(err.response?.data?.detail || 'Błąd wysylki');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie magazynu...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie magazynu...</p>;
 
   return (
     <div className="space-y-3">

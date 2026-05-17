@@ -21,7 +21,7 @@ const STATUS_BADGE = {
 };
 
 const CATEGORY_BTN = {
-  electronics: 'Zamów elektronarzedzia',
+  electronics: 'Zamów elektronarzędzia',
   accessories: 'Zamów akcesoria',
   formwork: 'Zamów szalunki',
 };
@@ -95,7 +95,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
     if (!modalItem) return;
     const qty = parseInt(orderQty, 10);
     if (!qty || qty <= 0) {
-      toast.error('Podaj prawidlowa ilosc');
+      toast.error('Podaj prawidlowa ilość');
       return;
     }
     if (modalItem.variants && modalItem.variants.length > 0 && !orderVariant) {
@@ -117,7 +117,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
       invalidateCachePrefix('/equipment/orders');
       fetchAll();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     } finally {
       setSubmitting(false);
     }
@@ -130,13 +130,13 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
       toast.success('Anulowano');
       fetchAll();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad');
+      toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
   if (loading) {
     return (
-      <div className="py-6 text-center text-[#94A3B8] text-sm">Ladowanie katalogu...</div>
+      <div className="py-6 text-center text-[#94A3B8] text-sm">Ładowanie katalogu...</div>
     );
   }
 
@@ -204,8 +204,8 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
               {visibleCatalog.length === 0 ? (
                 <div className="text-center py-6 text-sm text-[#94A3B8]">
                   {catalog.length === 0
-                    ? 'Katalog jest pusty - admin jeszcze nie dodal sprzetu.'
-                    : 'Brak wynikow dla "' + search + '"'}
+                    ? 'Katalog jest pusty - admin jeszcze nie dodal sprzętu.'
+                    : 'Brak wyników dla "' + search + '"'}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -226,7 +226,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                         <div className="text-[#CBD5E1] text-sm font-semibold truncate">{item.name}</div>
                         {item.brand && <div className="text-xs text-[#94A3B8] truncate">{item.brand}</div>}
                         <div className="text-xs text-[#94A3B8] mt-0.5">
-                          Dostepne: <span className={item.available_quantity > 0 ? 'text-[#86EFAC] font-bold' : 'text-[#FCA5A5]'}>{item.available_quantity}</span>
+                          Dostępne: <span className={item.available_quantity > 0 ? 'text-[#86EFAC] font-bold' : 'text-[#FCA5A5]'}>{item.available_quantity}</span>
                           <span className="text-[#64748B]"> / {item.total_quantity}</span>
                           {item.variants && item.variants.length > 0 && (
                             <span className="ml-2 text-[#E8B76A]">({item.variants.length} war.)</span>

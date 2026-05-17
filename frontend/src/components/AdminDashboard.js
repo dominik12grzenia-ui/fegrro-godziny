@@ -373,7 +373,7 @@ export const AdminDashboard = () => {
             <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap">
               <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0">Lokalizacje</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0">
-                Brygadzisci
+                Brygadziści
                 {foremen.filter(f => f.status === 'pending').length > 0 && (
                   <span className="ml-1 bg-[#E8836A] text-white text-xs rounded-full px-1.5 py-0.5">
                     {foremen.filter(f => f.status === 'pending').length}
@@ -429,9 +429,9 @@ export const AdminDashboard = () => {
                 )}
               </TabsTrigger>
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
-              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0">Wyplaty</TabsTrigger>
+              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0">Wypłaty</TabsTrigger>
               <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0">Finanse</TabsTrigger>
-              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzedzia</TabsTrigger>
+              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzędzia</TabsTrigger>
             </TabsList>
           </div>
 
@@ -483,7 +483,7 @@ export const AdminDashboard = () => {
           {/* Equipment Tab */}
           <TabsContent value="equipment" className="space-y-4 bg-[#1E293B]">
             <Suspense fallback={<TabSpinner />}>
-              <EquipmentAdmin category="electronics" title="Elektronarzedzia" />
+              <EquipmentAdmin category="electronics" title="Elektronarzędzia" />
             </Suspense>
           </TabsContent>
 

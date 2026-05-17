@@ -16,19 +16,19 @@ export const ForemenTab = ({
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-[#CBD5E1]">Brygadzisci</CardTitle>
+        <CardTitle className="text-[#CBD5E1]">Brygadziści</CardTitle>
         <Button
           onClick={async () => {
-            const name = window.prompt('Imie i nazwisko nowego brygadzisty:');
+            const name = window.prompt('Imię i nazwisko nowego brygadzisty:');
             if (!name || !name.trim()) return;
-            const pwd = window.prompt(`Haslo dla ${name.trim()} (min. 4 znaki):`);
-            if (!pwd || pwd.length < 4) { toast.error('Haslo za krotkie'); return; }
+            const pwd = window.prompt(`Hasło dla ${name.trim()} (min. 4 znaki):`);
+            if (!pwd || pwd.length < 4) { toast.error('Hasło za krotkie'); return; }
             try {
               await api.post('/foremen', { full_name: name.trim(), password: pwd });
               toast.success(`Brygadzista ${name.trim()} dodany`);
               fetchData();
             } catch (err) {
-              toast.error(err.response?.data?.detail || 'Blad');
+              toast.error(err.response?.data?.detail || 'Błąd');
             }
           }}
           className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
@@ -66,20 +66,20 @@ export const ForemenTab = ({
                   <Button
                     size="sm"
                     onClick={async () => {
-                      const pwd = window.prompt(`${hasPassword ? 'Zmien' : 'Ustaw'} haslo dla ${foreman.full_name} (min. 4 znaki):`);
+                      const pwd = window.prompt(`${hasPassword ? 'Zmien' : 'Ustaw'} hasło dla ${foreman.full_name} (min. 4 znaki):`);
                       if (!pwd || pwd.length < 4) return;
                       try {
                         await api.post(`/foremen/${foreman.id}/password`, { password: pwd });
-                        toast.success('Haslo zaktualizowane');
+                        toast.success('Hasło zaktualizowane');
                         fetchData();
                       } catch (err) {
-                        toast.error(err.response?.data?.detail || 'Blad');
+                        toast.error(err.response?.data?.detail || 'Błąd');
                       }
                     }}
                     className={hasPassword ? 'bg-[#334155] hover:bg-[#475569] text-[#CBD5E1] text-xs h-8' : 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] text-xs h-8 font-bold'}
                     data-testid={`set-foreman-password-${foreman.id}`}
                   >
-                    {hasPassword ? 'Zmien haslo' : 'Ustaw haslo'}
+                    {hasPassword ? 'Zmien hasło' : 'Ustaw hasło'}
                   </Button>
                 </div>
                 <div className="mb-3">
@@ -134,7 +134,7 @@ export const ForemenTab = ({
                         toast.success(`Wcielony jako ${foreman.full_name}`);
                         window.location.href = '/worker/dashboard';
                       } else {
-                        toast.error(result.error || 'Blad');
+                        toast.error(result.error || 'Błąd');
                       }
                     }}
                     size="sm"
@@ -161,7 +161,7 @@ export const ForemenTab = ({
                     data-testid={`delete-foreman-${foreman.id}`}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />
-                    Usun
+                    Usuń
                   </Button>
                 </div>
               </div>

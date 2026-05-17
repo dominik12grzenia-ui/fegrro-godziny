@@ -82,7 +82,7 @@ export const PublicPushButton = ({ token }) => {
   const handleEnable = async () => {
     if (iosNeedsInstall) {
       toast.error(
-        'Na iPhone najpierw dodaj strone do ekranu glownego (udostepnij -> "Do ekranu poczatkowego"), potem otworz z ikony i sprobuj ponownie.',
+        'Na iPhone najpierw dodaj strone do ekranu głównego (udostepnij -> "Do ekranu poczatkowego"), potem otwórz z ikony i sprobuj ponownie.',
         { duration: 8000 }
       );
       return;
@@ -106,7 +106,7 @@ export const PublicPushButton = ({ token }) => {
       setSubscribed(true);
       toast.success('Powiadomienia wlaczone');
     } catch (err) {
-      toast.error('Blad: ' + (err.message || err));
+      toast.error('Błąd: ' + (err.message || err));
     } finally {
       setBusy(false);
     }
@@ -126,7 +126,7 @@ export const PublicPushButton = ({ token }) => {
       setSubscribed(false);
       toast.success('Powiadomienia wylaczone');
     } catch (err) {
-      toast.error('Blad: ' + (err.message || err));
+      toast.error('Błąd: ' + (err.message || err));
     } finally {
       setBusy(false);
     }
@@ -137,7 +137,7 @@ export const PublicPushButton = ({ token }) => {
       await axios.post(`${API}/api/public/push/${token}/test`);
       toast.success('Test wyslany');
     } catch (err) {
-      toast.error('Blad: ' + (err.response?.data?.detail || err.message));
+      toast.error('Błąd: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -161,7 +161,7 @@ export const PublicPushButton = ({ token }) => {
           className="text-[#E8836A] text-xs"
           data-testid="public-push-disable"
         >
-          <BellOff className="h-3.5 w-3.5 mr-1" /> Wylacz powiadomienia
+          <BellOff className="h-3.5 w-3.5 mr-1" /> Wyłącz powiadomienia
         </Button>
       </div>
     );
@@ -176,7 +176,7 @@ export const PublicPushButton = ({ token }) => {
       data-testid="public-push-enable"
     >
       <Bell className="h-4 w-4 mr-1" />
-      Wlacz powiadomienia o moich zamowieniach
+      Włącz powiadomienia o moich zamowieniach
     </Button>
   );
 };

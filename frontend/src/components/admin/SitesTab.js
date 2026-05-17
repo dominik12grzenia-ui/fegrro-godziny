@@ -73,7 +73,7 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                   document.getElementById('new-site-name').value = '';
                   fetchData();
                 } catch (err) {
-                  toast.error(err.response?.data?.detail || 'Blad');
+                  toast.error(err.response?.data?.detail || 'Błąd');
                 }
               }}
               className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
@@ -112,7 +112,7 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                             toast.success('Kategoria zaktualizowana');
                             fetchData();
                           } catch (err) {
-                            toast.error(err.response?.data?.detail || 'Blad');
+                            toast.error(err.response?.data?.detail || 'Błąd');
                           }
                         }}
                         className={`text-[10px] px-2 py-0.5 rounded font-semibold border-0 cursor-pointer ${catColor}`}
@@ -156,7 +156,7 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                                 toast.success(`Lokalizacja ustawiona: ${res.data.formatted_address}`);
                                 fetchData();
                               } catch (err) {
-                                toast.error(err.response?.data?.detail || 'Blad geokodowania');
+                                toast.error(err.response?.data?.detail || 'Błąd geokodowania');
                               } finally {
                                 setGeocoding(null);
                               }
@@ -185,7 +185,7 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                               toast.success(e.target.checked ? 'Widoczna dla brygadzistow' : 'Ukryta');
                               fetchData();
                             } catch (err) {
-                              toast.error(err.response?.data?.detail || 'Blad');
+                              toast.error(err.response?.data?.detail || 'Błąd');
                             }
                           }}
                           data-testid={`visible-toggle-${site.id}`}
@@ -196,19 +196,19 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                         size="sm"
                         variant="ghost"
                         onClick={async () => {
-                          if (!window.confirm(`Usunac na stale "${site.name}"? Tej operacji nie mozna cofnac.`)) return;
+                          if (!window.confirm(`Usunac na stałe "${site.name}"? Tej operacji nie można cofnac.`)) return;
                           try {
                             await api.delete(`/sites/${site.id}?permanent=true`);
                             toast.success('Usunieto');
                             fetchData();
                           } catch (err) {
-                            toast.error(err.response?.data?.detail || 'Blad');
+                            toast.error(err.response?.data?.detail || 'Błąd');
                           }
                         }}
                         className="text-[#E8836A] hover:bg-[#7F2D2D]/30 text-xs h-7"
                         data-testid={`delete-site-${site.id}`}
                       >
-                        <Trash2 className="h-3 w-3 mr-1" /> Usun
+                        <Trash2 className="h-3 w-3 mr-1" /> Usuń
                       </Button>
                     </div>
                   </CardContent>

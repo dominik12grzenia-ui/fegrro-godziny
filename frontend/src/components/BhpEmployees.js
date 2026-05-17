@@ -97,7 +97,7 @@ export const BhpEmployees = () => {
       setSites(sitesRes.data || []);
       setAlerts(alertsRes.data || { employees: [], documents: [] });
     } catch (_e) {
-      toast.error('Blad pobierania danych');
+      toast.error('Błąd pobierania danych');
     } finally {
       setLoading(false);
     }
@@ -167,7 +167,7 @@ export const BhpEmployees = () => {
       await fetchData();
       setEditing(null);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -193,7 +193,7 @@ export const BhpEmployees = () => {
       setUploadIsHeight(false);
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad uploadu');
+      toast.error(err.response?.data?.detail || 'Błąd uploadu');
     }
   };
 
@@ -204,7 +204,7 @@ export const BhpEmployees = () => {
       setDocs(docs.filter((x) => x.id !== d.id));
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -217,7 +217,7 @@ export const BhpEmployees = () => {
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -228,7 +228,7 @@ export const BhpEmployees = () => {
       toast.success('Zarchiwizowano');
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
   const restore = async (emp) => {
@@ -237,7 +237,7 @@ export const BhpEmployees = () => {
       toast.success('Przywrocono');
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -246,7 +246,7 @@ export const BhpEmployees = () => {
       `Trwale usunac ${emp.full_name}?\n\nTo usunie pracownika oraz WSZYSTKIE jego dokumenty, wydania BHP i zamowienia odziezy. Operacja NIEODWRACALNA.`,
     );
     if (!confirm1) return;
-    const typed = window.prompt(`Aby potwierdzic, wpisz: ${emp.full_name}`);
+    const typed = window.prompt(`Aby potwierdzić, wpisz: ${emp.full_name}`);
     if (typed !== emp.full_name) {
       toast.error('Nazwa nie pasuje - anulowano');
       return;
@@ -256,7 +256,7 @@ export const BhpEmployees = () => {
       toast.success('Usunieto trwale');
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -290,7 +290,7 @@ export const BhpEmployees = () => {
       setShowDownload(false);
       toast.success('Pobrano');
     } catch (err) {
-      let msg = 'Blad';
+      let msg = 'Błąd';
       if (err.response?.data) {
         try {
           const txt = await err.response.data.text?.();
@@ -305,7 +305,7 @@ export const BhpEmployees = () => {
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
 
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
@@ -370,7 +370,7 @@ export const BhpEmployees = () => {
           <div className="flex-1 min-w-[160px]">
             <label className="text-xs text-[#94A3B8]">Szukaj</label>
             <Input
-              placeholder="Imie i nazwisko..."
+              placeholder="Imię i nazwisko..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] h-9"
@@ -496,7 +496,7 @@ export const BhpEmployees = () => {
                             <ArchiveRestore className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => hardDelete(emp)}
-                            className="text-[#E8836A] h-8 px-2" title="Usun trwale"
+                            className="text-[#E8836A] h-8 px-2" title="Usuń trwale"
                             data-testid={`bhp-emp-hard-delete-${emp.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>

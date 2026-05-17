@@ -265,7 +265,7 @@ export const WorkerDashboard = () => {
     }
     
     if (hours < 0 || hours > 14) {
-      toast.error('Godziny musza byc miedzy 0 a 14');
+      toast.error('Godziny musza być miedzy 0 a 14');
       setEditingCell(null);
       return;
     }
@@ -559,7 +559,7 @@ export const WorkerDashboard = () => {
           </div>
           {eqTab === 'electronics' && (
             <Suspense fallback={<EquipmentSpinner />}>
-              <EquipmentForeman category="electronics" title="Moje elektronarzedzia" />
+              <EquipmentForeman category="electronics" title="Moje elektronarzędzia" />
             </Suspense>
           )}
           {eqTab === 'accessories' && (
@@ -615,7 +615,7 @@ export const WorkerDashboard = () => {
 
         {/* Info bar */}
         <div className="mb-4 p-3 bg-[#2A384C] rounded-lg border border-[#334155] flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-[#94A3B8]">Mozesz edytowac:</span>
+          <span className="text-[#94A3B8]">Mozesz edytować:</span>
           <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">Dzisiaj</span>
           <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">Wczoraj</span>
           <span className="text-[#64748B]">| Inne dni → wyslij prosbe</span>

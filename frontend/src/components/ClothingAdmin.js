@@ -47,7 +47,7 @@ export const ClothingAdmin = () => {
       setOrders(flatOrders);
       setLoading(false);
     } catch (e) {
-      toast.error('Blad pobierania danych odziezy');
+      toast.error('Błąd pobierania danych odziezy');
       setLoading(false);
     }
   }, []);
@@ -122,7 +122,7 @@ export const ClothingAdmin = () => {
       setShowAddType(false);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -131,7 +131,7 @@ export const ClothingAdmin = () => {
       await api.put(`/clothing/types/${t.id}`, { is_active: !t.is_active });
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -142,7 +142,7 @@ export const ClothingAdmin = () => {
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -152,7 +152,7 @@ export const ClothingAdmin = () => {
       toast.success('Oznaczono jako wydane');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -163,7 +163,7 @@ export const ClothingAdmin = () => {
       toast.success('Cofnieto wydanie');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -173,7 +173,7 @@ export const ClothingAdmin = () => {
       toast.success(res.data.message);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -184,7 +184,7 @@ export const ClothingAdmin = () => {
       toast.success('Usunieto');
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad');
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -203,11 +203,11 @@ export const ClothingAdmin = () => {
       window.URL.revokeObjectURL(url);
       toast.success('PDF wygenerowany');
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Blad eksportu PDF');
+      toast.error(err.response?.data?.detail || 'Błąd eksportu PDF');
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ladowanie...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
 
   return (
     <div className="space-y-4">
@@ -347,7 +347,7 @@ export const ClothingAdmin = () => {
                     onClick={() => exportOrdersPdf('include_forwarded')}
                     className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:bg-[#334155] text-xs h-8"
                     data-testid="export-orders-pdf-pending-and-forwarded"
-                    title="Wszystkie niewydane, lacznie z przekazanymi do realizacji"
+                    title="Wszystkie niewydane, łącznie z przekazanymi do realizacji"
                   >
                     <Download className="h-3.5 w-3.5 mr-1" /> PDF (niewydane)
                   </Button>
@@ -553,7 +553,7 @@ export const ClothingAdmin = () => {
                                     setSummary([]);  // force refetch
                                     fetchSummary();
                                   } catch (err) {
-                                    toast.error(err.response?.data?.detail || 'Blad');
+                                    toast.error(err.response?.data?.detail || 'Błąd');
                                   }
                                 }}
                                 className="text-[10px] text-[#5F7151] hover:text-white hover:underline mt-1"
@@ -571,7 +571,7 @@ export const ClothingAdmin = () => {
                               className="text-[#E8836A] hover:text-white text-[10px] font-semibold px-2 py-1 rounded bg-[#3D2E2E] hover:bg-[#E8836A]/30"
                               onClick={async () => {
                                 if (!window.confirm(`Trwale usunac ${row.employee_name}?\nUsunie wszystkie dokumenty, wydania BHP i zamowienia odziezy. NIEODWRACALNE.`)) return;
-                                const typed = window.prompt(`Aby potwierdzic, wpisz: ${row.employee_name}`);
+                                const typed = window.prompt(`Aby potwierdzić, wpisz: ${row.employee_name}`);
                                 if (typed !== row.employee_name) { toast.error('Nazwa nie pasuje'); return; }
                                 try {
                                   await api.delete(`/employees/${row.employee_id}/hard`);
@@ -579,7 +579,7 @@ export const ClothingAdmin = () => {
                                   setSummary([]);
                                   fetchSummary();
                                 } catch (err) {
-                                  toast.error(err.response?.data?.detail || 'Blad');
+                                  toast.error(err.response?.data?.detail || 'Błąd');
                                 }
                               }}
                               data-testid={`hard-del-archived-${row.employee_id}`}

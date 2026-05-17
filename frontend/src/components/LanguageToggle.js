@@ -8,7 +8,7 @@ export const LanguageToggle = ({ className = '' }) => {
       className={`inline-flex items-center bg-[#1E293B] border border-[#334155] rounded-full overflow-hidden ${className}`}
       data-testid="language-toggle"
       role="group"
-      aria-label="Wybor jezyka / Вибір мови"
+      aria-label="Wybór jezyka / Вибір мови"
     >
       {supported.map((l) => {
         const active = l.code === lang;
