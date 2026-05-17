@@ -34,6 +34,8 @@ export const PublicHours = () => {
   const [absenceMode, setAbsenceMode] = useState(false);
   const [selectedAbsenceDates, setSelectedAbsenceDates] = useState(new Set());
   const [absenceSaving, setAbsenceSaving] = useState(false);
+  const [docAlerts, setDocAlerts] = useState([]);
+  const [docAlertsDismissed, setDocAlertsDismissed] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -60,6 +62,14 @@ export const PublicHours = () => {
     };
     fetchData();
   }, [token, selectedMonth]);
+
+  // Alerty dokumentow - pobierane raz, niezaleznie od miesiaca
+  useEffect(() => {
+    if (!token) return;
+    axios.get(`${API}/public/document-alerts/${token}`)
+      .then(res => setDocAlerts(res.data?.alerts || []))
+      .catch(() => setDocAlerts([]));
+  }, [token]);
 
   // Dynamiczny manifest PWA dla pracownika
   useEffect(() => {
@@ -234,6 +244,49 @@ export const PublicHours = () => {
       </div>
 
       <div className="max-w-lg mx-auto p-4">
+        {/* Banner alertow dokumentow - wygasajace BHP/wysokosciowe/zezwolenie/pobyt */}
+        {docAlerts.length > 0 && !docAlertsDismissed && (() => {
+          const hasCritical = docAlerts.some(a => a.severity === 'critical' || a.severity === 'expired');
+          const bgClass = hasCritical
+            ? 'bg-[#DC2626]/15 border-[#DC2626]/50'
+            : 'bg-[#E8B76A]/15 border-[#E8B76A]/50';
+          const iconClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+          const titleClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+          return (
+            <div className={`mb-4 rounded-lg border ${bgClass} p-3 flex items-start gap-2`}
+              data-testid="public-document-alerts">
+              <AlertTriangle className={`h-5 w-5 ${iconClass} flex-shrink-0 mt-0.5`} />
+              <div className="flex-1 min-w-0">
+                <div className={`font-semibold ${titleClass} text-sm mb-1`}>
+                  {hasCritical ? 'Pilne: dokumenty wymagają uwagi' : 'Twoje dokumenty wkrótce wygasną'}
+                </div>
+                <ul className="text-xs text-[#CBD5E1] space-y-1">
+                  {docAlerts.map((a) => (
+                    <li key={a.field} data-testid={`public-doc-alert-${a.field}`}>
+                      <strong>{a.label}</strong> —{' '}
+                      {a.severity === 'expired' ? (
+                        <span className="text-[#FCA5A5]">WYGASŁY {a.valid_until}</span>
+                      ) : (
+                        <span>{a.days_left === 0 ? 'wygasa dziś' : `wygasa za ${a.days_left} dni`} ({a.valid_until})</span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <div className="text-[10px] text-[#94A3B8] mt-2">
+                  Skontaktuj się z biurem, aby przedłużyć dokumenty przed wygaśnięciem.
+                </div>
+              </div>
+              <button
+                onClick={() => setDocAlertsDismissed(true)}
+                className="text-[#94A3B8] hover:text-white p-1"
+                data-testid="public-doc-alerts-dismiss"
+                aria-label="Zamknij">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          );
+        })()}
+
         {/* Month navigation */}
         <div className="flex items-center justify-between mb-4 bg-[#2A384C] rounded-lg p-3 border border-[#334155]">
           <Button onClick={() => changeMonth(-1)} variant="ghost" size="sm" className="text-white hover:bg-[#334155]" data-testid="prev-month">

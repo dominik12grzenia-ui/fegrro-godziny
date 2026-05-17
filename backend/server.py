@@ -33,7 +33,7 @@ from routes.public import router as public_router
 from routes.equipment import router as equipment_router
 from routes.equipment_orders import router as equipment_orders_router
 from routes.clothing import router as clothing_router
-from routes.bhp import router as bhp_router
+from routes.bhp import router as bhp_router, cron_document_expiration_push
 from routes.warehouse import router as warehouse_router
 from routes.push import router as push_router
 from routes.payroll import router as payroll_router
@@ -288,9 +288,16 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=3600
     )
+    scheduler.add_job(
+        cron_document_expiration_push,
+        CronTrigger(hour=8, minute=0),
+        id="document_expiration_push_daily",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
     scheduler.start()
     set_scheduler(scheduler)
-    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min | Wyplaty codziennie o 03:00")
+    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min | Wyplaty codziennie o 03:00 | Powiadomienia dokumentow o 08:00")
 
 
 @app.on_event("shutdown")

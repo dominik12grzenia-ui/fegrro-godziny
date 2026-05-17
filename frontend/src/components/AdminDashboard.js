@@ -64,6 +64,7 @@ export const AdminDashboard = () => {
   const [foremanSiteSelections, setForemanSiteSelections] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [absenceRequests, setAbsenceRequests] = useState([]);
+  const [bhpAlerts, setBhpAlerts] = useState({ employees: [], documents: [] });
   const [syncLogs, setSyncLogs] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -82,6 +83,20 @@ export const AdminDashboard = () => {
     }
     fetchData();
   }, [user, navigate]);
+
+  // Pobierz alerty BHP/dokumentow do bannera. Niezalezne od fetchData.
+  useEffect(() => {
+    if (!user || user.role !== 'admin') return;
+    const fetchBhp = () => {
+      api.get('/bhp/alerts?days=30')
+        .then((res) => setBhpAlerts(res.data || { employees: [], documents: [] }))
+        .catch(() => setBhpAlerts({ employees: [], documents: [] }));
+    };
+    fetchBhp();
+    // Odswiezaj co 15 min zeby admin widzial nowe wygasniecia bez F5
+    const interval = setInterval(fetchBhp, 15 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   // Dynamiczny manifest PWA dla admina: kliknięcie "Dodaj do ekranu glównego"
   // z panelu admina ustawi ikone tak, by po ponownym otwarciu wracała na /admin/dashboard,
@@ -289,6 +304,39 @@ export const AdminDashboard = () => {
             </div>
           </div>
         )}
+
+        {/* BHP/dokumenty - banner wygasajacych dokumentow */}
+        {(bhpAlerts.employees?.length > 0 || bhpAlerts.documents?.length > 0) && (() => {
+          // Liczba pracownikow z DOWOLNYM problemem (BHP/wysokosc/zezwolenie/pobyt LUB dokumenty)
+          const ids = new Set();
+          (bhpAlerts.employees || []).forEach((e) => ids.add(e.employee_id));
+          (bhpAlerts.documents || []).forEach((d) => ids.add(d.employee_id));
+          const total = ids.size;
+          const hasExpired = (bhpAlerts.employees || []).some((e) => e.alerts?.some((a) => a.expired))
+            || (bhpAlerts.documents || []).some((d) => d.expired);
+          const bg = hasExpired
+            ? 'bg-[#7F2D2D]/30 border-[#7F2D2D]'
+            : 'bg-[#E8B76A]/15 border-[#E8B76A]/60';
+          const iconColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+          const titleColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+          return (
+            <div
+              className={`mb-4 p-3 ${bg} border-2 rounded-lg flex items-center gap-3 cursor-pointer`}
+              onClick={() => setActiveTab('bhp')}
+              data-testid="bhp-expiry-banner">
+              <AlertCircle className={`h-6 w-6 ${iconColor} shrink-0`} />
+              <div className="flex-1 min-w-0">
+                <p className={`font-bold text-sm ${titleColor}`}>
+                  {hasExpired ? 'Wygasłe lub krytyczne dokumenty: ' : 'Kończą się dokumenty: '}
+                  {total} {total === 1 ? 'pracownikowi' : 'pracownikom'}
+                </p>
+                <p className="text-[#94A3B8] text-xs truncate">
+                  BHP / badania wysokościowe / zezwolenie / legalny pobyt — kliknij aby zobaczyć szczegóły
+                </p>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">

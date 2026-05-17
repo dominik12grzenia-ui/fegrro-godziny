@@ -637,3 +637,130 @@ async def bhp_alerts(
         "documents": out_doc_alerts,
     }
 
+
+# ============= Public endpoint dla pracownika (z tokenem) =============
+@router.get("/public/document-alerts/{token}")
+async def public_document_alerts(token: str):
+    """Zwraca alerty wygasajacych dokumentow dla pracownika z danym public_token.
+    Sprawdza tylko KLUCZOWE do pracy: BHP, badania wysokosciowe, zezwolenie/pobyt.
+
+    Window: do 30 dni przed wygaśnięciem.
+    Każdy alert ma: label, valid_until, days_left, severity ('critical'/'warning'/'expired').
+    """
+    if not token:
+        raise HTTPException(404, "Brak tokenu")
+    emp = await db.employees.find_one(
+        {"public_token": token,
+         "$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]},
+        {"_id": 0, "id": 1, "full_name": 1,
+         "bhp_valid_until": 1, "height_valid_until": 1, "height_work_certified": 1,
+         "permit_valid_until": 1, "legal_stay_until": 1},
+    )
+    if not emp:
+        raise HTTPException(404, "Pracownik nie znaleziony")
+
+    today = datetime.now().date()
+    today_iso = today.isoformat()
+    cutoff_iso = (today + timedelta(days=30)).isoformat()
+
+    fields_to_check = [
+        ("bhp_valid_until", "Badania BHP"),
+        ("permit_valid_until", "Zezwolenie na pracę"),
+        ("legal_stay_until", "Legalny pobyt"),
+    ]
+    if emp.get("height_work_certified"):
+        fields_to_check.append(("height_valid_until", "Badania wysokościowe"))
+
+    alerts = []
+    for field, label in fields_to_check:
+        d = (emp.get(field) or "").strip()
+        if not d:
+            continue
+        if d > cutoff_iso:
+            continue
+        # Oblicz dni
+        try:
+            d_date = datetime.fromisoformat(d).date()
+        except ValueError:
+            continue
+        days_left = (d_date - today).days
+        if days_left < 0:
+            severity = "expired"
+        elif days_left <= 14:
+            severity = "critical"
+        else:
+            severity = "warning"
+        alerts.append({
+            "field": field,
+            "label": label,
+            "valid_until": d,
+            "days_left": days_left,
+            "severity": severity,
+        })
+    # Sortuj od najpilniejszych
+    alerts.sort(key=lambda a: a["days_left"])
+
+    return {
+        "employee_id": emp["id"],
+        "employee_name": emp["full_name"],
+        "today": today_iso,
+        "alerts": alerts,
+    }
+
+
+# ============= Cron: push notifications dla wygasajacych dokumentow =============
+async def cron_document_expiration_push():
+    """Codzienny cron - wysyla push notification do pracownikow ktorym
+    dokumenty wygasaja dokladnie za 30 lub 14 dni (zeby nie spamowac codziennie).
+    Sprawdza: BHP, badania wysokosciowe, zezwolenie, legalny pobyt.
+    """
+    try:
+        from routes.push import send_push_to_employee
+    except ImportError:
+        return {"sent": 0, "error": "push module unavailable"}
+
+    today = datetime.now().date()
+    target_dates = {
+        (today + timedelta(days=30)).isoformat(): 30,
+        (today + timedelta(days=14)).isoformat(): 14,
+    }
+
+    employees = await db.employees.find(
+        {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]},
+        {"_id": 0, "id": 1, "full_name": 1, "public_token": 1,
+         "bhp_valid_until": 1, "height_valid_until": 1, "height_work_certified": 1,
+         "permit_valid_until": 1, "legal_stay_until": 1},
+    ).to_list(5000)
+
+    sent_count = 0
+    for emp in employees:
+        if not emp.get("public_token"):
+            continue
+        fields = [
+            ("bhp_valid_until", "Badania BHP"),
+            ("permit_valid_until", "Zezwolenie na pracę"),
+            ("legal_stay_until", "Legalny pobyt"),
+        ]
+        if emp.get("height_work_certified"):
+            fields.append(("height_valid_until", "Badania wysokościowe"))
+
+        for field, label in fields:
+            d = (emp.get(field) or "").strip()
+            if not d or d not in target_dates:
+                continue
+            days = target_dates[d]
+            urgency = "Pilne!" if days == 14 else "Przypomnienie"
+            try:
+                await send_push_to_employee(
+                    employee_id=emp["id"],
+                    title=f"{urgency} - {label} wygasa za {days} dni",
+                    body=f"Termin: {d}. Skontaktuj się z biurem aby przedłużyć.",
+                    url=f"/hours/{emp['public_token']}",
+                    tag=f"doc-expiry-{emp['id']}-{field}",
+                    require_interaction=(days == 14),
+                )
+                sent_count += 1
+            except Exception:
+                pass
+    return {"sent": sent_count, "checked": len(employees)}
+
