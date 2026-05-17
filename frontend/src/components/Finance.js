@@ -9,11 +9,23 @@ import { toast } from 'sonner';
 
 const PL_MONTHS_SHORT = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paz','Lis','Gru'];
 
-// Numerical formatter - usuwa zera po kropce: 0.00→"0", 12.50→"12.5"
+// Numerical formatter - usuwa zera po kropce: 0.00→"0", 12.50→"12.5" (dla wskaznikow, godzin)
 const fmt = (v) => {
   const n = Number(v ?? 0);
   if (!isFinite(n)) return '0';
   return n.toFixed(2).replace(/\.?0+$/, '') || '0';
+};
+// Polski format PLN: 25450.5 -> "25 450,50 zł"
+const fmtPLN = (v) => {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '0,00 zł';
+  return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' zł';
+};
+// Polski format bez 'zł' - do geste tabel z 12 miesiacami
+const fmtNum = (v) => {
+  const n = Number(v ?? 0);
+  if (!isFinite(n)) return '0,00';
+  return n.toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 const fmtPct = (v) => {
   const n = Number(v ?? 0) * 100;
@@ -338,6 +350,7 @@ const ZapisyPanel = ({ year }) => {
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
   const [filterUnassigned, setFilterUnassigned] = useState(false);
+  const [filterType, setFilterType] = useState('all'); // 'all' | 'cost' | 'income'
   const [expanded, setExpanded] = useState({}); // invoice_id -> bool
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
@@ -439,7 +452,7 @@ const ZapisyPanel = ({ year }) => {
   };
 
   const removeInvoice = async (inv) => {
-    if (!window.confirm(`Usunac FAKTURE ${inv.nr_faktury || ''} (${inv.kontrahent}) ${fmt(inv.netto)} zl i WSZYSTKIE jej pozycje?`)) return;
+    if (!window.confirm(`Usunac FAKTURE ${inv.nr_faktury || ''} (${inv.kontrahent}) ${fmtPLN(inv.netto)} i WSZYSTKIE jej pozycje?`)) return;
     try {
       const r = await api.delete(`/finance/invoices/${inv.id}`);
       toast.success(`Usunieto fakture + ${r.data.positions_deleted} pozycji`);
@@ -458,7 +471,19 @@ const ZapisyPanel = ({ year }) => {
     return r.source === 'fakturownia' && !r.kod_id;
   };
   const unassignedCount = rows.filter(isUnassignedRow).length;
-  const filteredRows = filterUnassigned ? rows.filter(isUnassignedRow) : rows;
+  const incomeCount = rows.filter(r => r.is_invoice && r.is_income).length;
+  const costCount = rows.filter(r => r.is_invoice && !r.is_income).length;
+
+  // Filtr typu
+  let filteredRows = rows;
+  if (filterType === 'income') {
+    filteredRows = filteredRows.filter(r => r.is_invoice && r.is_income);
+  } else if (filterType === 'cost') {
+    filteredRows = filteredRows.filter(r => !r.is_invoice || !r.is_income);
+  }
+  if (filterUnassigned) {
+    filteredRows = filteredRows.filter(isUnassignedRow);
+  }
 
   const syncCurrent = async () => {
     if (!window.confirm(
@@ -503,7 +528,7 @@ const ZapisyPanel = ({ year }) => {
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
         <CardTitle className="text-white">
-          Faktury i zapisy ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmt(totalNetto)} zl)
+          Faktury i zapisy ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmtPLN(totalNetto)})
           {unassignedCount > 0 && !filterUnassigned && (
             <button onClick={() => setFilterUnassigned(true)}
               className="ml-3 px-2 py-0.5 text-xs bg-[#E8B76A]/20 text-[#E8B76A] rounded hover:bg-[#E8B76A]/30"
@@ -519,6 +544,23 @@ const ZapisyPanel = ({ year }) => {
           )}
         </CardTitle>
         <div className="flex items-center gap-2">
+          <div className="inline-flex rounded-md overflow-hidden border border-[#334155]">
+            <button onClick={() => setFilterType('all')}
+              className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#5F7151] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="finance-filter-all">
+              Wszystko ({rows.length})
+            </button>
+            <button onClick={() => setFilterType('cost')}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#334155] ${filterType === 'cost' ? 'bg-[#E8836A] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="finance-filter-cost">
+              Koszty ({costCount})
+            </button>
+            <button onClick={() => setFilterType('income')}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#334155] ${filterType === 'income' ? 'bg-[#5F7151] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              data-testid="finance-filter-income">
+              Sprzedaz ({incomeCount})
+            </button>
+          </div>
           <Button onClick={syncCurrent} variant="outline"
             className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
             data-testid="finance-sync-current">
@@ -582,12 +624,12 @@ const ZapisyPanel = ({ year }) => {
                         {(r.positions || []).length} {(r.positions || []).length === 1 ? 'pozycja' : 'pozycji'}
                         {hasAssignedPositions && r.kod_id && (
                           <div className="text-[10px] text-[#E8B76A] mt-0.5" title="Naglowek faktury wnosi do aggregacji TYLKO reszte (netto - przypisane pozycje)">
-                            Reszta: {fmt(r.remainder_netto)} zl
+                            Reszta: {fmtPLN(r.remainder_netto)}
                           </div>
                         )}
                         {hasAssignedPositions && !r.kod_id && (
                           <div className="text-[10px] text-[#94A3B8] mt-0.5">
-                            Przypisano w pozycjach: {fmt(r.assigned_positions_sum)} zl
+                            Przypisano w pozycjach: {fmtPLN(r.assigned_positions_sum)}
                           </div>
                         )}
                       </td>
@@ -599,7 +641,7 @@ const ZapisyPanel = ({ year }) => {
                         {renderBudowaSelect(r.budowa_id, (e) => quickAssignInv(r, 'budowa_id', e.target.value),
                           `finance-invoice-budowa-${r.id}`)}
                       </td>
-                      <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmt(r.netto)}</td>
+                      <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmtPLN(r.netto)}</td>
                       <td className="p-2 text-right">
                         <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usun fakture + pozycje"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
                       </td>
@@ -620,7 +662,7 @@ const ZapisyPanel = ({ year }) => {
                           {renderBudowaSelect(p.budowa_id, (e) => quickAssignPos(p, 'budowa_id', e.target.value),
                             `finance-pos-budowa-${p.id}`)}
                         </td>
-                        <td className="p-2 text-right text-[#CBD5E1] font-mono whitespace-nowrap">{fmt(p.netto)}</td>
+                        <td className="p-2 text-right text-[#CBD5E1] font-mono whitespace-nowrap">{fmtPLN(p.netto)}</td>
                         <td className="p-2 text-right"></td>
                       </tr>
                     ))}
@@ -649,7 +691,7 @@ const ZapisyPanel = ({ year }) => {
                   <td className="p-2 text-xs">
                     <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>
                   </td>
-                  <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmt(z.netto)}</td>
+                  <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmtPLN(z.netto)}</td>
                   <td className="p-2 text-right">
                     <div className="flex items-center gap-1 justify-end">
                       <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
@@ -764,9 +806,9 @@ const RachunekWynikowPanel = ({ year }) => {
         {label}
       </td>
       {monthly.map((v, i) => (
-        <td key={i} className={`p-1 text-right text-xs ${opts.valClass || 'text-[#CBD5E1]'}`}>{fmt(v)}</td>
+        <td key={i} className={`p-1 text-right text-xs ${opts.valClass || 'text-[#CBD5E1]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
       ))}
-      <td className={`p-2 text-right font-bold ${opts.totalClass || 'text-white'} bg-[#1E293B]`}>{fmt(total)}</td>
+      <td className={`p-2 text-right font-bold ${opts.totalClass || 'text-white'} bg-[#1E293B]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
     </tr>
   );
 
@@ -816,14 +858,14 @@ const RachunekWynikowPanel = ({ year }) => {
                     {expanded[g] ? <ChevronDown className="inline h-4 w-4 mr-1" /> : <ChevronRight className="inline h-4 w-4 mr-1" />}
                     {groups[g].label}
                   </td>
-                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1]">{fmt(v)}</td>)}
-                  <td className="p-2 text-right font-bold text-white bg-[#1E293B]">{fmt(groups[g].total)}</td>
+                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1]">{fmtNum(v)}</td>)}
+                  <td className="p-2 text-right font-bold text-white bg-[#1E293B]">{fmtNum(groups[g].total)}</td>
                 </tr>
                 {expanded[g] && groups[g].rows.map((r) => (
                   <tr key={r.kod_id} className="border-t border-[#334155] bg-[#1E293B]/30" data-testid={`rw-detail-${r.kod_id}`}>
                     <td className="p-2 pl-8 text-[#94A3B8] text-xs sticky left-0 bg-[#2A384C] z-10">{r.name}</td>
-                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8]">{fmt(v)}</td>)}
-                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]">{fmt(r.total)}</td>
+                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8]">{fmtNum(v)}</td>)}
+                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]">{fmtNum(r.total)}</td>
                   </tr>
                 ))}
               </React.Fragment>
@@ -912,52 +954,52 @@ const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-[#94A3B8]">{r.nr}</td>
                 <td className="p-2 text-white font-medium">{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#94A3B8]">(arch)</span>}</td>
                 {showDetails && <>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmt(r.details.sprzedaz)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmt(r.details.kp)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmt(r.details.kp_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmt(r.details.kbb)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmt(r.details.kbb_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmt(r.details.marza_brutto)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.sprzedaz)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kp)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.kp_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kbb)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.kbb_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza_brutto)}</td>
                   <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza_brutto_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmt(r.details.ksb)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmt(r.details.ksp_uklady_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmt(r.details.marza1)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.ksb)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.ksp_uklady_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza1)}</td>
                   <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza1_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmt(r.details.ksp_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmt(r.details.marza2)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.ksp_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza2)}</td>
                   <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza2_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmt(r.details.podatek_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmt(r.details.marza3)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.podatek_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza3)}</td>
                   <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza3_pct)}</td>
                 </>}
-                <td className="p-2 text-right text-[#5F7151] font-semibold">{fmt(r.visible.przychod)}</td>
-                <td className="p-2 text-right text-[#E8836A] font-semibold">{fmt(r.visible.koszt)}</td>
-                <td className="p-2 text-right text-xs text-[#94A3B8]">{fmt(r.visible.kaucja_gir)}</td>
-                <td className="p-2 text-right text-xs text-[#94A3B8]">{fmt(r.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmt(r.visible.roznica)}</td>
+                <td className="p-2 text-right text-[#5F7151] font-semibold">{fmtNum(r.visible.przychod)}</td>
+                <td className="p-2 text-right text-[#E8836A] font-semibold">{fmtNum(r.visible.koszt)}</td>
+                <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_gir)}</td>
+                <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_dw)}</td>
+                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(r.visible.roznica)}</td>
                 <td className="p-2 text-right text-xs">{fmtPct(r.visible.zysk_pct)}</td>
-                <td className="p-2 text-right text-xs">{fmt(r.visible.godziny)}</td>
-                <td className="p-2 text-right text-xs">{fmt(r.visible.przychod_rg)}</td>
-                <td className="p-2 text-right text-xs">{fmt(r.visible.zysk_rg)}</td>
-                <td className="p-2 text-right text-xs">{fmt(r.visible.koszt_rg)}</td>
-                <td className="p-2 text-right text-xs">{fmt(r.visible.koszt_zmienny)}</td>
+                <td className="p-2 text-right text-xs">{fmtNum(r.visible.godziny)}</td>
+                <td className="p-2 text-right text-xs">{fmtNum(r.visible.przychod_rg)}</td>
+                <td className="p-2 text-right text-xs">{fmtNum(r.visible.zysk_rg)}</td>
+                <td className="p-2 text-right text-xs">{fmtNum(r.visible.koszt_rg)}</td>
+                <td className="p-2 text-right text-xs">{fmtNum(r.visible.koszt_zmienny)}</td>
               </tr>
             ))}
             {/* SUMA footer */}
             {rows.length > 0 && (
               <tr className="border-t-2 border-[#5F7151] bg-[#1E293B]" data-testid="sprzedaz-totals-row">
                 <td colSpan={showDetails ? 20 : 2} className="p-2 text-white font-bold">SUMA</td>
-                <td className="p-2 text-right text-[#5F7151] font-bold">{fmt(totals.visible.przychod)}</td>
-                <td className="p-2 text-right text-[#E8836A] font-bold">{fmt(totals.visible.koszt)}</td>
-                <td className="p-2 text-right text-[#94A3B8]">{fmt(totals.visible.kaucja_gir)}</td>
-                <td className="p-2 text-right text-[#94A3B8]">{fmt(totals.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmt(totals.visible.roznica)}</td>
+                <td className="p-2 text-right text-[#5F7151] font-bold">{fmtNum(totals.visible.przychod)}</td>
+                <td className="p-2 text-right text-[#E8836A] font-bold">{fmtNum(totals.visible.koszt)}</td>
+                <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_gir)}</td>
+                <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_dw)}</td>
+                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(totals.visible.roznica)}</td>
                 <td className="p-2 text-right">{fmtPct(totals.visible.zysk_pct)}</td>
-                <td className="p-2 text-right">{fmt(totals.visible.godziny)}</td>
-                <td className="p-2 text-right">{fmt(totals.visible.przychod_rg)}</td>
-                <td className="p-2 text-right">{fmt(totals.visible.zysk_rg)}</td>
-                <td className="p-2 text-right">{fmt(totals.visible.koszt_rg)}</td>
-                <td className="p-2 text-right">{fmt(totals.visible.koszt_zmienny)}</td>
+                <td className="p-2 text-right">{fmtNum(totals.visible.godziny)}</td>
+                <td className="p-2 text-right">{fmtNum(totals.visible.przychod_rg)}</td>
+                <td className="p-2 text-right">{fmtNum(totals.visible.zysk_rg)}</td>
+                <td className="p-2 text-right">{fmtNum(totals.visible.koszt_rg)}</td>
+                <td className="p-2 text-right">{fmtNum(totals.visible.koszt_zmienny)}</td>
               </tr>
             )}
           </tbody>

@@ -1,3 +1,15 @@
+## Iteration 40 (2026-05-17) — Filtr typu faktury + format polski PLN
+
+### Frontend
+- Format polski w calym module Finanse: `fmtPLN(v)` → `"25 450,50 zł"` (z separatorem tysiecznym spacja, przecinkiem dziesietnym i symbolem zl) dla wyroznionych pol, `fmtNum(v)` → `"25 450,50"` (bez zl) dla gestych tabel 12-miesiecznych
+- Filtr 3-statowy w sekcji Zapisy: **Wszystko (208) | Koszty (191) | Sprzedaz (17)** - kliknij aby przefiltrowac liste faktur
+- Sprzedazowe faktury maja zielony badge `SPRZEDAZ` obok pomaranczowego `FAKTUROWNIA`
+
+### Czego nie ruszono
+- `fmt(v)` zostawione dla procentow (`2%`, `5%`) w widoku Budowy - bo to nie jest kwota PLN
+- `renderRow` w Rachunku Wynikow przyjmuje opcjonalny `numFmt` (default fmtNum) dla ewentualnej flexibility - na razie wszystkie kwoty z fmtNum
+
+
 ## Iteration 39 (2026-05-17) — Faktury + pozycje (split invoice)
 
 ### Problem rozwiazany
