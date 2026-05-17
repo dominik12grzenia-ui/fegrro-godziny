@@ -10,6 +10,7 @@ import asyncio
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 
 import uuid
 from database import db
@@ -36,7 +37,7 @@ from routes.bhp import router as bhp_router
 from routes.warehouse import router as warehouse_router
 from routes.push import router as push_router
 from routes.payroll import router as payroll_router
-from routes.finance import router as finance_router
+from routes.finance import router as finance_router, cron_fakturownia_sync
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -273,9 +274,16 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=3600
     )
+    scheduler.add_job(
+        cron_fakturownia_sync,
+        IntervalTrigger(minutes=30),
+        id="fakturownia_sync_30min",
+        replace_existing=True,
+        misfire_grace_time=600
+    )
     scheduler.start()
     set_scheduler(scheduler)
-    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00")
+    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min")
 
 
 @app.on_event("shutdown")

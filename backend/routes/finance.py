@@ -20,6 +20,10 @@ import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from datetime import datetime
 from typing import Optional, List
+
+# === Globalny scheduler dla cron jobow z biezacym uzerem systemowym ===
+SYSTEM_USER = {"sub": "cron_system", "role": "admin"}
+
 from pydantic import BaseModel, Field
 
 from database import db
@@ -933,21 +937,8 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
 
 
 # ============= FAKTUROWNIA: Pobranie faktur kosztowych z pozycjami =============
-@router.post("/finance/sync-from-fakturownia")
-async def sync_from_fakturownia(
-    year: Optional[int] = Query(None),
-    month: Optional[int] = Query(None, ge=1, le=12),
-    current_user: dict = Depends(get_current_admin),
-):
-    """Pobiera faktury kosztowe z Fakturowni dla danego miesiaca (domyslnie biezacy).
-
-    Kazda POZYCJA faktury staje sie osobnym wpisem w finance_zapisy, dzieki czemu
-    admin moze podzielic koszt na rozne budowy.
-
-    Idempotentnie: jezeli pozycja juz istnieje (po fakturownia_position_id),
-    aktualizuje TYLKO netto/nazwe pozycji. NIE rusza kod_id/budowa_id/notes
-    (ktore admin juz mogl ustawic recznie).
-    """
+async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_system") -> dict:
+    """Logika pobierania faktur z Fakturowni - wywolywalna z endpointu i crona."""
     settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
     api_token = settings.get("fakturownia_api_key")
     domain = settings.get("fakturownia_domain")
@@ -956,8 +947,7 @@ async def sync_from_fakturownia(
             status_code=400,
             detail="Brak konfiguracji Fakturowni. Ustaw klucz API i subdomene w Narzedziach.",
         )
-    now = datetime.now()
-    yr, mo = year or now.year, month or now.month
+    yr, mo = year, month
     date_from = f"{yr:04d}-{mo:02d}-01"
     last_day = 31 if mo in (1, 3, 5, 7, 8, 10, 12) else (30 if mo != 2 else 29)
     date_to = f"{yr:04d}-{mo:02d}-{last_day:02d}"
@@ -970,7 +960,7 @@ async def sync_from_fakturownia(
             while True:
                 params = {
                     "api_token": api_token,
-                    "income": "no",  # tylko faktury KOSZTOWE
+                    "income": "no",
                     "include_positions": "true",
                     "period": "more",
                     "date_from": date_from,
@@ -985,21 +975,19 @@ async def sync_from_fakturownia(
                     raise HTTPException(status_code=400, detail=f"Fakturownia: subdomena '{domain}' nie istnieje")
                 resp.raise_for_status()
                 data = resp.json()
-                # Fakturownia zwraca albo list albo dict z paginacja
                 page_invoices = data if isinstance(data, list) else data.get("invoices", [])
                 if not page_invoices:
                     break
                 all_invoices.extend(page_invoices)
                 if len(page_invoices) < 100:
-                    break  # ostatnia strona
+                    break
                 page += 1
-                if page > 50:  # safety
+                if page > 50:
                     break
     except httpx.HTTPError as e:
         logger.error(f"[fakturownia] HTTP error: {e}")
         raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
 
-    # Pobierz aktualne wpisy fakturownia dla tego miesiaca, zeby zachowac ustawione przez admina kod_id/budowa_id
     existing = await db.finance_zapisy.find(
         {"year": yr, "month": mo, "source": "fakturownia"},
         {"_id": 0, "id": 1, "fakturownia_position_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
@@ -1013,24 +1001,18 @@ async def sync_from_fakturownia(
 
     for inv in all_invoices:
         inv_id = inv.get("id")
-        # Data sprzedazy lub wystawienia
         issue_date = inv.get("sell_date") or inv.get("issue_date") or inv.get("transaction_date")
         if not issue_date:
             issue_date = f"{yr:04d}-{mo:02d}-01"
-        # Kontrahent: dla faktury KOSZTOWEJ - sprzedawca to "buyer_*" (zgodnie z API)
         kontrahent = (inv.get("buyer_name") or inv.get("seller_name") or "").strip()
         nr_fakt = (inv.get("number") or "").strip()
         positions = inv.get("positions") or []
         if not positions:
-            # Jezeli brak pozycji - tworzymy 1 wpis z calej faktury
-            pos_id = f"inv_{inv_id}_total"
-            netto_total = float(inv.get("price_net") or 0)
-            brutto_total = float(inv.get("price_gross") or 0)
             positions = [{
-                "id": pos_id,
+                "id": f"inv_{inv_id}_total",
                 "name": "(brak pozycji - kwota laczna)",
-                "total_price_net": netto_total,
-                "total_price_gross": brutto_total,
+                "total_price_net": float(inv.get("price_net") or 0),
+                "total_price_gross": float(inv.get("price_gross") or 0),
             }]
 
         for pos in positions:
@@ -1052,26 +1034,30 @@ async def sync_from_fakturownia(
                 year_v, month_v = yr, mo
 
             if existing_z:
-                # Update tylko technicznych pol, zachowujemy admin assignments
-                await db.finance_zapisy.update_one(
-                    {"id": existing_z["id"]},
-                    {"$set": {
-                        "date": iso_date, "year": year_v, "month": month_v,
-                        "kontrahent": kontrahent, "netto": round(netto, 2),
-                        "brutto": round(brutto, 2),
-                        "nr_faktury": nr_fakt, "pozycja_nazwa": name,
-                        "updated_at": datetime.now().isoformat(),
-                        "updated_by": current_user["sub"],
-                    }},
-                )
-                updated += 1
+                # NIE rusza kwoty/danych - admin moze chciec zachowac stan po recznej edycji
+                # Tylko aktualizuje dane wtedy gdy admin jeszcze nie przypisal kodu
+                if not existing_z.get("kod_id"):
+                    await db.finance_zapisy.update_one(
+                        {"id": existing_z["id"]},
+                        {"$set": {
+                            "date": iso_date, "year": year_v, "month": month_v,
+                            "kontrahent": kontrahent, "netto": round(netto, 2),
+                            "brutto": round(brutto, 2),
+                            "nr_faktury": nr_fakt, "pozycja_nazwa": name,
+                            "updated_at": datetime.now().isoformat(),
+                            "updated_by": user_id,
+                        }},
+                    )
+                    updated += 1
+                else:
+                    skipped += 1  # juz dopisana przez admina - nie ruszam
             else:
                 doc = {
                     "id": str(uuid.uuid4()),
                     "date": iso_date, "year": year_v, "month": month_v,
                     "kontrahent": kontrahent,
                     "netto": round(netto, 2), "brutto": round(brutto, 2),
-                    "kod_id": None, "kod_category": None,  # admin musi przypisac
+                    "kod_id": None, "kod_category": None,
                     "budowa_id": None,
                     "nr_faktury": nr_fakt,
                     "pozycja_nazwa": name,
@@ -1080,13 +1066,12 @@ async def sync_from_fakturownia(
                     "fakturownia_invoice_id": inv_id,
                     "fakturownia_position_id": pos_id,
                     "created_at": datetime.now().isoformat(),
-                    "created_by": current_user["sub"],
+                    "created_by": user_id,
                 }
                 await db.finance_zapisy.insert_one(doc)
                 created += 1
 
-    # Usun wpisy ktorych juz NIE ma w Fakturowni (faktura anulowana/usunieta)
-    # ale TYLKO te bez przypisanego kod_id (admin jeszcze nie kategoryzowal)
+    # Usun pozycje ktorych juz NIE ma w Fakturowni TYLKO te bez przypisanego kod_id
     removed = 0
     for pos_id, ez in existing_by_pos.items():
         if pos_id not in new_position_ids and not ez.get("kod_id"):
@@ -1109,6 +1094,47 @@ async def sync_from_fakturownia(
         upsert=True,
     )
     return summary
+
+
+@router.post("/finance/sync-from-fakturownia")
+async def sync_from_fakturownia(
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Pobiera faktury kosztowe z Fakturowni dla danego miesiaca (domyslnie biezacy).
+
+    Kazda POZYCJA faktury staje sie osobnym wpisem w finance_zapisy.
+    Idempotentnie - re-sync NIE rusza wpisow ktore admin juz dopisal kodem.
+    """
+    now = datetime.now()
+    yr, mo = year or now.year, month or now.month
+    return await _do_fakturownia_sync(yr, mo, current_user["sub"])
+
+
+# ============= CRON: auto-sync Fakturowni co 30 minut =============
+async def cron_fakturownia_sync():
+    """Wywolywane przez scheduler co 30 minut. Cicho ignoruje brak konfiguracji.
+    Pobiera tylko BIEZACY miesiac. Idempotentnie - nie dubluje, nie nadpisuje
+    wpisow ktore admin juz przypisal kodem.
+    """
+    try:
+        settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+        if not (settings.get("fakturownia_api_key") and settings.get("fakturownia_domain")):
+            logger.debug("[cron_fakturownia] brak konfiguracji - skip")
+            return
+        now = datetime.now()
+        result = await _do_fakturownia_sync(now.year, now.month, "cron_system")
+        logger.info(f"[cron_fakturownia] OK: {result['positions_created']} nowych, "
+                     f"{result['positions_updated']} zaktualizowanych, "
+                     f"{result['positions_removed']} usunietych")
+    except HTTPException as e:
+        logger.warning(f"[cron_fakturownia] {e.detail}")
+    except Exception as e:
+        logger.error(f"[cron_fakturownia] nieoczekiwany blad: {e}", exc_info=True)
+
+
+
 
 
 # ============= Test polaczenia z Fakturownia =============
