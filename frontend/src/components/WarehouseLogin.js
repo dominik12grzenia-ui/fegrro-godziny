@@ -53,14 +53,14 @@ export default function WarehouseLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4 relative">
       <div className="absolute top-4 right-4"><LanguageToggle /></div>
-      <Card className="w-full max-w-md bg-[#1E293B] border-[#334155]" data-testid="warehouse-login-card">
+      <Card className="w-full max-w-md bg-[#131C2F] border-[#2A3B59]" data-testid="warehouse-login-card">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-[#E8B76A]/20 flex items-center justify-center">
-            <Warehouse className="h-8 w-8 text-[#E8B76A]" />
+          <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
+            <Warehouse className="h-8 w-8 text-[#D4AF37]" />
           </div>
-          <CardTitle className="text-[#E8B76A] text-2xl font-bold">FeGrro - {t('wh_login.title') || 'Magazynier'}</CardTitle>
+          <CardTitle className="text-[#D4AF37] text-2xl font-bold">FeGrro - {t('wh_login.title') || 'Magazynier'}</CardTitle>
           <p className="text-sm text-[#94A3B8] mt-1">{t('wh_login.subtitle') || 'Logowanie'}</p>
         </CardHeader>
         <CardContent>
@@ -72,7 +72,7 @@ export default function WarehouseLogin() {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="np. Jan Kowalski"
-                className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] placeholder:text-[#475569]"
+                className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] placeholder:text-[#2A3B59]"
                 data-testid="warehouse-login-name"
                 autoComplete="username"
               />
@@ -84,7 +84,7 @@ export default function WarehouseLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('wh_login.password')}
-                className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] placeholder:text-[#475569]"
+                className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] placeholder:text-[#2A3B59]"
                 data-testid="warehouse-login-password"
                 autoComplete="current-password"
               />
@@ -92,7 +92,7 @@ export default function WarehouseLogin() {
             <Button
               type="submit"
               disabled={busy}
-              className="w-full bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
+              className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
               data-testid="warehouse-login-submit"
             >
               <LogIn className="h-4 w-4 mr-2" />

@@ -38,9 +38,9 @@ const formatDate = (d) => (d ? new Date(d).toLocaleDateString('pl-PL') : '-');
 const ValidityBadge = ({ date, label }) => {
   const days = daysBetween(date);
   if (days === null) return <span className="text-[#64748B] text-xs">{label}: -</span>;
-  let color = 'text-[#6B8E4E]';
-  if (days < 0) color = 'text-[#E8836A]';
-  else if (days < 30) color = 'text-[#E8B76A]';
+  let color = 'text-[#5F7552]';
+  if (days < 0) color = 'text-[#DC4A3A]';
+  else if (days < 30) color = 'text-[#D4AF37]';
   return (
     <span className={`text-xs ${color}`}>
       {label}: <b>{formatDate(date)}</b>
@@ -308,19 +308,19 @@ export const BhpEmployees = () => {
   if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
 
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader>
         <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-          <Users className="h-5 w-5 text-[#5F7151]" /> Pracownicy - dokumenty i BHP
+          <Users className="h-5 w-5 text-[#4F6343]" /> Pracownicy - dokumenty i BHP
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Alerts widget */}
         {(alerts.employees.length > 0 || alerts.documents.length > 0) && (
-          <div className="bg-[#3D2E2E]/40 border border-[#E8B76A]/30 rounded-lg p-3" data-testid="bhp-alerts-widget">
+          <div className="bg-[#3D2E2E]/40 border border-[#D4AF37]/30 rounded-lg p-3" data-testid="bhp-alerts-widget">
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="h-4 w-4 text-[#E8B76A]" />
-              <span className="text-[#E8B76A] font-semibold text-sm">
+              <AlertTriangle className="h-4 w-4 text-[#D4AF37]" />
+              <span className="text-[#D4AF37] font-semibold text-sm">
                 Wkrótce wygasają / przeterminowane (30 dni):
                 {' '}
                 {alerts.employees.length} osób
@@ -336,25 +336,25 @@ export const BhpEmployees = () => {
                       const emp = employees.find((e) => e.id === row.employee_id);
                       if (emp) openEdit(emp);
                     }}
-                    className="text-[#CBD5E1] font-semibold hover:text-[#6B8E4E] underline-offset-2 hover:underline"
+                    className="text-[#CBD5E1] font-semibold hover:text-[#5F7552] underline-offset-2 hover:underline"
                   >
                     {row.employee_name}
                   </button>
                   {row.alerts.map((a, i) => (
-                    <span key={i} className={`px-2 py-0.5 rounded text-[11px] ${a.expired ? 'bg-[#E8836A]/30 text-[#E8836A]' : 'bg-[#E8B76A]/30 text-[#E8B76A]'}`}>
+                    <span key={i} className={`px-2 py-0.5 rounded text-[11px] ${a.expired ? 'bg-[#DC4A3A]/30 text-[#DC4A3A]' : 'bg-[#D4AF37]/30 text-[#D4AF37]'}`}>
                       {a.label}: {formatDate(a.valid_until)} {a.expired ? '(przeterm.)' : ''}
                     </span>
                   ))}
                 </div>
               ))}
               {alerts.documents.length > 0 && (
-                <div className="border-t border-[#334155] pt-1 mt-2">
+                <div className="border-t border-[#2A3B59] pt-1 mt-2">
                   <p className="text-[#94A3B8] text-[10px] uppercase mb-1">Dokumenty</p>
                   {alerts.documents.slice(0, 20).map((d) => (
                     <div key={d.document_id} className="flex flex-wrap gap-2 items-center">
                       <span className="text-[#CBD5E1]">{d.employee_name}</span>
                       <span className="text-[#94A3B8]">- {d.category_label}</span>
-                      <span className={`px-2 py-0.5 rounded text-[11px] ${d.expired ? 'bg-[#E8836A]/30 text-[#E8836A]' : 'bg-[#E8B76A]/30 text-[#E8B76A]'}`}>
+                      <span className={`px-2 py-0.5 rounded text-[11px] ${d.expired ? 'bg-[#DC4A3A]/30 text-[#DC4A3A]' : 'bg-[#D4AF37]/30 text-[#D4AF37]'}`}>
                         {formatDate(d.valid_until)} {d.expired ? '(przeterm.)' : ''}
                       </span>
                     </div>
@@ -373,7 +373,7 @@ export const BhpEmployees = () => {
               placeholder="Imię i nazwisko..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] h-9"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-9"
               data-testid="bhp-emp-search"
             />
           </div>
@@ -382,7 +382,7 @@ export const BhpEmployees = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
+              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
               data-testid="bhp-emp-status-filter"
             >
               <option value="active">Aktywni</option>
@@ -395,7 +395,7 @@ export const BhpEmployees = () => {
             <select
               value={siteFilter}
               onChange={(e) => setSiteFilter(e.target.value)}
-              className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
+              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
               data-testid="bhp-emp-site-filter"
             >
               <option value="">(wszystkie)</option>
@@ -407,7 +407,7 @@ export const BhpEmployees = () => {
         </div>
 
         {/* Bulk bar */}
-        <div className="flex flex-wrap gap-2 items-center bg-[#1E293B] rounded-lg p-2">
+        <div className="flex flex-wrap gap-2 items-center bg-[#131C2F] rounded-lg p-2">
           <Button size="sm" variant="ghost" onClick={selectAllVisible}
             className="text-[#CBD5E1] h-8" data-testid="bhp-emp-select-all">
             <CheckSquare className="h-3.5 w-3.5 mr-1" /> Zaznacz widocznych
@@ -424,7 +424,7 @@ export const BhpEmployees = () => {
               size="sm"
               onClick={() => setShowDownload(true)}
               disabled={selected.size === 0}
-              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-8"
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-8"
               data-testid="bhp-emp-download-btn"
             >
               <Download className="h-3.5 w-3.5 mr-1" /> Pobierz dokumenty ({selected.size})
@@ -443,7 +443,7 @@ export const BhpEmployees = () => {
               return (
                 <div
                   key={emp.id}
-                  className={`rounded-lg border p-3 transition-colors ${isSel ? 'bg-[#334155] border-[#5F7151]' : 'bg-[#1E293B] border-[#334155]'} ${isArch ? 'opacity-70' : ''}`}
+                  className={`rounded-lg border p-3 transition-colors ${isSel ? 'bg-[#2A3B59] border-[#4F6343]' : 'bg-[#131C2F] border-[#2A3B59]'} ${isArch ? 'opacity-70' : ''}`}
                   data-testid={`bhp-emp-row-${emp.id}`}
                 >
                   <div className="flex flex-wrap items-center gap-3">
@@ -454,22 +454,22 @@ export const BhpEmployees = () => {
                       data-testid={`bhp-emp-check-${emp.id}`}
                     >
                       {isSel
-                        ? <CheckSquare className="h-5 w-5 text-[#5F7151]" />
+                        ? <CheckSquare className="h-5 w-5 text-[#4F6343]" />
                         : <Square className="h-5 w-5 text-[#94A3B8]" />}
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-[#CBD5E1] font-semibold">{emp.full_name}</span>
                         {emp.job_title && (
-                          <span className="text-xs bg-[#2A384C] text-[#CBD5E1] px-2 py-0.5 rounded">{emp.job_title}</span>
+                          <span className="text-xs bg-[#19243C] text-[#CBD5E1] px-2 py-0.5 rounded">{emp.job_title}</span>
                         )}
                         {isArch && (
-                          <span className="text-xs bg-[#E8836A]/20 text-[#E8836A] px-2 py-0.5 rounded flex items-center gap-1">
+                          <span className="text-xs bg-[#DC4A3A]/20 text-[#DC4A3A] px-2 py-0.5 rounded flex items-center gap-1">
                             <Archive className="h-3 w-3" /> Archiwum
                           </span>
                         )}
                         {emp.documents_total > 0 && (
-                          <span className="text-xs bg-[#5F7151]/30 text-[#6B8E4E] px-2 py-0.5 rounded flex items-center gap-1">
+                          <span className="text-xs bg-[#4F6343]/30 text-[#5F7552] px-2 py-0.5 rounded flex items-center gap-1">
                             <FileText className="h-3 w-3" /> {emp.documents_total}
                           </span>
                         )}
@@ -492,18 +492,18 @@ export const BhpEmployees = () => {
                       {isArch ? (
                         <>
                           <Button size="sm" variant="ghost" onClick={() => restore(emp)}
-                            className="text-[#6B8E4E] h-8 px-2" data-testid={`bhp-emp-restore-${emp.id}`}>
+                            className="text-[#5F7552] h-8 px-2" data-testid={`bhp-emp-restore-${emp.id}`}>
                             <ArchiveRestore className="h-3.5 w-3.5" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => hardDelete(emp)}
-                            className="text-[#E8836A] h-8 px-2" title="Usuń trwale"
+                            className="text-[#DC4A3A] h-8 px-2" title="Usuń trwale"
                             data-testid={`bhp-emp-hard-delete-${emp.id}`}>
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
                         </>
                       ) : (
                         <Button size="sm" variant="ghost" onClick={() => archive(emp)}
-                          className="text-[#E8B76A] h-8 px-2" data-testid={`bhp-emp-archive-${emp.id}`}>
+                          className="text-[#D4AF37] h-8 px-2" data-testid={`bhp-emp-archive-${emp.id}`}>
                           <Archive className="h-3.5 w-3.5" />
                         </Button>
                       )}
@@ -520,7 +520,7 @@ export const BhpEmployees = () => {
       {showDownload && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setShowDownload(false)}>
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md"
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md"
             onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -533,13 +533,13 @@ export const BhpEmployees = () => {
             <CardContent className="space-y-3">
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Kategorie</label>
-                <div className="space-y-1 bg-[#1E293B] rounded p-2">
+                <div className="space-y-1 bg-[#131C2F] rounded p-2">
                   {DOC_CATEGORIES.map((c) => (
                     <label key={c.value} className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
                       <input type="checkbox" checked={downloadCats.has(c.value)}
                         onChange={() => toggleDownloadCat(c.value)}
                         data-testid={`bhp-dl-cat-${c.value}`}
-                        className="accent-[#5F7151]" />
+                        className="accent-[#4F6343]" />
                       {c.label}
                     </label>
                   ))}
@@ -547,25 +547,25 @@ export const BhpEmployees = () => {
               </div>
               <div>
                 <label className="text-xs text-[#94A3B8] mb-1 block">Format</label>
-                <div className="flex gap-3 bg-[#1E293B] rounded p-2">
+                <div className="flex gap-3 bg-[#131C2F] rounded p-2">
                   <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
                     <input type="radio" name="fmt" checked={downloadFormat === 'zip'}
                       onChange={() => setDownloadFormat('zip')}
                       data-testid="bhp-dl-fmt-zip"
-                      className="accent-[#5F7151]" />
+                      className="accent-[#4F6343]" />
                     ZIP (osobne pliki)
                   </label>
                   <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
                     <input type="radio" name="fmt" checked={downloadFormat === 'pdf'}
                       onChange={() => setDownloadFormat('pdf')}
                       data-testid="bhp-dl-fmt-pdf"
-                      className="accent-[#5F7151]" />
+                      className="accent-[#4F6343]" />
                     Scalony PDF
                   </label>
                 </div>
               </div>
-              <div className="bg-[#1E293B] rounded p-2 text-[11px] text-[#94A3B8] flex gap-2">
-                <AlertTriangle className="h-4 w-4 text-[#E8B76A] shrink-0 mt-0.5" />
+              <div className="bg-[#131C2F] rounded p-2 text-[11px] text-[#94A3B8] flex gap-2">
+                <AlertTriangle className="h-4 w-4 text-[#D4AF37] shrink-0 mt-0.5" />
                 <span>Scalony PDF dziala tylko gdy wszystkie dokumenty to prawidlowe pliki PDF. W pozostalych przypadkach uzyj ZIP.</span>
               </div>
               <div className="flex gap-2 justify-end pt-2">
@@ -573,7 +573,7 @@ export const BhpEmployees = () => {
                   Anuluj
                 </Button>
                 <Button onClick={doBulkDownload} disabled={downloading}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-dl-confirm-btn">
                   {downloading ? 'Pobieram...' : 'Pobierz'}
                 </Button>
@@ -587,7 +587,7 @@ export const BhpEmployees = () => {
       {editing && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setEditing(null)}>
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -606,7 +606,7 @@ export const BhpEmployees = () => {
                     value={editForm.job_title}
                     onChange={(e) => setEditForm((f) => ({ ...f, job_title: e.target.value }))}
                     placeholder="np. Hakowy, Sygnalista, Murarz"
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                     data-testid="bhp-edit-job-title"
                   />
                 </div>
@@ -616,7 +616,7 @@ export const BhpEmployees = () => {
                     type="date"
                     value={editForm.registered_at}
                     onChange={(e) => setEditForm((f) => ({ ...f, registered_at: e.target.value }))}
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                     data-testid="bhp-edit-registered-at"
                   />
                 </div>
@@ -626,7 +626,7 @@ export const BhpEmployees = () => {
                     type="date"
                     value={editForm.bhp_valid_until}
                     onChange={(e) => setEditForm((f) => ({ ...f, bhp_valid_until: e.target.value }))}
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                     data-testid="bhp-edit-bhp-valid-until"
                   />
                 </div>
@@ -637,7 +637,7 @@ export const BhpEmployees = () => {
                       checked={editForm.height_work_certified}
                       onChange={(e) => setEditForm((f) => ({ ...f, height_work_certified: e.target.checked }))}
                       data-testid="bhp-edit-height-checkbox"
-                      className="accent-[#5F7151]"
+                      className="accent-[#4F6343]"
                     />
                     Uprawnienia wysokościowe
                   </label>
@@ -649,7 +649,7 @@ export const BhpEmployees = () => {
                       type="date"
                       value={editForm.height_valid_until}
                       onChange={(e) => setEditForm((f) => ({ ...f, height_valid_until: e.target.value }))}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-height-valid-until"
                     />
                   </div>
@@ -657,7 +657,7 @@ export const BhpEmployees = () => {
               </div>
 
               {/* HR fields */}
-              <div className="border-t border-[#334155] pt-3">
+              <div className="border-t border-[#2A3B59] pt-3">
                 <p className="text-[#CBD5E1] font-semibold mb-2 text-sm">Dane pracownika</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
@@ -667,7 +667,7 @@ export const BhpEmployees = () => {
                       onChange={(e) => setEditForm((f) => ({ ...f, pesel: e.target.value }))}
                       placeholder="11 cyfr"
                       maxLength={11}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-pesel"
                     />
                   </div>
@@ -676,7 +676,7 @@ export const BhpEmployees = () => {
                     <Input
                       value={editForm.company_name}
                       onChange={(e) => setEditForm((f) => ({ ...f, company_name: e.target.value }))}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-company"
                     />
                   </div>
@@ -685,7 +685,7 @@ export const BhpEmployees = () => {
                     <select
                       value={editForm.employment_fraction}
                       onChange={(e) => setEditForm((f) => ({ ...f, employment_fraction: e.target.value }))}
-                      className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                      className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
                       data-testid="bhp-edit-employment"
                     >
                       <option value="">(brak)</option>
@@ -700,7 +700,7 @@ export const BhpEmployees = () => {
                       value={editForm.permit_type}
                       onChange={(e) => setEditForm((f) => ({ ...f, permit_type: e.target.value }))}
                       placeholder="np. zezwolenie typu A"
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-permit-type"
                     />
                   </div>
@@ -710,7 +710,7 @@ export const BhpEmployees = () => {
                       type="date"
                       value={editForm.permit_valid_until}
                       onChange={(e) => setEditForm((f) => ({ ...f, permit_valid_until: e.target.value }))}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-permit-valid"
                     />
                   </div>
@@ -720,21 +720,21 @@ export const BhpEmployees = () => {
                       type="date"
                       value={editForm.legal_stay_until}
                       onChange={(e) => setEditForm((f) => ({ ...f, legal_stay_until: e.target.value }))}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                       data-testid="bhp-edit-legal-stay"
                     />
                   </div>
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button onClick={saveEdit} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                <Button onClick={saveEdit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-edit-save-btn">
                   Zapisz pola BHP
                 </Button>
               </div>
 
               {/* Documents */}
-              <div className="border-t border-[#334155] pt-3">
+              <div className="border-t border-[#2A3B59] pt-3">
                 <p className="text-[#CBD5E1] font-semibold mb-2">Dokumenty ({docs.length})</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
                   <div>
@@ -742,7 +742,7 @@ export const BhpEmployees = () => {
                     <select
                       value={uploadCat}
                       onChange={(e) => setUploadCat(e.target.value)}
-                      className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
+                      className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-9 px-2 text-sm"
                       data-testid="bhp-upload-category"
                     >
                       {DOC_CATEGORIES.map((c) => (
@@ -756,7 +756,7 @@ export const BhpEmployees = () => {
                       type="date"
                       value={uploadValidUntil}
                       onChange={(e) => setUploadValidUntil(e.target.value)}
-                      className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] h-9"
+                      className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-9"
                       data-testid="bhp-upload-valid-until"
                     />
                   </div>
@@ -767,12 +767,12 @@ export const BhpEmployees = () => {
                       type="checkbox"
                       checked={uploadIsHeight}
                       onChange={(e) => setUploadIsHeight(e.target.checked)}
-                      className="accent-[#5F7151]"
+                      className="accent-[#4F6343]"
                       data-testid="bhp-upload-height-checkbox"
                     />
                     Badania wysokościowe
                   </label>
-                  <label className="flex items-center gap-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-9 px-3 rounded cursor-pointer ml-auto">
+                  <label className="flex items-center gap-1 bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-9 px-3 rounded cursor-pointer ml-auto">
                     <Upload className="h-3.5 w-3.5" /> Dodaj plik (PDF, max 10MB)
                     <input type="file" accept="application/pdf,image/*"
                       onChange={uploadDoc} className="hidden"
@@ -788,20 +788,20 @@ export const BhpEmployees = () => {
                       const days = daysBetween(d.valid_until);
                       let validColor = 'text-[#94A3B8]';
                       if (days !== null) {
-                        if (days < 0) validColor = 'text-[#E8836A]';
-                        else if (days < 30) validColor = 'text-[#E8B76A]';
-                        else validColor = 'text-[#6B8E4E]';
+                        if (days < 0) validColor = 'text-[#DC4A3A]';
+                        else if (days < 30) validColor = 'text-[#D4AF37]';
+                        else validColor = 'text-[#5F7552]';
                       }
                       return (
                         <div key={d.id}
-                          className="flex flex-wrap items-center gap-2 bg-[#1E293B] rounded p-2 text-sm"
+                          className="flex flex-wrap items-center gap-2 bg-[#131C2F] rounded p-2 text-sm"
                           data-testid={`bhp-doc-${d.id}`}>
-                          <FileText className="h-4 w-4 text-[#5F7151] shrink-0" />
+                          <FileText className="h-4 w-4 text-[#4F6343] shrink-0" />
                           <div className="flex-1 min-w-0">
                             <span className="text-[#CBD5E1] font-medium">{d.file_name}</span>
                             <span className="text-[#94A3B8] text-xs ml-2">{catLabel}</span>
                             {d.is_height_related && (
-                              <span className="ml-2 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1.5 py-0.5 rounded">wysokość</span>
+                              <span className="ml-2 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1.5 py-0.5 rounded">wysokość</span>
                             )}
                             {d.valid_until && (
                               <span className={`ml-2 text-[11px] ${validColor}`}>
@@ -819,7 +819,7 @@ export const BhpEmployees = () => {
                             <Download className="h-3 w-3" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => deleteDoc(d)}
-                            className="text-[#E8836A] h-7 px-2">
+                            className="text-[#DC4A3A] h-7 px-2">
                             <Trash2 className="h-3 w-3" />
                           </Button>
                         </div>

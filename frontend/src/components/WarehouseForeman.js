@@ -112,14 +112,14 @@ export const WarehouseForeman = () => {
         <button
           type="button"
           onClick={() => setView('catalog')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'catalog' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8]'}`}
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'catalog' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8]'}`}
           data-testid="foreman-warehouse-catalog">
           Katalog
         </button>
         <button
           type="button"
           onClick={() => setView('history')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'history' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8]'}`}
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'history' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8]'}`}
           data-testid="foreman-warehouse-history">
           Moje zamówienia ({orders.length})
         </button>
@@ -127,10 +127,10 @@ export const WarehouseForeman = () => {
 
       {view === 'catalog' && (
         <>
-          <Card className="bg-[#2A384C] border-[#334155]">
+          <Card className="bg-[#19243C] border-[#2A3B59]">
             <CardHeader className="pb-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-                <Package className="h-4 w-4 text-[#5F7151]" /> Materiały dostępne do zamówienia
+                <Package className="h-4 w-4 text-[#4F6343]" /> Materiały dostępne do zamówienia
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -143,18 +143,18 @@ export const WarehouseForeman = () => {
                     const stockLow = (m.current_stock || 0) <= 0;
                     return (
                       <div key={m.id}
-                        className="bg-[#1E293B] rounded-lg border border-[#334155] p-2 flex gap-2"
+                        className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-2 flex gap-2"
                         data-testid={`foreman-mat-${m.id}`}>
                         {m.photo ? (
                           <img src={m.photo} alt={m.name} className="h-14 w-14 object-cover rounded shrink-0" />
                         ) : (
-                          <div className="h-14 w-14 bg-[#0F172A] rounded flex items-center justify-center shrink-0">
-                            <Package className="h-6 w-6 text-[#475569]" />
+                          <div className="h-14 w-14 bg-[#0B1120] rounded flex items-center justify-center shrink-0">
+                            <Package className="h-6 w-6 text-[#2A3B59]" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="text-[#CBD5E1] text-sm font-semibold truncate">{m.name}</p>
-                          <p className={`text-[11px] ${stockLow ? 'text-[#E8B76A]' : 'text-[#6B8E4E]'}`}>
+                          <p className={`text-[11px] ${stockLow ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
                             Stan: {m.current_stock} {m.unit}
                             {stockLow && <span className="ml-1">(zamów dostawę)</span>}
                           </p>
@@ -167,7 +167,7 @@ export const WarehouseForeman = () => {
                               </Button>
                               <Input type="number" step="0.5" value={inCart}
                                 onChange={(e) => setQty(m, e.target.value)}
-                                className="h-6 w-16 text-center text-xs bg-[#0F172A] border-[#334155] text-[#CBD5E1]"
+                                className="h-6 w-16 text-center text-xs bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1]"
                                 data-testid={`foreman-mat-qty-${m.id}`} />
                               <span className="text-[10px] text-[#94A3B8]">{m.unit}</span>
                               <Button size="sm" variant="ghost"
@@ -178,7 +178,7 @@ export const WarehouseForeman = () => {
                             </div>
                           ) : (
                             <Button size="sm" onClick={() => addToCart(m)}
-                              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-6 text-[11px] mt-1"
+                              className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-6 text-[11px] mt-1"
                               data-testid={`foreman-add-${m.id}`}>
                               <Plus className="h-3 w-3 mr-1" /> Dodaj
                             </Button>
@@ -194,37 +194,37 @@ export const WarehouseForeman = () => {
 
           {/* Cart */}
           {cartItems.length > 0 && (
-            <Card className="bg-[#2A384C] border-[#5F7151]" data-testid="foreman-cart">
+            <Card className="bg-[#19243C] border-[#4F6343]" data-testid="foreman-cart">
               <CardHeader className="pb-2">
                 <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-                  <ShoppingCart className="h-4 w-4 text-[#5F7151]" /> Koszyk ({cartItems.length})
+                  <ShoppingCart className="h-4 w-4 text-[#4F6343]" /> Koszyk ({cartItems.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {cartItems.map((it) => (
-                  <div key={it.id} className="flex items-center justify-between bg-[#1E293B] rounded p-2 text-sm">
+                  <div key={it.id} className="flex items-center justify-between bg-[#131C2F] rounded p-2 text-sm">
                     <div className="flex-1 min-w-0">
                       <span className="text-[#CBD5E1] font-medium">{it.name}</span>
                       <span className="text-[#94A3B8] ml-2">x {it.qty} {it.unit}</span>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeFromCart(it)}
-                      className="text-[#E8836A] h-6 px-2 text-xs">×</Button>
+                      className="text-[#DC4A3A] h-6 px-2 text-xs">×</Button>
                   </div>
                 ))}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   <select value={siteId} onChange={(e) => setSiteId(e.target.value)}
-                    className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-9 px-3 text-sm"
+                    className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-9 px-3 text-sm"
                     data-testid="foreman-cart-site">
                     <option value="">(opcjonalnie - na która budowę)</option>
                     {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                   <Input value={note} onChange={(e) => setNote(e.target.value)}
                     placeholder="Notatka (opc.) - kiedy potrzebne, dla kogo..."
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] h-9"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-9"
                     data-testid="foreman-cart-note" />
                 </div>
                 <Button onClick={submitOrder} disabled={submitting}
-                  className="w-full bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="foreman-submit-order">
                   <Send className="h-4 w-4 mr-2" />
                   {submitting ? 'Wysyłam...' : 'Wyślij zamówienie do admina'}
@@ -236,10 +236,10 @@ export const WarehouseForeman = () => {
       )}
 
       {view === 'history' && (
-        <Card className="bg-[#2A384C] border-[#334155]">
+        <Card className="bg-[#19243C] border-[#2A3B59]">
           <CardHeader className="pb-2">
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-              <History className="h-4 w-4 text-[#5F7151]" /> Moje zamówienia
+              <History className="h-4 w-4 text-[#4F6343]" /> Moje zamówienia
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -248,12 +248,12 @@ export const WarehouseForeman = () => {
             ) : (
               <div className="space-y-2">
                 {orders.map((o) => {
-                  const statusColor = o.status === 'pending' ? 'bg-[#E8B76A]/20 text-[#E8B76A]' :
-                    o.status === 'issued' ? 'bg-[#5F7151]/30 text-[#6B8E4E]' :
-                    'bg-[#E8836A]/20 text-[#E8836A]';
+                  const statusColor = o.status === 'pending' ? 'bg-[#D4AF37]/20 text-[#D4AF37]' :
+                    o.status === 'issued' ? 'bg-[#4F6343]/30 text-[#5F7552]' :
+                    'bg-[#DC4A3A]/20 text-[#DC4A3A]';
                   const statusLabel = { pending: 'Czeka', issued: 'Wydane', rejected: 'Odrzucone' }[o.status];
                   return (
-                    <div key={o.id} className="bg-[#1E293B] rounded p-2 text-sm"
+                    <div key={o.id} className="bg-[#131C2F] rounded p-2 text-sm"
                       data-testid={`foreman-order-${o.id}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                         <span className={`text-[11px] px-2 py-0.5 rounded ${statusColor}`}>{statusLabel}</span>
@@ -266,13 +266,13 @@ export const WarehouseForeman = () => {
                           <div key={it.material_id} className="text-[#CBD5E1] text-xs">
                             • {it.material_name} <span className="text-[#94A3B8]">x {it.quantity} {it.unit}</span>
                             {it.issued_quantity !== null && it.issued_quantity !== undefined && (
-                              <span className="ml-2 text-[10px] text-[#6B8E4E]">(wydano {it.issued_quantity})</span>
+                              <span className="ml-2 text-[10px] text-[#5F7552]">(wydano {it.issued_quantity})</span>
                             )}
                           </div>
                         ))}
                       </div>
                       {o.admin_note && (
-                        <p className="text-[11px] text-[#E8B76A] italic mt-1 flex items-center gap-1">
+                        <p className="text-[11px] text-[#D4AF37] italic mt-1 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" /> {o.admin_note}
                         </p>
                       )}

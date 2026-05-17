@@ -201,15 +201,15 @@ const InfoHeader = ({ label, info, className = '', align = 'right' }) => {
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-80 bg-[#0F172A] border-[#334155] text-[#CBD5E1] text-xs p-4"
+          className="w-80 bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] text-xs p-4"
           align="start"
           side="bottom">
-          <div className="font-semibold text-[#E8B76A] text-sm mb-2">{info.title}</div>
+          <div className="font-semibold text-[#D4AF37] text-sm mb-2">{info.title}</div>
           <div className="text-[#CBD5E1] mb-3 leading-relaxed">{info.desc}</div>
           {info.formula && (
-            <div className="pt-2 border-t border-[#334155]">
+            <div className="pt-2 border-t border-[#2A3B59]">
               <div className="text-[10px] uppercase tracking-wide text-[#94A3B8] mb-1">Wzor</div>
-              <div className="font-mono text-[#5F7151] text-[11px] leading-relaxed">{info.formula}</div>
+              <div className="font-mono text-[#4F6343] text-[11px] leading-relaxed">{info.formula}</div>
             </div>
           )}
         </PopoverContent>
@@ -247,9 +247,9 @@ const FakturowniaSyncWarning = () => {
   return (
     <div
       data-testid="fakturownia-sync-warning"
-      className="flex items-start gap-3 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-4 py-3 text-sm"
+      className="flex items-start gap-3 rounded-md border border-[#9B2C2C]/40 bg-[#9B2C2C]/10 px-4 py-3 text-sm"
     >
-      <AlertTriangle className="h-5 w-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+      <AlertTriangle className="h-5 w-5 text-[#9B2C2C] flex-shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-[#FCA5A5]">
           Ostatni auto-sync z Fakturowni nieudany{when && ` (${when})`}
@@ -278,7 +278,7 @@ export const Finance = () => {
     <div className="space-y-4">
       <FakturowniaSyncWarning />
       {/* Subtab nav + year picker */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#334155] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#2A3B59] pb-2">
         {SUBTABS.map(t => (
           <button
             key={t.id}
@@ -286,8 +286,8 @@ export const Finance = () => {
             data-testid={`finance-subtab-${t.id}`}
             className={`px-3 py-1.5 rounded-t text-sm font-semibold transition-colors ${
               active === t.id
-                ? 'bg-[#5F7151] text-white'
-                : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155] hover:text-white'
+                ? 'bg-[#4F6343] text-white'
+                : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59] hover:text-white'
             }`}
           >
             {t.label}
@@ -300,7 +300,7 @@ export const Finance = () => {
             min="2020" max="2099"
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value) || new Date().getFullYear())}
-            className="w-24 bg-[#1E293B] border-[#334155] text-white h-8"
+            className="w-24 bg-[#131C2F] border-[#2A3B59] text-white h-8"
             data-testid="finance-year-input"
           />
         </div>
@@ -416,11 +416,11 @@ const BudowyPanel = () => {
             {rows.map((b) => (
               <tr key={b.id} className="border-b border-[#2A3B59] hover:bg-[#131C2F]/50 transition-colors" data-testid={`finance-budowa-row-${b.id}`}>
                 <td className="py-3 px-4 text-white font-medium">{b.name}</td>
-                <td className="py-3 px-4 text-center">{b.show_in_hours ? <span className="text-[#6B8E4E]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="py-3 px-4 text-center">{b.is_gir ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="py-3 px-4 text-center">{b.is_dw ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="py-3 px-4 text-center">{b.show_in_hours ? <span className="text-[#5F7552]">TAK</span> : <span className="text-[#2A3B59]">-</span>}</td>
+                <td className="py-3 px-4 text-center">{b.is_gir ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
+                <td className="py-3 px-4 text-center">{b.is_dw ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center">
-                  {b.is_archived ? <span className="text-[#94A3B8] text-xs px-2 py-1 bg-[#131C2F] rounded">Archiwum</span> : <span className="text-[#6B8E4E] text-xs px-2 py-1 bg-[#4F6343]/20 rounded">Aktywna</span>}
+                  {b.is_archived ? <span className="text-[#94A3B8] text-xs px-2 py-1 bg-[#131C2F] rounded">Archiwum</span> : <span className="text-[#5F7552] text-xs px-2 py-1 bg-[#4F6343]/20 rounded">Aktywna</span>}
                 </td>
                 <td className="py-3 px-4 text-right">
                   <div className="flex items-center gap-1 justify-end">
@@ -441,7 +441,7 @@ const BudowyPanel = () => {
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1]" data-testid="finance-budowa-modal">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1]" data-testid="finance-budowa-modal">
           <DialogHeader>
             <DialogTitle className="text-white">{editing ? 'Edytuj budowe' : 'Dodaj budowe'}</DialogTitle>
           </DialogHeader>
@@ -449,45 +449,45 @@ const BudowyPanel = () => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Nazwa</label>
               <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})}
-                placeholder="np. LEBA, SASINO" className="bg-[#1E293B] border-[#334155] text-white" autoFocus
+                placeholder="np. LEBA, SASINO" className="bg-[#131C2F] border-[#2A3B59] text-white" autoFocus
                 data-testid="finance-budowa-name" />
             </div>
-            <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E293B] rounded">
+            <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#131C2F] rounded">
               <input type="checkbox" checked={form.show_in_hours} onChange={(e) => setForm({...form, show_in_hours: e.target.checked})}
-                className="accent-[#5F7151]" data-testid="finance-budowa-show-in-hours" />
+                className="accent-[#4F6343]" data-testid="finance-budowa-show-in-hours" />
               <span>Pokaż w liscie godzin (przypisywanie pracownikow)</span>
             </label>
-            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#1E293B] rounded">
+            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#131C2F] rounded">
               <label className="flex items-center gap-2 cursor-pointer flex-1">
                 <input type="checkbox" checked={form.is_gir} onChange={(e) => setForm({...form, is_gir: e.target.checked})}
-                  className="accent-[#E8B76A]" data-testid="finance-budowa-is-gir" />
+                  className="accent-[#D4AF37]" data-testid="finance-budowa-is-gir" />
                 <span>Budowa GIR — Kaucja</span>
               </label>
               <Input type="number" step="0.1" min="0" max="100" value={form.kaucja_gir_pct}
                 onChange={(e) => setForm({...form, kaucja_gir_pct: parseFloat(e.target.value) || 0})}
                 disabled={!form.is_gir}
-                className="w-20 no-spinner bg-[#1E293B] border-[#334155] text-white text-right"
+                className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
                 data-testid="finance-budowa-gir-pct" />
               <span className="text-[#94A3B8]">% z przychodu</span>
             </div>
-            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#1E293B] rounded">
+            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#131C2F] rounded">
               <label className="flex items-center gap-2 cursor-pointer flex-1">
                 <input type="checkbox" checked={form.is_dw} onChange={(e) => setForm({...form, is_dw: e.target.checked})}
-                  className="accent-[#E8B76A]" data-testid="finance-budowa-is-dw" />
+                  className="accent-[#D4AF37]" data-testid="finance-budowa-is-dw" />
                 <span>Budowa DW — Kaucja</span>
               </label>
               <Input type="number" step="0.1" min="0" max="100" value={form.kaucja_dw_pct}
                 onChange={(e) => setForm({...form, kaucja_dw_pct: parseFloat(e.target.value) || 0})}
                 disabled={!form.is_dw}
-                className="w-20 no-spinner bg-[#1E293B] border-[#334155] text-white text-right"
+                className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
                 data-testid="finance-budowa-dw-pct" />
               <span className="text-[#94A3B8]">% z przychodu</span>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">Anuluj</Button>
-            <Button onClick={submit} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-budowa-submit">
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
+            <Button onClick={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-budowa-submit">
               {editing ? 'Zapisz' : 'Dodaj'}
             </Button>
           </DialogFooter>
@@ -777,7 +777,7 @@ const ZapisyPanel = ({ year }) => {
 
   const renderKodSelect = (val, onChange, testid, isUnassignedHighlight = false) => (
     <select value={val || ''} onChange={onChange}
-      className={`w-full bg-[#1E293B] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#E8B76A] text-[#E8B76A]' : 'border-[#334155] text-white'}`}
+      className={`w-full bg-[#131C2F] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-[#2A3B59] text-white'}`}
       data-testid={testid}>
       <option value="">— przypisz kod —</option>
       {['PZS','PZSV','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
@@ -792,7 +792,7 @@ const ZapisyPanel = ({ year }) => {
 
   const renderBudowaSelect = (val, onChange, testid) => (
     <select value={val || ''} onChange={onChange}
-      className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-1 py-1 text-xs"
+      className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-1 py-1 text-xs"
       data-testid={testid}>
       <option value="">— bez budowy —</option>
       {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -800,63 +800,63 @@ const ZapisyPanel = ({ year }) => {
   );
 
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
         <CardTitle className="text-white">
           Faktury i zapisy ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmtPLN(totalNetto)})
           {unassignedCount > 0 && !filterUnassigned && (
             <button onClick={() => setFilterUnassigned(true)}
-              className="ml-3 px-2 py-0.5 text-xs bg-[#E8B76A]/20 text-[#E8B76A] rounded hover:bg-[#E8B76A]/30"
+              className="ml-3 px-2 py-0.5 text-xs bg-[#D4AF37]/20 text-[#D4AF37] rounded hover:bg-[#D4AF37]/30"
               data-testid="finance-unassigned-filter">
               {unassignedCount} bez kodu (kliknij aby przefiltrowac)
             </button>
           )}
           {filterUnassigned && (
             <button onClick={() => setFilterUnassigned(false)}
-              className="ml-3 px-2 py-0.5 text-xs bg-[#334155] text-[#CBD5E1] rounded hover:bg-[#475569]">
+              className="ml-3 px-2 py-0.5 text-xs bg-[#2A3B59] text-[#CBD5E1] rounded hover:bg-[#2A3B59]">
               Pokaż wszystkie
             </button>
           )}
         </CardTitle>
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-md overflow-hidden border border-[#334155]">
+          <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]">
             <button onClick={() => setFilterType('all')}
-              className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#5F7151] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
               data-testid="finance-filter-all">
               Wszystko ({rows.length})
             </button>
             <button onClick={() => setFilterType('cost')}
-              className={`px-3 py-1 text-xs font-medium border-l border-[#334155] ${filterType === 'cost' ? 'bg-[#E8836A] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${filterType === 'cost' ? 'bg-[#DC4A3A] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
               data-testid="finance-filter-cost">
               Koszty ({costCount})
             </button>
             <button onClick={() => setFilterType('income')}
-              className={`px-3 py-1 text-xs font-medium border-l border-[#334155] ${filterType === 'income' ? 'bg-[#5F7151] text-white' : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'}`}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${filterType === 'income' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
               data-testid="finance-filter-income">
               Sprzedaż ({incomeCount})
             </button>
           </div>
           <Button onClick={syncCurrent} variant="outline"
-            className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+            className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
             data-testid="finance-sync-current">
             Sync bieżący miesiąc
           </Button>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
-            className="bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-sm"
+            className="bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-zapisy-month">
             <option value="0">Caly rok</option>
             {PL_MONTHS_SHORT.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
           </select>
           <Button onClick={() => { setEditing(null); setShowAdd(true); }}
-            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-add-zapis">
+            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-add-zapis">
             <Plus className="h-4 w-4 mr-1" /> Dodaj zapis
           </Button>
         </div>
       </CardHeader>
       {kpMismatch && (
-        <div className="mx-4 mb-3 flex items-start gap-3 rounded-md border border-[#DC2626]/40 bg-[#DC2626]/10 px-4 py-3 text-sm"
+        <div className="mx-4 mb-3 flex items-start gap-3 rounded-md border border-[#9B2C2C]/40 bg-[#9B2C2C]/10 px-4 py-3 text-sm"
           data-testid="finance-payroll-mismatch-banner">
-          <AlertTriangle className="h-5 w-5 text-[#DC2626] flex-shrink-0 mt-0.5" />
+          <AlertTriangle className="h-5 w-5 text-[#9B2C2C] flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-[#FCA5A5]">
               Niezgodność kosztu wynagrodzeń {month > 0 ? `${PL_MONTHS_SHORT[month-1]} ${year}` : `caly rok ${year}`}
@@ -869,7 +869,7 @@ const ZapisyPanel = ({ year }) => {
             </div>
           </div>
           <Button onClick={month > 0 ? syncCurrent : syncAllMonths} disabled={syncingPayroll}
-            className="bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs h-8"
+            className="bg-[#9B2C2C] hover:bg-[#B91C1C] text-white text-xs h-8"
             data-testid="finance-payroll-mismatch-resync">
             {syncingPayroll ? 'Sync...' : (month > 0 ? 'Sync ten miesiąc' : 'Sync wszystkie')}
           </Button>
@@ -879,7 +879,7 @@ const ZapisyPanel = ({ year }) => {
         {loading ? <div className="p-6 text-[#94A3B8]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak zapisow w tym okresie.</div> :
         <table className="w-full text-sm">
-          <thead className="bg-[#1E293B] text-[#94A3B8]">
+          <thead className="bg-[#131C2F] text-[#94A3B8]">
             <tr>
               <th className="p-2 text-left w-8"></th>
               <th className="p-2 text-left">Data</th>
@@ -899,8 +899,8 @@ const ZapisyPanel = ({ year }) => {
                 const hasAssignedPositions = (r.positions || []).some(p => p.kod_id);
                 return (
                   <React.Fragment key={r.id}>
-                    <tr className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
-                      unassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : ''
+                    <tr className={`border-t border-[#2A3B59] hover:bg-[#131C2F]/50 ${
+                      unassigned ? 'bg-[#D4AF37]/10 ring-1 ring-inset ring-[#D4AF37]/40' : ''
                     }`} data-testid={`finance-invoice-row-${r.id}`}>
                       <td className="p-2 text-center">
                         {(r.positions || []).length > 0 && (
@@ -914,13 +914,13 @@ const ZapisyPanel = ({ year }) => {
                       <td className="p-2 text-[#CBD5E1] text-xs">
                         <div className="font-semibold">{r.kontrahent || '-'}</div>
                         {r.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{r.nr_faktury}</div>}
-                        <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">FAKTUROWNIA</span>
-                        {r.is_income && <span className="inline-block mt-0.5 ml-1 text-[10px] bg-[#5F7151]/30 text-[#5F7151] px-1 rounded">SPRZEDAZ</span>}
+                        <span className="inline-block mt-0.5 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">FAKTUROWNIA</span>
+                        {r.is_income && <span className="inline-block mt-0.5 ml-1 text-[10px] bg-[#4F6343]/30 text-[#4F6343] px-1 rounded">SPRZEDAZ</span>}
                       </td>
                       <td className="p-2 text-[#94A3B8] text-xs italic">
                         {(r.positions || []).length} {(r.positions || []).length === 1 ? 'pozycja' : 'pozycji'}
                         {hasAssignedPositions && r.kod_id && (
-                          <div className="text-[10px] text-[#E8B76A] mt-0.5" title="Naglowek faktury wnosi do aggregacji TYLKO reszte (netto - przypisane pozycje)">
+                          <div className="text-[10px] text-[#D4AF37] mt-0.5" title="Naglowek faktury wnosi do aggregacji TYLKO reszte (netto - przypisane pozycje)">
                             Reszta: {fmtPLN(r.remainder_netto)}
                           </div>
                         )}
@@ -940,15 +940,15 @@ const ZapisyPanel = ({ year }) => {
                       </td>
                       <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmtPLN(r.netto)}</td>
                       <td className="p-2 text-right">
-                        <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń fakture + pozycje"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                        <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń fakture + pozycje"><Trash2 className="h-4 w-4 text-[#9B2C2C]" /></button>
                       </td>
                     </tr>
                     {isOpen && (r.positions || []).map((p) => (
-                      <tr key={p.id} className="border-t border-[#334155] bg-[#1E293B]/50">
+                      <tr key={p.id} className="border-t border-[#2A3B59] bg-[#131C2F]/50">
                         <td></td>
                         <td className="p-2 text-[#94A3B8] text-[10px]"></td>
                         <td className="p-2 text-[#94A3B8] text-xs pl-6">
-                          <span className="text-[#475569]">└</span> pozycja
+                          <span className="text-[#2A3B59]">└</span> pozycja
                         </td>
                         <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={p.pozycja_nazwa}>{p.pozycja_nazwa || '-'}</td>
                         <td className="p-2 text-xs">
@@ -970,16 +970,16 @@ const ZapisyPanel = ({ year }) => {
               const z = r;
               const isUnassigned = z.source === 'fakturownia' && !z.kod_id;
               return (
-                <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
-                  isUnassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : '')
+                <tr key={z.id} className={`border-t border-[#2A3B59] hover:bg-[#131C2F]/50 ${
+                  isUnassigned ? 'bg-[#D4AF37]/10 ring-1 ring-inset ring-[#D4AF37]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#131C2F]/40' : '')
                 }`} data-testid={`finance-zapis-row-${z.id}`}>
                   <td></td>
                   <td className="p-2 text-white text-xs whitespace-nowrap">{z.date}</td>
                   <td className="p-2 text-[#CBD5E1] text-xs">
                     <div>{z.kontrahent || '-'}</div>
                     {z.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{z.nr_faktury}</div>}
-                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#475569]/40 text-[#CBD5E1] px-1 rounded">RECZNY</span>}
-                    {z.source && z.source.startsWith('auto_') && <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">AUTO</span>}
+                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#2A3B59]/40 text-[#CBD5E1] px-1 rounded">RECZNY</span>}
+                    {z.source && z.source.startsWith('auto_') && <span className="inline-block mt-0.5 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">AUTO</span>}
                   </td>
                   <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
                   <td className="p-2 text-xs">
@@ -991,8 +991,8 @@ const ZapisyPanel = ({ year }) => {
                   <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmtPLN(z.netto)}</td>
                   <td className="p-2 text-right">
                     <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
-                      <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń"><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                      <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#2A3B59] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
+                      <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń"><Trash2 className="h-4 w-4 text-[#9B2C2C]" /></button>
                     </div>
                   </td>
                 </tr>
@@ -1003,33 +1003,33 @@ const ZapisyPanel = ({ year }) => {
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1] max-w-2xl" data-testid="finance-zapis-modal">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-2xl" data-testid="finance-zapis-modal">
           <DialogHeader><DialogTitle className="text-white">{editing ? 'Edytuj zapis' : 'Dodaj zapis ksiegowy'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Data</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({...form, date: e.target.value})}
-                className="bg-[#1E293B] border-[#334155] text-white" data-testid="finance-zapis-date" />
+                className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-zapis-date" />
             </div>
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Nr faktury</label>
               <Input value={form.nr_faktury} onChange={(e) => setForm({...form, nr_faktury: e.target.value})}
-                placeholder="FV/.../2026" className="bg-[#1E293B] border-[#334155] text-white" />
+                placeholder="FV/.../2026" className="bg-[#131C2F] border-[#2A3B59] text-white" />
             </div>
             <div className="col-span-2">
               <label className="text-sm text-[#94A3B8] block mb-1">Kontrahent</label>
               <Input value={form.kontrahent} onChange={(e) => setForm({...form, kontrahent: e.target.value})}
-                placeholder="np. INWESTOR ABC" className="bg-[#1E293B] border-[#334155] text-white" />
+                placeholder="np. INWESTOR ABC" className="bg-[#131C2F] border-[#2A3B59] text-white" />
             </div>
             <div className="col-span-2">
               <label className="text-sm text-[#94A3B8] block mb-1">Pozycja (nazwa towaru/uslugi)</label>
               <Input value={form.pozycja_nazwa} onChange={(e) => setForm({...form, pozycja_nazwa: e.target.value})}
-                placeholder="np. Beton B25, Stal preta fi12" className="bg-[#1E293B] border-[#334155] text-white" />
+                placeholder="np. Beton B25, Stal preta fi12" className="bg-[#131C2F] border-[#2A3B59] text-white" />
             </div>
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Kod kosztu</label>
               <select value={form.kod_id} onChange={(e) => setForm({...form, kod_id: e.target.value})}
-                className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-2 text-sm"
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                 data-testid="finance-zapis-kod">
                 {['PZS','PZSV','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
                   const catKody = kody.filter(k => k.category === cat);
@@ -1045,7 +1045,7 @@ const ZapisyPanel = ({ year }) => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Budowa (opcjonalnie)</label>
               <select value={form.budowa_id} onChange={(e) => setForm({...form, budowa_id: e.target.value})}
-                className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-2 text-sm"
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                 data-testid="finance-zapis-budowa">
                 <option value="">— bez budowy —</option>
                 {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -1054,19 +1054,19 @@ const ZapisyPanel = ({ year }) => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Netto (zł)</label>
               <Input type="number" step="0.01" value={form.netto} onChange={(e) => setForm({...form, netto: e.target.value})}
-                placeholder="0.00" className="no-spinner bg-[#1E293B] border-[#334155] text-white"
+                placeholder="0.00" className="no-spinner bg-[#131C2F] border-[#2A3B59] text-white"
                 data-testid="finance-zapis-netto" />
             </div>
             <div className="col-span-2">
               <label className="text-sm text-[#94A3B8] block mb-1">Uwagi</label>
               <Input value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
-                className="bg-[#1E293B] border-[#334155] text-white" />
+                className="bg-[#131C2F] border-[#2A3B59] text-white" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">Anuluj</Button>
-            <Button onClick={submit} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-zapis-submit">
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
+            <Button onClick={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">
               {editing ? 'Zapisz' : 'Dodaj'}
             </Button>
           </DialogFooter>
@@ -1152,50 +1152,50 @@ const RachunekWynikowPanel = ({ year }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
 
-  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#19243C] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { summary, ratios, groups } = data;
   const monthsHeader = PL_MONTHS_SHORT;
 
   const renderRow = (label, monthly, total, opts = {}) => (
-    <tr className={`border-t-2 border-[#334155] ${opts.bg || ''}`} data-testid={opts.testid}>
-      <td className={`p-2 border-r-2 border-[#475569] ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#2A384C]'} z-10`}>
+    <tr className={`border-t-2 border-[#2A3B59] ${opts.bg || ''}`} data-testid={opts.testid}>
+      <td className={`p-2 border-r-2 border-[#2A3B59] ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#19243C]'} z-10`}>
         {opts.indent && <span className="ml-4" />}
         {label}
       </td>
       {monthly.map((v, i) => (
-        <td key={i} className={`p-1 text-right text-xs border-r border-[#334155] ${opts.valClass || 'text-[#CBD5E1]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
+        <td key={i} className={`p-1 text-right text-xs border-r border-[#2A3B59] ${opts.valClass || 'text-[#CBD5E1]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
       ))}
-      <td className={`p-2 text-right font-bold border-l-2 border-[#475569] ${opts.totalClass || 'text-white'} bg-[#1E293B]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
+      <td className={`p-2 text-right font-bold border-l-2 border-[#2A3B59] ${opts.totalClass || 'text-white'} bg-[#131C2F]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
     </tr>
   );
 
   const toggle = (k) => setExpanded(s => ({ ...s, [k]: !s[k] }));
 
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
         <Button onClick={() => setShowAddKod(true)}
-          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-btn">
+          className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
         </Button>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-rw-table">
-          <thead className="bg-[#1E293B] text-[#94A3B8] sticky top-0">
+          <thead className="bg-[#131C2F] text-[#94A3B8] sticky top-0">
             <tr>
-              <th className="p-2 text-left border-r-2 border-[#475569] sticky left-0 bg-[#1E293B] z-20">Pozycja</th>
-              {monthsHeader.map((m, i) => <th key={i} className="p-1 text-right text-xs min-w-[60px] border-r border-[#334155]">{m}</th>)}
-              <th className="p-2 text-right border-l-2 border-[#475569]">SUMA</th>
+              <th className="p-2 text-left border-r-2 border-[#2A3B59] sticky left-0 bg-[#131C2F] z-20">Pozycja</th>
+              {monthsHeader.map((m, i) => <th key={i} className="p-1 text-right text-xs min-w-[60px] border-r border-[#2A3B59]">{m}</th>)}
+              <th className="p-2 text-right border-l-2 border-[#2A3B59]">SUMA</th>
             </tr>
           </thead>
           <tbody>
             {renderRow('PRZYCHODY NETTO', summary.przychody_netto.monthly, summary.przychody_netto.total,
-              { bg: 'bg-[#5F7151]/15', labelClass: 'text-[#5F7151] font-bold', totalClass: 'text-[#5F7151]', testid: 'rw-przychody' })}
+              { bg: 'bg-[#4F6343]/15', labelClass: 'text-[#4F6343] font-bold', totalClass: 'text-[#4F6343]', testid: 'rw-przychody' })}
             {renderRow('SUMA KOSZTOW', summary.suma_kosztow.monthly, summary.suma_kosztow.total,
-              { bg: 'bg-[#E8836A]/10', labelClass: 'text-[#E8836A] font-bold', totalClass: 'text-[#E8836A]', testid: 'rw-koszty' })}
+              { bg: 'bg-[#DC4A3A]/10', labelClass: 'text-[#DC4A3A] font-bold', totalClass: 'text-[#DC4A3A]', testid: 'rw-koszty' })}
             {renderRow('PODATEK', summary.podatek.monthly, summary.podatek.total,
               { labelClass: 'text-[#CBD5E1]', testid: 'rw-podatek' })}
             {renderRow('KAUCJA GIR', summary.kaucja_gir.monthly, summary.kaucja_gir.total,
@@ -1203,12 +1203,12 @@ const RachunekWynikowPanel = ({ year }) => {
             {renderRow('KAUCJA DW', summary.kaucja_dw.monthly, summary.kaucja_dw.total,
               { labelClass: 'text-[#94A3B8]' })}
             {renderRow('WYNIK NETTO', summary.wynik_netto.monthly, summary.wynik_netto.total,
-              { bg: 'bg-[#E8B76A]/15', labelClass: 'text-[#E8B76A] font-bold', totalClass: 'text-[#E8B76A]', testid: 'rw-wynik' })}
+              { bg: 'bg-[#D4AF37]/15', labelClass: 'text-[#D4AF37] font-bold', totalClass: 'text-[#D4AF37]', testid: 'rw-wynik' })}
             {renderRow('ILOSC GODZIN', summary.godziny.monthly, summary.godziny.total,
               { labelClass: 'text-[#94A3B8]' })}
 
             {/* Wskaźniki */}
-            <tr><td colSpan={14} className="p-1 bg-[#1E293B] text-[#94A3B8] text-xs uppercase border-y-2 border-[#475569]">Wskaźniki / R-G</td></tr>
+            <tr><td colSpan={14} className="p-1 bg-[#131C2F] text-[#94A3B8] text-xs uppercase border-y-2 border-[#2A3B59]">Wskaźniki / R-G</td></tr>
             {renderRow('Koszt R-G (firma + pracownik)', ratios.koszt_rg_firma_pracownik, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Przychody / R-G', ratios.przychody_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Koszty / R-G', ratios.koszty_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
@@ -1218,28 +1218,28 @@ const RachunekWynikowPanel = ({ year }) => {
             {/* Groups */}
             {['kp','kbb','ksb','ksp'].map(g => (
               <React.Fragment key={g}>
-                <tr className="border-t-4 border-[#5F7151] hover:bg-[#1E293B]/50 cursor-pointer" onClick={() => toggle(g)} data-testid={`rw-group-toggle-${g}`}>
-                  <td className="p-2 text-white font-semibold border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">
+                <tr className="border-t-4 border-[#4F6343] hover:bg-[#131C2F]/50 cursor-pointer" onClick={() => toggle(g)} data-testid={`rw-group-toggle-${g}`}>
+                  <td className="p-2 text-white font-semibold border-r-2 border-[#2A3B59] sticky left-0 bg-[#19243C] z-10">
                     {expanded[g] ? <ChevronDown className="inline h-4 w-4 mr-1" /> : <ChevronRight className="inline h-4 w-4 mr-1" />}
                     {groups[g].label}
                   </td>
-                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1] border-r border-[#334155]">{fmtNum(v)}</td>)}
-                  <td className="p-2 text-right font-bold text-white bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(groups[g].total)}</td>
+                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1] border-r border-[#2A3B59]">{fmtNum(v)}</td>)}
+                  <td className="p-2 text-right font-bold text-white bg-[#131C2F] border-l-2 border-[#2A3B59]">{fmtNum(groups[g].total)}</td>
                 </tr>
                 {expanded[g] && groups[g].rows.map((r) => {
                   const isEditing = editingKod?.kod_id === r.kod_id;
                   const kodMeta = allKody.find(k => k.id === r.kod_id);
                   const isCustom = !!kodMeta?.is_custom;
                   return (
-                  <tr key={r.kod_id} className="border-t border-[#334155] bg-[#1E293B]/30" data-testid={`rw-detail-${r.kod_id}`}>
-                    <td className="p-2 pl-8 text-[#94A3B8] text-xs border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">
+                  <tr key={r.kod_id} className="border-t border-[#2A3B59] bg-[#131C2F]/30" data-testid={`rw-detail-${r.kod_id}`}>
+                    <td className="p-2 pl-8 text-[#94A3B8] text-xs border-r-2 border-[#2A3B59] sticky left-0 bg-[#19243C] z-10">
                       {isEditing ? (
                         <div className="flex items-center gap-1">
                           <input autoFocus value={editingKod.name}
                             onChange={(e) => setEditingKod({ ...editingKod, name: e.target.value })}
                             onKeyDown={(e) => { if (e.key === 'Enter') renameKod(r.kod_id); if (e.key === 'Escape') setEditingKod(null); }}
                             onBlur={() => renameKod(r.kod_id)}
-                            className="bg-[#1E293B] border border-[#5F7151] text-white rounded px-1 py-0.5 text-xs flex-1"
+                            className="bg-[#131C2F] border border-[#4F6343] text-white rounded px-1 py-0.5 text-xs flex-1"
                             data-testid={`rw-kod-edit-input-${r.kod_id}`} />
                         </div>
                       ) : (
@@ -1249,14 +1249,14 @@ const RachunekWynikowPanel = ({ year }) => {
                             {r.name}
                           </span>
                           <button onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
-                            className="text-[#5F7151] hover:text-white opacity-50 hover:opacity-100"
+                            className="text-[#4F6343] hover:text-white opacity-50 hover:opacity-100"
                             title="Edytuj nazwe"
                             data-testid={`rw-kod-edit-btn-${r.kod_id}`}>
                             <Edit2 className="h-3 w-3" />
                           </button>
                           {isCustom && (
                             <button onClick={() => deleteKod(r.kod_id, r.name)}
-                              className="text-[#DC2626] hover:text-white opacity-80 hover:opacity-100"
+                              className="text-[#9B2C2C] hover:text-white opacity-80 hover:opacity-100"
                               title="Usuń kod (tylko gdy nieuzywany)"
                               data-testid={`rw-kod-del-btn-${r.kod_id}`}>
                               <Trash2 className="h-3 w-3" />
@@ -1265,8 +1265,8 @@ const RachunekWynikowPanel = ({ year }) => {
                         </div>
                       )}
                     </td>
-                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8] border-r border-[#334155]">{fmtNum(v)}</td>)}
-                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(r.total)}</td>
+                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8] border-r border-[#2A3B59]">{fmtNum(v)}</td>)}
+                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F] border-l-2 border-[#2A3B59]">{fmtNum(r.total)}</td>
                   </tr>
                   );
                 })}
@@ -1278,7 +1278,7 @@ const RachunekWynikowPanel = ({ year }) => {
 
       {/* Modal: dodaj kod kosztu */}
       <Dialog open={showAddKod} onOpenChange={setShowAddKod}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-white">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-white">
           <DialogHeader>
             <DialogTitle>Dodaj pozycje kosztowa</DialogTitle>
           </DialogHeader>
@@ -1286,13 +1286,13 @@ const RachunekWynikowPanel = ({ year }) => {
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Nazwa kodu</label>
               <Input value={newKod.name} onChange={(e) => setNewKod({...newKod, name: e.target.value})}
-                placeholder="np. Telefony, Internet, Paliwo..." className="bg-[#1E293B] border-[#334155] text-white"
+                placeholder="np. Telefony, Internet, Paliwo..." className="bg-[#131C2F] border-[#2A3B59] text-white"
                 data-testid="rw-add-kod-name" />
             </div>
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Kategoria (do ktorej grupy)</label>
               <select value={newKod.category} onChange={(e) => setNewKod({...newKod, category: e.target.value})}
-                className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-2 text-sm"
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                 data-testid="rw-add-kod-category">
                 <option value="KBB">KBB - Koszty budowy bezpośrednie</option>
                 <option value="KSB">KSB - Koszty stałe budowy</option>
@@ -1306,8 +1306,8 @@ const RachunekWynikowPanel = ({ year }) => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddKod(false)}
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">Anuluj</Button>
-            <Button onClick={submitNewKod} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-submit">
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
+            <Button onClick={submitNewKod} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-submit">
               Dodaj
             </Button>
           </DialogFooter>
@@ -1333,26 +1333,26 @@ const SprzedazPanel = ({ year }) => {
       .finally(() => setLoading(false));
   }, [year, month]);
 
-  if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#19243C] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { rows, totals } = data;
 
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white">
           Sprzedaż per budowa {year}{month > 0 ? ` - ${PL_MONTHS_SHORT[month-1]}` : ' (caly rok)'}
         </CardTitle>
         <div className="flex items-center gap-2">
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
-            className="bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-sm"
+            className="bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-sprzedaz-month">
             <option value="0">Caly rok</option>
             {PL_MONTHS_SHORT.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
           </select>
           <Button variant="outline" onClick={() => setShowDetails(!showDetails)}
-            className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
+            className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]"
             data-testid="sprzedaz-toggle-details">
             {showDetails ? <><ChevronDown className="h-4 w-4 mr-1" /> Ukryj szczegóły</> : <><ChevronRight className="h-4 w-4 mr-1" /> Rozwin szczegóły (kol. E-X)</>}
           </Button>
@@ -1360,35 +1360,35 @@ const SprzedazPanel = ({ year }) => {
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-sprzedaz-table">
-          <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
+          <thead className="bg-[#131C2F] text-[#94A3B8] text-xs">
             <tr>
               <th className="p-2 text-left">#</th>
               <th className="p-2 text-left">Budowa</th>
               {showDetails && <>
-                <InfoHeader label="Sprzedaż" info={SPRZEDAZ_COL_INFO['Sprzedaż']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KP" info={SPRZEDAZ_COL_INFO['KP']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KP-alok" info={SPRZEDAZ_COL_INFO['KP-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KBB" info={SPRZEDAZ_COL_INFO['KBB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KBB-alok" info={SPRZEDAZ_COL_INFO['KBB-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marża brutto" info={SPRZEDAZ_COL_INFO['Marża brutto']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża brutto %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KSB" info={SPRZEDAZ_COL_INFO['KSB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KSP układy" info={SPRZEDAZ_COL_INFO['KSP układy']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marża I" info={SPRZEDAZ_COL_INFO['Marża I']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża I %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="KSP alok" info={SPRZEDAZ_COL_INFO['KSP alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marża II" info={SPRZEDAZ_COL_INFO['Marża II']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża II %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Podatek alok" info={SPRZEDAZ_COL_INFO['Podatek alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="Marża III" info={SPRZEDAZ_COL_INFO['Marża III']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
-                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża III %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Sprzedaż" info={SPRZEDAZ_COL_INFO['Sprzedaż']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KP" info={SPRZEDAZ_COL_INFO['KP']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KP-alok" info={SPRZEDAZ_COL_INFO['KP-alok']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KBB" info={SPRZEDAZ_COL_INFO['KBB']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KBB-alok" info={SPRZEDAZ_COL_INFO['KBB-alok']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="Marża brutto" info={SPRZEDAZ_COL_INFO['Marża brutto']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża brutto %']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KSB" info={SPRZEDAZ_COL_INFO['KSB']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KSP układy" info={SPRZEDAZ_COL_INFO['KSP układy']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="Marża I" info={SPRZEDAZ_COL_INFO['Marża I']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża I %']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="KSP alok" info={SPRZEDAZ_COL_INFO['KSP alok']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="Marża II" info={SPRZEDAZ_COL_INFO['Marża II']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża II %']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="Podatek alok" info={SPRZEDAZ_COL_INFO['Podatek alok']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="Marża III" info={SPRZEDAZ_COL_INFO['Marża III']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marża III %']} className="p-2 text-right bg-[#131C2F]/70 text-[#D4AF37]" />
               </>}
               {/* Y-AI visible */}
-              <InfoHeader label="Przychod" info={SPRZEDAZ_COL_INFO['Przychod']} className="p-2 text-right text-[#5F7151] font-bold" />
-              <InfoHeader label="Koszt" info={SPRZEDAZ_COL_INFO['Koszt']} className="p-2 text-right text-[#E8836A] font-bold" />
+              <InfoHeader label="Przychod" info={SPRZEDAZ_COL_INFO['Przychod']} className="p-2 text-right text-[#4F6343] font-bold" />
+              <InfoHeader label="Koszt" info={SPRZEDAZ_COL_INFO['Koszt']} className="p-2 text-right text-[#DC4A3A] font-bold" />
               <InfoHeader label="KGIR" info={SPRZEDAZ_COL_INFO['KGIR']} className="p-2 text-right" />
               <InfoHeader label="KDW" info={SPRZEDAZ_COL_INFO['KDW']} className="p-2 text-right" />
-              <InfoHeader label="Różnica" info={SPRZEDAZ_COL_INFO['Różnica']} className="p-2 text-right text-[#E8B76A] font-bold" />
+              <InfoHeader label="Różnica" info={SPRZEDAZ_COL_INFO['Różnica']} className="p-2 text-right text-[#D4AF37] font-bold" />
               <InfoHeader label="Zysk%" info={SPRZEDAZ_COL_INFO['Zysk%']} className="p-2 text-right" />
               <InfoHeader label="Godz." info={SPRZEDAZ_COL_INFO['Godz.']} className="p-2 text-right" />
               <InfoHeader label="Przych/Rg" info={SPRZEDAZ_COL_INFO['Przych/Rg']} className="p-2 text-right" />
@@ -1402,33 +1402,33 @@ const SprzedazPanel = ({ year }) => {
               <tr><td colSpan={showDetails ? 30 : 13} className="p-6 text-center text-[#94A3B8]">Brak budow. Dodaj w zakladce Budowy.</td></tr>
             )}
             {rows.map((r) => (
-              <tr key={r.budowa_id} className="border-t border-[#334155] hover:bg-[#1E293B]/50" data-testid={`sprzedaz-row-${r.budowa_id}`}>
+              <tr key={r.budowa_id} className="border-t border-[#2A3B59] hover:bg-[#131C2F]/50" data-testid={`sprzedaz-row-${r.budowa_id}`}>
                 <td className="p-2 text-[#94A3B8]">{r.nr}</td>
                 <td className="p-2 text-white font-medium">{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#94A3B8]">(arch)</span>}</td>
                 {showDetails && <>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.sprzedaż)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kp)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.kp_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.kbb)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.kbb_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza_brutto)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza_brutto_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]/30">{fmtNum(r.details.ksb)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.ksp_uklady_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza1)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza1_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.ksp_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza2)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza2_pct)}</td>
-                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#1E293B]/30">{fmtNum(r.details.podatek_aloc)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtNum(r.details.marza3)}</td>
-                  <td className="p-2 text-right text-xs text-[#5F7151] bg-[#1E293B]/30">{fmtPct(r.details.marza3_pct)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.sprzedaż)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.kp)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.kp_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.kbb)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.kbb_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtNum(r.details.marza_brutto)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtPct(r.details.marza_brutto_pct)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.ksb)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.ksp_uklady_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtNum(r.details.marza1)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtPct(r.details.marza1_pct)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.ksp_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtNum(r.details.marza2)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtPct(r.details.marza2_pct)}</td>
+                  <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.podatek_aloc)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtNum(r.details.marza3)}</td>
+                  <td className="p-2 text-right text-xs text-[#4F6343] bg-[#131C2F]/30">{fmtPct(r.details.marza3_pct)}</td>
                 </>}
-                <td className="p-2 text-right text-[#5F7151] font-semibold">{fmtNum(r.visible.przychod)}</td>
-                <td className="p-2 text-right text-[#E8836A] font-semibold">{fmtNum(r.visible.koszt)}</td>
+                <td className="p-2 text-right text-[#4F6343] font-semibold">{fmtNum(r.visible.przychod)}</td>
+                <td className="p-2 text-right text-[#DC4A3A] font-semibold">{fmtNum(r.visible.koszt)}</td>
                 <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-xs text-[#94A3B8]">{fmtNum(r.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(r.visible.różnica)}</td>
+                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(r.visible.różnica)}</td>
                 <td className="p-2 text-right text-xs">{fmtPct(r.visible.zysk_pct)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.godziny)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.przychod_rg)}</td>
@@ -1439,32 +1439,32 @@ const SprzedazPanel = ({ year }) => {
             ))}
             {/* SUMA footer */}
             {rows.length > 0 && (
-              <tr className="border-t-2 border-[#5F7151] bg-[#1E293B]" data-testid="sprzedaz-totals-row">
+              <tr className="border-t-2 border-[#4F6343] bg-[#131C2F]" data-testid="sprzedaz-totals-row">
                 <td className="p-2 text-white font-bold" colSpan={2}>SUMA</td>
                 {showDetails && totals.details && <>
-                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.sprzedaż)}</td>
-                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp)}</td>
-                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp_aloc)}</td>
-                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kbb)}</td>
-                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kbb_aloc)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza_brutto)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza_brutto_pct)}</td>
-                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksb)}</td>
-                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksp_uklady_aloc)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza1)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza1_pct)}</td>
-                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksp_aloc)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza2)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza2_pct)}</td>
-                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.podatek_aloc)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza3)}</td>
-                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza3_pct)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#131C2F]">{fmtNum(totals.details.sprzedaż)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#131C2F]">{fmtNum(totals.details.kp)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#131C2F]">{fmtNum(totals.details.kp_aloc)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#131C2F]">{fmtNum(totals.details.kbb)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#131C2F]">{fmtNum(totals.details.kbb_aloc)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-bold bg-[#131C2F]">{fmtNum(totals.details.marza_brutto)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-semibold bg-[#131C2F]">{fmtPct(totals.details.marza_brutto_pct)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#131C2F]">{fmtNum(totals.details.ksb)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#131C2F]">{fmtNum(totals.details.ksp_uklady_aloc)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-bold bg-[#131C2F]">{fmtNum(totals.details.marza1)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-semibold bg-[#131C2F]">{fmtPct(totals.details.marza1_pct)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#131C2F]">{fmtNum(totals.details.ksp_aloc)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-bold bg-[#131C2F]">{fmtNum(totals.details.marza2)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-semibold bg-[#131C2F]">{fmtPct(totals.details.marza2_pct)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#131C2F]">{fmtNum(totals.details.podatek_aloc)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-bold bg-[#131C2F]">{fmtNum(totals.details.marza3)}</td>
+                  <td className="p-2 text-right text-[#4F6343] font-semibold bg-[#131C2F]">{fmtPct(totals.details.marza3_pct)}</td>
                 </>}
-                <td className="p-2 text-right text-[#5F7151] font-bold">{fmtNum(totals.visible.przychod)}</td>
-                <td className="p-2 text-right text-[#E8836A] font-bold">{fmtNum(totals.visible.koszt)}</td>
+                <td className="p-2 text-right text-[#4F6343] font-bold">{fmtNum(totals.visible.przychod)}</td>
+                <td className="p-2 text-right text-[#DC4A3A] font-bold">{fmtNum(totals.visible.koszt)}</td>
                 <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#E8B76A] font-bold">{fmtNum(totals.visible.różnica)}</td>
+                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(totals.visible.różnica)}</td>
                 <td className="p-2 text-right">{fmtPct(totals.visible.zysk_pct)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.godziny)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.przychod_rg)}</td>

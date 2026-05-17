@@ -84,18 +84,18 @@ export default function WarehouseDashboard() {
   };
 
   const Badge = ({ n }) => n > 0 ? (
-    <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">{n}</span>
+    <span className="ml-1 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">{n}</span>
   ) : null;
 
   return (
     <WarehouseConfirmProvider>
-      <div className="min-h-screen bg-[#0F172A]">
+      <div className="min-h-screen bg-[#0B1120]">
         {/* Header */}
-        <div className="bg-[#1E293B] border-b border-[#334155] px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="bg-[#131C2F] border-b border-[#2A3B59] px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
-            <Warehouse className="h-6 w-6 text-[#E8B76A]" />
+            <Warehouse className="h-6 w-6 text-[#D4AF37]" />
             <div>
-              <p className="text-[#E8B76A] font-bold text-sm sm:text-base">FeGrro - Magazyn</p>
+              <p className="text-[#D4AF37] font-bold text-sm sm:text-base">FeGrro - Magazyn</p>
               <p className="text-[#94A3B8] text-xs">{userName}</p>
             </div>
           </div>
@@ -105,7 +105,7 @@ export default function WarehouseDashboard() {
               onClick={handleLogout}
               variant="ghost"
               size="sm"
-              className="text-[#CBD5E1] hover:bg-[#334155]"
+              className="text-[#CBD5E1] hover:bg-[#2A3B59]"
               data-testid="warehouse-logout-btn"
             >
               <LogOut className="h-4 w-4" />
@@ -114,8 +114,8 @@ export default function WarehouseDashboard() {
         </div>
 
         {/* Banner */}
-        <div className="bg-[#7C5C00]/20 border-b border-[#E8B76A]/40 px-4 py-2 text-center">
-          <p className="text-[#E8B76A] text-xs">
+        <div className="bg-[#7C5C00]/20 border-b border-[#D4AF37]/40 px-4 py-2 text-center">
+          <p className="text-[#D4AF37] text-xs">
             Tryb magazyniera: każde wydanie sprzętu / materiału / odzieży wymaga potwierdzenia.
           </p>
         </div>
@@ -123,7 +123,7 @@ export default function WarehouseDashboard() {
         {/* Tabs */}
         <div className="p-3 sm:p-4">
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="bg-[#1E293B] flex flex-wrap h-auto justify-start gap-1">
+            <TabsList className="bg-[#131C2F] flex flex-wrap h-auto justify-start gap-1">
               <TabsTrigger value="equipment" data-testid="wh-equipment-tab" className="whitespace-nowrap">
                 <Wrench className="h-3.5 w-3.5 mr-1" /> Elektronarzędzia
                 <Badge n={pendingCounts.electronics} />

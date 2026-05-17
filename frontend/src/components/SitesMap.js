@@ -1,19 +1,19 @@
 import React, { useState, useCallback } from 'react';
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
 
-const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
+const SITE_COLORS_HEX = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const MARKER_COLORS = ['blue', 'green', 'orange', 'purple', 'pink', 'yellow'];
 
 const mapContainerStyle = { width: '100%', height: '100%' };
 const defaultCenter = { lat: 54.35, lng: 18.65 }; // Gdańsk area
 const mapOptions = {
   styles: [
-    { elementType: 'geometry', stylers: [{ color: '#1E293B' }] },
-    { elementType: 'labels.text.stroke', stylers: [{ color: '#1E293B' }] },
+    { elementType: 'geometry', stylers: [{ color: '#131C2F' }] },
+    { elementType: 'labels.text.stroke', stylers: [{ color: '#131C2F' }] },
     { elementType: 'labels.text.fill', stylers: [{ color: '#94A3B8' }] },
-    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#334155' }] },
-    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0F172A' }] },
-    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#2A384C' }] },
+    { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#2A3B59' }] },
+    { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#0B1120' }] },
+    { featureType: 'poi', elementType: 'geometry', stylers: [{ color: '#19243C' }] },
   ],
   disableDefaultUI: false,
   zoomControl: true,
@@ -55,7 +55,7 @@ export const SitesMap = ({ sites, employees, assignments }) => {
 
   if (loadError) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#1E293B] text-red-400">
+      <div className="h-full flex items-center justify-center bg-[#131C2F] text-red-400">
         Błąd ladowania mapy: {loadError.message}
       </div>
     );
@@ -63,8 +63,8 @@ export const SitesMap = ({ sites, employees, assignments }) => {
 
   if (!isLoaded) {
     return (
-      <div className="h-full flex items-center justify-center bg-[#1E293B]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#5F7151]" />
+      <div className="h-full flex items-center justify-center bg-[#131C2F]">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#4F6343]" />
       </div>
     );
   }
@@ -101,8 +101,8 @@ export const SitesMap = ({ sites, employees, assignments }) => {
           position={{ lat: selectedSite.location_lat, lng: selectedSite.location_lng }}
           onCloseClick={() => setSelectedSite(null)}
         >
-          <div style={{ backgroundColor: '#2A384C', color: '#CBD5E1', padding: '8px', borderRadius: '8px', minWidth: '180px' }}>
-            <h3 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 'bold', color: '#5F7151' }}>
+          <div style={{ backgroundColor: '#19243C', color: '#CBD5E1', padding: '8px', borderRadius: '8px', minWidth: '180px' }}>
+            <h3 style={{ margin: '0 0 6px 0', fontSize: '14px', fontWeight: 'bold', color: '#4F6343' }}>
               {selectedSite.name}
             </h3>
             {selectedSite.google_maps_url && (
@@ -110,7 +110,7 @@ export const SitesMap = ({ sites, employees, assignments }) => {
                 {selectedSite.google_maps_url}
               </p>
             )}
-            <div style={{ borderTop: '1px solid #334155', paddingTop: '6px', marginTop: '4px' }}>
+            <div style={{ borderTop: '1px solid #2A3B59', paddingTop: '6px', marginTop: '4px' }}>
               <p style={{ fontSize: '11px', color: '#94A3B8', margin: '0 0 4px 0' }}>Pracownicy:</p>
               {getEmployeesForSite(selectedSite.id).map(emp => (
                 <p key={emp.id} style={{ fontSize: '12px', margin: '2px 0', color: '#CBD5E1' }}>

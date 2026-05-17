@@ -112,8 +112,8 @@ export const AdminDashboard = () => {
       start_url: '/admin/dashboard',
       scope: '/',
       display: 'standalone',
-      background_color: '#0F172A',
-      theme_color: '#0F172A',
+      background_color: '#0B1120',
+      theme_color: '#0B1120',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -347,9 +347,9 @@ export const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#94A3B8] mb-1">Pracownicy</p>
-                  <p className="text-3xl font-display font-bold text-[#6B8E4E] tracking-tight">{stats.totalEmployees}</p>
+                  <p className="text-3xl font-display font-bold text-[#5F7552] tracking-tight">{stats.totalEmployees}</p>
                 </div>
-                <Users className="h-10 w-10 text-[#6B8E4E] opacity-20" />
+                <Users className="h-10 w-10 text-[#5F7552] opacity-20" />
               </div>
             </CardContent>
           </Card>
@@ -359,9 +359,9 @@ export const AdminDashboard = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-[#94A3B8] mb-1">Budowy</p>
-                  <p className="text-3xl font-display font-bold text-[#6B8E4E] tracking-tight">{stats.totalSites}</p>
+                  <p className="text-3xl font-display font-bold text-[#5F7552] tracking-tight">{stats.totalSites}</p>
                 </div>
-                <Building2 className="h-10 w-10 text-[#6B8E4E] opacity-20" />
+                <Building2 className="h-10 w-10 text-[#5F7552] opacity-20" />
               </div>
             </CardContent>
           </Card>

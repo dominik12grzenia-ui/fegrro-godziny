@@ -14,7 +14,7 @@ export const ForemenTab = ({
   impersonateForeman,
 }) => {
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="text-[#CBD5E1]">Brygadziści</CardTitle>
         <Button
@@ -31,7 +31,7 @@ export const ForemenTab = ({
               toast.error(err.response?.data?.detail || 'Błąd');
             }
           }}
-          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+          className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
           data-testid="add-foreman-btn"
         >
           + Dodaj brygadziste
@@ -47,20 +47,20 @@ export const ForemenTab = ({
             return (
               <div
                 key={foreman.id}
-                className={`p-4 rounded-lg border ${isPending ? 'border-[#E8836A]/50 bg-[#1E293B]' : 'border-[#334155] bg-[#1E293B]'}`}
+                className={`p-4 rounded-lg border ${isPending ? 'border-[#DC4A3A]/50 bg-[#131C2F]' : 'border-[#2A3B59] bg-[#131C2F]'}`}
                 data-testid={`foreman-${foreman.id}`}
               >
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <div>
                     <span className="text-[#CBD5E1] font-semibold text-lg">{foreman.full_name}</span>
                     {isPending && (
-                      <span className="ml-2 text-xs bg-[#E8836A]/20 text-[#E8836A] px-2 py-0.5 rounded font-semibold">NOWY</span>
+                      <span className="ml-2 text-xs bg-[#DC4A3A]/20 text-[#DC4A3A] px-2 py-0.5 rounded font-semibold">NOWY</span>
                     )}
                     {!isPending && (
-                      <span className="ml-2 text-xs bg-[#5F7151]/20 text-[#6B8E4E] px-2 py-0.5 rounded font-semibold">Aktywny</span>
+                      <span className="ml-2 text-xs bg-[#4F6343]/20 text-[#5F7552] px-2 py-0.5 rounded font-semibold">Aktywny</span>
                     )}
                     {!hasPassword && (
-                      <span className="ml-2 text-xs bg-[#E8B76A]/20 text-[#E8B76A] px-2 py-0.5 rounded font-semibold">BRAK HASLA</span>
+                      <span className="ml-2 text-xs bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded font-semibold">BRAK HASLA</span>
                     )}
                   </div>
                   <Button
@@ -76,7 +76,7 @@ export const ForemenTab = ({
                         toast.error(err.response?.data?.detail || 'Błąd');
                       }
                     }}
-                    className={hasPassword ? 'bg-[#334155] hover:bg-[#475569] text-[#CBD5E1] text-xs h-8' : 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] text-xs h-8 font-bold'}
+                    className={hasPassword ? 'bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1] text-xs h-8' : 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] text-xs h-8 font-bold'}
                     data-testid={`set-foreman-password-${foreman.id}`}
                   >
                     {hasPassword ? 'Zmien hasło' : 'Ustaw hasło'}
@@ -98,8 +98,8 @@ export const ForemenTab = ({
                           }}
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                             isSelected
-                              ? 'bg-[#5F7151] text-white'
-                              : 'bg-[#334155] text-[#94A3B8] hover:bg-[#3D4F63]'
+                              ? 'bg-[#4F6343] text-white'
+                              : 'bg-[#2A3B59] text-[#94A3B8] hover:bg-[#3D4F63]'
                           }`}
                           data-testid={`foreman-site-${foreman.id}-${site.id}`}
                         >
@@ -122,7 +122,7 @@ export const ForemenTab = ({
                       }
                     }}
                     size="sm"
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                     data-testid={`save-foreman-${foreman.id}`}
                   >
                     Zapisz przypisanie
@@ -139,7 +139,7 @@ export const ForemenTab = ({
                     }}
                     size="sm"
                     variant="outline"
-                    className="border-[#5F7151] text-[#6B8E4E] hover:bg-[#5F7151] hover:text-white"
+                    className="border-[#4F6343] text-[#5F7552] hover:bg-[#4F6343] hover:text-white"
                     data-testid={`impersonate-foreman-${foreman.id}`}
                   >
                     Wejdz jako
@@ -157,7 +157,7 @@ export const ForemenTab = ({
                     }}
                     size="sm"
                     variant="outline"
-                    className="border-[#6B4444] text-[#E8836A] hover:bg-[#6B4444] hover:text-white"
+                    className="border-[#6B4444] text-[#DC4A3A] hover:bg-[#6B4444] hover:text-white"
                     data-testid={`delete-foreman-${foreman.id}`}
                   >
                     <Trash2 className="h-4 w-4 mr-1" />

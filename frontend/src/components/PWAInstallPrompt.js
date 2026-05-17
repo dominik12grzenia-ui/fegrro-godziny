@@ -57,7 +57,7 @@ export const PWAInstallPrompt = () => {
   if (showAndroidPrompt) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 animate-slide-up" data-testid="pwa-android-prompt">
-        <div className="max-w-md mx-auto bg-[#2A384C] border border-[#5F7151] rounded-xl shadow-2xl p-4">
+        <div className="max-w-md mx-auto bg-[#19243C] border border-[#4F6343] rounded-xl shadow-2xl p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <img src="/icon-192x192.png" alt="FeGrro" className="w-12 h-12 rounded-xl" />
@@ -72,7 +72,7 @@ export const PWAInstallPrompt = () => {
           </div>
           <Button
             onClick={handleInstall}
-            className="w-full bg-[#5F7151] hover:bg-[#4A5A41] text-white font-semibold"
+            className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white font-semibold"
             data-testid="pwa-install-btn"
           >
             <Download className="h-4 w-4 mr-2" />
@@ -87,7 +87,7 @@ export const PWAInstallPrompt = () => {
   if (showIOSPrompt) {
     return (
       <div className="fixed bottom-0 left-0 right-0 z-[100] p-4 animate-slide-up" data-testid="pwa-ios-prompt">
-        <div className="max-w-md mx-auto bg-[#2A384C] border border-[#5F7151] rounded-xl shadow-2xl p-4">
+        <div className="max-w-md mx-auto bg-[#19243C] border border-[#4F6343] rounded-xl shadow-2xl p-4">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               <img src="/icon-192x192.png" alt="FeGrro" className="w-12 h-12 rounded-xl" />
@@ -100,12 +100,12 @@ export const PWAInstallPrompt = () => {
             </button>
           </div>
           <div className="space-y-2 text-[#94A3B8] text-xs">
-            <div className="flex items-center gap-2 bg-[#1E293B] p-2 rounded-lg">
-              <span className="bg-[#334155] p-1.5 rounded"><Share className="h-4 w-4 text-[#CBD5E1]" /></span>
+            <div className="flex items-center gap-2 bg-[#131C2F] p-2 rounded-lg">
+              <span className="bg-[#2A3B59] p-1.5 rounded"><Share className="h-4 w-4 text-[#CBD5E1]" /></span>
               <span>1. Kliknij <strong className="text-[#CBD5E1]">Udostepnij</strong> (ikona na dole ekranu)</span>
             </div>
-            <div className="flex items-center gap-2 bg-[#1E293B] p-2 rounded-lg">
-              <span className="bg-[#334155] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#CBD5E1]" /></span>
+            <div className="flex items-center gap-2 bg-[#131C2F] p-2 rounded-lg">
+              <span className="bg-[#2A3B59] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#CBD5E1]" /></span>
               <span>2. Wybierz <strong className="text-[#CBD5E1]">Dodaj do ekranu poczatkowego</strong></span>
             </div>
           </div>

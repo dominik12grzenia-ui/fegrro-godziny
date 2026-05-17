@@ -397,18 +397,18 @@ export const PayrollAdmin = () => {
   return (
     <div className="space-y-4">
       {/* Header: month picker + actions */}
-      <Card className="bg-[#2A384C] border-[#334155]">
+      <Card className="bg-[#19243C] border-[#2A3B59]">
         <CardHeader className="pb-3">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <FileText className="h-5 w-5 text-[#5F7151]" /> Wypłaty - {PL_MONTHS[month - 1]} {year}
+            <FileText className="h-5 w-5 text-[#4F6343]" /> Wypłaty - {PL_MONTHS[month - 1]} {year}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-[#1E293B] rounded-lg border border-[#334155] overflow-hidden">
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)} className="text-white hover:bg-[#334155]" data-testid="payroll-prev-month"><ChevronLeft className="h-4 w-4" /></Button>
+            <div className="flex items-center bg-[#131C2F] rounded-lg border border-[#2A3B59] overflow-hidden">
+              <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)} className="text-white hover:bg-[#2A3B59]" data-testid="payroll-prev-month"><ChevronLeft className="h-4 w-4" /></Button>
               <span className="text-[#CBD5E1] px-3 capitalize font-semibold" data-testid="payroll-month-label">{PL_MONTHS[month - 1]} {year}</span>
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(1)} className="text-white hover:bg-[#334155]" data-testid="payroll-next-month"><ChevronRight className="h-4 w-4" /></Button>
+              <Button variant="ghost" size="sm" onClick={() => changeMonth(1)} className="text-white hover:bg-[#2A3B59]" data-testid="payroll-next-month"><ChevronRight className="h-4 w-4" /></Button>
             </div>
             <div className="relative flex-1 min-w-[180px] max-w-xs">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
@@ -416,20 +416,20 @@ export const PayrollAdmin = () => {
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Szukaj pracownika..."
-                className="pl-8 bg-[#1E293B] border-[#334155] text-white"
+                className="pl-8 bg-[#131C2F] border-[#2A3B59] text-white"
                 data-testid="payroll-search"
               />
             </div>
             <div className="ml-auto flex gap-2 flex-wrap">
               <Button onClick={handleLockToggle}
                 className={isLocked
-                  ? "bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
-                  : "bg-[#334155] hover:bg-[#475569] text-[#CBD5E1]"}
+                  ? "bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
+                  : "bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1]"}
                 data-testid="payroll-lock-toggle"
               >
                 {isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiąc</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiąc</>}
               </Button>
-              <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-employee">
+              <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-employee">
                 <UserPlus className="h-4 w-4 mr-1" /> Dodaj pracownika
               </Button>
               <Button onClick={downloadReport} disabled={downloading}
@@ -437,15 +437,15 @@ export const PayrollAdmin = () => {
                 <FileSpreadsheet className="h-4 w-4 mr-1" /> Raport PDF
               </Button>
               <Button onClick={() => downloadPdf(true)} disabled={downloading || selected.size === 0}
-                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-pdf-selected">
+                className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-pdf-selected">
                 <Download className="h-4 w-4 mr-1" /> Karteczki ({selected.size})
               </Button>
               <Button onClick={() => downloadPdf(false)} disabled={downloading}
-                variant="outline" className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]" data-testid="payroll-pdf-all">
+                variant="outline" className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]" data-testid="payroll-pdf-all">
                 <Download className="h-4 w-4 mr-1" /> Karteczki wszystkich
               </Button>
               <Button onClick={runDiagnostics} disabled={diagLoading}
-                variant="outline" className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+                variant="outline" className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
                 data-testid="payroll-diagnostics-btn">
                 Weryfikuj godziny
               </Button>
@@ -456,10 +456,10 @@ export const PayrollAdmin = () => {
               <button
                 type="button"
                 onClick={() => diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) ? runDiagnostics() : null}
-                className={`relative bg-[#1E293B] rounded p-2 border text-left transition-colors ${
+                className={`relative bg-[#131C2F] rounded p-2 border text-left transition-colors ${
                   diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0)
-                    ? 'border-[#E8B76A] hover:bg-[#334155] cursor-pointer'
-                    : 'border-[#334155] cursor-default'
+                    ? 'border-[#D4AF37] hover:bg-[#2A3B59] cursor-pointer'
+                    : 'border-[#2A3B59] cursor-default'
                 }`}
                 data-testid="payroll-tile-hours"
                 title={
@@ -475,18 +475,18 @@ export const PayrollAdmin = () => {
                     className="absolute top-1.5 right-1.5 flex h-3 w-3"
                     data-testid="payroll-hours-warning-badge"
                   >
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#E8B76A] opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#E8B76A]"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#D4AF37] opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#D4AF37]"></span>
                   </span>
                 )}
               </button>
-              <div className="bg-[#1E293B] rounded p-2 border border-[#334155]">
+              <div className="bg-[#131C2F] rounded p-2 border border-[#2A3B59]">
                 <div className="text-[#94A3B8]">Suma kwot z godzin</div>
                 <div className="text-white font-bold text-lg">{fmt(data.totals.total_hours_amount)} zł</div>
               </div>
-              <div className="bg-[#1E293B] rounded p-2 border border-[#E8836A]">
+              <div className="bg-[#131C2F] rounded p-2 border border-[#DC4A3A]">
                 <div className="text-[#94A3B8]">Kwota godz. - kary + dodatki + kierowca</div>
-                <div className="text-[#E8836A] font-bold text-lg" data-testid="payroll-total-gross-net">
+                <div className="text-[#DC4A3A] font-bold text-lg" data-testid="payroll-total-gross-net">
                   {fmt(data.rows.reduce((s, r) => s
                     + (r.computed.hours_amount || 0)
                     - (r.computed.penalties_zl || 0)
@@ -494,14 +494,14 @@ export const PayrollAdmin = () => {
                     + (r.record.driver_zl || 0), 0))} zł
                 </div>
               </div>
-              <div className="bg-[#1E293B] rounded p-2 border border-[#5F7151]">
+              <div className="bg-[#131C2F] rounded p-2 border border-[#4F6343]">
                 <div className="text-[#94A3B8]">Suma wypłat (po zaliczkach)</div>
-                <div className="text-[#5F7151] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zł</div>
+                <div className="text-[#4F6343] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zł</div>
               </div>
             </div>
           )}
           {isLocked && (
-            <div className="bg-[#E8B76A]/15 border border-[#E8B76A] rounded p-3 text-[#FCD34D] text-sm flex items-center gap-2" data-testid="payroll-locked-banner">
+            <div className="bg-[#D4AF37]/15 border border-[#D4AF37] rounded p-3 text-[#FCD34D] text-sm flex items-center gap-2" data-testid="payroll-locked-banner">
               <Lock className="h-4 w-4 shrink-0" />
               <span>
                 <strong>Miesiąc zamkniety</strong>
@@ -517,7 +517,7 @@ export const PayrollAdmin = () => {
 
       {/* Breakdown per budowa */}
       {data && data.rows && data.rows.length > 0 && (
-        <Card className="bg-[#2A384C] border-[#334155]">
+        <Card className="bg-[#19243C] border-[#2A3B59]">
           <CardHeader className="pb-2">
             <button
               onClick={() => setShowBudowaBreakdown((v) => !v)}
@@ -583,35 +583,35 @@ export const PayrollAdmin = () => {
                 const sumK = list.reduce((s, b) => s + (b.koszt || 0), 0);
                 return (
                   <table className="w-full text-sm" data-testid="payroll-budowa-breakdown-table">
-                    <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
+                    <thead className="bg-[#131C2F] text-[#94A3B8] text-xs">
                       <tr>
                         <th className="p-2 text-left">Budowa</th>
                         <th className="p-2 text-right">Godziny</th>
-                        <th className="p-2 text-right text-[#E8836A]">Koszt wynagrodzeń</th>
+                        <th className="p-2 text-right text-[#DC4A3A]">Koszt wynagrodzeń</th>
                       </tr>
                     </thead>
                     <tbody>
                       {list.map((b, idx) => (
                         <tr key={b.id || 'none'}
-                          className={`${idx % 2 === 0 ? 'bg-[#1E293B]/40' : ''} ${b.id === null ? 'border-l-2 border-l-[#E8B76A]' : ''}`}
+                          className={`${idx % 2 === 0 ? 'bg-[#131C2F]/40' : ''} ${b.id === null ? 'border-l-2 border-l-[#D4AF37]' : ''}`}
                           data-testid={`payroll-budowa-row-${b.id || 'none'}`}>
                           <td className="p-2 text-[#CBD5E1] font-medium">
-                            {b.id === null ? <span className="text-[#E8B76A]">{b.name}</span> : b.name}
+                            {b.id === null ? <span className="text-[#D4AF37]">{b.name}</span> : b.name}
                           </td>
                           <td className="p-2 text-right text-white">{fmt(b.hours)}</td>
-                          <td className="p-2 text-right text-[#E8836A] font-semibold">{fmt(b.koszt)} zł</td>
+                          <td className="p-2 text-right text-[#DC4A3A] font-semibold">{fmt(b.koszt)} zł</td>
                         </tr>
                       ))}
-                      <tr className="border-t-2 border-[#E8836A] bg-[#1E293B] font-bold">
+                      <tr className="border-t-2 border-[#DC4A3A] bg-[#131C2F] font-bold">
                         <td className="p-2 text-white">SUMA</td>
                         <td className="p-2 text-right text-white">{fmt(sumH)}</td>
-                        <td className="p-2 text-right text-[#E8836A]">{fmt(sumK)} zł</td>
+                        <td className="p-2 text-right text-[#DC4A3A]">{fmt(sumK)} zł</td>
                       </tr>
                     </tbody>
                   </table>
                 );
               })()}
-              <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#334155]">
+              <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#2A3B59]">
                 Koszt wynagrodzeń = kwota godzin + dodatki + kierowca + inne+ - inne- - kary. Zaliczki <strong>NIE</strong> sa kosztem (to wczesniejsza wypłata, kwota juz w "kwocie godzin").
               </div>
             </CardContent>
@@ -699,7 +699,7 @@ export const PayrollAdmin = () => {
                         <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="py-3 px-4 text-right text-[#6B8E4E] font-bold font-mono tabular-nums whitespace-nowrap" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zł</td>
+                        <td className="py-3 px-4 text-right text-[#5F7552] font-bold font-mono tabular-nums whitespace-nowrap" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zł</td>
                         <td className="py-3 px-4 text-center">
                           <div className="flex items-center gap-1.5 justify-center">
                             {savingId === r.employee_id && <span className="text-[#D4AF37] text-xs">...</span>}
@@ -734,7 +734,7 @@ export const PayrollAdmin = () => {
                                 {r.sites_breakdown.map((s) => (
                                   <span key={s.site_id || 'none'} className="px-3 py-1.5 rounded-md bg-[#131C2F] border border-[#2A3B59] shadow-sm flex items-center gap-2" data-testid={`payroll-site-${r.employee_id}-${s.site_id||'none'}`}>
                                     <span className="text-[#F8FAFC] text-sm font-medium">{s.site_name}</span>
-                                    <span className="text-[#6B8E4E] font-bold font-mono tabular-nums bg-[#4F6343]/20 px-1.5 rounded text-xs">{s.hours} h</span>
+                                    <span className="text-[#5F7552] font-bold font-mono tabular-nums bg-[#4F6343]/20 px-1.5 rounded text-xs">{s.hours} h</span>
                                   </span>
                                 ))}
                               </div>
@@ -752,7 +752,7 @@ export const PayrollAdmin = () => {
       </Card>
 
       {/* Archiwum */}
-      <Card className="bg-[#2A384C] border-[#334155]">
+      <Card className="bg-[#19243C] border-[#2A3B59]">
         <CardHeader className="pb-2">
           <button
             onClick={() => setShowArchived((v) => !v)}
@@ -760,7 +760,7 @@ export const PayrollAdmin = () => {
             data-testid="payroll-toggle-archived"
           >
             {showArchived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            <Archive className="h-4 w-4 text-[#E8B76A]" />
+            <Archive className="h-4 w-4 text-[#D4AF37]" />
             <span className="font-semibold">Archiwum pracownikow ({archived.length})</span>
           </button>
         </CardHeader>
@@ -771,7 +771,7 @@ export const PayrollAdmin = () => {
             ) : (
               <div className="space-y-2" data-testid="payroll-archived-list">
                 {archived.map((emp) => (
-                  <div key={emp.id} className="flex items-center justify-between bg-[#1E293B] border border-[#334155] rounded p-3">
+                  <div key={emp.id} className="flex items-center justify-between bg-[#131C2F] border border-[#2A3B59] rounded p-3">
                     <div>
                       <div className="text-[#CBD5E1] font-medium">{emp.full_name}</div>
                       <div className="text-xs text-[#64748B]">
@@ -783,7 +783,7 @@ export const PayrollAdmin = () => {
                       <Button
                         size="sm" variant="outline"
                         onClick={() => handleUnarchive(emp)}
-                        className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
+                        className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]"
                         data-testid={`payroll-unarchive-${emp.id}`}
                       >
                         <ArchiveRestore className="h-4 w-4 mr-1" /> Przywroc
@@ -807,7 +807,7 @@ export const PayrollAdmin = () => {
 
       {/* Modal: historia zmian audytu */}
       <Dialog open={!!auditFor} onOpenChange={(o) => !o && setAuditFor(null)}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1] max-w-2xl" data-testid="payroll-audit-modal">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-2xl" data-testid="payroll-audit-modal">
           <DialogHeader>
             <DialogTitle className="text-white">Historia zmian - {auditFor?.name}</DialogTitle>
           </DialogHeader>
@@ -816,7 +816,7 @@ export const PayrollAdmin = () => {
               <div className="text-[#64748B] text-sm py-4 text-center">Brak zmian w tym miesiącu.</div>
             ) : (
               <table className="w-full text-sm">
-                <thead className="bg-[#1E293B] sticky top-0">
+                <thead className="bg-[#131C2F] sticky top-0">
                   <tr>
                     <th className="p-2 text-left text-[#94A3B8]">Data</th>
                     <th className="p-2 text-left text-[#94A3B8]">Pole</th>
@@ -827,11 +827,11 @@ export const PayrollAdmin = () => {
                 </thead>
                 <tbody>
                   {auditEntries.map((e) => (
-                    <tr key={e.id} className="border-t border-[#334155]">
+                    <tr key={e.id} className="border-t border-[#2A3B59]">
                       <td className="p-2 text-[#CBD5E1] whitespace-nowrap">{e.changed_at.replace('T', ' ').slice(0, 16)}</td>
                       <td className="p-2 text-[#CBD5E1]">{fieldLabels[e.field] || e.field}</td>
                       <td className="p-2 text-right text-[#94A3B8] line-through">{fmtVal(e.field, e.old_value)}</td>
-                      <td className="p-2 text-right text-[#5F7151] font-bold">{fmtVal(e.field, e.new_value)}</td>
+                      <td className="p-2 text-right text-[#4F6343] font-bold">{fmtVal(e.field, e.new_value)}</td>
                       <td className="p-2 text-[#94A3B8]">{e.changed_by_name}</td>
                     </tr>
                   ))}
@@ -840,7 +840,7 @@ export const PayrollAdmin = () => {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAuditFor(null)} className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">
+            <Button variant="outline" onClick={() => setAuditFor(null)} className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">
               Zamknij
             </Button>
           </DialogFooter>
@@ -850,43 +850,43 @@ export const PayrollAdmin = () => {
 
       {/* Modal: diagnostyka godzin */}
       <Dialog open={!!diagnostics} onOpenChange={(o) => !o && setDiagnostics(null)}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1] max-w-3xl max-h-[85vh] overflow-auto" data-testid="payroll-diagnostics-modal">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-3xl max-h-[85vh] overflow-auto" data-testid="payroll-diagnostics-modal">
           <DialogHeader>
             <DialogTitle className="text-white">Weryfikacja godzin {PL_MONTHS[month-1]} {year}</DialogTitle>
           </DialogHeader>
           {diagnostics && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                <div className="bg-[#1E293B] rounded p-2">
+                <div className="bg-[#131C2F] rounded p-2">
                   <div className="text-[#94A3B8] text-xs">Wpisy ogolem</div>
                   <div className="text-white font-bold">{diagnostics.total_entries_in_month}</div>
                 </div>
-                <div className="bg-[#1E293B] rounded p-2">
+                <div className="bg-[#131C2F] rounded p-2">
                   <div className="text-[#94A3B8] text-xs">Suma godz. (agregacja)</div>
                   <div className="text-white font-bold">{diagnostics.total_hours_aggregated}h</div>
                 </div>
-                <div className="bg-[#1E293B] rounded p-2">
+                <div className="bg-[#131C2F] rounded p-2">
                   <div className="text-[#94A3B8] text-xs">Suma godz. (grupowane)</div>
                   <div className="text-white font-bold">{diagnostics.total_hours_grouped}h</div>
                 </div>
-                <div className="bg-[#1E293B] rounded p-2">
+                <div className="bg-[#131C2F] rounded p-2">
                   <div className="text-[#94A3B8] text-xs">Bledy typu / sieroty</div>
                   <div className="text-white font-bold">{diagnostics.type_issues} / {diagnostics.orphan_employee_entries}</div>
                 </div>
               </div>
 
               {diagnostics.mismatches.length === 0 ? (
-                <div className="bg-[#5F7151]/20 border border-[#5F7151] rounded p-3 text-[#A7C09A] text-sm" data-testid="diagnostics-ok">
+                <div className="bg-[#4F6343]/20 border border-[#4F6343] rounded p-3 text-[#A7C09A] text-sm" data-testid="diagnostics-ok">
                   Wszystko sie zgadza - sumy godzin w zakladce <strong>Godziny</strong> sa identyczne jak w <strong>Wyplatach</strong>.
                 </div>
               ) : (
                 <>
-                  <div className="bg-[#E8836A]/15 border border-[#E8836A] rounded p-3 text-[#FCD34D] text-sm">
+                  <div className="bg-[#DC4A3A]/15 border border-[#DC4A3A] rounded p-3 text-[#FCD34D] text-sm">
                     Znaleziono <strong>{diagnostics.mismatches.length}</strong> rozbieżności. Po naprawie godziny będą identyczne w obu zakladkach.
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#1E293B] text-[#94A3B8]">
+                      <thead className="bg-[#131C2F] text-[#94A3B8]">
                         <tr>
                           <th className="p-2 text-left">Pracownik</th>
                           <th className="p-2 text-right">Agreg.</th>
@@ -897,14 +897,14 @@ export const PayrollAdmin = () => {
                       </thead>
                       <tbody>
                         {diagnostics.mismatches.map((m) => (
-                          <tr key={m.employee_id} className="border-t border-[#334155]" data-testid={`diagnostics-row-${m.employee_id}`}>
+                          <tr key={m.employee_id} className="border-t border-[#2A3B59]" data-testid={`diagnostics-row-${m.employee_id}`}>
                             <td className="p-2 text-white">
                               {m.full_name}
-                              {m.is_orphan && <span className="ml-1 text-[#E8836A]">(sierota)</span>}
+                              {m.is_orphan && <span className="ml-1 text-[#DC4A3A]">(sierota)</span>}
                             </td>
                             <td className="p-2 text-right">{m.agg_hours}</td>
                             <td className="p-2 text-right">{m.grouped_hours}</td>
-                            <td className={`p-2 text-right font-bold ${Math.abs(m.diff) >= 0.01 ? 'text-[#E8836A]' : 'text-[#94A3B8]'}`}>
+                            <td className={`p-2 text-right font-bold ${Math.abs(m.diff) >= 0.01 ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
                               {m.diff > 0 ? '+' : ''}{m.diff}
                             </td>
                             <td className="p-2 text-[#94A3B8]">
@@ -922,20 +922,20 @@ export const PayrollAdmin = () => {
           <DialogFooter className="flex justify-between flex-wrap gap-2">
             {diagnostics && diagnostics.mismatches.some(m => m.duplicate_dates.length > 0) && (
               <Button onClick={fixDuplicates} disabled={diagLoading}
-                className="bg-[#E8836A] hover:bg-[#D9744F] text-white"
+                className="bg-[#DC4A3A] hover:bg-[#D9744F] text-white"
                 data-testid="diagnostics-fix-duplicates">
                 Napraw duplikaty
               </Button>
             )}
             {diagnostics && diagnostics.mismatches.some(m => m.is_orphan) && (
               <Button onClick={deleteOrphans} disabled={diagLoading}
-                className="bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+                className="bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
                 data-testid="diagnostics-delete-orphans">
                 Usuń wpisy osieroconych
               </Button>
             )}
             <Button variant="outline" onClick={() => setDiagnostics(null)}
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white"
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white"
               data-testid="diagnostics-close">
               Zamknij
             </Button>
@@ -945,7 +945,7 @@ export const PayrollAdmin = () => {
 
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
-        <DialogContent className="bg-[#2A384C] border-[#334155] text-[#CBD5E1]" data-testid="payroll-add-modal">
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1]" data-testid="payroll-add-modal">
           <DialogHeader>
             <DialogTitle className="text-white">Dodaj pracownika</DialogTitle>
           </DialogHeader>
@@ -957,7 +957,7 @@ export const PayrollAdmin = () => {
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Jan Kowalski"
-                className="bg-[#1E293B] border-[#334155] text-white"
+                className="bg-[#131C2F] border-[#2A3B59] text-white"
                 data-testid="payroll-add-name"
                 autoFocus
               />
@@ -969,16 +969,16 @@ export const PayrollAdmin = () => {
                 value={newPhone}
                 onChange={(e) => setNewPhone(e.target.value)}
                 placeholder="+48..."
-                className="bg-[#1E293B] border-[#334155] text-white"
+                className="bg-[#131C2F] border-[#2A3B59] text-white"
                 data-testid="payroll-add-phone"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">
+            <Button variant="outline" onClick={() => setShowAdd(false)} className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">
               Anuluj
             </Button>
-            <Button onClick={handleAdd} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="payroll-add-submit">
+            <Button onClick={handleAdd} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-submit">
               <UserPlus className="h-4 w-4 mr-1" /> Dodaj
             </Button>
           </DialogFooter>
@@ -1002,7 +1002,7 @@ const NumCell = ({ row, field, handleNum, step, disabled }) => {
         const v = e.target.value;
         if (parseFloat(v || 0) !== initial) handleNum(row, field, v);
       }}
-      className={`no-spinner w-20 bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`no-spinner w-20 bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       data-testid={`payroll-input-${row.employee_id}-${field}`}
     />
   );

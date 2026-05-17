@@ -14,10 +14,10 @@ const CATEGORY_TITLES = {
 };
 
 const STATUS_BADGE = {
-  pending: { label: 'Oczekujace', cls: 'bg-[#E8B76A]/20 text-[#E8B76A] border-[#E8B76A]' },
+  pending: { label: 'Oczekujace', cls: 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]' },
   partial: { label: 'Czesciowo', cls: 'bg-[#3B82F6]/20 text-[#3B82F6] border-[#3B82F6]' },
-  issued: { label: 'Wydane', cls: 'bg-[#5F7151]/30 text-[#86EFAC] border-[#5F7151]' },
-  rejected: { label: 'Odrzucone', cls: 'bg-[#7F2D2D]/30 text-[#FCA5A5] border-[#7F2D2D]' },
+  issued: { label: 'Wydane', cls: 'bg-[#4F6343]/30 text-[#86EFAC] border-[#4F6343]' },
+  rejected: { label: 'Odrzucone', cls: 'bg-[#9B2C2C]/30 text-[#FCA5A5] border-[#9B2C2C]' },
 };
 
 const CATEGORY_BTN = {
@@ -158,14 +158,14 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <Button
           onClick={() => setCatalogOpen(true)}
-          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+          className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
           data-testid="open-catalog-btn"
         >
           <ShoppingCart className="h-4 w-4 mr-2" />
           {CATEGORY_BTN[category] || 'Zamów'}
         </Button>
         {activeOrders.length > 0 && (
-          <span className="text-xs text-[#E8B76A]">
+          <span className="text-xs text-[#D4AF37]">
             ⏳ Oczekujace zamowienia: <b>{activeOrders.length}</b>
           </span>
         )}
@@ -178,17 +178,17 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
           data-testid="catalog-modal"
           onClick={(e) => { if (e.target === e.currentTarget) setCatalogOpen(false); }}
         >
-          <div className="bg-[#2A384C] border-2 border-[#5F7151] rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
-            <div className="px-5 py-4 border-b border-[#334155] flex items-center justify-between gap-3 flex-wrap">
+          <div className="bg-[#19243C] border-2 border-[#4F6343] rounded-lg shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center justify-between gap-3 flex-wrap">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <Package className="h-5 w-5 text-[#5F7151]" />
+                <Package className="h-5 w-5 text-[#4F6343]" />
                 {CATEGORY_TITLES[category] || 'Katalog'}
               </h3>
               <Input
                 placeholder="Szukaj po nazwie / marce..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="bg-[#1E293B] border-[#334155] text-white w-full sm:w-auto sm:min-w-[240px]"
+                className="bg-[#131C2F] border-[#2A3B59] text-white w-full sm:w-auto sm:min-w-[240px]"
                 data-testid="catalog-search"
               />
               <button
@@ -212,13 +212,13 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                   {visibleCatalog.map((item) => (
                     <div
                       key={item.id}
-                      className="flex items-center gap-3 p-2 bg-[#1E293B] rounded border border-[#334155]"
+                      className="flex items-center gap-3 p-2 bg-[#131C2F] rounded border border-[#2A3B59]"
                       data-testid={`catalog-item-${item.id}`}
                     >
                       {item.photo ? (
-                        <img src={item.photo} alt={item.name} className="h-12 w-12 rounded object-cover border border-[#334155] shrink-0" />
+                        <img src={item.photo} alt={item.name} className="h-12 w-12 rounded object-cover border border-[#2A3B59] shrink-0" />
                       ) : (
-                        <div className="h-12 w-12 rounded bg-[#334155] flex items-center justify-center shrink-0">
+                        <div className="h-12 w-12 rounded bg-[#2A3B59] flex items-center justify-center shrink-0">
                           <Package className="h-5 w-5 text-[#94A3B8]" />
                         </div>
                       )}
@@ -229,14 +229,14 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                           Dostępne: <span className={item.available_quantity > 0 ? 'text-[#86EFAC] font-bold' : 'text-[#FCA5A5]'}>{item.available_quantity}</span>
                           <span className="text-[#64748B]"> / {item.total_quantity}</span>
                           {item.variants && item.variants.length > 0 && (
-                            <span className="ml-2 text-[#E8B76A]">({item.variants.length} war.)</span>
+                            <span className="ml-2 text-[#D4AF37]">({item.variants.length} war.)</span>
                           )}
                         </div>
                       </div>
                       <Button
                         size="sm"
                         onClick={() => openOrder(item)}
-                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                        className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
                         data-testid={`catalog-order-btn-${item.id}`}
                       >
                         <ShoppingCart className="h-3.5 w-3.5 mr-1" />
@@ -253,10 +253,10 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
 
       {/* My orders */}
       {(activeOrders.length > 0 || recentOrders.length > 0) && (
-        <Card className="bg-[#2A384C] border-[#334155] mb-4" data-testid="my-equipment-orders">
+        <Card className="bg-[#19243C] border-[#2A3B59] mb-4" data-testid="my-equipment-orders">
           <CardHeader>
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-              <ShoppingCart className="h-5 w-5 text-[#E8B76A]" />
+              <ShoppingCart className="h-5 w-5 text-[#D4AF37]" />
               Moje zamówienia
             </CardTitle>
           </CardHeader>
@@ -267,13 +267,13 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                 return (
                   <div
                     key={o.id}
-                    className="flex items-center gap-3 p-2 bg-[#1E293B] rounded border border-[#334155]"
+                    className="flex items-center gap-3 p-2 bg-[#131C2F] rounded border border-[#2A3B59]"
                     data-testid={`my-order-${o.id}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-[#CBD5E1] text-sm font-semibold truncate">
                         {o.equipment_name}
-                        {o.variant && <span className="text-[#E8B76A]"> - {o.variant}</span>}
+                        {o.variant && <span className="text-[#D4AF37]"> - {o.variant}</span>}
                       </div>
                       <div className="text-xs text-[#94A3B8]">
                         Zamówiono: <b className="text-white">{o.quantity_requested}</b> szt.
@@ -290,7 +290,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                         size="sm"
                         variant="ghost"
                         onClick={() => cancelOrder(o.id)}
-                        className="text-[#94A3B8] hover:text-[#FCA5A5] hover:bg-[#7F2D2D]/20 shrink-0 h-8 w-8 p-0"
+                        className="text-[#94A3B8] hover:text-[#FCA5A5] hover:bg-[#9B2C2C]/20 shrink-0 h-8 w-8 p-0"
                         data-testid={`cancel-order-${o.id}`}
                       >
                         <Trash2 className="h-4 w-4" />
@@ -304,7 +304,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                 return (
                   <div
                     key={o.id}
-                    className="flex items-center gap-3 p-2 bg-[#0F172A] rounded border border-[#334155]/50 opacity-70"
+                    className="flex items-center gap-3 p-2 bg-[#0B1120] rounded border border-[#2A3B59]/50 opacity-70"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-[#94A3B8] text-sm truncate">
@@ -328,19 +328,19 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
           className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
           data-testid="order-modal"
         >
-          <div className="bg-[#2A384C] border-2 border-[#5F7151] rounded-lg shadow-2xl max-w-md w-full">
-            <div className="px-5 py-4 border-b border-[#334155] flex items-center justify-between">
+          <div className="bg-[#19243C] border-2 border-[#4F6343] rounded-lg shadow-2xl max-w-md w-full">
+            <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center justify-between">
               <h3 className="text-lg font-bold text-white">Zamów sprzęt</h3>
               <button onClick={() => setModalItem(null)} className="text-[#94A3B8] hover:text-white" data-testid="order-close-btn">
                 <X className="h-5 w-5" />
               </button>
             </div>
             <div className="p-5 space-y-3">
-              <div className="flex items-center gap-3 p-2 bg-[#1E293B] rounded">
+              <div className="flex items-center gap-3 p-2 bg-[#131C2F] rounded">
                 {modalItem.photo ? (
                   <img src={modalItem.photo} alt={modalItem.name} className="h-14 w-14 rounded object-cover" />
                 ) : (
-                  <div className="h-14 w-14 rounded bg-[#334155] flex items-center justify-center">
+                  <div className="h-14 w-14 rounded bg-[#2A3B59] flex items-center justify-center">
                     <Package className="h-6 w-6 text-[#94A3B8]" />
                   </div>
                 )}
@@ -364,8 +364,8 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                         onClick={() => setOrderVariant(v)}
                         className={`px-3 py-1.5 rounded border text-sm font-bold transition-colors ${
                           orderVariant === v
-                            ? 'bg-[#5F7151]/30 border-[#5F7151] text-white'
-                            : 'bg-[#1E293B] border-[#334155] text-[#CBD5E1] hover:border-[#5F7151]/50'
+                            ? 'bg-[#4F6343]/30 border-[#4F6343] text-white'
+                            : 'bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] hover:border-[#4F6343]/50'
                         }`}
                         data-testid={`variant-btn-${v}`}
                       >
@@ -383,7 +383,7 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                   min="1"
                   value={orderQty}
                   onChange={(e) => setOrderQty(e.target.value)}
-                  className="bg-[#1E293B] border-[#334155] text-white"
+                  className="bg-[#131C2F] border-[#2A3B59] text-white"
                   data-testid="order-qty-input"
                 />
               </div>
@@ -395,19 +395,19 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
                   onChange={(e) => setOrderNotes(e.target.value)}
                   rows="2"
                   placeholder="np. pilne, na budowe X..."
-                  className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-3 py-2 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-3 py-2 text-sm"
                   data-testid="order-notes-input"
                 />
               </div>
             </div>
-            <div className="px-5 py-4 border-t border-[#334155] flex justify-end gap-2">
+            <div className="px-5 py-4 border-t border-[#2A3B59] flex justify-end gap-2">
               <Button onClick={() => setModalItem(null)} variant="ghost" className="text-[#94A3B8]" data-testid="order-cancel-btn">
                 Anuluj
               </Button>
               <Button
                 onClick={submitOrder}
                 disabled={submitting}
-                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                 data-testid="order-submit-btn"
               >
                 <Check className="h-4 w-4 mr-1" />

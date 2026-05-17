@@ -256,7 +256,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
           className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
           data-testid="blocking-transfer-modal"
         >
-          <Card className="bg-[#2A384C] border-2 border-[#7F2D2D] w-full max-w-md shadow-2xl">
+          <Card className="bg-[#19243C] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
             <CardHeader>
               <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
                 <Bell className="h-6 w-6 animate-pulse" />
@@ -264,11 +264,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-[#1E293B] border border-[#334155] rounded-lg p-4">
+              <div className="bg-[#131C2F] border border-[#2A3B59] rounded-lg p-4">
                 <p className="text-[#CBD5E1] text-base">
                   <span className="font-bold text-white">{t.from_foreman_name}</span> chce przekazac Ci:
                 </p>
-                <p className="text-2xl font-bold text-[#5F7151] mt-2">
+                <p className="text-2xl font-bold text-[#4F6343] mt-2">
                   {t.equipment_name}
                 </p>
                 <p className="text-[#CBD5E1] text-lg mt-1">
@@ -285,14 +285,14 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <Button
                   onClick={() => handleReject(t.id)}
                   variant="ghost"
-                  className="flex-1 text-[#FCA5A5] hover:bg-[#7F2D2D] border border-[#7F2D2D]"
+                  className="flex-1 text-[#FCA5A5] hover:bg-[#9B2C2C] border border-[#9B2C2C]"
                   data-testid={`reject-transfer-${t.id}`}
                 >
                   <X className="h-4 w-4 mr-2" /> Odrzuc
                 </Button>
                 <Button
                   onClick={() => handleAccept(t.id)}
-                  className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid={`accept-transfer-${t.id}`}
                 >
                   <Check className="h-4 w-4 mr-2" /> Akceptuj
@@ -314,9 +314,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     <div className="space-y-3" data-testid="equipment-foreman">
       {/* Pending warehouse returns (only visible to designated warehouse keeper) */}
       {pendingReturns.length > 0 && (
-        <Card className="bg-[#2A384C] border-[#5F7151]" data-testid="warehouse-keeper-section">
+        <Card className="bg-[#19243C] border-[#4F6343]" data-testid="warehouse-keeper-section">
           <CardHeader>
-            <CardTitle className="text-[#5F7151] flex items-center gap-2 text-base">
+            <CardTitle className="text-[#4F6343] flex items-center gap-2 text-base">
               <Undo2 className="h-5 w-5" /> Zwroty do magazynu — do potwierdzenia ({pendingReturns.length})
             </CardTitle>
           </CardHeader>
@@ -325,13 +325,13 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               {pendingReturns.map((r) => (
                 <div
                   key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#1E293B] rounded border border-[#334155]"
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
                   data-testid={`keeper-pending-return-${r.id}`}
                 >
                   <div className="text-sm">
                     <span className="text-[#CBD5E1] font-semibold">{r.from_foreman_name}</span>
                     <span className="text-[#94A3B8]"> zwraca </span>
-                    <span className="text-[#5F7151] font-bold">{r.equipment_name}</span>
+                    <span className="text-[#4F6343] font-bold">{r.equipment_name}</span>
                     <span className="text-[#94A3B8]"> x </span>
                     <span className="text-white font-bold">{r.quantity}</span>
                     <span className="text-[#64748B] text-xs ml-2">
@@ -341,7 +341,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   <Button
                     size="sm"
                     onClick={() => handleAcknowledgeReturn(r.id)}
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                     data-testid={`keeper-acknowledge-return-${r.id}`}
                   >
                     Potwierdź przyjecie
@@ -354,17 +354,17 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       )}
 
       {/* My equipment table */}
-      <Card className="bg-[#2A384C] border-[#334155]" data-testid="my-equipment-card">
+      <Card className="bg-[#19243C] border-[#2A3B59]" data-testid="my-equipment-card">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-[#5F7151]" /> {title}
+            <Wrench className="h-5 w-5 text-[#4F6343]" /> {title}
           </CardTitle>
           <div className="flex gap-2 flex-wrap">
           <Button
             size="sm"
             variant="ghost"
             onClick={openHistory}
-            className="text-[#5F7151] hover:bg-[#334155] text-xs"
+            className="text-[#4F6343] hover:bg-[#2A3B59] text-xs"
             data-testid="my-history-btn"
           >
             <HistoryIcon className="h-4 w-4 mr-1" /> Moja historia
@@ -373,7 +373,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             <Button
               size="sm"
               onClick={() => setWarehouseModal(true)}
-              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs"
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs"
               data-testid="warehouse-overview-btn"
             >
               <Warehouse className="h-4 w-4 mr-1" /> Caly magazyn
@@ -387,37 +387,37 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
-                <thead className="sticky top-0 z-30 bg-[#2A384C]">
-                  <tr className="bg-[#1E293B]">
-                    <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                    <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
-                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilość</th>
-                    <th className="border border-[#334155] p-1 sm:p-2 text-center text-[#CBD5E1]">Akcje</th>
+                <thead className="sticky top-0 z-30 bg-[#19243C]">
+                  <tr className="bg-[#131C2F]">
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilość</th>
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#CBD5E1]">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
-                      <td className="border border-[#334155] p-1 sm:p-2 align-middle">
+                      <td className="border border-[#2A3B59] p-1 sm:p-2 align-middle">
                         <div className="flex items-center gap-2">
                           {eq.photo ? (
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded border border-[#334155] shrink-0 bg-[#0F172A] cursor-zoom-in"
+                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded border border-[#2A3B59] shrink-0 bg-[#0B1120] cursor-zoom-in"
                               onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#1E293B] border border-[#334155] flex items-center justify-center shrink-0">
-                              <Wrench className="h-5 w-5 text-[#475569]" />
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#131C2F] border border-[#2A3B59] flex items-center justify-center shrink-0">
+                              <Wrench className="h-5 w-5 text-[#2A3B59]" />
                             </div>
                           )}
                           <span className="text-[#CBD5E1] font-semibold text-[11px] sm:text-sm leading-tight break-words normal-case">{eq.name}</span>
                         </div>
                       </td>
-                      <td className="border border-[#334155] p-1 sm:p-2 text-[#94A3B8] text-[11px] sm:text-sm align-middle">{eq.brand || '-'}</td>
-                      <td className="border border-[#334155] p-1 sm:p-2 text-center text-[#5F7151] font-bold align-middle">{eq.quantity}</td>
-                      <td className="border border-[#334155] p-1 align-middle">
+                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-[#94A3B8] text-[11px] sm:text-sm align-middle">{eq.brand || '-'}</td>
+                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#4F6343] font-bold align-middle">{eq.quantity}</td>
+                      <td className="border border-[#2A3B59] p-1 align-middle">
                         <div className="flex gap-1 flex-col sm:flex-row sm:flex-wrap items-stretch sm:justify-center">
                           <Button
                             size="sm"
@@ -425,7 +425,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                               setTransferModal(eq);
                               setTransferQty(String(Math.min(1, eq.quantity)));
                             }}
-                            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7 px-2"
+                            className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-7 px-2"
                             data-testid={`transfer-btn-${eq.id}`}
                           >
                             <Send className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.transfer')}</span>
@@ -437,7 +437,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                               setReturnModal(eq);
                               setReturnQty(String(eq.quantity));
                             }}
-                            className="text-[#5F7151] hover:bg-[#334155] text-xs h-7 px-2"
+                            className="text-[#4F6343] hover:bg-[#2A3B59] text-xs h-7 px-2"
                             data-testid={`return-btn-${eq.id}`}
                           >
                             <Undo2 className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.return_warehouse')}</span>
@@ -449,7 +449,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                               setDefectModal(eq);
                               setDefectQty('1');
                             }}
-                            className="text-[#E8836A] hover:bg-[#334155] text-xs h-7 px-2"
+                            className="text-[#DC4A3A] hover:bg-[#2A3B59] text-xs h-7 px-2"
                             data-testid={`defect-btn-${eq.id}`}
                           >
                             <AlertTriangle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.defect_short')}</span>
@@ -471,7 +471,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       {/* Transfer Modal */}
       {transferModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1]">Przekaz: {transferModal.name}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setTransferModal(null)}>
@@ -487,7 +487,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <select
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
-                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
                   data-testid="transfer-to-select"
                 >
                   <option value="">-- wybierz --</option>
@@ -504,7 +504,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   max={transferModal.quantity}
                   value={transferQty}
                   onChange={(e) => setTransferQty(e.target.value)}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="transfer-qty-input"
                 />
               </div>
@@ -515,7 +515,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <Button variant="ghost" onClick={() => setTransferModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleTransfer}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="confirm-transfer-btn"
                 >
                   Wyslij
@@ -529,7 +529,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       {/* Return Modal */}
       {returnModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1]">Zwrot do magazynu: {returnModal.name}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setReturnModal(null)}>
@@ -548,7 +548,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   max={returnModal.quantity}
                   value={returnQty}
                   onChange={(e) => setReturnQty(e.target.value)}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="return-qty-input"
                 />
               </div>
@@ -556,7 +556,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <Button variant="ghost" onClick={() => setReturnModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleReturn}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="confirm-return-btn"
                 >
                   Zwroc do magazynu
@@ -570,7 +570,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       {/* Defect Modal */}
       {defectModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1]">Usterka: {defectModal.name}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setDefectModal(null)}>
@@ -586,7 +586,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   max={defectModal.quantity}
                   value={defectQty}
                   onChange={(e) => setDefectQty(e.target.value)}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="defect-qty-input"
                 />
               </div>
@@ -596,7 +596,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   value={defectDesc}
                   onChange={(e) => setDefectDesc(e.target.value)}
                   rows="3"
-                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
                   data-testid="defect-desc-input"
                 />
               </div>
@@ -610,13 +610,13 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   className="text-xs text-[#CBD5E1]"
                   data-testid="defect-photo-input"
                 />
-                {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
+                {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setDefectModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleDefect}
-                  className="bg-[#E8836A] hover:bg-[#C56A52] text-white"
+                  className="bg-[#DC4A3A] hover:bg-[#C56A52] text-white"
                   data-testid="confirm-defect-btn"
                 >
                   Zglos
@@ -630,7 +630,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       {/* My History Modal */}
       {historyModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[80vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1]">{t('eq.history_title')}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setHistoryModal(false)}>
@@ -640,7 +640,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             <CardContent className="overflow-y-auto space-y-3">
               {/* Transfers */}
               <div>
-                <h4 className="text-[#5F7151] font-bold text-sm mb-2">{t('eq.transfers')}</h4>
+                <h4 className="text-[#4F6343] font-bold text-sm mb-2">{t('eq.transfers')}</h4>
                 {historyData.transfers.length === 0 ? (
                   <p className="text-[#94A3B8] text-xs">{t('eq.no_transfers')}</p>
                 ) : (
@@ -648,8 +648,8 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                     {historyData.transfers.map((t) => {
                       const isOutgoing = t.from_foreman_name === historyData.foreman_name;
                       return (
-                        <div key={t.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155]">
-                          <span className={isOutgoing ? 'text-[#E8836A]' : 'text-[#5F7151]'}>
+                        <div key={t.id} className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
+                          <span className={isOutgoing ? 'text-[#DC4A3A]' : 'text-[#4F6343]'}>
                             {isOutgoing ? '-> Wyslane do' : '<- Otrzymane od'}
                           </span>{' '}
                           <span className="text-[#CBD5E1] font-semibold">
@@ -658,8 +658,8 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                           <span className="text-[#94A3B8]">·</span>{' '}
                           <span className="text-[#CBD5E1]">{t.equipment_name} x {t.quantity}</span>{' '}
                           <span className="text-[#94A3B8]">·</span>{' '}
-                          <span className={t.status === 'accepted' ? 'text-[#5F7151]' :
-                                            t.status === 'rejected' ? 'text-[#E8836A]' :
+                          <span className={t.status === 'accepted' ? 'text-[#4F6343]' :
+                                            t.status === 'rejected' ? 'text-[#DC4A3A]' :
                                             'text-[#FCA5A5]'}>
                             {t.status === 'pending' ? 'Oczekuje' :
                              t.status === 'accepted' ? 'Zaakceptowane' : 'Odrzucone'}
@@ -676,11 +676,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               {/* Other events */}
               {historyData.events.length > 0 && (
                 <div>
-                  <h4 className="text-[#5F7151] font-bold text-sm mb-2 mt-3">{t('eq.returns_defects')}</h4>
+                  <h4 className="text-[#4F6343] font-bold text-sm mb-2 mt-3">{t('eq.returns_defects')}</h4>
                   <div className="space-y-1">
                     {historyData.events.map((e) => (
-                      <div key={e.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155]">
-                        <span className="text-[#5F7151] font-semibold">
+                      <div key={e.id} className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
+                        <span className="text-[#4F6343] font-semibold">
                           {ACTION_LABELS[e.action] || e.action}
                         </span>{' '}
                         <span className="text-[#CBD5E1]">
@@ -704,10 +704,10 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       {/* Warehouse Overview Modal (warehouse keeper only) */}
       {warehouseModal && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-5xl max-h-[90vh] flex flex-col">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-5xl max-h-[90vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Warehouse className="h-5 w-5 text-[#5F7151]" /> Caly magazyn — przeglad
+                <Warehouse className="h-5 w-5 text-[#4F6343]" /> Caly magazyn — przeglad
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setWarehouseModal(false)} data-testid="close-warehouse-modal">
                 <X className="h-4 w-4" />
@@ -719,14 +719,14 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-xs" data-testid="warehouse-overview-table">
-                    <thead className="sticky top-0 z-10 bg-[#2A384C]">
-                      <tr className="bg-[#1E293B]">
-                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
-                        <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Razem</th>
-                        <th className="border border-[#334155] p-2 text-center text-[#E8836A]">{t('eq.in_repair')}</th>
-                        <th className="border border-[#334155] p-2 text-center text-[#5F7151]">Magazyn</th>
-                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">{t('eq.who_has')}</th>
+                    <thead className="sticky top-0 z-10 bg-[#19243C]">
+                      <tr className="bg-[#131C2F]">
+                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">Nazwa</th>
+                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">Marka</th>
+                        <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Razem</th>
+                        <th className="border border-[#2A3B59] p-2 text-center text-[#DC4A3A]">{t('eq.in_repair')}</th>
+                        <th className="border border-[#2A3B59] p-2 text-center text-[#4F6343]">Magazyn</th>
+                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">{t('eq.who_has')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -740,25 +740,25 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                           .filter(Boolean);
                         return (
                           <tr key={eq.id}>
-                            <td className="border border-[#334155] p-2">
+                            <td className="border border-[#2A3B59] p-2">
                               <div className="flex items-center gap-2">
                                 {eq.photo ? (
-                                  <img src={eq.photo} alt={eq.name} className="w-12 h-12 object-contain rounded shrink-0 bg-[#0F172A] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
+                                  <img src={eq.photo} alt={eq.name} className="w-12 h-12 object-contain rounded shrink-0 bg-[#0B1120] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
                                 ) : (
-                                  <div className="w-12 h-12 rounded bg-[#1E293B] flex items-center justify-center shrink-0">
-                                    <Wrench className="h-4 w-4 text-[#475569]" />
+                                  <div className="w-12 h-12 rounded bg-[#131C2F] flex items-center justify-center shrink-0">
+                                    <Wrench className="h-4 w-4 text-[#2A3B59]" />
                                   </div>
                                 )}
                                 <span className="text-[#CBD5E1] font-semibold">{eq.name}</span>
                               </div>
                             </td>
-                            <td className="border border-[#334155] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
-                            <td className="border border-[#334155] p-2 text-center text-[#CBD5E1] font-bold">{eq.total_quantity}</td>
-                            <td className="border border-[#334155] p-2 text-center text-[#E8836A] font-bold">{eq.broken_quantity || 0}</td>
-                            <td className={`border border-[#334155] p-2 text-center font-bold ${eq.available_quantity > 0 ? 'text-[#5F7151]' : 'text-[#E8836A]'}`}>
+                            <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
+                            <td className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] font-bold">{eq.total_quantity}</td>
+                            <td className="border border-[#2A3B59] p-2 text-center text-[#DC4A3A] font-bold">{eq.broken_quantity || 0}</td>
+                            <td className={`border border-[#2A3B59] p-2 text-center font-bold ${eq.available_quantity > 0 ? 'text-[#4F6343]' : 'text-[#DC4A3A]'}`}>
                               {eq.available_quantity}
                             </td>
-                            <td className="border border-[#334155] p-2 text-[#94A3B8]">
+                            <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">
                               {holders.length === 0 ? <span className="text-[#64748B]">nikt</span> : holders.join(', ')}
                             </td>
                           </tr>

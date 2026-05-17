@@ -38,8 +38,8 @@ export const ForemanEntry = () => {
       start_url: '/foreman',
       scope: '/',
       display: 'standalone',
-      background_color: '#0F172A',
-      theme_color: '#0F172A',
+      background_color: '#0B1120',
+      theme_color: '#0B1120',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -80,9 +80,9 @@ export const ForemanEntry = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#1E293B] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#131C2F] flex items-center justify-center p-6">
       <div className="absolute top-4 right-4"><LanguageToggle /></div>
-      <Card className="w-full max-w-md bg-[#2A384C] border-[#334155] shadow-xl">
+      <Card className="w-full max-w-md bg-[#19243C] border-[#2A3B59] shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <img
@@ -91,7 +91,7 @@ export const ForemanEntry = () => {
               className="h-16"
             />
           </div>
-          <CardTitle className="text-2xl font-bold text-[#6B8E4E]">{t('login.foreman_title')}</CardTitle>
+          <CardTitle className="text-2xl font-bold text-[#5F7552]">{t('login.foreman_title')}</CardTitle>
           <CardDescription className="text-[#94A3B8]">{t('login.full_name')} + {t('login.password')}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -106,7 +106,7 @@ export const ForemanEntry = () => {
                 onChange={(e) => setFirstName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                 required
                 data-testid="foreman-first-name"
-                className="bg-[#1E293B] border-[#334155] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
               />
             </div>
             <div className="space-y-2">
@@ -119,7 +119,7 @@ export const ForemanEntry = () => {
                 onChange={(e) => setLastName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                 required
                 data-testid="foreman-last-name"
-                className="bg-[#1E293B] border-[#334155] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
               />
             </div>
             <div className="space-y-2">
@@ -132,7 +132,7 @@ export const ForemanEntry = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 data-testid="foreman-password"
-                className="bg-[#1E293B] border-[#334155] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
               />
             </div>
             {error && (
@@ -142,7 +142,7 @@ export const ForemanEntry = () => {
             )}
             <Button
               type="submit"
-              className="w-full bg-[#5F7151] hover:bg-[#4A5A41] text-white h-12 text-lg font-semibold"
+              className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white h-12 text-lg font-semibold"
               disabled={loading}
               data-testid="foreman-login-btn"
             >

@@ -15,10 +15,10 @@ const CATEGORY_LABEL = {
 };
 
 const CATEGORY_COLOR = {
-  budowa: 'bg-[#5F7151] text-white',
+  budowa: 'bg-[#4F6343] text-white',
   sklep: 'bg-[#92400E] text-[#FED7AA]',
   magazyn: 'bg-[#1E40AF] text-[#BFDBFE]',
-  inne: 'bg-[#475569] text-[#CBD5E1]',
+  inne: 'bg-[#2A3B59] text-[#CBD5E1]',
 };
 
 const buildMapsLink = (site) => {
@@ -102,10 +102,10 @@ export const LocationsButton = () => {
 
       {open && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[90vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <MapPin className="h-5 w-5 text-[#5F7151]" /> Lokalizacje
+                <MapPin className="h-5 w-5 text-[#4F6343]" /> Lokalizacje
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setOpen(false)} data-testid="close-locations-modal">
                 <X className="h-4 w-4" />
@@ -120,14 +120,14 @@ export const LocationsButton = () => {
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     placeholder="Szukaj lokalizacji..."
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1] pl-8"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] pl-8"
                     data-testid="locations-search"
                   />
                 </div>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
                   data-testid="locations-category-filter"
                 >
                   <option value="all">{t('common.all')}</option>
@@ -150,7 +150,7 @@ export const LocationsButton = () => {
                   return (
                     <div
                       key={site.id}
-                      className="flex items-start justify-between gap-2 p-3 bg-[#1E293B] rounded border border-[#334155]"
+                      className="flex items-start justify-between gap-2 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
                       data-testid={`location-item-${site.id}`}
                     >
                       <div className="flex-1 min-w-0">
@@ -167,14 +167,14 @@ export const LocationsButton = () => {
                           <p className="text-xs text-[#94A3B8] mt-1 truncate">{site.google_maps_url}</p>
                         )}
                         {!site.location_lat && !site.address && (
-                          <p className="text-xs text-[#E8836A] mt-1">{t('common.no_location_set')}</p>
+                          <p className="text-xs text-[#DC4A3A] mt-1">{t('common.no_location_set')}</p>
                         )}
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">
                         <Button
                           size="sm"
                           onClick={() => handleNavigate(site)}
-                          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7"
+                          className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-7"
                           data-testid={`navigate-btn-${site.id}`}
                         >
                           <Navigation className="h-3 w-3 mr-1" /> Nawiguj
@@ -183,7 +183,7 @@ export const LocationsButton = () => {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleCopy(site)}
-                          className="text-[#94A3B8] hover:bg-[#334155] text-xs h-7"
+                          className="text-[#94A3B8] hover:bg-[#2A3B59] text-xs h-7"
                           data-testid={`copy-link-btn-${site.id}`}
                         >
                           <Copy className="h-3 w-3 mr-1" /> Kopiuj link

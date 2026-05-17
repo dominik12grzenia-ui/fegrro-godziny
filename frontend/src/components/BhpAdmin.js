@@ -169,7 +169,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('items')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'items' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'items' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
           data-testid="bhp-subtab-items"
         >
           Rzeczy BHP
@@ -177,7 +177,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('issuances')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issuances' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issuances' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
           data-testid="bhp-subtab-issuances"
         >
           Wydania pracownikom ({issuances.length})
@@ -185,7 +185,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('employees')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'employees' ? 'bg-[#5F7151] text-white' : 'bg-[#2A384C] text-[#94A3B8] hover:bg-[#334155]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'employees' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
           data-testid="bhp-subtab-employees"
         >
           Pracownicy - dokumenty
@@ -196,16 +196,16 @@ export const BhpAdmin = () => {
 
       {/* ITEMS sub-tab */}
       {subtab === 'items' && (
-        <Card className="bg-[#2A384C] border-[#334155]">
+        <Card className="bg-[#19243C] border-[#2A3B59]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <HardHat className="h-5 w-5 text-[#5F7151]" /> Rzeczy BHP
+                <HardHat className="h-5 w-5 text-[#4F6343]" /> Rzeczy BHP
               </CardTitle>
               <Button
                 size="sm"
                 onClick={openCreateItem}
-                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
+                className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-8"
                 data-testid="bhp-add-item-btn"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" /> Dodaj rzecz
@@ -225,7 +225,7 @@ export const BhpAdmin = () => {
                   return (
                     <div
                       key={it.id}
-                      className="bg-[#1E293B] rounded-lg border border-[#334155] p-3 flex gap-3"
+                      className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3 flex gap-3"
                       data-testid={`bhp-item-${it.id}`}
                     >
                       {it.photo ? (
@@ -236,20 +236,20 @@ export const BhpAdmin = () => {
                           onClick={() => setLightbox(it.photo)}
                         />
                       ) : (
-                        <div className="h-20 w-20 bg-[#0F172A] rounded flex items-center justify-center shrink-0">
-                          <HardHat className="h-8 w-8 text-[#475569]" />
+                        <div className="h-20 w-20 bg-[#0B1120] rounded flex items-center justify-center shrink-0">
+                          <HardHat className="h-8 w-8 text-[#2A3B59]" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
                         <p className="text-[#CBD5E1] font-semibold truncate">{it.name}</p>
                         <p className="text-[11px] text-[#94A3B8] mt-1">
-                          Wydano: <b className="text-[#6B8E4E]">{totalQty} szt.</b> ({issuedCount} wydań)
+                          Wydano: <b className="text-[#5F7552]">{totalQty} szt.</b> ({issuedCount} wydań)
                         </p>
                         <div className="flex gap-1 mt-2">
                           <Button
                             size="sm"
                             onClick={() => openIssueForm(it.id)}
-                            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7"
+                            className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-7"
                             data-testid={`bhp-issue-btn-${it.id}`}
                           >
                             <UserPlus className="h-3 w-3 mr-1" /> Wydaj
@@ -267,7 +267,7 @@ export const BhpAdmin = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => deleteItem(it)}
-                            className="text-[#E8836A] h-7 px-2"
+                            className="text-[#DC4A3A] h-7 px-2"
                             data-testid={`bhp-del-btn-${it.id}`}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -285,16 +285,16 @@ export const BhpAdmin = () => {
 
       {/* ISSUANCES sub-tab */}
       {subtab === 'issuances' && (
-        <Card className="bg-[#2A384C] border-[#334155]">
+        <Card className="bg-[#19243C] border-[#2A3B59]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <HardHat className="h-5 w-5 text-[#5F7151]" /> Wydane pracownikom
+                <HardHat className="h-5 w-5 text-[#4F6343]" /> Wydane pracownikom
               </CardTitle>
               <Button
                 size="sm"
                 onClick={() => openIssueForm()}
-                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-8"
+                className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-8"
                 data-testid="bhp-issue-new-btn"
                 disabled={activeItems.length === 0 || employees.length === 0}
               >
@@ -310,24 +310,24 @@ export const BhpAdmin = () => {
                 {issuancesByEmployee.map((row) => (
                   <div
                     key={row.employee_id}
-                    className="bg-[#1E293B] rounded-lg border border-[#334155] p-3"
+                    className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3"
                     data-testid={`bhp-emp-row-${row.employee_id}`}
                   >
-                    <p className="text-[#CBD5E1] font-bold text-base border-b border-[#334155] pb-2 mb-2">
+                    <p className="text-[#CBD5E1] font-bold text-base border-b border-[#2A3B59] pb-2 mb-2">
                       {row.employee_name}
                     </p>
                     <div className="space-y-1">
                       {row.issuances.map((iss) => (
                         <div
                           key={iss.id}
-                          className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-[#2A384C]"
+                          className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-[#19243C]"
                           data-testid={`bhp-issuance-${iss.id}`}
                         >
                           <div className="flex-1 min-w-0">
-                            <span className="text-[#E8B76A] font-semibold">{iss.bhp_item_name}</span>
+                            <span className="text-[#D4AF37] font-semibold">{iss.bhp_item_name}</span>
                             <span className="text-[#94A3B8] ml-2">x {iss.quantity}</span>
                             {iss.serial_number && (
-                              <span className="ml-2 text-[11px] bg-[#0F172A] text-[#CBD5E1] px-2 py-0.5 rounded">
+                              <span className="ml-2 text-[11px] bg-[#0B1120] text-[#CBD5E1] px-2 py-0.5 rounded">
                                 SN: {iss.serial_number}
                               </span>
                             )}
@@ -340,7 +340,7 @@ export const BhpAdmin = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => deleteIssuance(iss)}
-                            className="text-[#E8836A] h-7 px-2"
+                            className="text-[#DC4A3A] h-7 px-2"
                             data-testid={`bhp-del-issuance-${iss.id}`}
                           >
                             <Trash2 className="h-3 w-3" />
@@ -363,7 +363,7 @@ export const BhpAdmin = () => {
           onClick={() => setShowAddItem(false)}
         >
           <Card
-            className="bg-[#2A384C] border-[#334155] w-full max-w-md"
+            className="bg-[#19243C] border-[#2A3B59] w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
@@ -383,7 +383,7 @@ export const BhpAdmin = () => {
                   value={itemForm.name}
                   onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="np. Szelki BHP"
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="bhp-item-name-input"
                 />
               </div>
@@ -393,7 +393,7 @@ export const BhpAdmin = () => {
                   type="file"
                   accept="image/*"
                   onChange={onPhotoChange}
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="bhp-item-photo-input"
                 />
                 {itemForm.photo && (
@@ -406,7 +406,7 @@ export const BhpAdmin = () => {
                 </Button>
                 <Button
                   onClick={saveItem}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-item-save-btn"
                 >
                   Zapisz
@@ -424,7 +424,7 @@ export const BhpAdmin = () => {
           onClick={() => setShowIssue(false)}
         >
           <Card
-            className="bg-[#2A384C] border-[#334155] w-full max-w-md"
+            className="bg-[#19243C] border-[#2A3B59] w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
@@ -441,7 +441,7 @@ export const BhpAdmin = () => {
                 <select
                   value={issueForm.employee_id}
                   onChange={(e) => setIssueForm((f) => ({ ...f, employee_id: e.target.value }))}
-                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
                   data-testid="bhp-issue-employee-select"
                 >
                   <option value="">-- wybierz --</option>
@@ -455,7 +455,7 @@ export const BhpAdmin = () => {
                 <select
                   value={issueForm.bhp_item_id}
                   onChange={(e) => setIssueForm((f) => ({ ...f, bhp_item_id: e.target.value }))}
-                  className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
                   data-testid="bhp-issue-item-select"
                 >
                   <option value="">-- wybierz --</option>
@@ -472,7 +472,7 @@ export const BhpAdmin = () => {
                     min="1"
                     value={issueForm.quantity}
                     onChange={(e) => setIssueForm((f) => ({ ...f, quantity: e.target.value }))}
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                     data-testid="bhp-issue-qty-input"
                   />
                 </div>
@@ -481,7 +481,7 @@ export const BhpAdmin = () => {
                   <Input
                     value={issueForm.serial_number}
                     onChange={(e) => setIssueForm((f) => ({ ...f, serial_number: e.target.value }))}
-                    className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                     data-testid="bhp-issue-sn-input"
                   />
                 </div>
@@ -492,7 +492,7 @@ export const BhpAdmin = () => {
                   value={issueForm.note}
                   onChange={(e) => setIssueForm((f) => ({ ...f, note: e.target.value }))}
                   placeholder="np. zuzyte, przekazane na budowe X"
-                  className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
                   data-testid="bhp-issue-note-input"
                 />
               </div>
@@ -502,7 +502,7 @@ export const BhpAdmin = () => {
                 </Button>
                 <Button
                   onClick={saveIssuance}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-issue-save-btn"
                 >
                   Wydaj

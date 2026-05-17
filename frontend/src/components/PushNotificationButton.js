@@ -175,7 +175,7 @@ export const PushNotificationButton = ({ compact = false }) => {
           size="sm"
           variant="ghost"
           onClick={handleTest}
-          className="text-[#5F7151] hover:bg-[#5F7151]/20"
+          className="text-[#4F6343] hover:bg-[#4F6343]/20"
           data-testid="push-test-btn"
           title="Wyslij testowe powiadomienie"
         >
@@ -189,7 +189,7 @@ export const PushNotificationButton = ({ compact = false }) => {
           size="sm"
           variant="outline"
           onClick={handleTest}
-          className="border-[#5F7151] text-[#6B8E4E]"
+          className="border-[#4F6343] text-[#5F7552]"
           data-testid="push-test-btn"
         >
           <BellRing className="h-4 w-4 mr-1" />
@@ -200,7 +200,7 @@ export const PushNotificationButton = ({ compact = false }) => {
           variant="ghost"
           onClick={handleDisable}
           disabled={busy}
-          className="text-[#E8836A]"
+          className="text-[#DC4A3A]"
           data-testid="push-disable-btn"
         >
           <BellOff className="h-4 w-4 mr-1" />
@@ -216,8 +216,8 @@ export const PushNotificationButton = ({ compact = false }) => {
       onClick={handleEnable}
       disabled={busy}
       className={compact
-        ? 'bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold h-8'
-        : 'bg-[#5F7151] hover:bg-[#4A5A41] text-white'}
+        ? 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold h-8'
+        : 'bg-[#4F6343] hover:bg-[#3F5235] text-white'}
       data-testid="push-enable-btn"
     >
       <Bell className="h-4 w-4 mr-1" />

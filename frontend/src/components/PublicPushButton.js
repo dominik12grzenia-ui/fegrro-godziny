@@ -148,7 +148,7 @@ export const PublicPushButton = ({ token }) => {
           size="sm"
           variant="outline"
           onClick={handleTest}
-          className="border-[#5F7151] text-[#6B8E4E] text-xs"
+          className="border-[#4F6343] text-[#5F7552] text-xs"
           data-testid="public-push-test"
         >
           <BellRing className="h-3.5 w-3.5 mr-1" /> Test
@@ -158,7 +158,7 @@ export const PublicPushButton = ({ token }) => {
           variant="ghost"
           onClick={handleDisable}
           disabled={busy}
-          className="text-[#E8836A] text-xs"
+          className="text-[#DC4A3A] text-xs"
           data-testid="public-push-disable"
         >
           <BellOff className="h-3.5 w-3.5 mr-1" /> Wyłącz powiadomienia
@@ -172,7 +172,7 @@ export const PublicPushButton = ({ token }) => {
       size="sm"
       onClick={handleEnable}
       disabled={busy}
-      className="bg-[#E8B76A] hover:bg-[#C79B58] text-[#1E293B] font-bold"
+      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
       data-testid="public-push-enable"
     >
       <Bell className="h-4 w-4 mr-1" />

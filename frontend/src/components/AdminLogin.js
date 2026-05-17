@@ -54,7 +54,7 @@ export const AdminLogin = () => {
               className="h-16"
             />
           </div>
-          <CardTitle className="text-3xl font-bold text-[#6B8E4E]">Panel Administratora</CardTitle>
+          <CardTitle className="text-3xl font-bold text-[#5F7552]">Panel Administratora</CardTitle>
           <CardDescription>Zaloguj się do systemu</CardDescription>
         </CardHeader>
         <CardContent>

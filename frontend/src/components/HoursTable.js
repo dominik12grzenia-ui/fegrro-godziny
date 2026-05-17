@@ -9,10 +9,10 @@ import { toast } from 'sonner';
 import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
 
-const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
+const SITE_COLORS_HEX = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
 const WEEKEND_BORDER = '#6B4444';
-const HOLIDAY_BORDER = '#DC2626';
+const HOLIDAY_BORDER = '#9B2C2C';
 
 export const HoursTable = () => {
   const { user } = useAuth();
@@ -577,8 +577,8 @@ export const HoursTable = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex flex-col items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F7151]" />
+      <div className="min-h-screen bg-[#131C2F] flex flex-col items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F6343]" />
         <p className="mt-4 text-[#CBD5E1]">Wczytywanie...</p>
       </div>
     );
@@ -590,25 +590,25 @@ export const HoursTable = () => {
   const pendingCount = Object.keys(pendingAssignments).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#1E293B]">
+    <div className="min-h-screen flex flex-col bg-[#131C2F]">
       {/* Header */}
-      <div className="bg-[#2A384C] text-white shadow-lg shrink-0">
+      <div className="bg-[#19243C] text-white shadow-lg shrink-0">
         <div className="max-w-full mx-auto p-4 flex items-center gap-4">
           <Button
             onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/worker/dashboard')}
             variant="ghost"
-            className="text-white hover:bg-[#334155]"
+            className="text-white hover:bg-[#2A3B59]"
             data-testid="back-btn"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#334155] p-1" data-testid="prev-month">
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59] p-1" data-testid="prev-month">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-xl sm:text-2xl font-bold capitalize">{monthLabel}</h1>
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#334155] p-1" data-testid="next-month">
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59] p-1" data-testid="next-month">
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
@@ -629,7 +629,7 @@ export const HoursTable = () => {
                 }
               }}
               size="sm"
-              className="bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white"
+              className="bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white"
               data-testid="generate-links-btn"
             >
               <Link2 className="h-4 w-4 mr-1" />
@@ -645,14 +645,14 @@ export const HoursTable = () => {
       <div className="shrink-0 p-4 pb-0 overflow-x-auto">
         {/* Assignment mode selector */}
         {isAdmin && (
-          <div className="mb-4 p-3 bg-[#2A384C] rounded-lg border border-[#334155] flex flex-wrap items-center gap-2">
+          <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59] flex flex-wrap items-center gap-2">
             <span className="text-sm text-[#94A3B8] mr-2">Tryb:</span>
             <Button
               onClick={() => { setSelectedSiteForAssignment(null); setPendingAssignments({}); }}
               size="sm"
               className={!selectedSiteForAssignment
-                ? 'bg-[#5F7151] text-white'
-                : 'bg-[#334155] text-[#CBD5E1] hover:bg-[#3D4F63]'
+                ? 'bg-[#4F6343] text-white'
+                : 'bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]'
               }
               data-testid="mode-edit-hours"
             >
@@ -668,7 +668,7 @@ export const HoursTable = () => {
                   size="sm"
                   style={isActive ? { backgroundColor: color, color: '#fff' } : {}}
                   className={!isActive
-                    ? 'bg-[#334155] text-[#CBD5E1] hover:bg-[#3D4F63]'
+                    ? 'bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]'
                     : ''
                   }
                   data-testid={`assign-site-${site.id}`}
@@ -682,7 +682,7 @@ export const HoursTable = () => {
               );
             })}
             {employeesPerSite._unassigned > 0 && (
-              <span className="text-xs text-[#E8836A] bg-[#4A2020] px-2 py-1 rounded-full font-medium">
+              <span className="text-xs text-[#DC4A3A] bg-[#7F2229] px-2 py-1 rounded-full font-medium">
                 <Users className="inline h-3 w-3 mr-0.5" />Nieprzypisani: {employeesPerSite._unassigned}
               </span>
             )}
@@ -691,12 +691,12 @@ export const HoursTable = () => {
 
         {/* Assignment action buttons - visible on mobile */}
         {selectedSiteForAssignment && (
-          <div className="mb-4 p-3 bg-[#0F172A] rounded-lg border-2 border-[#5F7151] flex flex-wrap items-center gap-2">
+          <div className="mb-4 p-3 bg-[#0B1120] rounded-lg border-2 border-[#4F6343] flex flex-wrap items-center gap-2">
             <span className="text-sm text-[#94A3B8]">Zaznaczono: {pendingCount}</span>
             <Button
               onClick={handleBulkAssign}
               disabled={pendingCount === 0}
-              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
               size="sm"
               data-testid="bulk-assign-btn"
             >
@@ -707,7 +707,7 @@ export const HoursTable = () => {
                 employees.forEach(emp => handleSelectFullMonth(emp.id));
               }}
               size="sm"
-              className="bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white border border-[#5F7151]"
+              className="bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white border border-[#4F6343]"
               data-testid="full-month-all-btn"
             >
               Caly miesiąc (wszyscy)
@@ -716,7 +716,7 @@ export const HoursTable = () => {
               onClick={() => { setPendingAssignments({}); setSelectedSiteForAssignment(null); }}
               variant="outline"
               size="sm"
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
               data-testid="cancel-assign-btn"
             >
               Anuluj
@@ -725,11 +725,11 @@ export const HoursTable = () => {
         )}
 
         {/* Bulk mode bar */}
-        <div className="mb-4 p-3 bg-[#2A384C] rounded-lg border border-[#334155]">
+        <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59]">
           {!bulkMode ? (
             <Button
               onClick={() => setBulkMode(true)}
-              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white gap-2"
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white gap-2"
               data-testid="bulk-mode-btn"
             >
               <Users className="h-4 w-4" />
@@ -746,7 +746,7 @@ export const HoursTable = () => {
                   value={bulkHours}
                   onChange={(e) => setBulkHours(e.target.value)}
                   placeholder="np. 10"
-                  className="w-24 bg-[#1E293B] border-[#5F7151] text-white text-center h-10"
+                  className="w-24 bg-[#131C2F] border-[#4F6343] text-white text-center h-10"
                   data-testid="bulk-hours-input"
                   autoFocus
                 />
@@ -764,8 +764,8 @@ export const HoursTable = () => {
                       onClick={() => toggleBulkEmployee(emp.id)}
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isSelected
-                          ? 'bg-[#5F7151] text-white ring-2 ring-[#6B8E4E]'
-                          : 'bg-[#1E293B] text-[#94A3B8] hover:bg-[#334155]'
+                          ? 'bg-[#4F6343] text-white ring-2 ring-[#5F7552]'
+                          : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'
                       }`}
                       data-testid={`bulk-emp-${emp.id}`}
                     >
@@ -778,7 +778,7 @@ export const HoursTable = () => {
                 <Button
                   onClick={handleBulkSave}
                   disabled={bulkSaving || !bulkHours || bulkSelected.size === 0}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white gap-2"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white gap-2"
                   data-testid="bulk-save-btn"
                 >
                   {bulkSaving ? 'Zapisywanie...' : `Zapisz ${bulkHours || '?'}h dla ${bulkSelected.size} os.`}
@@ -786,7 +786,7 @@ export const HoursTable = () => {
                 <Button
                   onClick={() => { setBulkMode(false); setBulkSelected(new Set()); setBulkHours(''); }}
                   variant="outline"
-                  className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
+                  className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
                   data-testid="bulk-cancel-btn"
                 >
                   Anuluj
@@ -799,10 +799,10 @@ export const HoursTable = () => {
         {/* Table */}
       </div>
       <div className="flex-1 min-h-0 px-4 pb-4">
-        <Card className="bg-[#2A384C] border-[#334155] h-full flex flex-col">
+        <Card className="bg-[#19243C] border-[#2A3B59] h-full flex flex-col">
           <CardHeader className="pb-2 shrink-0">
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-              <Calendar className="h-5 w-5 text-[#5F7151]" />
+              <Calendar className="h-5 w-5 text-[#4F6343]" />
               Godziny pracy
             </CardTitle>
           </CardHeader>
@@ -810,28 +810,28 @@ export const HoursTable = () => {
             <div className="overflow-auto h-full" ref={tableScrollRef}>
               <table className="w-full text-sm border-collapse" data-testid="hours-table">
                 <thead className="sticky top-0 z-30" style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
-                  <tr className="bg-[#1E293B]">
-                    <th className="border border-[#334155] p-1 text-center text-[#94A3B8] min-w-[35px] sticky left-0 z-40 bg-[#1E293B]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                  <tr className="bg-[#131C2F]">
+                    <th className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] min-w-[35px] sticky left-0 z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       L.p.
                     </th>
-                    <th className="border border-[#334155] p-1 sm:p-2 text-left text-[#CBD5E1] min-w-[90px] sm:min-w-[140px] max-w-[100px] sm:max-w-none sticky left-[35px] z-40 bg-[#1E293B]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1] min-w-[90px] sm:min-w-[140px] max-w-[100px] sm:max-w-none sticky left-[35px] z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       Pracownik
                     </th>
-                    <th className="border border-[#334155] p-2 text-left text-[#CBD5E1] min-w-[100px] bg-[#1E293B]">
+                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[100px] bg-[#131C2F]">
                       Telefon
                     </th>
                     {isAdmin && (
-                      <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#1E293B]">
+                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#131C2F]">
                         Zaliczki
                       </th>
                     )}
                     {isAdmin && (
-                      <th className="border border-[#334155] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#1E293B]">
+                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#131C2F]">
                         Kary
                       </th>
                     )}
                     {days.map(d => {
-                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#334155';
+                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
                       const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : '1px';
                       return (
                       <th
@@ -839,7 +839,7 @@ export const HoursTable = () => {
                         className="p-1 text-center min-w-[42px] relative"
                         data-today={d.isToday ? 'true' : undefined}
                         style={{
-                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#1E293B',
+                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#131C2F',
                           borderLeft: `${borderWidth} solid ${borderColor}`,
                           borderRight: `${borderWidth} solid ${borderColor}`,
                           borderTop: `${borderWidth} solid ${borderColor}`,
@@ -847,7 +847,7 @@ export const HoursTable = () => {
                         }}
                       >
                         <div className="text-[#CBD5E1] font-bold text-xs">{d.day}</div>
-                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#E8836A]' : 'text-[#94A3B8]'}`}>
+                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
                           {d.dayName}
                         </div>
                       </th>
@@ -856,32 +856,32 @@ export const HoursTable = () => {
                     {sites.map((site, idx) => (
                       <th
                         key={`sh-${site.id}`}
-                        className="border border-[#334155] p-1 text-center min-w-[60px]"
+                        className="border border-[#2A3B59] p-1 text-center min-w-[60px]"
                         style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}
                       >
                         <div className="text-[#CBD5E1] text-[10px] font-semibold leading-tight">{site.name}</div>
                       </th>
                     ))}
-                    <th className="border border-[#334155] p-1 text-center min-w-[60px] bg-[#1E293B]">
+                    <th className="border border-[#2A3B59] p-1 text-center min-w-[60px] bg-[#131C2F]">
                       <div className="text-[#94A3B8] text-[10px] font-semibold">Nieprzy-<br/>pisane</div>
                     </th>
-                    <th className="border border-[#334155] p-2 text-center text-[#5F7151] font-bold min-w-[60px] bg-[#1E293B]">
+                    <th className="border border-[#2A3B59] p-2 text-center text-[#4F6343] font-bold min-w-[60px] bg-[#131C2F]">
                       SUMA
                     </th>
                   </tr>
                   {/* Sum row under headers */}
-                  <tr className="bg-[#0F172A]">
-                    <td className="border border-[#334155] p-0 bg-[#0F172A] sticky left-0 z-40" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}></td>
-                    <td className="border border-[#334155] p-1 bg-[#0F172A] sticky left-[35px] z-40 text-[#5F7151] font-bold text-[10px]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>SUMA</td>
-                    <td className="border border-[#334155] p-0 bg-[#0F172A]"></td>
-                    {isAdmin && <td className="border border-[#334155] p-0 bg-[#0F172A]"></td>}
-                    {isAdmin && <td className="border border-[#334155] p-0 bg-[#0F172A]"></td>}
+                  <tr className="bg-[#0B1120]">
+                    <td className="border border-[#2A3B59] p-0 bg-[#0B1120] sticky left-0 z-40" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}></td>
+                    <td className="border border-[#2A3B59] p-1 bg-[#0B1120] sticky left-[35px] z-40 text-[#4F6343] font-bold text-[10px]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>SUMA</td>
+                    <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>
+                    {isAdmin && <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>}
+                    {isAdmin && <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>}
                     {days.map(d => {
                       const dayTotal = filteredEmployees.reduce((sum, emp) => sum + (hourEntries[`${emp.id}-${d.date}`] || 0), 0);
                       const dayTotalRounded = Math.round(dayTotal * 100) / 100;
                       return (
-                        <td key={`dsum-${d.day}`} className="border border-[#334155] p-0 text-center bg-[#0F172A]">
-                          <span className="text-[#5F7151] text-[10px] font-bold">{dayTotalRounded || ''}</span>
+                        <td key={`dsum-${d.day}`} className="border border-[#2A3B59] p-0 text-center bg-[#0B1120]">
+                          <span className="text-[#4F6343] text-[10px] font-bold">{dayTotalRounded || ''}</span>
                         </td>
                       );
                     })}
@@ -891,16 +891,16 @@ export const HoursTable = () => {
                         return sum + (hoursBySite[site.id] || 0);
                       }, 0);
                       return (
-                        <td key={`ssum-${site.id}`} className="border border-[#334155] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
+                        <td key={`ssum-${site.id}`} className="border border-[#2A3B59] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
                           <span className="text-white font-bold text-xs">{Math.round(siteTotal * 100) / 100}</span>
                         </td>
                       );
                     })}
-                    <td className="border border-[#334155] p-1 text-center bg-[#0F172A]">
-                      <span className="text-[#E8836A] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => sum + getEmployeeHoursBySite(emp.id).unassigned, 0) * 100) / 100}</span>
+                    <td className="border border-[#2A3B59] p-1 text-center bg-[#0B1120]">
+                      <span className="text-[#DC4A3A] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => sum + getEmployeeHoursBySite(emp.id).unassigned, 0) * 100) / 100}</span>
                     </td>
-                    <td className="border border-[#334155] p-1 text-center bg-[#0F172A]">
-                      <span className="text-[#5F7151] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => { const { hoursBySite, unassigned } = getEmployeeHoursBySite(emp.id); return sum + Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned; }, 0) * 100) / 100}</span>
+                    <td className="border border-[#2A3B59] p-1 text-center bg-[#0B1120]">
+                      <span className="text-[#4F6343] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => { const { hoursBySite, unassigned } = getEmployeeHoursBySite(emp.id); return sum + Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned; }, 0) * 100) / 100}</span>
                     </td>
                   </tr>
                 </thead>
@@ -912,15 +912,15 @@ export const HoursTable = () => {
                     return (
                       <tr
                         key={employee.id}
-                        className="border-b border-[#334155]"
+                        className="border-b border-[#2A3B59]"
                         style={{ contentVisibility: 'auto', containIntrinsicSize: '0 44px' }}
                       >
                         {/* Row number */}
-                        <td className="border border-[#334155] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#1E293B] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                        <td className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#131C2F] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                           {filteredEmployees.indexOf(employee) + 1}
                         </td>
                         {/* Name - always neutral dark bg, no site color. Click to toggle full name on mobile. */}
-                        <td className="border border-[#334155] p-1 sm:p-2 text-[#CBD5E1] font-medium bg-[#1E293B] sticky left-[35px] z-[15] max-w-[100px] sm:max-w-none" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
+                        <td className="border border-[#2A3B59] p-1 sm:p-2 text-[#CBD5E1] font-medium bg-[#131C2F] sticky left-[35px] z-[15] max-w-[100px] sm:max-w-none" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                             <button
                               type="button"
@@ -938,7 +938,7 @@ export const HoursTable = () => {
                                 {selectedSiteForAssignment && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleSelectFullMonth(employee.id); }}
-                                    className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#334155] text-[#CBD5E1] hover:bg-[#5F7151] hover:text-white transition-colors whitespace-nowrap border border-[#5F7151]/50"
+                                    className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white transition-colors whitespace-nowrap border border-[#4F6343]/50"
                                     data-testid={`full-month-${employee.id}`}
                                   >
                                     Caly m-c
@@ -947,7 +947,7 @@ export const HoursTable = () => {
                                 {isAdmin && selectedSiteForAssignment && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleUnassign(employee.id, employee.full_name); }}
-                                    className="shrink-0 text-[10px] px-1.5 py-1 rounded font-semibold bg-[#4A2020] text-red-400 hover:bg-red-800 hover:text-white transition-colors whitespace-nowrap border border-red-800/50"
+                                    className="shrink-0 text-[10px] px-1.5 py-1 rounded font-semibold bg-[#7F2229] text-red-400 hover:bg-red-800 hover:text-white transition-colors whitespace-nowrap border border-red-800/50"
                                     data-testid={`unassign-${employee.id}`}
                                   >
                                     Odpisz
@@ -957,17 +957,17 @@ export const HoursTable = () => {
                             )}
                           </div>
                         </td>
-                        <td className="border border-[#334155] p-2 text-[#94A3B8] text-xs bg-[#1E293B]">
+                        <td className="border border-[#2A3B59] p-2 text-[#94A3B8] text-xs bg-[#131C2F]">
                           {employee.phone_number || '-'}
                         </td>
                         {isAdmin && (
                           <td
-                            className="border border-[#334155] p-2 text-center bg-[#1E293B] cursor-pointer hover:bg-[#334155] transition-colors"
+                            className="border border-[#2A3B59] p-2 text-center bg-[#131C2F] cursor-pointer hover:bg-[#2A3B59] transition-colors"
                             onClick={() => openAdvanceModal(employee)}
                             data-testid={`advance-cell-${employee.id}`}
                           >
                             {advanceSummary[employee.id] ? (
-                              <span className="text-[#E8836A] font-bold text-sm">
+                              <span className="text-[#DC4A3A] font-bold text-sm">
                                 {Number(advanceSummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                               </span>
                             ) : (
@@ -977,12 +977,12 @@ export const HoursTable = () => {
                         )}
                         {isAdmin && (
                           <td
-                            className="border border-[#334155] p-2 text-center bg-[#1E293B] cursor-pointer hover:bg-[#334155] transition-colors"
+                            className="border border-[#2A3B59] p-2 text-center bg-[#131C2F] cursor-pointer hover:bg-[#2A3B59] transition-colors"
                             onClick={() => openPenaltyModal(employee)}
                             data-testid={`penalty-cell-${employee.id}`}
                           >
                             {penaltySummary[employee.id] ? (
-                              <span className="text-[#DC2626] font-bold text-sm">
+                              <span className="text-[#9B2C2C] font-bold text-sm">
                                 {Number(penaltySummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                               </span>
                             ) : (
@@ -999,7 +999,7 @@ export const HoursTable = () => {
                           const isPending = !!pendingAssignments[cellKey];
                           const isHovered = hoveredCell === cellKey;
                           const hasAbsence = isAbsenceDate(employee.id, d.date);
-                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#334155';
+                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
                           const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : '1px';
 
                           // Check if past working day with no hours
@@ -1012,7 +1012,7 @@ export const HoursTable = () => {
                           const showNN = isPast && isWorkDay && noHours && !hasAbsence;
                           const showNU = isWorkDay && noHours && hasAbsence;
 
-                          const cellBg = showNN ? '#4A2020' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#2A384C');
+                          const cellBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#19243C');
 
                           return (
                             <td
@@ -1045,7 +1045,7 @@ export const HoursTable = () => {
                                     if (e.key === 'Escape') setEditingCell(null);
                                   }}
                                   autoFocus
-                                  className="w-full h-8 text-center bg-[#0F172A] text-white border-[#5F7151] text-sm p-0 rounded-none"
+                                  className="w-full h-8 text-center bg-[#0B1120] text-white border-[#4F6343] text-sm p-0 rounded-none"
                                   data-testid={`input-${employee.id}-${d.day}`}
                                 />
                               ) : showNN ? (
@@ -1058,7 +1058,7 @@ export const HoursTable = () => {
                                 </span>
                               )}
                               {isHovered && meta && meta.updatedBy && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-[#0F172A] text-[#CBD5E1] text-[10px] rounded px-2 py-1 whitespace-nowrap z-30 shadow-lg border border-[#334155] pointer-events-none">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-[#0B1120] text-[#CBD5E1] text-[10px] rounded px-2 py-1 whitespace-nowrap z-30 shadow-lg border border-[#2A3B59] pointer-events-none">
                                   {(!hours || hours === 0) && meta.deletedBy ? (
                                     <>Usunieto: {meta.deletedBy}<br/>{meta.deletedAt && new Date(meta.deletedAt).toLocaleString('pl-PL')}</>
                                   ) : (
@@ -1073,7 +1073,7 @@ export const HoursTable = () => {
                         {sites.map((site, idx) => (
                           <td
                             key={`t-${employee.id}-${site.id}`}
-                            className="border border-[#334155] p-1 text-center"
+                            className="border border-[#2A3B59] p-1 text-center"
                             style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '33' }}
                           >
                             <span className="text-[#CBD5E1] font-semibold text-sm">
@@ -1082,14 +1082,14 @@ export const HoursTable = () => {
                           </td>
                         ))}
                         {/* Unassigned */}
-                        <td className="border border-[#334155] p-1 text-center bg-[#1E293B]">
-                          <span className={`font-semibold text-sm ${unassigned > 0 ? 'text-[#E8836A]' : 'text-[#64748B]'}`}>
+                        <td className="border border-[#2A3B59] p-1 text-center bg-[#131C2F]">
+                          <span className={`font-semibold text-sm ${unassigned > 0 ? 'text-[#DC4A3A]' : 'text-[#64748B]'}`}>
                             {unassigned}
                           </span>
                         </td>
                         {/* Total */}
-                        <td className="border border-[#334155] p-1 text-center bg-[#1E293B]">
-                          <span className="text-[#5F7151] font-bold text-base">{totalHours}</span>
+                        <td className="border border-[#2A3B59] p-1 text-center bg-[#131C2F]">
+                          <span className="text-[#4F6343] font-bold text-base">{totalHours}</span>
                         </td>
                       </tr>
                     );
@@ -1099,7 +1099,7 @@ export const HoursTable = () => {
             </div>
 
             {/* Legend */}
-            <div className="p-4 border-t border-[#334155] shrink-0">
+            <div className="p-4 border-t border-[#2A3B59] shrink-0">
               <p className="text-xs font-semibold mb-2 text-[#CBD5E1]">Legenda:</p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
@@ -1107,7 +1107,7 @@ export const HoursTable = () => {
                   <span className="text-[#94A3B8]">Sobota/Niedziela</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-block w-4 h-4 rounded-sm border-2 border-[#DC2626]" />
+                  <span className="inline-block w-4 h-4 rounded-sm border-2 border-[#9B2C2C]" />
                   <span className="text-[#94A3B8]">Swieto ustawowe</span>
                 </div>
                 {sites.map((site, idx) => (
@@ -1128,10 +1128,10 @@ export const HoursTable = () => {
       {/* Employee Links Modal */}
       {showLinks && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowLinks(false)}>
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <CardHeader>
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Link2 className="h-5 w-5 text-[#5F7151]" />
+                <Link2 className="h-5 w-5 text-[#4F6343]" />
                 Linki z godzinami dla pracownikow
               </CardTitle>
               <p className="text-xs text-[#94A3B8]">Skopiuj link i wyslij pracownikowi przez Viber/WhatsApp</p>
@@ -1140,7 +1140,7 @@ export const HoursTable = () => {
               {employeeLinks.map(link => {
                 const fullUrl = `${window.location.origin}/hours/${link.token}`;
                 return (
-                  <div key={link.employee_id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
+                  <div key={link.employee_id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[#CBD5E1] font-semibold">{link.full_name}</span>
                       <span className="text-[#64748B] text-xs">{link.phone_number || 'brak tel.'}</span>
@@ -1149,13 +1149,13 @@ export const HoursTable = () => {
                       <input
                         readOnly
                         value={fullUrl}
-                        className="flex-1 bg-[#0F172A] text-[#94A3B8] text-xs rounded px-2 py-1.5 border border-[#334155]"
+                        className="flex-1 bg-[#0B1120] text-[#94A3B8] text-xs rounded px-2 py-1.5 border border-[#2A3B59]"
                         data-testid={`link-${link.employee_id}`}
                       />
                       <Button
                         onClick={() => { navigator.clipboard.writeText(fullUrl); toast.success(`Link skopiowany: ${link.full_name}`); }}
                         size="sm"
-                        className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                        className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
                         data-testid={`copy-link-${link.employee_id}`}
                       >
                         <Copy className="h-3 w-3" />
@@ -1164,7 +1164,7 @@ export const HoursTable = () => {
                   </div>
                 );
               })}
-              <Button onClick={() => setShowLinks(false)} className="w-full bg-[#334155] text-[#CBD5E1] hover:bg-[#3D4F63]">
+              <Button onClick={() => setShowLinks(false)} className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]">
                 Zamknij
               </Button>
             </CardContent>
@@ -1175,10 +1175,10 @@ export const HoursTable = () => {
       {/* Advance (Zaliczki) Modal */}
       {showAdvanceModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowAdvanceModal(null)}>
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <CardHeader className="pb-3">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-[#E8836A]" />
+                <Wallet className="h-5 w-5 text-[#DC4A3A]" />
                 Zaliczki: {showAdvanceModal.full_name}
               </CardTitle>
               <p className="text-xs text-[#94A3B8]">
@@ -1187,9 +1187,9 @@ export const HoursTable = () => {
             </CardHeader>
             <CardContent className="space-y-3">
               {/* Total */}
-              <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
+              <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma zaliczek:</span>
-                <span className="text-[#E8836A] font-bold text-xl" data-testid="advance-total">
+                <span className="text-[#DC4A3A] font-bold text-xl" data-testid="advance-total">
                   {Number(advanceList.reduce((s, a) => s + a.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                 </span>
               </div>
@@ -1198,7 +1198,7 @@ export const HoursTable = () => {
               {advanceList.length > 0 ? (
                 <div className="space-y-2">
                   {advanceList.map(adv => (
-                    <div key={adv.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
+                    <div key={adv.id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[#CBD5E1] font-bold text-lg">{Number(adv.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
                         <span className="text-[#64748B] text-[10px]">
@@ -1209,7 +1209,7 @@ export const HoursTable = () => {
                         <p className="text-[#94A3B8] text-xs mb-2">{adv.note}</p>
                       )}
                       {adv.carried_from_month && (
-                        <p className="text-[#6B8E4E] text-[10px] mb-2">
+                        <p className="text-[#5F7552] text-[10px] mb-2">
                           Przeniesione z {adv.carried_from_month}/{adv.carried_from_year}
                         </p>
                       )}
@@ -1223,13 +1223,13 @@ export const HoursTable = () => {
                               value={carryAmount}
                               onChange={e => setCarryAmount(e.target.value)}
                               placeholder="Kwota"
-                              className="bg-[#0F172A] text-white border-[#334155] text-xs h-7 flex-1"
+                              className="bg-[#0B1120] text-white border-[#2A3B59] text-xs h-7 flex-1"
                               data-testid="carry-amount-input"
                             />
                             <Button
                               onClick={() => handleCarryForward(adv.id)}
                               size="sm"
-                              className="bg-[#5F7151] hover:bg-[#4A5A41] text-white h-7 text-xs px-2"
+                              className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-7 text-xs px-2"
                               data-testid="carry-confirm-btn"
                             >
                               OK
@@ -1238,7 +1238,7 @@ export const HoursTable = () => {
                               onClick={() => { setCarryForwardId(null); setCarryAmount(''); }}
                               size="sm"
                               variant="outline"
-                              className="border-[#334155] text-[#94A3B8] h-7 text-xs px-2"
+                              className="border-[#2A3B59] text-[#94A3B8] h-7 text-xs px-2"
                             >
                               X
                             </Button>
@@ -1249,7 +1249,7 @@ export const HoursTable = () => {
                               onClick={() => { setCarryForwardId(adv.id); setCarryAmount(String(adv.amount)); }}
                               size="sm"
                               variant="outline"
-                              className="border-[#334155] text-[#94A3B8] hover:text-[#CBD5E1] h-7 text-[10px] px-2"
+                              className="border-[#2A3B59] text-[#94A3B8] hover:text-[#CBD5E1] h-7 text-[10px] px-2"
                               data-testid={`carry-btn-${adv.id}`}
                             >
                               Przenies
@@ -1258,7 +1258,7 @@ export const HoursTable = () => {
                               onClick={() => handleDeleteAdvance(adv.id)}
                               size="sm"
                               variant="outline"
-                              className="border-[#6B4444] text-[#E8836A] hover:bg-[#6B4444] h-7 text-[10px] px-2"
+                              className="border-[#6B4444] text-[#DC4A3A] hover:bg-[#6B4444] h-7 text-[10px] px-2"
                               data-testid={`delete-advance-${adv.id}`}
                             >
                               Usuń
@@ -1274,7 +1274,7 @@ export const HoursTable = () => {
               )}
 
               {/* Add new advance */}
-              <div className="p-3 bg-[#0F172A] rounded-lg border border-[#5F7151]/30">
+              <div className="p-3 bg-[#0B1120] rounded-lg border border-[#4F6343]/30">
                 <p className="text-[#CBD5E1] text-xs font-semibold mb-2">Dodaj nowa zaliczke</p>
                 <div className="flex gap-2 mb-2">
                   <Input
@@ -1283,7 +1283,7 @@ export const HoursTable = () => {
                     value={newAdvanceAmount}
                     onChange={e => setNewAdvanceAmount(e.target.value)}
                     placeholder="Kwota (zł)"
-                    className="bg-[#1E293B] text-white border-[#334155] text-sm flex-1"
+                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
                     data-testid="new-advance-amount"
                   />
                 </div>
@@ -1292,12 +1292,12 @@ export const HoursTable = () => {
                     value={newAdvanceNote}
                     onChange={e => setNewAdvanceNote(e.target.value)}
                     placeholder="Notatka (opcjonalnie)"
-                    className="bg-[#1E293B] text-white border-[#334155] text-sm flex-1"
+                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
                     data-testid="new-advance-note"
                   />
                   <Button
                     onClick={handleAddAdvance}
-                    className="bg-[#5F7151] hover:bg-[#4A5A41] text-white shrink-0"
+                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
                     data-testid="add-advance-btn"
                   >
                     Dodaj
@@ -1307,7 +1307,7 @@ export const HoursTable = () => {
 
               <Button
                 onClick={() => setShowAdvanceModal(null)}
-                className="w-full bg-[#334155] text-[#CBD5E1] hover:bg-[#3D4F63]"
+                className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]"
               >
                 Zamknij
               </Button>
@@ -1318,10 +1318,10 @@ export const HoursTable = () => {
       {/* Penalty (Kary) Modal */}
       {showPenaltyModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowPenaltyModal(null)}>
-          <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
             <CardHeader className="pb-3">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-[#DC2626]" />
+                <AlertTriangle className="h-5 w-5 text-[#9B2C2C]" />
                 Kary: {showPenaltyModal.full_name}
               </CardTitle>
               <p className="text-xs text-[#94A3B8]">
@@ -1329,9 +1329,9 @@ export const HoursTable = () => {
               </p>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
+              <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma kar:</span>
-                <span className="text-[#DC2626] font-bold text-xl" data-testid="penalty-total">
+                <span className="text-[#9B2C2C] font-bold text-xl" data-testid="penalty-total">
                   {Number(penaltyList.reduce((s, p) => s + p.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
                 </span>
               </div>
@@ -1339,9 +1339,9 @@ export const HoursTable = () => {
               {penaltyList.length > 0 ? (
                 <div className="space-y-2">
                   {penaltyList.map(pen => (
-                    <div key={pen.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
+                    <div key={pen.id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#DC2626] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
+                        <span className="text-[#9B2C2C] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
                         <span className="text-[#64748B] text-[10px]">
                           {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
                         </span>
@@ -1353,7 +1353,7 @@ export const HoursTable = () => {
                         <img
                           src={pen.image_data}
                           alt="Zdjecie kary"
-                          className="w-full max-h-40 object-cover rounded cursor-pointer mb-2 border border-[#334155]"
+                          className="w-full max-h-40 object-cover rounded cursor-pointer mb-2 border border-[#2A3B59]"
                           onClick={() => setViewPenaltyImage(pen.image_data)}
                           data-testid={`penalty-image-${pen.id}`}
                         />
@@ -1362,7 +1362,7 @@ export const HoursTable = () => {
                         onClick={() => handleDeletePenalty(pen.id)}
                         size="sm"
                         variant="outline"
-                        className="border-[#6B4444] text-[#DC2626] hover:bg-[#6B4444] h-7 text-[10px] px-2"
+                        className="border-[#6B4444] text-[#9B2C2C] hover:bg-[#6B4444] h-7 text-[10px] px-2"
                         data-testid={`delete-penalty-${pen.id}`}
                       >
                         Usuń
@@ -1374,7 +1374,7 @@ export const HoursTable = () => {
                 <p className="text-[#64748B] text-sm text-center py-4">Brak kar w tym miesiącu</p>
               )}
 
-              <div className="p-3 bg-[#0F172A] rounded-lg border border-[#DC2626]/20">
+              <div className="p-3 bg-[#0B1120] rounded-lg border border-[#9B2C2C]/20">
                 <p className="text-[#CBD5E1] text-xs font-semibold mb-2">Dodaj nowa kare</p>
                 <div className="flex gap-2 mb-2">
                   <Input
@@ -1383,7 +1383,7 @@ export const HoursTable = () => {
                     value={newPenaltyAmount}
                     onChange={e => setNewPenaltyAmount(e.target.value)}
                     placeholder="Kwota (zł)"
-                    className="bg-[#1E293B] text-white border-[#334155] text-sm flex-1"
+                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
                     data-testid="new-penalty-amount"
                   />
                 </div>
@@ -1391,11 +1391,11 @@ export const HoursTable = () => {
                   value={newPenaltyDesc}
                   onChange={e => setNewPenaltyDesc(e.target.value)}
                   placeholder="Opis kary"
-                  className="bg-[#1E293B] text-white border-[#334155] text-sm mb-2"
+                  className="bg-[#131C2F] text-white border-[#2A3B59] text-sm mb-2"
                   data-testid="new-penalty-desc"
                 />
                 <div className="flex gap-2 items-center mb-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-[#94A3B8] text-xs bg-[#1E293B] border border-[#334155] rounded px-3 py-2 hover:bg-[#334155]">
+                  <label className="flex items-center gap-2 cursor-pointer text-[#94A3B8] text-xs bg-[#131C2F] border border-[#2A3B59] rounded px-3 py-2 hover:bg-[#2A3B59]">
                     <input
                       type="file"
                       accept="image/*"
@@ -1406,12 +1406,12 @@ export const HoursTable = () => {
                     {newPenaltyImage ? 'Zdjecie dodane' : 'Dodaj zdjecie'}
                   </label>
                   {newPenaltyImage && (
-                    <img src={newPenaltyImage} alt="Preview" className="h-10 w-10 rounded object-cover border border-[#334155]" />
+                    <img src={newPenaltyImage} alt="Preview" className="h-10 w-10 rounded object-cover border border-[#2A3B59]" />
                   )}
                 </div>
                 <Button
                   onClick={handleAddPenalty}
-                  className="w-full bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+                  className="w-full bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
                   data-testid="add-penalty-btn"
                 >
                   Dodaj kare
@@ -1420,7 +1420,7 @@ export const HoursTable = () => {
 
               <Button
                 onClick={() => setShowPenaltyModal(null)}
-                className="w-full bg-[#334155] text-[#CBD5E1] hover:bg-[#3D4F63]"
+                className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]"
               >
                 Zamknij
               </Button>

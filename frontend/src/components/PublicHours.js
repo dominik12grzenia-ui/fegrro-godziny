@@ -15,9 +15,9 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const SITE_COLORS = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
+const SITE_COLORS = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
-const HOLIDAY_BORDER = '#DC2626';
+const HOLIDAY_BORDER = '#9B2C2C';
 
 export const PublicHours = () => {
   const { token } = useParams();
@@ -89,8 +89,8 @@ export const PublicHours = () => {
       start_url: `/hours/${token}`,
       scope: `/hours/${token}`,
       display: 'standalone',
-      background_color: '#0F172A',
-      theme_color: '#0F172A',
+      background_color: '#0B1120',
+      theme_color: '#0B1120',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -168,7 +168,7 @@ export const PublicHours = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] p-4">
+      <div className="min-h-screen bg-[#131C2F] p-4">
         <div className="max-w-2xl mx-auto space-y-4">
           <SkeletonBox style={{ height: 80 }} />
           <SkeletonCards count={2} />
@@ -180,8 +180,8 @@ export const PublicHours = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex items-center justify-center p-6">
-        <Card className="bg-[#2A384C] border-[#334155] max-w-sm w-full">
+      <div className="min-h-screen bg-[#131C2F] flex items-center justify-center p-6">
+        <Card className="bg-[#19243C] border-[#2A3B59] max-w-sm w-full">
           <CardContent className="pt-6 text-center">
             <p className="text-red-400 text-lg">{error || 'Błąd'}</p>
           </CardContent>
@@ -228,9 +228,9 @@ export const PublicHours = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#1E293B]">
+    <div className="min-h-screen bg-[#131C2F]">
       {/* Header */}
-      <div className="bg-[#2A384C] text-white p-4 shadow-lg">
+      <div className="bg-[#19243C] text-white p-4 shadow-lg">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -248,10 +248,10 @@ export const PublicHours = () => {
         {docAlerts.length > 0 && !docAlertsDismissed && (() => {
           const hasCritical = docAlerts.some(a => a.severity === 'critical' || a.severity === 'expired');
           const bgClass = hasCritical
-            ? 'bg-[#DC2626]/15 border-[#DC2626]/50'
-            : 'bg-[#E8B76A]/15 border-[#E8B76A]/50';
-          const iconClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
-          const titleClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+            ? 'bg-[#9B2C2C]/15 border-[#9B2C2C]/50'
+            : 'bg-[#D4AF37]/15 border-[#D4AF37]/50';
+          const iconClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#D4AF37]';
+          const titleClass = hasCritical ? 'text-[#FCA5A5]' : 'text-[#D4AF37]';
           return (
             <div className={`mb-4 rounded-lg border ${bgClass} p-3 flex items-start gap-2`}
               data-testid="public-document-alerts">
@@ -288,25 +288,25 @@ export const PublicHours = () => {
         })()}
 
         {/* Month navigation */}
-        <div className="flex items-center justify-between mb-4 bg-[#2A384C] rounded-lg p-3 border border-[#334155]">
-          <Button onClick={() => changeMonth(-1)} variant="ghost" size="sm" className="text-white hover:bg-[#334155]" data-testid="prev-month">
+        <div className="flex items-center justify-between mb-4 bg-[#19243C] rounded-lg p-3 border border-[#2A3B59]">
+          <Button onClick={() => changeMonth(-1)} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59]" data-testid="prev-month">
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <span className="text-[#CBD5E1] font-semibold capitalize">{monthLabel}</span>
-          <Button onClick={() => changeMonth(1)} variant="ghost" size="sm" className="text-white hover:bg-[#334155]" data-testid="next-month">
+          <Button onClick={() => changeMonth(1)} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59]" data-testid="next-month">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Summary card */}
-        <Card className="bg-[#2A384C] border-[#334155] mb-4">
+        <Card className="bg-[#19243C] border-[#2A3B59] mb-4">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Clock className="h-5 w-5 text-[#5F7151]" />
+                <Clock className="h-5 w-5 text-[#4F6343]" />
                 <span className="text-[#94A3B8] text-sm">Suma godzin:</span>
               </div>
-              <span className="text-[#5F7151] font-bold text-2xl">{monthTotal}</span>
+              <span className="text-[#4F6343] font-bold text-2xl">{monthTotal}</span>
             </div>
             {siteIds.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
@@ -321,17 +321,17 @@ export const PublicHours = () => {
         </Card>
 
         {/* Day list */}
-        <Card className="bg-[#2A384C] border-[#334155]">
+        <Card className="bg-[#19243C] border-[#2A3B59]">
           <CardHeader className="pb-2">
             <CardTitle className="text-[#CBD5E1] text-base">{t('public.details')}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-[#334155]">
+            <div className="divide-y divide-[#2A3B59]">
               {dayRows.map(row => {
                 const siteIdx = row.siteId ? siteIds.indexOf(row.siteId) : -1;
                 const isAbsenceDay = row.isAbsenceReported && !row.isWeekend && !row.isHoliday;
                 const bgColor = isAbsenceDay
-                  ? '#4A2020'
+                  ? '#7F2229'
                   : row.siteId ? SITE_COLORS[siteIdx % SITE_COLORS.length] + '22'
                   : (row.isWeekend ? WEEKEND_BG + '66' : 'transparent');
                 const borderStyle = row.isHoliday
@@ -339,7 +339,7 @@ export const PublicHours = () => {
                   : row.isWeekend
                     ? '2px solid #6B4444'
                     : isAbsenceDay
-                      ? '2px solid #7F2D2D'
+                      ? '2px solid #9B2C2C'
                       : 'none';
 
                 const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
@@ -353,28 +353,28 @@ export const PublicHours = () => {
                 const noHours = !row.hours || row.hours === 0;
                 const showNN = isPast && isWorkDay && noHours && !isAbsenceDay;
                 const showNU = isWorkDay && noHours && isAbsenceDay;
-                const nnBg = showNN ? '#4A2020' : showNU ? '#7F1D1D' : null;
+                const nnBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : null;
 
                 return (
                   <div
                     key={row.day}
-                    className={`flex items-center px-4 py-2.5 ${canSelect ? 'cursor-pointer hover:bg-[#334155]' : ''} ${isSelected ? 'ring-2 ring-inset ring-[#DC2626]' : ''}`}
+                    className={`flex items-center px-4 py-2.5 ${canSelect ? 'cursor-pointer hover:bg-[#2A3B59]' : ''} ${isSelected ? 'ring-2 ring-inset ring-[#9B2C2C]' : ''}`}
                     style={{ backgroundColor: isSelected ? '#5A2020' : (nnBg || bgColor), borderLeft: borderStyle }}
                     data-testid={`public-day-${row.day}`}
                     onClick={() => canSelect && toggleAbsenceDate(row.dateStr)}
                   >
                     <div className="w-8 text-center">
-                      <span className={`font-bold text-sm ${row.isWeekend || row.isHoliday ? 'text-[#E8836A]' : 'text-[#CBD5E1]'}`}>
+                      <span className={`font-bold text-sm ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#CBD5E1]'}`}>
                         {row.day}
                       </span>
                     </div>
                     <div className="flex-1 ml-3">
-                      <span className={`text-sm capitalize ${row.isWeekend || row.isHoliday ? 'text-[#E8836A]' : 'text-[#94A3B8]'}`}>
+                      <span className={`text-sm capitalize ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
                         {row.dayName}
                         {row.isHoliday && <span className="ml-1 text-[10px] text-red-400 font-semibold">SWIETO</span>}
                       </span>
                       {row.siteName && !showNN && !showNU && (
-                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: siteIdx >= 0 ? SITE_COLORS[siteIdx % SITE_COLORS.length] + '55' : '#334155', color: '#CBD5E1' }}>
+                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: siteIdx >= 0 ? SITE_COLORS[siteIdx % SITE_COLORS.length] + '55' : '#2A3B59', color: '#CBD5E1' }}>
                           {row.siteName}
                         </span>
                       )}
@@ -394,7 +394,7 @@ export const PublicHours = () => {
                       ) : showNU ? (
                         <span className="text-[#FCA5A5] font-bold text-sm">NU</span>
                       ) : row.hours !== null && row.hours > 0 ? (
-                        <span className="text-[#5F7151] font-bold text-lg">{row.hours}h</span>
+                        <span className="text-[#4F6343] font-bold text-lg">{row.hours}h</span>
                       ) : (
                         <span className="text-[#4A5568] text-sm">-</span>
                       )}
@@ -407,10 +407,10 @@ export const PublicHours = () => {
         </Card>
 
         {/* Legend */}
-        <div className="mt-4 p-3 bg-[#2A384C] rounded-lg border border-[#334155]">
+        <div className="mt-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59]">
           <div className="flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5">
-              <span className="inline-block w-3 h-3 rounded-sm border-2 border-[#DC2626]" />
+              <span className="inline-block w-3 h-3 rounded-sm border-2 border-[#9B2C2C]" />
               <span className="text-[#94A3B8]">Swieto ustawowe</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -489,10 +489,10 @@ export const PublicHours = () => {
         )}
 
         {/* Absence section */}
-        <Card className="mt-4 bg-[#2A384C] border-[#334155]">
+        <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
           <CardHeader className="pb-2">
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-              <CalendarOff className="h-4 w-4 text-[#E8836A]" />
+              <CalendarOff className="h-4 w-4 text-[#DC4A3A]" />
               {t('public.report_absence')}
             </CardTitle>
           </CardHeader>
@@ -500,7 +500,7 @@ export const PublicHours = () => {
             {!absenceMode ? (
               <Button
                 onClick={() => setAbsenceMode(true)}
-                className="w-full bg-[#7F2D2D] hover:bg-[#991B1B] text-white gap-2"
+                className="w-full bg-[#9B2C2C] hover:bg-[#991B1B] text-white gap-2"
                 data-testid="absence-start-btn"
               >
                 <CalendarOff className="h-4 w-4" />
@@ -518,7 +518,7 @@ export const PublicHours = () => {
                   <Button
                     onClick={handleSubmitAbsence}
                     disabled={absenceSaving || selectedAbsenceDates.size === 0}
-                    className="flex-1 bg-[#DC2626] hover:bg-[#B91C1C] text-white"
+                    className="flex-1 bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
                     data-testid="absence-submit-btn"
                   >
                     {absenceSaving ? 'Wysylanie...' : 'Zglos / Повiдомити'}
@@ -526,7 +526,7 @@ export const PublicHours = () => {
                   <Button
                     onClick={() => { setAbsenceMode(false); setSelectedAbsenceDates(new Set()); }}
                     variant="outline"
-                    className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
+                    className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
                     data-testid="absence-cancel-btn"
                   >
                     Anuluj
@@ -537,14 +537,14 @@ export const PublicHours = () => {
 
             {/* List of existing absences */}
             {absences.filter(a => a.status === 'pending').length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#334155]">
+              <div className="space-y-2 pt-2 border-t border-[#2A3B59]">
                 <p className="text-xs text-[#94A3B8] font-semibold">
                   Oczekujace / Очiкуючi:
                 </p>
                 {absences.filter(a => a.status === 'pending').map(a => (
-                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#1E293B] rounded border border-[#7F2D2D]">
+                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#131C2F] rounded border border-[#9B2C2C]">
                     <div>
-                      <span className="text-[#E8836A] text-sm font-medium">{a.dates.join(', ')}</span>
+                      <span className="text-[#DC4A3A] text-sm font-medium">{a.dates.join(', ')}</span>
                       <span className="text-[#64748B] text-[10px] ml-2">Oczekuje / Очiкує</span>
                     </div>
                     <button
@@ -561,12 +561,12 @@ export const PublicHours = () => {
             )}
 
             {absences.filter(a => a.status === 'approved').length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#334155]">
+              <div className="space-y-2 pt-2 border-t border-[#2A3B59]">
                 <p className="text-xs text-[#94A3B8] font-semibold">
                   Zatwierdzone / Затвердженi:
                 </p>
                 {absences.filter(a => a.status === 'approved').map(a => (
-                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#1E293B] rounded border border-[#334155]">
+                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
                     <div>
                       <span className="text-[#22C55E] text-sm font-medium">{a.dates.join(', ')}</span>
                       <span className="text-[#64748B] text-[10px] ml-2">Zatwierdzono / Затверджено</span>
@@ -590,7 +590,7 @@ export const PublicHours = () => {
         <ClothingOrderPublic token={token} />
 
         {/* Push notifications opt-in */}
-        <Card className="mt-4 bg-[#2A384C] border-[#334155]">
+        <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3 flex-wrap">
               <div className="flex-1 min-w-[200px]">
@@ -606,22 +606,22 @@ export const PublicHours = () => {
 
         {/* PWA Install Instructions */}
         {!window.matchMedia('(display-mode: standalone)').matches && (
-          <Card className="mt-4 bg-[#2A384C] border-[#334155]">
+          <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
             <CardHeader className="pb-2">
               <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-                <Download className="h-4 w-4 text-[#5F7151]" />
+                <Download className="h-4 w-4 text-[#4F6343]" />
                 Dodaj na ekran / Додати на екран
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {/iPad|iPhone|iPod/.test(navigator.userAgent) ? (
                 <>
-                  <div className="flex items-center gap-2 bg-[#1E293B] p-2.5 rounded-lg">
-                    <span className="bg-[#334155] p-1.5 rounded"><Share className="h-4 w-4 text-[#CBD5E1]" /></span>
+                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
+                    <span className="bg-[#2A3B59] p-1.5 rounded"><Share className="h-4 w-4 text-[#CBD5E1]" /></span>
                     <span className="text-[#94A3B8] text-xs">1. Kliknij <strong className="text-[#CBD5E1]">Udostepnij</strong> (ikona na dole)</span>
                   </div>
-                  <div className="flex items-center gap-2 bg-[#1E293B] p-2.5 rounded-lg">
-                    <span className="bg-[#334155] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#CBD5E1]" /></span>
+                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
+                    <span className="bg-[#2A3B59] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#CBD5E1]" /></span>
                     <span className="text-[#94A3B8] text-xs">2. Wybierz <strong className="text-[#CBD5E1]">Dodaj do ekranu poczatkowego</strong></span>
                   </div>
                   <p className="text-[10px] text-[#64748B] pt-1">
@@ -630,8 +630,8 @@ export const PublicHours = () => {
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 bg-[#1E293B] p-2.5 rounded-lg">
-                    <span className="bg-[#334155] p-1.5 rounded"><Download className="h-4 w-4 text-[#CBD5E1]" /></span>
+                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
+                    <span className="bg-[#2A3B59] p-1.5 rounded"><Download className="h-4 w-4 text-[#CBD5E1]" /></span>
                     <span className="text-[#94A3B8] text-xs">Kliknij <strong className="text-[#CBD5E1]">menu (3 kropki)</strong> i wybierz <strong className="text-[#CBD5E1]">Zainstaluj aplikacje</strong> lub <strong className="text-[#CBD5E1]">Dodaj do ekranu</strong></span>
                   </div>
                   <p className="text-[10px] text-[#64748B] pt-1">

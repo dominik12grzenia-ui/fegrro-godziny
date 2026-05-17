@@ -143,11 +143,11 @@ export const AssignmentManager = () => {
 
   const getSiteColor = (siteId) => {
     const colors = [
-      'bg-[#2A384C] border-[#5F7151]',
-      'bg-[#2A384C] border-[#6B8E4E]',
-      'bg-[#2A384C] border-[#4A5A41]',
-      'bg-[#2A384C] border-[#334155]',
-      'bg-[#2A384C] border-[#5F7151]',
+      'bg-[#19243C] border-[#4F6343]',
+      'bg-[#19243C] border-[#5F7552]',
+      'bg-[#19243C] border-[#3F5235]',
+      'bg-[#19243C] border-[#2A3B59]',
+      'bg-[#19243C] border-[#4F6343]',
     ];
     const index = sites.findIndex(s => s.id === siteId);
     return colors[index % colors.length];
@@ -155,9 +155,9 @@ export const AssignmentManager = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] flex items-center justify-center">
+      <div className="min-h-screen bg-[#131C2F] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#5F7151] mx-auto"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F6343] mx-auto"></div>
           <p className="mt-4 text-[#94A3B8]">Wczytywanie...</p>
         </div>
       </div>
@@ -170,15 +170,15 @@ export const AssignmentManager = () => {
   const site = sites.find(s => s.id === selectedSite);
 
   return (
-    <div className="min-h-screen bg-[#1E293B]">
+    <div className="min-h-screen bg-[#131C2F]">
       {/* Header */}
-      <div className="bg-[#1E293B] text-white shadow-lg">
+      <div className="bg-[#131C2F] text-white shadow-lg">
         <div className="max-w-7xl mx-auto p-4">
           <div className="flex items-center gap-4">
             <Button
               onClick={() => navigate('/admin/dashboard')}
               variant="ghost"
-              className="text-white hover:bg-[#2A384C]"
+              className="text-white hover:bg-[#19243C]"
               data-testid="back-btn"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -239,7 +239,7 @@ export const AssignmentManager = () => {
             </div>
 
             {/* Full Month Toggle */}
-            <div className="flex items-center justify-between p-4 bg-[#1E293B] rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg">
               <div className="space-y-1">
                 <Label htmlFor="full-month" className="text-base font-semibold">
                   Przypisz na cały miesiąc
@@ -264,7 +264,7 @@ export const AssignmentManager = () => {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="h-6 w-6 text-[#6B8E4E]" />
+                  <CalendarIcon className="h-6 w-6 text-[#5F7552]" />
                   {monthName}
                 </CardTitle>
                 <div className="flex gap-2">
@@ -292,7 +292,7 @@ export const AssignmentManager = () => {
                 <div className="mb-4 p-3 bg-blue-50 rounded-lg">
                   <p className="text-sm font-medium">
                     Przypisywanie: <span className="font-bold">{employee.full_name}</span>
-                    {site && <> → <span className="font-bold text-[#6B8E4E]">{site.name}</span></>}
+                    {site && <> → <span className="font-bold text-[#5F7552]">{site.name}</span></>}
                   </p>
                   <p className="text-xs text-[#94A3B8] mt-1">
                     Wybrano dni: {selectedDates.length}
@@ -329,8 +329,8 @@ export const AssignmentManager = () => {
                       disabled={assignFullMonth}
                       className={`
                         relative p-3 rounded-lg border-2 text-center transition-all
-                        ${isSelected ? 'border-[#5F7151] bg-green-50' : 'border-[#334155] hover:border-[#334155]'}
-                        ${existingSiteId ? getSiteColor(existingSiteId) : 'bg-[#2A384C]'}
+                        ${isSelected ? 'border-[#4F6343] bg-green-50' : 'border-[#2A3B59] hover:border-[#2A3B59]'}
+                        ${existingSiteId ? getSiteColor(existingSiteId) : 'bg-[#19243C]'}
                         ${isToday ? 'ring-2 ring-blue-400' : ''}
                         ${assignFullMonth ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                       `}
@@ -339,7 +339,7 @@ export const AssignmentManager = () => {
                       <div className="text-sm font-semibold">{format(date, 'd')}</div>
                       {isSelected && (
                         <div className="absolute top-1 right-1">
-                          <Check className="h-4 w-4 text-[#6B8E4E]" />
+                          <Check className="h-4 w-4 text-[#5F7552]" />
                         </div>
                       )}
                       {existingSiteId && (
@@ -353,11 +353,11 @@ export const AssignmentManager = () => {
               </div>
 
               {/* Legend */}
-              <div className="mt-6 p-4 bg-[#1E293B] rounded-lg">
+              <div className="mt-6 p-4 bg-[#131C2F] rounded-lg">
                 <p className="text-sm font-semibold mb-2">Legenda:</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-[#5F7151] bg-green-50 rounded"></div>
+                    <div className="w-4 h-4 border-2 border-[#4F6343] bg-green-50 rounded"></div>
                     <span>Wybrane</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -404,9 +404,9 @@ export const AssignmentManager = () => {
                   if (siteDays.length === 0) return null;
                   
                   return (
-                    <div key={site.id} className="flex items-center justify-between p-3 bg-[#1E293B] rounded-lg">
+                    <div key={site.id} className="flex items-center justify-between p-3 bg-[#131C2F] rounded-lg">
                       <div className="flex items-center gap-3">
-                        <Building2 className="h-5 w-5 text-[#6B8E4E]" />
+                        <Building2 className="h-5 w-5 text-[#5F7552]" />
                         <div>
                           <p className="font-semibold">{site.name}</p>
                           <p className="text-xs text-[#94A3B8]">{siteDays.length} dni w tym miesiącu</p>

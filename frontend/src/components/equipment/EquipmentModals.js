@@ -25,7 +25,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1]">Dodaj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} data-testid="close-add-modal">
@@ -38,7 +38,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="equipment-name-input"
             />
           </div>
@@ -47,7 +47,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
             <Input
               value={form.brand}
               onChange={(e) => setForm({ ...form, brand: e.target.value })}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="equipment-brand-input"
             />
           </div>
@@ -58,7 +58,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
               min="0"
               value={form.total_quantity}
               onChange={(e) => setForm({ ...form, total_quantity: e.target.value })}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="equipment-quantity-input"
             />
           </div>
@@ -70,7 +70,7 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
               value={form.variants}
               onChange={(e) => setForm({ ...form, variants: e.target.value })}
               placeholder="np. 5mm, 8mm, 10mm  lub  125mm, 180mm, 230mm"
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="equipment-variants-input"
             />
             <p className="text-[10px] text-[#64748B] mt-1">
@@ -86,11 +86,11 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
               className="text-xs text-[#CBD5E1]"
               data-testid="equipment-photo-input"
             />
-            {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
+            {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="ghost" onClick={onClose}>Anuluj</Button>
-            <Button onClick={onSave} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="save-equipment-btn">
+            <Button onClick={onSave} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="save-equipment-btn">
               Zapisz
             </Button>
           </div>
@@ -104,7 +104,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
   if (!editingEq) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1]">Edytuj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setEditingEq(null)}>
@@ -117,7 +117,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
             <Input
               value={editingEq.name || ''}
               onChange={(e) => setEditingEq({ ...editingEq, name: e.target.value })}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="edit-equipment-name"
             />
           </div>
@@ -126,7 +126,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
             <Input
               value={editingEq.brand || ''}
               onChange={(e) => setEditingEq({ ...editingEq, brand: e.target.value })}
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
             />
           </div>
           <div>
@@ -137,7 +137,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
               value={editingEq.variants_edit || ''}
               onChange={(e) => setEditingEq({ ...editingEq, variants_edit: e.target.value })}
               placeholder="np. 5mm, 8mm, 10mm"
-              className="bg-[#1E293B] border-[#334155] text-[#CBD5E1]"
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
               data-testid="edit-variants-input"
             />
           </div>
@@ -149,7 +149,7 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
               onChange={(e) => onPhotoUpload(e, 'edit')}
               className="text-xs text-[#CBD5E1]"
             />
-            {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0F172A]" />}
+            {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
           </div>
           <div className="flex gap-2 justify-between pt-2">
             <Button
@@ -158,14 +158,14 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
                 onDelete(editingEq.id);
                 setEditingEq(null);
               }}
-              className="text-[#E8836A] hover:bg-[#7F2D2D]/30"
+              className="text-[#DC4A3A] hover:bg-[#9B2C2C]/30"
               data-testid="delete-from-edit-btn"
             >
               <Trash2 className="h-4 w-4 mr-1" /> Usuń
             </Button>
             <div className="flex gap-2">
               <Button variant="ghost" onClick={() => setEditingEq(null)}>Anuluj</Button>
-              <Button onClick={onUpdate} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="update-equipment-btn">
+              <Button onClick={onUpdate} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="update-equipment-btn">
                 Zapisz
               </Button>
             </div>
@@ -180,7 +180,7 @@ export const HistoryModal = ({ historyModalEq, setHistoryModalEq, historyForModa
   if (!historyModalEq) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[80vh] flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1]">Historia: {historyModalEq.name}</CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setHistoryModalEq(null)} data-testid="close-history-modal">
@@ -195,9 +195,9 @@ export const HistoryModal = ({ historyModalEq, setHistoryModalEq, historyForModa
               {historyForModal.map((h) => (
                 <div
                   key={h.id}
-                  className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155] flex flex-wrap gap-2"
+                  className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59] flex flex-wrap gap-2"
                 >
-                  <span className="text-[#5F7151] font-semibold">{ACTION_LABELS[h.action] || h.action}</span>
+                  <span className="text-[#4F6343] font-semibold">{ACTION_LABELS[h.action] || h.action}</span>
                   {h.details?.foreman_name && (
                     <span className="text-[#94A3B8]">
                       -&gt; {h.details.foreman_name} ({h.details.quantity ?? '?'})
@@ -231,7 +231,7 @@ export const ResolveDefectModal = ({
   if (!resolveModal) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#2A384C] border-[#334155] w-full max-w-md">
+      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="text-[#CBD5E1]">
             Naprawione: {resolveModal.equipment_name} ({resolveModal.quantity} szt.)
@@ -267,7 +267,7 @@ export const ResolveDefectModal = ({
               <select
                 value={resolveForemanId}
                 onChange={(e) => setResolveForemanId(e.target.value)}
-                className="w-full bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
                 data-testid="resolve-foreman-select"
               >
                 <option value="">-- Wybierz brygadziste --</option>
@@ -297,7 +297,7 @@ export const ResolveDefectModal = ({
                   toast.error(err.response?.data?.detail || 'Błąd');
                 }
               }}
-              className="flex-1 bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+              className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
               data-testid="confirm-resolve-btn"
             >
               Zatwierdz
@@ -305,7 +305,7 @@ export const ResolveDefectModal = ({
             <Button
               onClick={() => setResolveModal(null)}
               variant="outline"
-              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155]"
+              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
             >
               Anuluj
             </Button>

@@ -181,18 +181,18 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
         className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
         data-testid="inventory-check-modal"
       >
-        <div className="bg-[#2A384C] border-2 border-[#E8B76A] rounded-lg shadow-2xl max-w-2xl w-full my-4">
-          <div className="px-5 py-4 border-b border-[#334155] flex items-center gap-3">
-            <AlertTriangle className="h-7 w-7 text-[#E8B76A] shrink-0" />
+        <div className="bg-[#19243C] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-2xl w-full my-4">
+          <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center gap-3">
+            <AlertTriangle className="h-7 w-7 text-[#D4AF37] shrink-0" />
             <div className="flex-1">
               <h2 className="text-lg sm:text-xl font-bold text-white">
                 Wymagana inwentaryzacja: {CATEGORY_LABELS[check.category] || check.category}
               </h2>
               <p className="text-sm text-[#94A3B8] mt-1">
-                Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#E8B76A]">{t('inv.missing_or_less')}</b> aby zglosic niezgodność.
+                Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#D4AF37]">{t('inv.missing_or_less')}</b> aby zglosic niezgodność.
               </p>
               {checks.length > 1 && (
-                <p className="text-xs text-[#E8B76A] mt-1">
+                <p className="text-xs text-[#D4AF37] mt-1">
                   Pozostalo do wykonania: {checks.length} {checks.length === 1 ? 'inwentaryzacja' : 'inwentaryzacji'}
                 </p>
               )}
@@ -208,7 +208,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 <Button
                   onClick={() => handleConfirm(check)}
                   disabled={submitting}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="inventory-confirm-empty-btn"
                 >
                   Potwierdź brak sprzętu
@@ -224,10 +224,10 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                       key={eq.id}
                       className={`flex items-center gap-3 p-3 rounded border transition-colors ${
                         conf
-                          ? 'bg-[#5F7151]/20 border-[#5F7151]'
+                          ? 'bg-[#4F6343]/20 border-[#4F6343]'
                           : rep
-                          ? 'bg-[#E8B76A]/10 border-[#E8B76A]'
-                          : 'bg-[#1E293B] border-[#334155]'
+                          ? 'bg-[#D4AF37]/10 border-[#D4AF37]'
+                          : 'bg-[#131C2F] border-[#2A3B59]'
                       }`}
                       data-testid={`inventory-item-${eq.id}`}
                     >
@@ -237,17 +237,17 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                         checked={conf}
                         disabled={rep}
                         onChange={() => toggleItem(check.id, eq.id)}
-                        className="h-5 w-5 accent-[#5F7151] cursor-pointer shrink-0 disabled:opacity-50"
+                        className="h-5 w-5 accent-[#4F6343] cursor-pointer shrink-0 disabled:opacity-50"
                         data-testid={`inventory-checkbox-${eq.id}`}
                       />
                       {eq.photo ? (
                         <img
                           src={eq.photo}
                           alt={eq.name}
-                          className="h-12 w-12 rounded object-cover shrink-0 border border-[#334155]"
+                          className="h-12 w-12 rounded object-cover shrink-0 border border-[#2A3B59]"
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded bg-[#334155] flex items-center justify-center shrink-0">
+                        <div className="h-12 w-12 rounded bg-[#2A3B59] flex items-center justify-center shrink-0">
                           <ClipboardCheck className="h-5 w-5 text-[#94A3B8]" />
                         </div>
                       )}
@@ -257,7 +257,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                           <div className="text-xs text-[#94A3B8] truncate">{eq.brand}</div>
                         )}
                         {rep && (
-                          <div className="text-xs text-[#E8B76A] mt-0.5">
+                          <div className="text-xs text-[#D4AF37] mt-0.5">
                             ✓ Zgloszono niezgodność - czeka na admina
                           </div>
                         )}
@@ -271,7 +271,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                           size="sm"
                           variant="outline"
                           onClick={() => openShortage(check.id, eq)}
-                          className="bg-transparent border-[#E8B76A] text-[#E8B76A] hover:bg-[#E8B76A]/20 shrink-0"
+                          className="bg-transparent border-[#D4AF37] text-[#D4AF37] hover:bg-[#D4AF37]/20 shrink-0"
                           data-testid={`inventory-shortage-btn-${eq.id}`}
                         >
                           <AlertCircle className="h-4 w-4 mr-1" /> Brak
@@ -285,14 +285,14 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
           </div>
 
           {items.length > 0 && (
-            <div className="px-5 py-4 border-t border-[#334155] flex items-center justify-between gap-3 flex-wrap">
+            <div className="px-5 py-4 border-t border-[#2A3B59] flex items-center justify-between gap-3 flex-wrap">
               <div className="text-sm text-[#94A3B8]" data-testid="inventory-progress">
                 Zaznaczono: <span className="text-white font-bold">{checkedCount}</span> / {items.length}
               </div>
               <Button
                 onClick={() => handleConfirm(check)}
                 disabled={submitting || checkedCount !== items.length}
-                className="bg-[#5F7151] hover:bg-[#4A5A41] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#4F6343] hover:bg-[#3F5235] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                 data-testid="inventory-confirm-btn"
               >
                 {submitting ? 'Zapisywanie...' : 'Zakoncz inwentaryzacje'}
@@ -308,10 +308,10 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
           className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           data-testid="shortage-modal"
         >
-          <div className="bg-[#2A384C] border-2 border-[#E8B76A] rounded-lg shadow-2xl max-w-md w-full">
-            <div className="px-5 py-4 border-b border-[#334155] flex items-center justify-between">
+          <div className="bg-[#19243C] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-md w-full">
+            <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                <AlertCircle className="h-5 w-5 text-[#E8B76A]" />
+                <AlertCircle className="h-5 w-5 text-[#D4AF37]" />
                 Zglos niezgodność
               </h3>
               <button
@@ -343,7 +343,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   max={shortageModal.equipment.assigned_quantity}
                   value={shortageQty}
                   onChange={(e) => setShortageQty(e.target.value)}
-                  className="bg-[#1E293B] border-[#334155] text-white"
+                  className="bg-[#131C2F] border-[#2A3B59] text-white"
                   data-testid="shortage-qty-input"
                 />
                 <p className="text-xs text-[#94A3B8] mt-1">
@@ -357,7 +357,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   onChange={(e) => setShortageDesc(e.target.value)}
                   rows="3"
                   placeholder="np. zaginal na budowie X, oddany pracownikowi..."
-                  className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-3 py-2 text-sm"
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-3 py-2 text-sm"
                   data-testid="shortage-desc-input"
                 />
               </div>
@@ -365,7 +365,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 <label className="text-sm text-[#CBD5E1] block mb-1">{t('inv.photo_optional')}</label>
                 <label
                   htmlFor="shortage-photo-input"
-                  className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded text-sm text-[#CBD5E1] hover:border-[#5F7151] w-fit"
+                  className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-[#131C2F] border border-[#2A3B59] rounded text-sm text-[#CBD5E1] hover:border-[#4F6343] w-fit"
                 >
                   <Camera className="h-4 w-4" />
                   {shortagePhoto ? 'Zmien zdjecie' : 'Dodaj zdjecie'}
@@ -382,16 +382,16 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   <img
                     src={shortagePhoto}
                     alt="preview"
-                    className="mt-2 h-24 rounded border border-[#334155]"
+                    className="mt-2 h-24 rounded border border-[#2A3B59]"
                   />
                 )}
               </div>
             </div>
-            <div className="px-5 py-4 border-t border-[#334155] flex items-center justify-end gap-2">
+            <div className="px-5 py-4 border-t border-[#2A3B59] flex items-center justify-end gap-2">
               <Button
                 onClick={closeShortage}
                 variant="ghost"
-                className="text-[#94A3B8] hover:bg-[#334155]"
+                className="text-[#94A3B8] hover:bg-[#2A3B59]"
                 data-testid="shortage-cancel-btn"
               >
                 Anuluj
@@ -399,7 +399,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
               <Button
                 onClick={submitShortage}
                 disabled={shortageSubmitting}
-                className="bg-[#E8B76A] hover:bg-[#D4A055] text-[#1E293B] font-semibold"
+                className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#131C2F] font-semibold"
                 data-testid="shortage-submit-btn"
               >
                 {shortageSubmitting ? 'Wysylanie...' : 'Wyslij zgloszenie'}
