@@ -42,16 +42,22 @@ Helper `fmt(v)`: 0.00→"0", 12.50→"12.5". `fmtPct(v)`: 0.55→"55%".
 
 ### Iteration 37.2 (2026-05-17) — Pelna integracja Fakturownia API
 - **POST /api/finance/sync-from-fakturownia?year&month** (default biezacy): pobiera faktury KOSZTOWE z Fakturowni przez `GET /invoices.json?income=no&include_positions=true&period=more`. Kazda POZYCJA faktury staje sie osobnym wpisem w `finance_zapisy` → admin moze podzielic koszt na rozne budowy.
-- **Idempotentnie**: aktualizacja po `fakturownia_position_id`. Zachowuje admin assignments (kod_id, budowa_id, notes). Usuwa wpisy ktorych nie ma w Fakturowni TYLKO gdy nie maja przypisanego kod_id.
+- **POST /api/finance/sync-from-fakturownia?from_year&from_month**: tryb RANGE - pobiera od podanego miesiaca do biezacego, z globalnym cleanup orphans na koncu.
+- **Idempotentnie**: aktualizacja po `fakturownia_position_id` (klucz globalny, nie ograniczony do miesiaca). Zachowuje admin assignments. Usuwa wpisy ktorych nie ma juz w Fakturowni TYLKO gdy admin jeszcze nie przypisal kodu.
 - **POST /api/finance/test-fakturownia**: test polaczenia + zwraca company_name.
-- **UI Tools**: nowe 2 przyciski w karcie Fakturownia: "Test polaczenia" (outline) i "Pobierz faktury z biezacego miesiaca" (zolty).
+- **CRON `cron_fakturownia_sync` co 30 min** (`IntervalTrigger(minutes=30)`): pobiera WSZYSTKIE miesiace od `SYNC_FROM_YEAR=2026, SYNC_FROM_MONTH=1` do biezacego, z globalnym cleanup na koncu.
+- **UI Tools**: pole subdomeny + klucza API + przyciski Test/Pobierz od stycznia 2026.
 - **UI Finanse > Zapisy**:
   - Nowa kolumna "Pozycja" (`pozycja_nazwa`)
-  - Wiersze z `source=fakturownia` i bez kod_id maja zolta ramke i sa policzone w licznik `{N} bez kodu` u gory (klikalny filtr)
-  - Dla wierszy `source=fakturownia`: kolumny "Kod kosztu" i "Budowa" sa edytowalne inline (dropdown z auto-save przez PUT)
-  - Badge "FAKTUROWNIA" zamiast "AUTO" dla wierszy zaimportowanych z Fakturowni
-- **Model**: `ZapisCreate.pozycja_nazwa` dodane (opcjonalne)
-- **Dependencje**: httpx 0.28 (juz w requirements)
+  - Wiersze z `source=fakturownia` i bez kod_id maja zolta ramke + licznik "X bez kodu" z filtrem
+  - Dla wierszy `source=fakturownia`: dropdown "Kod kosztu" i "Budowa" edytowalne inline z auto-save
+- **Realny test PASS**: konto fegrrospzoo, klucz `AfYri_SX_7FmsURwhsMM`, 191 faktur, 473 pozycje od stycznia 2026.
+
+### Iteration 37.3 (2026-05-17) — Pelna dwukierunkowa sync tabela godzin <-> finanse
+- **POST /api/sites** (tabela godzin) → auto-tworzy wpis w `finance_budowy` z `show_in_hours=true`, link wsteczny przez `construction_site_id` i `finance_budowa_id`.
+- **POST /api/finance/budowy/import-from-sites**: masowy import wszystkich budow z `construction_sites` ktore jeszcze nie maja `finance_budowa_id`. Pomija duplikaty po nazwie i kategorii != 'budowa'.
+- **DELETE/archive w Finance** → usuwa z `construction_sites` (czyli z tabeli godzin) - juz wczesniej dzialalo.
+- **UI Finanse > Budowy**: nowy zolty przycisk "Importuj z tabeli godzin".
 
 
 # FeGrro - System Rejestracji Godzin Pracy

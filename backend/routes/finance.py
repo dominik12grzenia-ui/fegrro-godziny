@@ -139,6 +139,53 @@ async def list_kody(current_user: dict = Depends(get_current_admin)):
 
 
 # ============= BUDOWY (finansowe, niezalezne od sites) =============
+@router.post("/finance/budowy/import-from-sites")
+async def import_budowy_from_sites(current_user: dict = Depends(get_current_admin)):
+    """Jednorazowy import budow z `construction_sites` ktore NIE maja jeszcze
+    powiazanego rekordu w `finance_budowy` (po `finance_budowa_id`).
+
+    Tworzy `finance_budowy` z `show_in_hours=true` i ustawia link wsteczny.
+    Kategorie inne niz 'budowa' (np. 'biuro') sa pomijane.
+    """
+    sites = await db.construction_sites.find({}, {"_id": 0}).to_list(length=None)
+    created = 0
+    skipped = 0
+    for s in sites:
+        if s.get("finance_budowa_id"):
+            skipped += 1
+            continue
+        if (s.get("category") or "budowa") != "budowa":
+            skipped += 1
+            continue
+        # Czy istnieje budowa o tej samej nazwie?
+        existing = await db.finance_budowy.find_one({"name": s["name"]}, {"_id": 0, "id": 1})
+        if existing:
+            await db.construction_sites.update_one(
+                {"id": s["id"]}, {"$set": {"finance_budowa_id": existing["id"]}}
+            )
+            skipped += 1
+            continue
+        bid = str(uuid.uuid4())
+        await db.finance_budowy.insert_one({
+            "id": bid,
+            "name": s["name"],
+            "code": "",
+            "show_in_hours": True,
+            "is_gir": False,
+            "is_dw": False,
+            "notes": "Zaimportowane z tabeli godzin",
+            "is_archived": False,
+            "construction_site_id": s["id"],
+            "created_at": datetime.now().isoformat(),
+            "created_by": current_user["sub"],
+        })
+        await db.construction_sites.update_one(
+            {"id": s["id"]}, {"$set": {"finance_budowa_id": bid}}
+        )
+        created += 1
+    return {"created": created, "skipped": skipped, "total_sites": len(sites)}
+
+
 @router.get("/finance/budowy")
 async def list_budowy(
     include_archived: bool = Query(False),

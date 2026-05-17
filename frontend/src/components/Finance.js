@@ -136,6 +136,15 @@ const BudowyPanel = () => {
     catch (e) { toast.error(e.response?.data?.detail || 'Blad'); }
   };
 
+  const importFromSites = async () => {
+    if (!window.confirm('Zaimportowac wszystkie budowy z tabeli godzin do Finansow?\n\nNiezduplikuje istniejacych - jedynie utworzy linki dla brakujacych.')) return;
+    try {
+      const r = await api.post('/finance/budowy/import-from-sites');
+      toast.success(`Utworzono ${r.data.created} nowych, pominieto ${r.data.skipped}`);
+      fetchData();
+    } catch (e) { toast.error(e.response?.data?.detail || 'Blad importu'); }
+  };
+
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
@@ -146,6 +155,11 @@ const BudowyPanel = () => {
               className="accent-[#5F7151]" data-testid="finance-show-archived" />
             Pokaz archiwalne
           </label>
+          <Button onClick={importFromSites} variant="outline"
+            className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+            data-testid="finance-import-from-sites">
+            Importuj z tabeli godzin
+          </Button>
           <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:false, is_gir:false, is_dw:false }); setShowAdd(true); }}
             className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe

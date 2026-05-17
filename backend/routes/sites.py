@@ -57,6 +57,31 @@ async def create_site(
     }
     
     await db.construction_sites.insert_one(site_doc)
+    # Auto-utworz powiazana budowe w Finansach (jezeli to budowa, nie "biuro" etc.)
+    if (site.category or "budowa") == "budowa":
+        try:
+            from datetime import datetime as _dt
+            await db.finance_budowy.insert_one({
+                "id": str(uuid.uuid4()),
+                "name": site.name,
+                "code": "",
+                "show_in_hours": True,
+                "is_gir": False,
+                "is_dw": False,
+                "notes": "Auto-utworzono przy dodaniu w Lokalizacjach",
+                "is_archived": False,
+                "construction_site_id": site_id,  # link wsteczny
+                "created_at": _dt.now().isoformat(),
+                "created_by": current_user["sub"],
+            })
+            # Powiaz site -> finance_budowa
+            fb = await db.finance_budowy.find_one({"name": site.name}, {"_id": 0, "id": 1})
+            if fb:
+                await db.construction_sites.update_one(
+                    {"id": site_id}, {"$set": {"finance_budowa_id": fb["id"]}}
+                )
+        except Exception:
+            pass  # nie blokujemy tworzenia site jezeli sync finance failuje
     site_doc.pop("_id", None)
     return ConstructionSite(**site_doc)
 
