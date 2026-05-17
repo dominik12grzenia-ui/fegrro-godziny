@@ -55,7 +55,7 @@ export const PublicHours = () => {
         setPenalties(penaltiesRes.data);
         setAbsences(absencesRes.data);
       } catch (err) {
-        setError('Nieprawidlowy link lub błąd serwera');
+        setError('Nieprawidłowy link lub błąd serwera');
       } finally {
         setLoading(false);
       }

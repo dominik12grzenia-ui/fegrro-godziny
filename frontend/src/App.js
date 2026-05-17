@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { LanguageProvider } from './i18n/LanguageContext';
 import { AdminLogin } from './components/AdminLogin';
@@ -60,6 +60,17 @@ const ProtectedWorkerRoute = ({ children }) => {
 const Home = () => <Navigate to="/foreman" replace />;
 
 /**
+ * Stare/legacy linki publiczne dla pracownikow (np. /worker/:token,
+ * /foreman/:token, /pracownik/:token) - byly wysylane wczesniej i sa
+ * "w terenie". Mapujemy na aktualna sciezke /hours/:token bez utraty tokenu.
+ */
+function LegacyHoursRedirect() {
+  const { token } = useParams();
+  if (!token) return <Navigate to="/" replace />;
+  return <Navigate to={`/hours/${token}`} replace />;
+}
+
+/**
  * Listens to messages from the service worker (push-notification clicks) and
  * navigates the SPA accordingly. Without this, SW.client.navigate() can't
  * cross the SPA route boundary on iOS/Safari standalone.
@@ -94,6 +105,14 @@ function AppRoutes() {
         <Route path="/magazynier/dashboard" element={<WarehouseDashboard />} />
         <Route path="/magazynier/:token" element={<WarehouseTokenEntry />} />
         <Route path="/hours/:token" element={<PublicHours />} />
+
+        {/* Legacy redirects: jezeli pracownicy maja juz wyslane linki typu
+            /worker/{token} albo /foreman/{token} (starsze nazewnictwo), przekieruj
+            ich automatycznie na biezacy publiczny widok /hours/{token}.
+            Dzieki temu wszystkie wczesniej wyslane linki nadal dzialaja. */}
+        <Route path="/worker/:token" element={<LegacyHoursRedirect />} />
+        <Route path="/foreman/:token" element={<LegacyHoursRedirect />} />
+        <Route path="/pracownik/:token" element={<LegacyHoursRedirect />} />
         
         {/* Worker Routes */}
         <Route 
