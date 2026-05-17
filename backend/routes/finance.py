@@ -1041,11 +1041,23 @@ async def sprzedaz(
     sum_visible["zysk_rg"] = round(safe_div(sum_visible["roznica"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
     sum_visible["koszt_rg"] = round(safe_div(sum_visible["koszt"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
 
+    # Suma kolumn szczegolowych (details). Procenty liczone z sumarycznych wartosci, NIE jako srednia.
+    sum_details_keys = ["sprzedaz", "kp", "kp_aloc", "kbb", "kbb_aloc", "marza_brutto",
+                         "ksb", "ksp_uklady_aloc", "marza1", "ksp_aloc", "marza2",
+                         "podatek_aloc", "marza3"]
+    sum_details = {k: round(sum(r["details"][k] for r in rows), 2) for k in sum_details_keys}
+    sd_sprzedaz = sum_details["sprzedaz"]
+    sum_details["marza_brutto_pct"] = round(safe_div(sum_details["marza_brutto"], sd_sprzedaz), 4)
+    sum_details["marza1_pct"] = round(safe_div(sum_details["marza1"], sd_sprzedaz), 4)
+    sum_details["marza2_pct"] = round(safe_div(sum_details["marza2"], sd_sprzedaz), 4)
+    sum_details["marza3_pct"] = round(safe_div(sum_details["marza3"], sd_sprzedaz), 4)
+
     return {
         "year": year,
         "rows": rows,
         "totals": {
             "visible": sum_visible,
+            "details": sum_details,
         },
     }
 

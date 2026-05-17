@@ -1411,7 +1411,26 @@ const SprzedazPanel = ({ year }) => {
             {/* SUMA footer */}
             {rows.length > 0 && (
               <tr className="border-t-2 border-[#5F7151] bg-[#1E293B]" data-testid="sprzedaz-totals-row">
-                <td colSpan={showDetails ? 20 : 2} className="p-2 text-white font-bold">SUMA</td>
+                <td className="p-2 text-white font-bold" colSpan={2}>SUMA</td>
+                {showDetails && totals.details && <>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.sprzedaz)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kp_aloc)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kbb)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.kbb_aloc)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza_brutto)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza_brutto_pct)}</td>
+                  <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksb)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksp_uklady_aloc)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza1)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza1_pct)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.ksp_aloc)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza2)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza2_pct)}</td>
+                  <td className="p-2 text-right text-[#94A3B8] font-semibold bg-[#1E293B]">{fmtNum(totals.details.podatek_aloc)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-bold bg-[#1E293B]">{fmtNum(totals.details.marza3)}</td>
+                  <td className="p-2 text-right text-[#5F7151] font-semibold bg-[#1E293B]">{fmtPct(totals.details.marza3_pct)}</td>
+                </>}
                 <td className="p-2 text-right text-[#5F7151] font-bold">{fmtNum(totals.visible.przychod)}</td>
                 <td className="p-2 text-right text-[#E8836A] font-bold">{fmtNum(totals.visible.koszt)}</td>
                 <td className="p-2 text-right text-[#94A3B8]">{fmtNum(totals.visible.kaucja_gir)}</td>
