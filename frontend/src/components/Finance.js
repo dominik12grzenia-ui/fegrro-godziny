@@ -872,6 +872,38 @@ const RachunekWynikowPanel = ({ year }) => {
   const [expanded, setExpanded] = useState({ kp: false, kbb: false, ksb: false, ksp: false });
   const [showAddKod, setShowAddKod] = useState(false);
   const [newKod, setNewKod] = useState({ name: '', category: 'KBB', order: 100 });
+  const [editingKod, setEditingKod] = useState(null); // { kod_id, name }
+  const [allKody, setAllKody] = useState([]);
+
+  const fetchAllKody = () => {
+    api.get('/finance/kody').then(r => setAllKody(r.data.rows || []));
+  };
+
+  const renameKod = async (kodId) => {
+    const name = (editingKod?.name || '').trim();
+    if (!name) { setEditingKod(null); return; }
+    try {
+      await api.put(`/finance/kody/${kodId}`, { name });
+      toast.success('Nazwa zaktualizowana');
+      setEditingKod(null);
+      fetchRW();
+      fetchAllKody();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
+  };
+
+  const deleteKod = async (kodId, name) => {
+    if (!window.confirm(`Usunac kod "${name}"?\n\nMozliwe tylko gdy nie ma zapisow z tym kodem.`)) return;
+    try {
+      await api.delete(`/finance/kody/${kodId}`);
+      toast.success('Kod usuniety');
+      fetchRW();
+      fetchAllKody();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Nie mozna usunac');
+    }
+  };
 
   const fetchRW = () => {
     setLoading(true);
@@ -905,6 +937,7 @@ const RachunekWynikowPanel = ({ year }) => {
 
   useEffect(() => {
     fetchRW();
+    fetchAllKody();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
 
@@ -982,13 +1015,50 @@ const RachunekWynikowPanel = ({ year }) => {
                   {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1] border-r border-[#334155]">{fmtNum(v)}</td>)}
                   <td className="p-2 text-right font-bold text-white bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(groups[g].total)}</td>
                 </tr>
-                {expanded[g] && groups[g].rows.map((r) => (
+                {expanded[g] && groups[g].rows.map((r) => {
+                  const isEditing = editingKod?.kod_id === r.kod_id;
+                  const kodMeta = allKody.find(k => k.id === r.kod_id);
+                  const isCustom = !!kodMeta?.is_custom;
+                  return (
                   <tr key={r.kod_id} className="border-t border-[#334155] bg-[#1E293B]/30" data-testid={`rw-detail-${r.kod_id}`}>
-                    <td className="p-2 pl-8 text-[#94A3B8] text-xs border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">{r.name}</td>
+                    <td className="p-2 pl-8 text-[#94A3B8] text-xs border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">
+                      {isEditing ? (
+                        <div className="flex items-center gap-1">
+                          <input autoFocus value={editingKod.name}
+                            onChange={(e) => setEditingKod({ ...editingKod, name: e.target.value })}
+                            onKeyDown={(e) => { if (e.key === 'Enter') renameKod(r.kod_id); if (e.key === 'Escape') setEditingKod(null); }}
+                            onBlur={() => renameKod(r.kod_id)}
+                            className="bg-[#1E293B] border border-[#5F7151] text-white rounded px-1 py-0.5 text-xs flex-1"
+                            data-testid={`rw-kod-edit-input-${r.kod_id}`} />
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 group">
+                          <span className="cursor-pointer hover:text-white" onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
+                            data-testid={`rw-kod-label-${r.kod_id}`}>
+                            {r.name}
+                          </span>
+                          <button onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
+                            className="opacity-0 group-hover:opacity-100 text-[#5F7151] hover:text-white"
+                            title="Edytuj nazwe"
+                            data-testid={`rw-kod-edit-btn-${r.kod_id}`}>
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                          {isCustom && (
+                            <button onClick={() => deleteKod(r.kod_id, r.name)}
+                              className="opacity-0 group-hover:opacity-100 text-[#DC2626] hover:text-white"
+                              title="Usun kod (tylko gdy nieuzywany)"
+                              data-testid={`rw-kod-del-btn-${r.kod_id}`}>
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </td>
                     {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8] border-r border-[#334155]">{fmtNum(v)}</td>)}
                     <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(r.total)}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </React.Fragment>
             ))}
           </tbody>
