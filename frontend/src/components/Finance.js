@@ -640,17 +640,43 @@ const ZapisyPanel = ({ year }) => {
   };
 
   // Quick assign dla pozycji (finance_zapisy)
+  // Lokalna aktualizacja jednej pozycji (bez fetchData - nie reloadujemy calej listy).
+  // Pozycje moga byc: standalone zapis (r.id === posId) lub pozycja faktury (r.positions[i].id === posId).
+  const updatePosLocal = (posId, patch) => {
+    setRows(prev => prev.map(r => {
+      if (r.id === posId) return { ...r, ...patch };
+      if (r.positions && r.positions.length > 0) {
+        const idx = r.positions.findIndex(p => p.id === posId);
+        if (idx >= 0) {
+          const newPositions = [...r.positions];
+          newPositions[idx] = { ...newPositions[idx], ...patch };
+          return { ...r, positions: newPositions };
+        }
+      }
+      return r;
+    }));
+  };
+
   const quickAssignPos = async (z, field, value) => {
+    const oldValue = z[field];
+    // Optymistyczna aktualizacja - od razu odswiezamy UI
+    updatePosLocal(z.id, { [field]: value || null });
     try {
       await api.put(`/finance/zapisy/${z.id}`, { [field]: value });
-      fetchData();
     } catch (e) {
+      // Rollback przy bledzie
+      updatePosLocal(z.id, { [field]: oldValue });
       toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
 
-  // Quick assign dla naglowka faktury (finance_invoices)
+  // Quick assign dla naglowka faktury (finance_invoices) - tez optymistyczna aktualizacja
   const quickAssignInv = async (inv, field, value) => {
+    const oldValue = inv[field];
+    // Optymistyczna aktualizacja - od razu odswiezamy UI
+    setRows(prev => prev.map(r =>
+      r.is_invoice && r.id === inv.id ? { ...r, [field]: value || null } : r,
+    ));
     try {
       const payload = {};
       if (field === 'kod_id') {
@@ -661,8 +687,11 @@ const ZapisyPanel = ({ year }) => {
         else payload.budowa_id = value;
       }
       await api.put(`/finance/invoices/${inv.id}`, payload);
-      fetchData();
     } catch (e) {
+      // Rollback przy bledzie
+      setRows(prev => prev.map(r =>
+        r.is_invoice && r.id === inv.id ? { ...r, [field]: oldValue } : r,
+      ));
       toast.error(e.response?.data?.detail || 'Błąd');
     }
   };
