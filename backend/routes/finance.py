@@ -910,10 +910,12 @@ async def sprzedaz(
     total_ksp = sum_by_cat("KSP")
     total_ppe = sum_by_cat("PPE")
     # "Slawkowe" - alokowane pro-rata: traktujemy je jako te bez budowa_id (czyli nieprzypisane)
+    # UWAGA: alokujemy WSZYSTKIE zapisy KP bez budowy (KP_STAWKI, KP_WYNAGRODZENIA z auto-sync, itd.),
+    # zeby Leszek (i inni pracownicy bez przypisanej budowy) nie wyciekal z rentownosci per budowa.
     kp_stawki_unassigned = sum(
         float(z.get("netto") or 0)
         for z in zapisy
-        if z.get("kod_id") == "KP_STAWKI" and not z.get("budowa_id")
+        if z.get("kod_category") == "KP" and not z.get("budowa_id")
     )
     ksp_stawki_unassigned = sum(
         float(z.get("netto") or 0)

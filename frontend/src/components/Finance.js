@@ -55,8 +55,8 @@ const SPRZEDAZ_COL_INFO = {
   },
   'KP-alok': {
     title: 'KP-alok - Alokowane Koszty Pracownikow',
-    desc: 'Czesc kosztow pracownikow nieprzypisana do zadnej konkretnej budowy, rozdzielona pro-rata wedlug udzialu sprzedazy/godzin tej budowy w sumie wszystkich budow.',
-    formula: 'KP (bez budowy) * (sprzedaz_tej_budowy / sprzedaz_wszystkich_budow)',
+    desc: 'Wszystkie koszty pracownikow bez przypisanej budowy (np. wyplaty pracownikow ze stala pensja typu Leszek, KP_STAWKI) rozdzielone pro-rata pomiedzy budowy proporcjonalnie do bezposredniego KP kazdej budowy.',
+    formula: 'KP (bez budowy) * (KP_tej_budowy / suma KP wszystkich budow)',
   },
   KBB: {
     title: 'KBB - Koszty Bezposrednie Budowy',
