@@ -1062,6 +1062,35 @@ async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict
         ).to_list(length=None)
         payroll_recs = {r["employee_id"]: r for r in recs}
 
+    # FALLBACK: dla pracownikow bez payroll_record w danym miesiacu - wez najnowszy WCZESNIEJSZY
+    # (rate, fixed, bonus, driver, other_*). Identyczna logika co /api/payroll defaults_cache.
+    missing_ids = [eid for eid in emp_ids if eid not in payroll_recs]
+    if missing_ids:
+        cursor = db.payroll_records.find(
+            {"employee_id": {"$in": missing_ids},
+              "$or": [
+                  {"year": {"$lt": year}},
+                  {"year": year, "month": {"$lt": month}},
+              ]},
+            {"_id": 0, "employee_id": 1, "year": 1, "month": 1,
+              "rate": 1, "is_fixed_salary": 1, "fixed_salary_amount": 1,
+              "bonus_zl": 1, "driver_zl": 1, "other_plus_zl": 1, "other_minus_zl": 1},
+        ).sort([("year", -1), ("month", -1)])
+        async for r in cursor:
+            eid = r["employee_id"]
+            if eid in payroll_recs:
+                continue
+            payroll_recs[eid] = {
+                "rate": float(r.get("rate") or 0),
+                "is_fixed_salary": bool(r.get("is_fixed_salary") or False),
+                "fixed_salary_amount": float(r.get("fixed_salary_amount") or 0),
+                # Bonusy/dodatki NIE sa kopiowane z poprzedniego miesiaca (one sa specyficzne miesiacowo)
+                "bonus_zl": 0.0,
+                "driver_zl": float(r.get("driver_zl") or 0),  # driver = stale przypisanie kierowcy
+                "other_plus_zl": 0.0,
+                "other_minus_zl": 0.0,
+            }
+
     pen_rows = await db.penalties.find(
         {"year": year, "month": month, "employee_id": {"$in": emp_ids}},
         {"_id": 0, "employee_id": 1, "amount": 1},
