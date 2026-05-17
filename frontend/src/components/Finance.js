@@ -1118,7 +1118,7 @@ const RachunekWynikowPanel = ({ year }) => {
 
   const fetchRW = () => {
     setLoading(true);
-    api.get(`/finance/rachunek-wyników?year=${year}`)
+    api.get(`/finance/rachunek-wynikow?year=${year}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania rachunku'))
       .finally(() => setLoading(false));
@@ -1327,7 +1327,7 @@ const SprzedazPanel = ({ year }) => {
   useEffect(() => {
     setLoading(true);
     const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
-    api.get(`/finance/sprzedaż${qs}`)
+    api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania sprzedaży'))
       .finally(() => setLoading(false));
