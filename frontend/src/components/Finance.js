@@ -383,17 +383,17 @@ const BudowyPanel = () => {
   };
 
   return (
-    <Card className="bg-[#2A384C] border-[#334155]">
+    <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-white">Budowy ({rows.length})</CardTitle>
+        <CardTitle className="text-white font-display text-lg tracking-tight">Budowy ({rows.length})</CardTitle>
         <div className="flex items-center gap-2">
-          <label className="flex items-center gap-1 text-sm text-[#94A3B8] cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-[#94A3B8] cursor-pointer mr-2">
             <input type="checkbox" checked={includeArchived} onChange={(e) => setIncludeArchived(e.target.checked)}
-              className="accent-[#5F7151]" data-testid="finance-show-archived" />
+              className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
           <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0 }); setShowAdd(true); }}
-            className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-add-budowa">
+            className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
         </div>
@@ -402,36 +402,36 @@ const BudowyPanel = () => {
         {loading ? <div className="p-6 text-[#94A3B8]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak budow. Dodaj pierwsza.</div> :
         <table className="w-full text-sm">
-          <thead className="bg-[#1E293B] text-[#94A3B8]">
+          <thead className="bg-[#131C2F] text-[#94A3B8] text-xs uppercase tracking-wider font-semibold">
             <tr>
-              <th className="p-2 text-left">Nazwa</th>
-              <th className="p-2 text-center">W godzinach</th>
-              <th className="p-2 text-center">GIR %</th>
-              <th className="p-2 text-center">DW %</th>
-              <th className="p-2 text-center">Status</th>
-              <th className="p-2 text-right">Akcje</th>
+              <th className="py-3 px-4 text-left border-b border-[#2A3B59]">Nazwa</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]">W godzinach</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]">GIR %</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]">DW %</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Status</th>
+              <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Akcje</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((b) => (
-              <tr key={b.id} className="border-t border-[#334155] hover:bg-[#1E293B]/50" data-testid={`finance-budowa-row-${b.id}`}>
-                <td className="p-2 text-white font-medium">{b.name}</td>
-                <td className="p-2 text-center">{b.show_in_hours ? <span className="text-[#5F7151]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="p-2 text-center">{b.is_gir ? <span className="text-[#E8B76A]">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="p-2 text-center">{b.is_dw ? <span className="text-[#E8B76A]">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="p-2 text-center">
-                  {b.is_archived ? <span className="text-[#94A3B8] text-xs">Archiwum</span> : <span className="text-[#5F7151] text-xs">Aktywna</span>}
+              <tr key={b.id} className="border-b border-[#2A3B59] hover:bg-[#131C2F]/50 transition-colors" data-testid={`finance-budowa-row-${b.id}`}>
+                <td className="py-3 px-4 text-white font-medium">{b.name}</td>
+                <td className="py-3 px-4 text-center">{b.show_in_hours ? <span className="text-[#6B8E4E]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="py-3 px-4 text-center">{b.is_gir ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="py-3 px-4 text-center">{b.is_dw ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="py-3 px-4 text-center">
+                  {b.is_archived ? <span className="text-[#94A3B8] text-xs px-2 py-1 bg-[#131C2F] rounded">Archiwum</span> : <span className="text-[#6B8E4E] text-xs px-2 py-1 bg-[#4F6343]/20 rounded">Aktywna</span>}
                 </td>
-                <td className="p-2 text-right">
+                <td className="py-3 px-4 text-right">
                   <div className="flex items-center gap-1 justify-end">
-                    <button onClick={() => openEdit(b)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj" data-testid={`finance-budowa-edit-${b.id}`}>
+                    <button onClick={() => openEdit(b)} className="p-1.5 hover:bg-[#2A3B59] rounded transition-colors" title="Edytuj" data-testid={`finance-budowa-edit-${b.id}`}>
                       <Edit2 className="h-4 w-4 text-[#94A3B8]" />
                     </button>
                     {b.is_archived
-                      ? <button onClick={() => unarchive(b)} className="p-1 hover:bg-[#334155] rounded" title="Przywroc" data-testid={`finance-budowa-unarchive-${b.id}`}><ArchiveRestore className="h-4 w-4 text-[#5F7151]" /></button>
-                      : <button onClick={() => archive(b)} className="p-1 hover:bg-[#334155] rounded" title="Archiwizuj" data-testid={`finance-budowa-archive-${b.id}`}><Archive className="h-4 w-4 text-[#94A3B8]" /></button>
+                      ? <button onClick={() => unarchive(b)} className="p-1.5 hover:bg-[#2A3B59] rounded transition-colors" title="Przywroc" data-testid={`finance-budowa-unarchive-${b.id}`}><ArchiveRestore className="h-4 w-4 text-[#4F6343]" /></button>
+                      : <button onClick={() => archive(b)} className="p-1.5 hover:bg-[#2A3B59] rounded transition-colors" title="Archiwizuj" data-testid={`finance-budowa-archive-${b.id}`}><Archive className="h-4 w-4 text-[#94A3B8]" /></button>
                     }
-                    <button onClick={() => remove(b)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń trwale" data-testid={`finance-budowa-delete-${b.id}`}><Trash2 className="h-4 w-4 text-[#DC2626]" /></button>
+                    <button onClick={() => remove(b)} className="p-1.5 hover:bg-[#9B2C2C]/20 rounded transition-colors" title="Usuń trwale" data-testid={`finance-budowa-delete-${b.id}`}><Trash2 className="h-4 w-4 text-[#FCA5A5]" /></button>
                   </div>
                 </td>
               </tr>

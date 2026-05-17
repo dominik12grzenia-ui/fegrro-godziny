@@ -620,55 +620,55 @@ export const PayrollAdmin = () => {
       )}
 
       {/* Table */}
-      <Card className="bg-[#2A384C] border-[#334155]">
+      <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4"><SkeletonTable rows={8} cols={7} /></div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full text-sm" data-testid="payroll-table">
-                <thead className="bg-[#1E293B] text-[#CBD5E1]">
+                <thead className="bg-[#131C2F] text-[#94A3B8] text-xs uppercase tracking-wider font-semibold">
                   <tr>
-                    <th className="p-2 text-left">
+                    <th className="py-3 px-4 text-left border-b border-[#2A3B59]">
                       <input
                         type="checkbox"
                         checked={visibleRows.length > 0 && visibleRows.every((r) => selected.has(r.employee_id))}
                         onChange={toggleSelectAllVisible}
                         data-testid="payroll-select-all"
-                        className="h-4 w-4 accent-[#5F7151] cursor-pointer"
+                        className="h-4 w-4 accent-[#4F6343] cursor-pointer rounded"
                       />
                     </th>
-                    <th className="p-2 text-left">Pracownik</th>
-                    <th className="p-2 text-right">Godziny</th>
-                    <th className="p-2 text-center">Stała</th>
-                    <th className="p-2 text-right">Stawka zł/h</th>
-                    <th className="p-2 text-right">Kwota godzin</th>
-                    <th className="p-2 text-right">Zaliczki</th>
-                    <th className="p-2 text-right">Kary</th>
-                    <th className="p-2 text-right">Dodatki +</th>
-                    <th className="p-2 text-right">Kierowca +</th>
-                    <th className="p-2 text-right">Inne -</th>
-                    <th className="p-2 text-right">Inne +</th>
-                    <th className="p-2 text-right">Wypłata</th>
-                    <th className="p-2 text-center">Akcje</th>
+                    <th className="py-3 px-4 text-left border-b border-[#2A3B59]">Pracownik</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Godziny</th>
+                    <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Stała</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Stawka zł/h</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kwota godzin</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Zaliczki</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kary</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Dodatki +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kierowca +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Inne -</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Inne +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Wypłata</th>
+                    <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleRows.length === 0 && (
-                    <tr><td colSpan={14} className="p-6 text-center text-[#64748B]">Brak pracownikow</td></tr>
+                    <tr><td colSpan={14} className="py-6 px-4 text-center text-[#94A3B8]">Brak pracownikow</td></tr>
                   )}
                   {visibleRows.map((r, idx) => (
                     <React.Fragment key={r.employee_id}>
-                      <tr className={idx % 2 === 0 ? 'bg-[#1E293B]/40' : ''} data-testid={`payroll-row-${r.employee_id}`}>
-                        <td className="p-2"><input type="checkbox" checked={selected.has(r.employee_id)} onChange={() => toggleSelected(r.employee_id)} data-testid={`payroll-check-${r.employee_id}`} className="h-4 w-4 accent-[#5F7151] cursor-pointer" /></td>
-                        <td className="p-2 text-[#CBD5E1] font-medium">
-                          <button onClick={() => toggleExpanded(r.employee_id)} className="flex items-center gap-1 hover:text-white text-left">
-                            {expanded.has(r.employee_id) ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                      <tr className={`border-b border-[#2A3B59] hover:bg-[#131C2F]/50 transition-colors ${idx % 2 === 0 ? 'bg-[#19243C]' : 'bg-[#131C2F]/30'}`} data-testid={`payroll-row-${r.employee_id}`}>
+                        <td className="py-3 px-4"><input type="checkbox" checked={selected.has(r.employee_id)} onChange={() => toggleSelected(r.employee_id)} data-testid={`payroll-check-${r.employee_id}`} className="h-4 w-4 accent-[#4F6343] cursor-pointer rounded" /></td>
+                        <td className="py-3 px-4 text-[#F8FAFC] font-medium whitespace-nowrap">
+                          <button onClick={() => toggleExpanded(r.employee_id)} className="flex items-center gap-1.5 hover:text-[#D4AF37] transition-colors text-left focus:outline-none">
+                            {expanded.has(r.employee_id) ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                             {r.full_name}
                           </button>
                         </td>
-                        <td className="p-2 text-right text-white font-semibold">{fmt(r.total_hours)}</td>
-                        <td className="p-2 text-center">
+                        <td className="py-3 px-4 text-right text-white font-semibold font-mono tabular-nums">{fmt(r.total_hours)}</td>
+                        <td className="py-3 px-4 text-center">
                           <input
                             type="checkbox"
                             checked={!!r.record.is_fixed_salary}
@@ -676,36 +676,36 @@ export const PayrollAdmin = () => {
                             disabled={isLocked}
                             data-testid={`payroll-fixed-${r.employee_id}`}
                             title="Stała pensja - wpisz kwote w 'Kwota godzin', stawka liczy sie automatycznie"
-                            className={`h-4 w-4 accent-[#5F7151] cursor-pointer ${isLocked ? 'opacity-50' : ''}`}
+                            className={`h-4 w-4 accent-[#4F6343] cursor-pointer rounded ${isLocked ? 'opacity-50' : ''}`}
                           />
                         </td>
-                        <td className="p-2 text-right">
+                        <td className="py-3 px-4 text-right font-mono tabular-nums">
                           {r.record.is_fixed_salary ? (
                             <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{fmt(r.computed.rate_effective)}</span>
                           ) : (
                             <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" disabled={isLocked} />
                           )}
                         </td>
-                        <td className="p-2 text-right">
+                        <td className="py-3 px-4 text-right font-mono tabular-nums">
                           {r.record.is_fixed_salary ? (
                             <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" disabled={isLocked} />
                           ) : (
                             <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{fmt(r.computed.hours_amount)}</span>
                           )}
                         </td>
-                        <td className="p-2 text-right"><span className="text-[#E8836A] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{fmt(r.auto_advances_zl)}</span></td>
-                        <td className="p-2 text-right"><span className="text-[#DC2626] font-semibold" data-testid={`payroll-pen-auto-${r.employee_id}`} title="Suma z tabeli kar (read-only)">{fmt(r.auto_penalties_zl)}</span></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
-                        <td className="p-2 text-right text-[#5F7151] font-bold" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zł</td>
-                        <td className="p-2 text-center">
-                          <div className="flex items-center gap-1 justify-center">
-                            {savingId === r.employee_id && <span className="text-[#E8B76A] text-xs">...</span>}
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><span className="text-[#C78B58] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{fmt(r.auto_advances_zl)}</span></td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><span className="text-[#FCA5A5] font-semibold" data-testid={`payroll-pen-auto-${r.employee_id}`} title="Suma z tabeli kar (read-only)">{fmt(r.auto_penalties_zl)}</span></td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="bonus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="driver_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="other_minus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="py-3 px-4 text-right font-mono tabular-nums"><NumCell row={r} field="other_plus_zl" handleNum={handleNum} step="10" disabled={isLocked} /></td>
+                        <td className="py-3 px-4 text-right text-[#6B8E4E] font-bold font-mono tabular-nums whitespace-nowrap" data-testid={`payroll-payout-${r.employee_id}`}>{fmt(r.computed.payout)} zł</td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center gap-1.5 justify-center">
+                            {savingId === r.employee_id && <span className="text-[#D4AF37] text-xs">...</span>}
                             <button
                               onClick={() => openAudit(r)}
-                              className="p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#5F7151]"
+                              className="p-1.5 rounded hover:bg-[#2A3B59] text-[#94A3B8] hover:text-[#D4AF37] transition-colors"
                               title="Historia zmian"
                               data-testid={`payroll-audit-${r.employee_id}`}
                             >
@@ -714,7 +714,7 @@ export const PayrollAdmin = () => {
                             <button
                               onClick={() => handleArchive(r)}
                               disabled={isLocked}
-                              className={`p-1 rounded hover:bg-[#334155] text-[#94A3B8] hover:text-[#E8B76A] ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              className={`p-1.5 rounded hover:bg-[#2A3B59] text-[#94A3B8] hover:text-[#9B2C2C] transition-colors ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                               title={isLocked ? 'Najpierw odblokuj miesiąc' : 'Zarchiwizuj'}
                               data-testid={`payroll-archive-${r.employee_id}`}
                             >
@@ -724,17 +724,17 @@ export const PayrollAdmin = () => {
                         </td>
                       </tr>
                       {expanded.has(r.employee_id) && (
-                        <tr className="bg-[#0F172A]">
-                          <td colSpan={14} className="p-3">
-                            <div className="text-xs text-[#94A3B8] mb-2">Rozpiska godzin per budowa:</div>
+                        <tr className="bg-[#0B1120] border-b border-[#2A3B59]">
+                          <td colSpan={14} className="py-4 px-6">
+                            <div className="text-xs uppercase tracking-wider font-semibold text-[#94A3B8] mb-3">Rozpiska godzin per budowa:</div>
                             {r.sites_breakdown.length === 0 ? (
                               <div className="text-[#64748B] text-sm">Brak godzin w tym miesiącu</div>
                             ) : (
-                              <div className="flex flex-wrap gap-2">
+                              <div className="flex flex-wrap gap-2.5">
                                 {r.sites_breakdown.map((s) => (
-                                  <span key={s.site_id || 'none'} className="px-2 py-1 rounded bg-[#1E293B] border border-[#334155] text-sm" data-testid={`payroll-site-${r.employee_id}-${s.site_id||'none'}`}>
-                                    <span className="text-[#CBD5E1]">{s.site_name}</span>
-                                    <span className="text-[#5F7151] font-bold ml-1">{s.hours} h</span>
+                                  <span key={s.site_id || 'none'} className="px-3 py-1.5 rounded-md bg-[#131C2F] border border-[#2A3B59] shadow-sm flex items-center gap-2" data-testid={`payroll-site-${r.employee_id}-${s.site_id||'none'}`}>
+                                    <span className="text-[#F8FAFC] text-sm font-medium">{s.site_name}</span>
+                                    <span className="text-[#6B8E4E] font-bold font-mono tabular-nums bg-[#4F6343]/20 px-1.5 rounded text-xs">{s.hours} h</span>
                                   </span>
                                 ))}
                               </div>

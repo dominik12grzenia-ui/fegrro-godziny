@@ -422,28 +422,28 @@ export const PublicHours = () => {
 
         {/* Advances section */}
         {advances.advances.length > 0 && (
-          <Card className="mt-4 bg-[#2A384C] border-[#334155]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-                <Wallet className="h-4 w-4 text-[#E8836A]" />
+          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
+            <CardHeader className="bg-[#131C2F] border-b border-[#2A3B59] px-5 py-4">
+              <CardTitle className="text-[#F8FAFC] flex items-center gap-2 text-base font-display">
+                <Wallet className="h-5 w-5 text-[#C78B58]" />
                 {t('public.advances_section')}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="p-4 space-y-3">
               {advances.advances.map((adv, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 bg-[#1E293B] rounded border border-[#334155]">
+                <div key={idx} className="flex items-center justify-between p-3 bg-[#0B1120] rounded-lg border border-[#2A3B59]">
                   <div>
-                    <span className="text-[#E8836A] font-bold">{adv.amount} zł</span>
-                    {adv.note && <span className="text-[#94A3B8] text-xs ml-2">{adv.note}</span>}
+                    <span className="text-[#C78B58] font-bold text-lg">{adv.amount} zł</span>
+                    {adv.note && <span className="text-[#94A3B8] text-xs ml-3 block sm:inline">{adv.note}</span>}
                   </div>
                   <span className="text-[#64748B] text-[10px]">
                     {adv.created_at ? new Date(adv.created_at).toLocaleString('pl-PL') : ''}
                   </span>
                 </div>
               ))}
-              <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#E8836A]/30">
-                <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
-                <span className="text-[#E8836A] font-bold text-lg" data-testid="public-advance-total">{advances.total} zł</span>
+              <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg border border-[#C78B58]/30 mt-4">
+                <span className="text-[#94A3B8] font-medium">{t('public.total')}:</span>
+                <span className="text-[#C78B58] font-display font-bold text-2xl" data-testid="public-advance-total">{advances.total} zł</span>
               </div>
             </CardContent>
           </Card>
@@ -451,20 +451,20 @@ export const PublicHours = () => {
 
         {/* Penalties section */}
         {penalties.penalties.length > 0 && (
-          <Card className="mt-4 bg-[#2A384C] border-[#334155]">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-[#DC2626]" />
+          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
+            <CardHeader className="bg-[#131C2F] border-b border-[#2A3B59] px-5 py-4">
+              <CardTitle className="text-[#F8FAFC] flex items-center gap-2 text-base font-display">
+                <AlertTriangle className="h-5 w-5 text-[#9B2C2C]" />
                 {t('public.penalties_section')}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent className="p-4 space-y-3">
               {penalties.penalties.map((pen, idx) => (
-                <div key={pen.id || `pen-${idx}`} className="p-2 bg-[#1E293B] rounded border border-[#334155]">
+                <div key={pen.id || `pen-${idx}`} className="p-3 bg-[#0B1120] rounded-lg border border-[#2A3B59]">
                   <div className="flex items-center justify-between mb-1">
                     <div>
-                      <span className="text-[#DC2626] font-bold">{pen.amount} zł</span>
-                      {pen.description && <span className="text-[#94A3B8] text-xs ml-2">{pen.description}</span>}
+                      <span className="text-[#FCA5A5] font-bold text-lg">{pen.amount} zł</span>
+                      {pen.description && <span className="text-[#94A3B8] text-xs ml-3 block sm:inline">{pen.description}</span>}
                     </div>
                     <span className="text-[#64748B] text-[10px]">
                       {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
@@ -474,15 +474,15 @@ export const PublicHours = () => {
                     <img
                       src={pen.image_data}
                       alt="Zdjecie kary"
-                      className="w-full max-h-40 object-cover rounded cursor-pointer border border-[#334155] mt-1"
+                      className="w-full max-h-48 object-cover rounded-md cursor-pointer border border-[#2A3B59] mt-3"
                       onClick={() => setViewPenaltyImage(pen.image_data)}
                     />
                   )}
                 </div>
               ))}
-              <div className="flex items-center justify-between p-2 bg-[#0F172A] rounded border border-[#DC2626]/30">
-                <span className="text-[#94A3B8] text-sm">{t('public.total')}:</span>
-                <span className="text-[#DC2626] font-bold text-lg" data-testid="public-penalty-total">{penalties.total} zł</span>
+              <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg border border-[#9B2C2C]/30 mt-4">
+                <span className="text-[#94A3B8] font-medium">{t('public.total')}:</span>
+                <span className="text-[#FCA5A5] font-display font-bold text-2xl" data-testid="public-penalty-total">{penalties.total} zł</span>
               </div>
             </CardContent>
           </Card>

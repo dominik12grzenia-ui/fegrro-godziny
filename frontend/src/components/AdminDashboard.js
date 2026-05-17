@@ -248,8 +248,8 @@ export const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1E293B] p-4">
-        <div className="max-w-7xl mx-auto space-y-4">
+      <div className="min-h-screen bg-[#0B1120] p-4">
+        <div className="max-w-7xl mx-auto space-y-6">
           <SkeletonBox style={{ height: 64 }} />
           <SkeletonCards count={4} />
           <SkeletonBox style={{ height: 120 }} />
@@ -260,19 +260,19 @@ export const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#1E293B]">
-      {/* Header */}
-      <div className="bg-[#1E293B] text-white shadow-lg">
+    <div className="min-h-screen bg-[#0B1120]">
+      {/* Sticky Header with Glassmorphism */}
+      <div className="sticky top-0 z-50 bg-[#0B1120]/80 backdrop-blur-xl border-b border-[#2A3B59] shadow-sm">
         <div className="max-w-7xl mx-auto p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <img 
               src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg" 
               alt="FeGrro Logo" 
-              className="h-12"
+              className="h-10 sm:h-12"
             />
             <div>
-              <h1 className="text-xl sm:text-2xl font-bold">Panel Administratora</h1>
-              <p className="text-green-100 text-sm">{user?.email}</p>
+              <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">Panel Administratora</h1>
+              <p className="text-[#94A3B8] text-xs sm:text-sm font-medium">{user?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -280,7 +280,7 @@ export const AdminDashboard = () => {
             <Button
               onClick={handleLogout}
               variant="ghost"
-              className="text-white hover:bg-[#2A384C]"
+              className="text-[#94A3B8] hover:text-white hover:bg-[#19243C] transition-colors"
               data-testid="admin-logout-btn"
             >
               <LogOut className="h-5 w-5" />
@@ -289,16 +289,16 @@ export const AdminDashboard = () => {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4">
+      <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         {/* Absence requests alert */}
         {absenceRequests.length > 0 && (
-          <div className="mb-4 p-3 bg-[#7F2D2D]/30 border-2 border-[#7F2D2D] rounded-lg flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('requests')} data-testid="absence-alert-banner">
+          <div className="p-4 bg-[#9B2C2C]/20 border border-[#9B2C2C]/50 rounded-lg flex items-center gap-4 cursor-pointer hover:bg-[#9B2C2C]/30 transition-colors shadow-sm" onClick={() => setActiveTab('requests')} data-testid="absence-alert-banner">
             <AlertCircle className="h-6 w-6 text-[#FCA5A5] shrink-0" />
             <div>
               <p className="text-[#FCA5A5] font-bold text-sm">
                 {absenceRequests.length} {absenceRequests.length === 1 ? 'prośba' : 'próśb'} o wolne do akceptacji
               </p>
-              <p className="text-[#94A3B8] text-xs">
+              <p className="text-[#FCA5A5]/70 text-xs mt-0.5">
                 {absenceRequests.map(a => a.employee_name || 'Pracownik').join(', ')}
               </p>
             </div>
@@ -315,13 +315,15 @@ export const AdminDashboard = () => {
           const hasExpired = (bhpAlerts.employees || []).some((e) => e.alerts?.some((a) => a.expired))
             || (bhpAlerts.documents || []).some((d) => d.expired);
           const bg = hasExpired
-            ? 'bg-[#7F2D2D]/30 border-[#7F2D2D]'
-            : 'bg-[#E8B76A]/15 border-[#E8B76A]/60';
-          const iconColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
-          const titleColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#E8B76A]';
+            ? 'bg-[#9B2C2C]/20 border-[#9B2C2C]/50'
+            : 'bg-[#D4AF37]/15 border-[#D4AF37]/50';
+          const iconColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#D4AF37]';
+          const titleColor = hasExpired ? 'text-[#FCA5A5]' : 'text-[#D4AF37]';
+          const descColor = hasExpired ? 'text-[#FCA5A5]/70' : 'text-[#D4AF37]/70';
+          
           return (
             <div
-              className={`mb-4 p-3 ${bg} border-2 rounded-lg flex items-center gap-3 cursor-pointer`}
+              className={`p-4 ${bg} border rounded-lg flex items-center gap-4 cursor-pointer hover:opacity-90 transition-opacity shadow-sm`}
               onClick={() => setActiveTab('bhp')}
               data-testid="bhp-expiry-banner">
               <AlertCircle className={`h-6 w-6 ${iconColor} shrink-0`} />
@@ -330,7 +332,7 @@ export const AdminDashboard = () => {
                   {hasExpired ? 'Wygasłe lub krytyczne dokumenty: ' : 'Kończą się dokumenty: '}
                   {total} {total === 1 ? 'pracownikowi' : 'pracownikom'}
                 </p>
-                <p className="text-[#94A3B8] text-xs truncate">
+                <p className={`text-xs mt-0.5 truncate ${descColor}`}>
                   BHP / badania wysokościowe / zezwolenie / legalny pobyt — kliknij aby zobaczyć szczegóły
                 </p>
               </div>
@@ -339,72 +341,72 @@ export const AdminDashboard = () => {
         })()}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-[#2A384C] border-[#334155]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Pracownicy</p>
-                  <p className="text-3xl font-bold text-[#6B8E4E]">{stats.totalEmployees}</p>
+                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Pracownicy</p>
+                  <p className="text-3xl font-display font-bold text-[#6B8E4E] tracking-tight">{stats.totalEmployees}</p>
                 </div>
-                <Users className="h-12 w-12 text-[#6B8E4E] opacity-20" />
+                <Users className="h-10 w-10 text-[#6B8E4E] opacity-20" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-[#2A384C] border-[#334155]">
+          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Budowy</p>
-                  <p className="text-3xl font-bold text-[#6B8E4E]">{stats.totalSites}</p>
+                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Budowy</p>
+                  <p className="text-3xl font-display font-bold text-[#6B8E4E] tracking-tight">{stats.totalSites}</p>
                 </div>
-                <Building2 className="h-12 w-12 text-[#6B8E4E] opacity-20" />
+                <Building2 className="h-10 w-10 text-[#6B8E4E] opacity-20" />
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-[#2A384C] border-[#334155]">
+          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Prośby</p>
-                  <p className="text-3xl font-bold text-[#5F7151]">{stats.pendingRequests}</p>
+                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Prośby</p>
+                  <p className="text-3xl font-display font-bold text-[#D4AF37] tracking-tight">{stats.pendingRequests}</p>
                 </div>
-                <Clock className="h-12 w-12 text-[#5F7151] opacity-20" />
+                <Clock className="h-10 w-10 text-[#D4AF37] opacity-20" />
               </div>
             </CardContent>
           </Card>
 
           <Card
-            className="bg-[#2A384C] border-[#334155] cursor-pointer hover:border-[#5F7151] transition-colors"
+            className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20 cursor-pointer hover:border-[#4F6343] hover:bg-[#131C2F] transition-all group"
             onClick={() => setActiveTab('clothing')}
             data-testid="stat-clothing-orders"
           >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-[#94A3B8]">Zamówienia</p>
-                  <p className="text-3xl font-bold text-[#5F7151]">{stats.pendingClothing}</p>
+                  <p className="text-sm font-medium text-[#94A3B8] group-hover:text-white transition-colors mb-1">Zamówienia</p>
+                  <p className="text-3xl font-display font-bold text-[#4F6343] tracking-tight">{stats.pendingClothing}</p>
                 </div>
-                <Shirt className="h-12 w-12 text-[#5F7151] opacity-20" />
+                <Shirt className="h-10 w-10 text-[#4F6343] opacity-20 group-hover:opacity-40 transition-opacity" />
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Quick Actions - Tabela Godzin */}
-        <div className="mb-6">
-          <Card className="bg-[#2A384C] border-[#334155]">
+        <div>
+          <Card className="bg-gradient-to-br from-[#19243C] to-[#131C2F] border-[#2A3B59] shadow-lg">
             <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h3 className="text-lg font-bold text-[#CBD5E1] mb-2">📊 Tabela Godzin Pracy</h3>
+                  <h3 className="text-xl font-display font-bold text-white tracking-tight mb-1">Tabela Godzin Pracy</h3>
                   <p className="text-sm text-[#94A3B8]">Zarządzaj godzinami wszystkich pracowników w jednej tabeli</p>
                 </div>
                 <Button
                   onClick={() => navigate('/admin/hours-table')}
-                  className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+                  className="bg-[#4F6343] hover:bg-[#5F7552] text-white shadow-md w-full sm:w-auto transition-colors"
                   data-testid="hours-table-btn"
                 >
                   <Clock className="h-5 w-5 mr-2" />
@@ -416,75 +418,76 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin">
-            <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap">
-              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0">Lokalizacje</TabsTrigger>
-              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0">
+            <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap bg-[#19243C] p-1 border border-[#2A3B59] rounded-lg">
+              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Lokalizacje</TabsTrigger>
+              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Brygadziści
                 {foremen.filter(f => f.status === 'pending').length > 0 && (
-                  <span className="ml-1 bg-[#E8836A] text-white text-xs rounded-full px-1.5 py-0.5">
+                  <span className="ml-2 bg-[#9B2C2C] text-white text-[10px] font-bold rounded px-1.5 py-0.5 shadow-sm">
                     {foremen.filter(f => f.status === 'pending').length}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Prosby
                 {(stats.pendingRequests + notifications.length + absenceRequests.length) > 0 && (
-                  <span className="ml-1 bg-[#5F7151] text-white text-xs rounded-full px-1.5 py-0.5">
+                  <span className="ml-2 bg-[#4F6343] text-white text-[10px] font-bold rounded px-1.5 py-0.5 shadow-sm">
                     {stats.pendingRequests + notifications.length + absenceRequests.length}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Elektronarzędzia
                 {equipmentOrdersByCategory.electronics > 0 && (
-                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.electronics}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Akcesoria
                 {equipmentOrdersByCategory.accessories > 0 && (
-                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.accessories}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Szalunki
                 {equipmentOrdersByCategory.formwork > 0 && (
-                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.formwork}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Materiały
                 {equipmentOrdersByCategory.warehouse > 0 && (
-                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.warehouse}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0">
+              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
                 Odzież
                 {stats.pendingClothing > 0 && (
-                  <span className="ml-1 bg-[#E8B76A] text-[#1E293B] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {stats.pendingClothing}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0">BHP</TabsTrigger>
-              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0">Wypłaty</TabsTrigger>
-              <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0">Finanse</TabsTrigger>
-              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0">Narzędzia</TabsTrigger>
+              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">BHP</TabsTrigger>
+              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Wypłaty</TabsTrigger>
+              <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Finanse</TabsTrigger>
+              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Narzędzia</TabsTrigger>
             </TabsList>
           </div>
 
-          {/* Sites Tab */}
-          <TabsContent value="sites" className="space-y-4 bg-[#1E293B]">
+          {/* Tabs Content Sections */}
+          <div className="bg-[#0B1120] rounded-lg">
+            <TabsContent value="sites" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <SitesTab
                 sites={sites}
@@ -498,7 +501,7 @@ export const AdminDashboard = () => {
           </TabsContent>
 
           {/* Foremen Tab */}
-          <TabsContent value="foremen" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="foremen" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <ForemenTab
                 foremen={foremen}
@@ -512,7 +515,7 @@ export const AdminDashboard = () => {
           </TabsContent>
 
           {/* Requests Tab */}
-          <TabsContent value="requests" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="requests" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <RequestsTab
                 requests={requests}
@@ -529,56 +532,56 @@ export const AdminDashboard = () => {
           </TabsContent>
 
           {/* Equipment Tab */}
-          <TabsContent value="equipment" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="equipment" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <EquipmentAdmin category="electronics" title="Elektronarzędzia" />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="accessories" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="accessories" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <EquipmentAdmin category="accessories" title="Akcesoria" />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="formwork" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="formwork" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <EquipmentAdmin category="formwork" title="Szalunki" />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="warehouse" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="warehouse" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <WarehouseAdmin />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="clothing" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="clothing" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <ClothingAdmin />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="bhp" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="bhp" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <BhpAdmin />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="payroll" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="payroll" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <PayrollAdmin />
             </Suspense>
           </TabsContent>
 
-          <TabsContent value="finance" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="finance" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <Finance />
             </Suspense>
           </TabsContent>
 
           {/* Tools Tab */}
-          <TabsContent value="tools" className="space-y-4 bg-[#1E293B]">
+          <TabsContent value="tools" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <ToolsTab
                 syncing={syncing}
