@@ -168,6 +168,170 @@ export const STRINGS = {
   'inv.shortage_description': { pl: 'Krótki opis (np. zostawione w aucie)', uk: 'Короткий опис (напр. залишено в авто)' },
   'inv.shortage_photo': { pl: 'Zdjecie (opcjonalnie)', uk: 'Фото (необов\'язково)' },
   'inv.shortage_submit': { pl: 'Zglos brak', uk: 'Повідомити про нестачу' },
+  'inv.error_fetch': { pl: 'Nie udało się pobrać inwentaryzacji', uk: 'Не вдалося завантажити інвентаризацію' },
+  'inv.error_qty_invalid': { pl: 'Podaj prawidłową ilość', uk: 'Введіть правильну кількість' },
+  'inv.error_qty_too_high': { pl: 'Ilość nie może być większa niż przypisana', uk: 'Кількість не може бути більшою за призначену' },
+  'inv.error_confirm_required': { pl: 'Jeśli masz pełną ilość, zaznacz checkbox potwierdzenia', uk: 'Якщо у вас повна кількість, позначте чекбокс підтвердження' },
+  'inv.error_select_all': { pl: 'Zaznacz wszystkie pozycje (potwierdź lub zgłoś brak).', uk: 'Позначте всі позиції (підтвердіть або повідомте про нестачу).' },
+  'inv.equipment': { pl: 'Sprzęt', uk: 'Інструменти' },
+
+  // ============== Public hours - dodatkowe ==============
+  'public.error_select_days': { pl: 'Zaznacz dni nieobecności', uk: 'Виберіть дні відсутності' },
+  'public.details': { pl: 'Szczegóły', uk: 'Деталі' },
+  'public.absence_btn': { pl: 'Nie będę w pracy', uk: 'Не буду на роботі' },
+
+  // ============== Worker entry (logowanie pracownika) ==============
+  'worker.enter_name': { pl: 'Podaj swoje imię i nazwisko', uk: 'Введіть ім\'я та прізвище' },
+  'worker.first_name': { pl: 'Imię', uk: 'Ім\'я' },
+  'worker.last_name': { pl: 'Nazwisko', uk: 'Прізвище' },
+
+  // ============== Clothing order public - dodatkowe ==============
+  'clothing_pub.complete': { pl: 'Uzupełnij', uk: 'Заповніть' },
+  'clothing_pub.ordered_waiting': { pl: 'Zamówione (czekają na realizację)', uk: 'Замовлені (очікують на виконання)' },
+
+  // ============== Equipment foreman - dodatkowe ==============
+  'eq.error_fetch_history': { pl: 'Błąd pobierania historii', uk: 'Помилка завантаження історії' },
+  'eq.error_qty_range': { pl: 'Ilość musi być 1-{max}', uk: 'Кількість має бути 1-{max}' },
+  'eq.loading_equipment': { pl: 'Wczytywanie sprzętu...', uk: 'Завантаження інструментів...' },
+  'eq.no_equipment': { pl: 'Nie masz przypisanego sprzętu.', uk: 'У вас немає призначених інструментів.' },
+  'eq.qty': { pl: 'Ilość', uk: 'Кількість' },
+  'eq.qty_required': { pl: 'Ilość *', uk: 'Кількість *' },
+  'eq.transfer_to_label': { pl: 'Komu przekazujesz', uk: 'Кому передаєте' },
+  'eq.report_defect_title': { pl: 'Zgłoś usterkę', uk: 'Повідомити про несправність' },
+  'eq.defect_description': { pl: 'Opis usterki', uk: 'Опис несправності' },
+  'eq.return_to_warehouse': { pl: 'Zwrot do magazynu', uk: 'Повернення на склад' },
+
+  // ============== Warehouse foreman ==============
+  'wh.error_fetch': { pl: 'Błąd pobierania', uk: 'Помилка завантаження' },
+  'wh.order_sent': { pl: 'Zamówienie wysłane do administratora', uk: 'Замовлення надіслано адміністратору' },
+  'wh.loading': { pl: 'Ładowanie magazynu...', uk: 'Завантаження складу...' },
+  'wh.empty': { pl: 'Magazyn jest pusty - poproś admina o dodanie materiałów.', uk: 'Склад порожній - попросіть адміністратора додати матеріали.' },
+  'wh.order_supply': { pl: '(zamów dostawę)', uk: '(замовити постачання)' },
+  'wh.for_site_optional': { pl: '(opcjonalnie - na którą budowę)', uk: '(необов\'язково - на який об\'єкт)' },
+  'wh.no_orders_yet': { pl: 'Jeszcze nic nie zamówiłeś.', uk: 'Ви ще нічого не замовляли.' },
+
+  // ============== Warehouse login (magazynier) ==============
+  'wh_login.error_creds': { pl: 'Podaj nazwę użytkownika i hasło', uk: 'Введіть ім\'я користувача та пароль' },
+  'wh_login.username': { pl: 'Nazwa użytkownika', uk: 'Ім\'я користувача' },
+  'wh_login.password': { pl: 'Hasło', uk: 'Пароль' },
+
+  // ============== Public push button ==============
+  'push.error_prefix': { pl: 'Błąd: ', uk: 'Помилка: ' },
+
+  // ============== Worker dashboard ==============
+  'worker_dash.loading_equipment': { pl: 'Ładowanie sprzętu...', uk: 'Завантаження інструментів...' },
+  'worker_dash.hours_range_error': { pl: 'Godziny muszą być między 0 a 14', uk: 'Години мають бути від 0 до 14' },
+  'worker_dash.my_electronics': { pl: 'Moje elektronarzędzia', uk: 'Мої електроінструменти' },
+  'worker_dash.can_edit': { pl: 'Możesz edytować:', uk: 'Можете редагувати:' },
+
+  // ============== Locations ==============
+  'loc.error_fetch': { pl: 'Błąd pobierania lokalizacji', uk: 'Помилка завантаження локацій' },
+
+  // ============== Clothing public - rozszerzenie ==============
+  'clothing.my_sizes': { pl: 'Moje wymiary', uk: 'Мої розміри' },
+  'clothing.shoe_size': { pl: 'Rozmiar buta', uk: 'Розмір взуття' },
+  'clothing.height_cm': { pl: 'Wzrost (cm)', uk: 'Зріст (см)' },
+  'clothing.body_type': { pl: 'Sylwetka', uk: 'Тип статури' },
+  'clothing.pants_size': { pl: 'Rozmiar spodni', uk: 'Розмір штанів' },
+  'clothing.jacket_size': { pl: 'Rozmiar kurtki', uk: 'Розмір куртки' },
+  'clothing.waist_cm': { pl: 'Obwód w pasie (cm)', uk: 'Обхват талії (см)' },
+  'clothing.sizes_saved': { pl: 'Wymiary zapisane', uk: 'Розміри збережено' },
+  'clothing.order_sent': { pl: 'Zamówienie wysłane', uk: 'Замовлення надіслано' },
+  'clothing.ordered_waiting': { pl: 'Zamówione (czekają na realizację)', uk: 'Замовлені (очікують на виконання)' },
+  'clothing.delivered': { pl: 'Dostarczone', uk: 'Доставлено' },
+  'clothing.preview_alt': { pl: 'Podgląd', uk: 'Перегляд' },
+
+  // ============== Worker dashboard rozszerzenie ==============
+  'worker_dash.loading_eq': { pl: 'Ładowanie sprzętu...', uk: 'Завантаження інструментів...' },
+  'worker_dash.hours_range': { pl: 'Godziny muszą być między 0 a 14', uk: 'Години мають бути від 0 до 14' },
+  'worker_dash.electronics': { pl: 'Moje elektronarzędzia', uk: 'Мої електроінструменти' },
+  'worker_dash.editable': { pl: 'Możesz edytować:', uk: 'Можете редагувати:' },
+
+  // ============== Warehouse foreman rozszerzenie ==============
+  'wh.title': { pl: 'Magazyn', uk: 'Склад' },
+  'wh.available_items': { pl: 'Dostępne pozycje', uk: 'Доступні позиції' },
+  'wh.my_orders': { pl: 'Moje zamówienia', uk: 'Мої замовлення' },
+  'wh.qty_needed': { pl: 'Ilość', uk: 'Кількість' },
+  'wh.note_optional': { pl: 'Uwagi (opcjonalnie)', uk: 'Примітки (необов\'язково)' },
+  'wh.order': { pl: 'Zamów', uk: 'Замовити' },
+  'wh.no_stock': { pl: 'Brak na stanie', uk: 'Немає в наявності' },
+
+  // ============== Common (jeśli brak) ==============
+  'common.loading_dots': { pl: 'Ładowanie...', uk: 'Завантаження...' },
+  'common.welcome': { pl: 'Witaj', uk: 'Вітаємо' },
+  'common.cancel': { pl: 'Anuluj', uk: 'Скасувати' },
+  'common.name': { pl: 'Nazwa', uk: 'Назва' },
+  'common.brand': { pl: 'Marka', uk: 'Бренд' },
+  'common.total': { pl: 'Razem', uk: 'Всього' },
+  'common.actions': { pl: 'Akcje', uk: 'Дії' },
+  'common.all': { pl: 'Wszystkie', uk: 'Всі' },
+  'common.today': { pl: 'Dzisiaj', uk: 'Сьогодні' },
+  'common.yesterday': { pl: 'Wczoraj', uk: 'Вчора' },
+  'common.error': { pl: 'Błąd', uk: 'Помилка' },
+  'common.no_location_set': { pl: 'Brak ustawionej lokalizacji', uk: 'Локацію не встановлено' },
+  'common.legend': { pl: 'Legenda', uk: 'Легенда' },
+  'common.weekend': { pl: 'Sobota/Niedziela', uk: 'Субота/Неділя' },
+  'common.holiday': { pl: 'Święto ustawowe', uk: 'Державне свято' },
+  // Warehouse
+  'login.submit': { pl: 'Zaloguj się', uk: 'Увійти' },
+  'login.error_generic': { pl: 'Błąd logowania', uk: 'Помилка входу' },
+  'wh_login.title': { pl: 'Magazynier', uk: 'Комірник' },
+  'wh_login.subtitle': { pl: 'Logowanie do panelu magazyniera', uk: 'Вхід до панелі комірника' },
+  // Warehouse foreman
+  'wh.loading_dots': { pl: 'Ładowanie magazynu...', uk: 'Завантаження складу...' },
+  'wh.empty_admin_add': { pl: 'Magazyn jest pusty - poproś admina o dodanie materiałów.', uk: 'Склад порожній - попросіть адміністратора додати матеріали.' },
+  'wh.no_orders_yet2': { pl: 'Jeszcze nic nie zamówiłeś.', uk: 'Ви ще нічого не замовляли.' },
+  'wh.fetch_error': { pl: 'Błąd pobierania', uk: 'Помилка завантаження' },
+  'wh.order_sent_admin': { pl: 'Zamówienie wysłane do administratora', uk: 'Замовлення надіслано адміністратору' },
+  // Inventory
+  'inv.fetch_error': { pl: 'Nie udało się pobrać inwentaryzacji', uk: 'Не вдалося завантажити інвентаризацію' },
+  'inv.qty_invalid': { pl: 'Podaj prawidłową ilość', uk: 'Введіть правильну кількість' },
+  'inv.qty_too_high': { pl: 'Ilość nie może być większa niż przypisana', uk: 'Кількість не може бути більшою за призначену' },
+  'inv.confirm_required': { pl: 'Jeśli masz pełną ilość, zaznacz checkbox potwierdzenia', uk: 'Якщо у вас повна кількість, позначте чекбокс підтвердження' },
+  'inv.select_all_items': { pl: 'Zaznacz wszystkie pozycje (potwierdź lub zgłoś brak).', uk: 'Позначте всі позиції (підтвердіть або повідомте про нестачу).' },
+  'inv.missing_or_less': { pl: 'Brak / Mam mniej', uk: 'Немає / Маю менше' },
+  'inv.equipment_label': { pl: 'Sprzęt', uk: 'Інструменти' },
+  'inv.description_optional': { pl: 'Opis (opcjonalnie)', uk: 'Опис (необов\'язково)' },
+  'inv.photo_optional': { pl: 'Zdjęcie (opcjonalnie)', uk: 'Фото (необов\'язково)' },
+  // Equipment foreman
+  'eq.fetch_history_error': { pl: 'Błąd pobierania historii', uk: 'Помилка завантаження історії' },
+  'eq.qty_range_x': { pl: 'Ilość musi być 1-{n}', uk: 'Кількість має бути 1-{n}' },
+  'eq.loading_dots': { pl: 'Wczytywanie sprzętu...', uk: 'Завантаження інструментів...' },
+  'eq.no_assigned': { pl: 'Nie masz przypisanego sprzętu.', uk: 'У вас немає призначених інструментів.' },
+  'eq.transfer': { pl: 'Przekaż', uk: 'Передати' },
+  'eq.return_warehouse': { pl: 'Zwrot do magazynu', uk: 'Повернення на склад' },
+  'eq.defect_short': { pl: 'Usterka', uk: 'Несправність' },
+  'eq.foreman_required': { pl: 'Brygadzista *', uk: 'Бригадир *' },
+  'eq.qty_required': { pl: 'Ilość *', uk: 'Кількість *' },
+  'eq.qty_to_return': { pl: 'Ilość do zwrotu *', uk: 'Кількість до повернення *' },
+  'eq.qty_pcs': { pl: 'Ilość szt.', uk: 'Кількість шт.' },
+  'eq.defect_description': { pl: 'Opis usterki', uk: 'Опис несправності' },
+  'eq.photo_2mb': { pl: 'Zdjęcie (opcjonalnie, max 2MB)', uk: 'Фото (необов\'язково, до 2МБ)' },
+  'eq.history_title': { pl: 'Moja historia sprzętu', uk: 'Моя історія інструментів' },
+  'eq.transfers': { pl: 'Przekazania', uk: 'Передачі' },
+  'eq.no_transfers': { pl: 'Brak przekazań.', uk: 'Немає передач.' },
+  'eq.sent_to': { pl: 'Wysłane do', uk: 'Надіслано до' },
+  'eq.returns_defects': { pl: 'Zwroty i usterki', uk: 'Повернення та несправності' },
+  'eq.no_eq': { pl: 'Brak sprzętu.', uk: 'Немає інструментів.' },
+  'eq.in_repair': { pl: 'Naprawa', uk: 'Ремонт' },
+  'eq.in_warehouse': { pl: 'Magazyn', uk: 'Склад' },
+  'eq.who_has': { pl: 'Kto posiada', uk: 'У кого' },
+  // Worker dashboard
+  'worker_dash.loading_eq_dots': { pl: 'Ładowanie sprzętu...', uk: 'Завантаження інструментів...' },
+  'worker_dash.hours_range_err': { pl: 'Godziny muszą być między 0 a 14', uk: 'Години мають бути від 0 до 14' },
+  'worker_dash.can_edit_label': { pl: 'Możesz edytować:', uk: 'Можете редагувати:' },
+  'worker_dash.hours_label': { pl: 'Godziny:', uk: 'Години:' },
+  'worker_dash.select_workers': { pl: 'Zaznacz pracowników poniżej:', uk: 'Позначте працівників нижче:' },
+  'worker_dash.no_assigned_workers': { pl: 'Brak przypisanych pracowników', uk: 'Немає призначених працівників' },
+  'worker_dash.admin_must_assign': { pl: 'Administrator musi przypisać pracowników do Twoich budów', uk: 'Адміністратор повинен призначити працівників до ваших об\'єктів' },
+  'worker_dash.hours_1_14': { pl: 'Godziny (1-14)', uk: 'Години (1-14)' },
+  'worker_dash.reason_optional': { pl: 'Powód (opcjonalnie)', uk: 'Причина (необов\'язково)' },
+  // Locations
+  'loc.fetch_error': { pl: 'Błąd pobierania lokalizacji', uk: 'Помилка завантаження локацій' },
+  'loc.site': { pl: 'Budowa', uk: 'Об\'єкт' },
+  'loc.shop': { pl: 'Sklep', uk: 'Магазин' },
+  'loc.warehouse_label': { pl: 'Magazyn', uk: 'Склад' },
+  'loc.no_matching': { pl: 'Brak pasujących lokalizacji.', uk: 'Немає відповідних локацій.' },
 };
 
 export const SUPPORTED_LANGS = [

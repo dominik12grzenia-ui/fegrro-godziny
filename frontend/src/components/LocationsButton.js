@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { MapPin, Navigation, Copy, X, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const CATEGORY_LABEL = {
   budowa: 'Budowa',
@@ -31,6 +32,7 @@ const buildMapsLink = (site) => {
 };
 
 export const LocationsButton = () => {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [sites, setSites] = useState([]);
   const [filter, setFilter] = useState('');
@@ -43,7 +45,7 @@ export const LocationsButton = () => {
     api
       .get('/sites?active_only=true')
       .then((r) => setSites(r.data || []))
-      .catch(() => toast.error('Błąd pobierania lokalizacji'))
+      .catch(() => toast.error(t('loc.fetch_error')))
       .finally(() => setLoading(false));
   }, [open]);
 
@@ -128,18 +130,18 @@ export const LocationsButton = () => {
                   className="bg-[#1E293B] border border-[#334155] text-[#CBD5E1] rounded px-3 py-2 text-sm"
                   data-testid="locations-category-filter"
                 >
-                  <option value="all">Wszystkie</option>
-                  <option value="budowa">Budowa</option>
-                  <option value="sklep">Sklep</option>
-                  <option value="magazyn">Magazyn</option>
+                  <option value="all">{t('common.all')}</option>
+                  <option value="budowa">{t('loc.site')}</option>
+                  <option value="sklep">{t('loc.shop')}</option>
+                  <option value="magazyn">{t('loc.warehouse_label')}</option>
                   <option value="inne">Inne</option>
                 </select>
               </div>
 
-              {loading && <p className="text-[#94A3B8] text-center py-4">Wczytywanie...</p>}
+              {loading && <p className="text-[#94A3B8] text-center py-4">{t('common.loading_dots')}</p>}
 
               {!loading && filtered.length === 0 && (
-                <p className="text-[#94A3B8] text-center py-6">Brak pasujacych lokalizacji.</p>
+                <p className="text-[#94A3B8] text-center py-6">{t('loc.no_matching')}</p>
               )}
 
               <div className="space-y-2" data-testid="locations-list">
@@ -165,7 +167,7 @@ export const LocationsButton = () => {
                           <p className="text-xs text-[#94A3B8] mt-1 truncate">{site.google_maps_url}</p>
                         )}
                         {!site.location_lat && !site.address && (
-                          <p className="text-xs text-[#E8836A] mt-1">Brak ustawionej lokalizacji</p>
+                          <p className="text-xs text-[#E8836A] mt-1">{t('common.no_location_set')}</p>
                         )}
                       </div>
                       <div className="flex flex-col gap-1 shrink-0">

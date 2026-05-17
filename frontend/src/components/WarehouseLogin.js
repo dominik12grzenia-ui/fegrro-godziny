@@ -6,17 +6,19 @@ import { Button } from './ui/button';
 import { Warehouse, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
+import { useLanguage } from '../i18n/LanguageContext';
+import { LanguageToggle } from './LanguageToggle';
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
 export default function WarehouseLogin() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    // If already logged-in as warehouse, jump straight to dashboard
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('user_role');
     if (token && role === 'warehouse') {
@@ -27,7 +29,7 @@ export default function WarehouseLogin() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!fullName.trim() || !password) {
-      toast.error('Podaj nazwe użytkownika i hasło');
+      toast.error(t('wh_login.error_creds'));
       return;
     }
     setBusy(true);
@@ -41,29 +43,30 @@ export default function WarehouseLogin() {
       localStorage.setItem('user_id', user_id);
       localStorage.setItem('user_name', full_name);
       localStorage.setItem('user_role', role);
-      toast.success(`Witaj, ${full_name}`);
+      toast.success(`${t('common.welcome') || 'Witaj'}, ${full_name}`);
       navigate('/magazynier/dashboard', { replace: true });
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Błąd logowania');
+      toast.error(err.response?.data?.detail || t('login.error_generic') || 'Błąd');
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0F172A] flex items-center justify-center p-4 relative">
+      <div className="absolute top-4 right-4"><LanguageToggle /></div>
       <Card className="w-full max-w-md bg-[#1E293B] border-[#334155]" data-testid="warehouse-login-card">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-[#E8B76A]/20 flex items-center justify-center">
             <Warehouse className="h-8 w-8 text-[#E8B76A]" />
           </div>
-          <CardTitle className="text-[#E8B76A] text-2xl font-bold">FeGrro - Magazynier</CardTitle>
-          <p className="text-sm text-[#94A3B8] mt-1">Logowanie do panelu magazyniera</p>
+          <CardTitle className="text-[#E8B76A] text-2xl font-bold">FeGrro - {t('wh_login.title') || 'Magazynier'}</CardTitle>
+          <p className="text-sm text-[#94A3B8] mt-1">{t('wh_login.subtitle') || 'Logowanie'}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa użytkownika</label>
+              <label className="text-xs text-[#94A3B8] mb-1 block">{t('wh_login.username')}</label>
               <Input
                 type="text"
                 value={fullName}
@@ -75,12 +78,12 @@ export default function WarehouseLogin() {
               />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Hasło</label>
+              <label className="text-xs text-[#94A3B8] mb-1 block">{t('wh_login.password')}</label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Hasło"
+                placeholder={t('wh_login.password')}
                 className="bg-[#0F172A] border-[#334155] text-[#CBD5E1] placeholder:text-[#475569]"
                 data-testid="warehouse-login-password"
                 autoComplete="current-password"
@@ -93,7 +96,7 @@ export default function WarehouseLogin() {
               data-testid="warehouse-login-submit"
             >
               <LogIn className="h-4 w-4 mr-2" />
-              {busy ? 'Logowanie...' : 'Zaloguj sie'}
+              {busy ? t('common.loading_dots') : t('login.submit')}
             </Button>
           </form>
         </CardContent>

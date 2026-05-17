@@ -22,7 +22,7 @@ const equipmentForemanImport = () => import('./EquipmentForeman').then((m) => ({
 const warehouseForemanImport = () => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman }));
 const EquipmentForeman = lazy(equipmentForemanImport);
 const WarehouseForeman = lazy(warehouseForemanImport);
-const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie sprzętu...</div>;
+const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">{t('worker_dash.loading_eq_dots')}</div>;
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#4A5A41', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
@@ -265,7 +265,7 @@ export const WorkerDashboard = () => {
     }
     
     if (hours < 0 || hours > 14) {
-      toast.error('Godziny musza być miedzy 0 a 14');
+      toast.error(t('worker_dash.hours_range_err'));
       setEditingCell(null);
       return;
     }
@@ -615,9 +615,9 @@ export const WorkerDashboard = () => {
 
         {/* Info bar */}
         <div className="mb-4 p-3 bg-[#2A384C] rounded-lg border border-[#334155] flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-[#94A3B8]">Mozesz edytować:</span>
-          <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">Dzisiaj</span>
-          <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">Wczoraj</span>
+          <span className="text-[#94A3B8]">{t('worker_dash.can_edit_label')}</span>
+          <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">{t('common.today')}</span>
+          <span className="px-2 py-1 bg-[#5F7151]/30 text-[#6B8E4E] rounded font-semibold">{t('common.yesterday')}</span>
           <span className="text-[#64748B]">| Inne dni → wyslij prosbe</span>
         </div>
 
@@ -635,7 +635,7 @@ export const WorkerDashboard = () => {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[#CBD5E1] font-semibold text-sm">Godziny:</span>
+                <span className="text-[#CBD5E1] font-semibold text-sm">{t('worker_dash.hours_label')}</span>
                 <Input
                   type="number"
                   min="0"
@@ -647,7 +647,7 @@ export const WorkerDashboard = () => {
                   data-testid="bulk-hours-input"
                   autoFocus
                 />
-                <span className="text-[#94A3B8] text-sm">Zaznacz pracownikow ponizej:</span>
+                <span className="text-[#94A3B8] text-sm">{t('worker_dash.select_workers')}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {employees.map(emp => {
@@ -857,15 +857,15 @@ export const WorkerDashboard = () => {
 
             {/* Legend */}
             <div className="p-4 border-t border-[#334155]">
-              <p className="text-xs font-semibold mb-2 text-[#CBD5E1]">Legenda:</p>
+              <p className="text-xs font-semibold mb-2 text-[#CBD5E1]">{t('common.legend')}:</p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: WEEKEND_BG }} />
-                  <span className="text-[#94A3B8]">Sobota/Niedziela</span>
+                  <span className="text-[#94A3B8]">{t('common.weekend')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm border-2 border-[#DC2626]" style={{ backgroundColor: WEEKEND_BG }} />
-                  <span className="text-[#94A3B8]">Swieto ustawowe</span>
+                  <span className="text-[#94A3B8]">{t('common.holiday')}</span>
                 </div>
                 {mySites.map((site) => {
                   const siteIdx = sites.findIndex(s => s.id === site.id);
@@ -888,8 +888,8 @@ export const WorkerDashboard = () => {
           <Card className="bg-[#2A384C] border-[#334155] mt-4">
             <CardContent className="pt-6 text-center">
               <AlertCircle className="h-12 w-12 text-[#5F7151] mx-auto mb-3" />
-              <p className="text-[#CBD5E1] font-semibold">Brak przypisanych pracownikow</p>
-              <p className="text-[#94A3B8] text-sm mt-1">Administrator musi przypisac pracownikow do Twoich budow</p>
+              <p className="text-[#CBD5E1] font-semibold">{t('worker_dash.no_assigned_workers')}</p>
+              <p className="text-[#94A3B8] text-sm mt-1">{t('worker_dash.admin_must_assign')}</p>
             </CardContent>
           </Card>
         )}
@@ -910,7 +910,7 @@ export const WorkerDashboard = () => {
                 Data: <span className="text-[#CBD5E1] font-semibold">{requestModal.date}</span>
               </p>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">Godziny (1-14)</label>
+                <label className="text-sm text-[#CBD5E1] block mb-1">{t('worker_dash.hours_1_14')}</label>
                 <Input
                   type="number"
                   min="1"
@@ -923,7 +923,7 @@ export const WorkerDashboard = () => {
                 />
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">Powod (opcjonalnie)</label>
+                <label className="text-sm text-[#CBD5E1] block mb-1">{t('worker_dash.reason_optional')}</label>
                 <Input
                   value={requestReason}
                   onChange={e => setRequestReason(e.target.value)}

@@ -135,7 +135,7 @@ export const PublicHours = () => {
 
   const handleSubmitAbsence = async () => {
     if (selectedAbsenceDates.size === 0) {
-      toast.error('Zaznacz dni nieobecności');
+      toast.error(t('public.error_select_days'));
       return;
     }
     setAbsenceSaving(true);
@@ -323,7 +323,7 @@ export const PublicHours = () => {
         {/* Day list */}
         <Card className="bg-[#2A384C] border-[#334155]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[#CBD5E1] text-base">Szczegóły</CardTitle>
+            <CardTitle className="text-[#CBD5E1] text-base">{t('public.details')}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y divide-[#334155]">
@@ -504,7 +504,7 @@ export const PublicHours = () => {
                 data-testid="absence-start-btn"
               >
                 <CalendarOff className="h-4 w-4" />
-                <span>Nie będę w pracy / Не буду на роботi</span>
+                <span>{t('public.absence_btn')}</span>
               </Button>
             ) : (
               <div className="space-y-3">

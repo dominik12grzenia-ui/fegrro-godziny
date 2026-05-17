@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon, Warehouse } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '../i18n/LanguageContext';
 import { EquipmentCatalog } from './EquipmentCatalog';
 
 const fileToBase64 = (file) =>
@@ -23,6 +24,7 @@ const ACTION_LABELS = {
 };
 
 export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elektronarzędzia' }) => {
+  const { t } = useLanguage();
   const [myEquipment, setMyEquipment] = useState([]);
   const [foremen, setForemen] = useState([]);
   const [pendingTransfers, setPendingTransfers] = useState([]);
@@ -126,7 +128,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setHistoryData(r.data);
       setHistoryModal(true);
     } catch (err) {
-      toast.error('Błąd pobierania historii');
+      toast.error(t('eq.fetch_history_error'));
     }
   };
 
@@ -137,7 +139,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       return;
     }
     if (Number.isNaN(qty) || qty <= 0 || qty > transferModal.quantity) {
-      toast.error(`Ilość musi być 1-${transferModal.quantity}`);
+      toast.error(t('eq.qty_range_x').replace('{n}', transferModal.quantity));
       return;
     }
     try {
@@ -179,7 +181,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const handleDefect = async () => {
     const qty = parseInt(defectQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > defectModal.quantity) {
-      toast.error(`Ilość musi być 1-${defectModal.quantity}`);
+      toast.error(t('eq.qty_range_x').replace('{n}', defectModal.quantity));
       return;
     }
     try {
@@ -203,7 +205,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const handleReturn = async () => {
     const qty = parseInt(returnQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > returnModal.quantity) {
-      toast.error(`Ilość musi być 1-${returnModal.quantity}`);
+      toast.error(t('eq.qty_range_x').replace('{n}', returnModal.quantity));
       return;
     }
     try {
@@ -242,7 +244,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   };
 
   if (loading) {
-    return <div className="text-[#94A3B8] text-sm">Wczytywanie sprzętu...</div>;
+    return <div className="text-[#94A3B8] text-sm">{t('eq.loading_dots')}</div>;
   }
 
   // BLOCKING modal: if there are pending transfers, force foreman to respond before doing anything else
@@ -381,7 +383,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         </CardHeader>
         <CardContent>
           {myEquipment.length === 0 ? (
-            <p className="text-[#94A3B8] text-sm">Nie masz przypisanego sprzętu.</p>
+            <p className="text-[#94A3B8] text-sm">{t('eq.no_assigned')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
@@ -426,7 +428,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                             className="bg-[#5F7151] hover:bg-[#4A5A41] text-white text-xs h-7 px-2"
                             data-testid={`transfer-btn-${eq.id}`}
                           >
-                            <Send className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Przekaz</span>
+                            <Send className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.transfer')}</span>
                           </Button>
                           <Button
                             size="sm"
@@ -438,7 +440,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                             className="text-[#5F7151] hover:bg-[#334155] text-xs h-7 px-2"
                             data-testid={`return-btn-${eq.id}`}
                           >
-                            <Undo2 className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Zwrot do magazynu</span>
+                            <Undo2 className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.return_warehouse')}</span>
                           </Button>
                           <Button
                             size="sm"
@@ -450,7 +452,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                             className="text-[#E8836A] hover:bg-[#334155] text-xs h-7 px-2"
                             data-testid={`defect-btn-${eq.id}`}
                           >
-                            <AlertTriangle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">Usterka</span>
+                            <AlertTriangle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.defect_short')}</span>
                           </Button>
                         </div>
                       </td>
@@ -481,7 +483,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 Posiadasz: <span className="text-[#CBD5E1] font-semibold">{transferModal.quantity} szt.</span>
               </p>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Brygadzista *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.foreman_required')}</label>
                 <select
                   value={transferTo}
                   onChange={(e) => setTransferTo(e.target.value)}
@@ -495,7 +497,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 </select>
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_required')}</label>
                 <Input
                   type="number"
                   min="1"
@@ -539,7 +541,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 Posiadasz: <span className="text-[#CBD5E1] font-semibold">{returnModal.quantity} szt.</span>
               </p>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość do zwrotu *</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_to_return')}</label>
                 <Input
                   type="number"
                   min="1"
@@ -577,7 +579,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość szt.</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_pcs')}</label>
                 <Input
                   type="number"
                   min="1"
@@ -589,7 +591,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Opis usterki</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.defect_description')}</label>
                 <textarea
                   value={defectDesc}
                   onChange={(e) => setDefectDesc(e.target.value)}
@@ -599,7 +601,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">Zdjecie (opcjonalnie, max 2MB)</label>
+                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.photo_2mb')}</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -630,7 +632,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <Card className="bg-[#2A384C] border-[#334155] w-full max-w-2xl max-h-[80vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">Moja historia sprzętu</CardTitle>
+              <CardTitle className="text-[#CBD5E1]">{t('eq.history_title')}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setHistoryModal(false)}>
                 <X className="h-4 w-4" />
               </Button>
@@ -638,9 +640,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             <CardContent className="overflow-y-auto space-y-3">
               {/* Transfers */}
               <div>
-                <h4 className="text-[#5F7151] font-bold text-sm mb-2">Przekazania</h4>
+                <h4 className="text-[#5F7151] font-bold text-sm mb-2">{t('eq.transfers')}</h4>
                 {historyData.transfers.length === 0 ? (
-                  <p className="text-[#94A3B8] text-xs">Brak przekazan.</p>
+                  <p className="text-[#94A3B8] text-xs">{t('eq.no_transfers')}</p>
                 ) : (
                   <div className="space-y-1" data-testid="my-history-transfers">
                     {historyData.transfers.map((t) => {
@@ -674,7 +676,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               {/* Other events */}
               {historyData.events.length > 0 && (
                 <div>
-                  <h4 className="text-[#5F7151] font-bold text-sm mb-2 mt-3">Zwroty i usterki</h4>
+                  <h4 className="text-[#5F7151] font-bold text-sm mb-2 mt-3">{t('eq.returns_defects')}</h4>
                   <div className="space-y-1">
                     {historyData.events.map((e) => (
                       <div key={e.id} className="text-xs p-2 bg-[#1E293B] rounded border border-[#334155]">
@@ -713,7 +715,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardHeader>
             <CardContent className="overflow-y-auto">
               {allEquipment.length === 0 ? (
-                <p className="text-[#94A3B8] text-sm">Brak sprzętu.</p>
+                <p className="text-[#94A3B8] text-sm">{t('eq.no_eq')}</p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse text-xs" data-testid="warehouse-overview-table">
@@ -722,9 +724,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                         <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Nazwa</th>
                         <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Marka</th>
                         <th className="border border-[#334155] p-2 text-center text-[#CBD5E1]">Razem</th>
-                        <th className="border border-[#334155] p-2 text-center text-[#E8836A]">Naprawa</th>
+                        <th className="border border-[#334155] p-2 text-center text-[#E8836A]">{t('eq.in_repair')}</th>
                         <th className="border border-[#334155] p-2 text-center text-[#5F7151]">Magazyn</th>
-                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">Kto posiada</th>
+                        <th className="border border-[#334155] p-2 text-left text-[#CBD5E1]">{t('eq.who_has')}</th>
                       </tr>
                     </thead>
                     <tbody>

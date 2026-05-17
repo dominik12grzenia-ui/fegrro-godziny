@@ -4,6 +4,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { ClipboardCheck, AlertTriangle, AlertCircle, Camera, X } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const CATEGORY_LABELS = {
   electronics: 'Elektronarzędzia',
@@ -25,6 +26,7 @@ const fileToBase64 = (file) =>
  * able to use the rest of the app.
  */
 export const InventoryCheckModal = ({ onAllConfirmed }) => {
+  const { t } = useLanguage();
   const [checks, setChecks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [confirmedItems, setConfirmedItems] = useState({}); // {check_id: Set(eq_id)}
@@ -43,7 +45,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
     } catch (e) {
       const status = e?.response?.status;
       if (status && status !== 404) {
-        toast.error('Nie udalo sie pobrać inwentaryzacji');
+        toast.error(t('inv.fetch_error'));
       }
     } finally {
       setLoading(false);
@@ -107,16 +109,16 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
     if (!shortageModal) return;
     const qty = parseInt(shortageQty, 10);
     if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Podaj prawidlowa ilość');
+      toast.error(t('inv.qty_invalid'));
       return;
     }
     const expected = shortageModal.equipment.assigned_quantity || 0;
     if (qty > expected) {
-      toast.error('Ilość nie moze być większa niz przypisana');
+      toast.error(t('inv.qty_too_high'));
       return;
     }
     if (qty === expected) {
-      toast.error('Jesli masz pełna ilość, zaznacz checkbox potwierdzenia');
+      toast.error(t('inv.confirm_required'));
       return;
     }
     setShortageSubmitting(true);
@@ -144,7 +146,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
 
   const handleConfirm = async (check) => {
     if (!allMarked(check)) {
-      toast.error('Zaznacz wszystkie pozycje (potwierdź lub zglos brak).');
+      toast.error(t('inv.select_all_items'));
       return;
     }
     setSubmitting(true);
@@ -187,7 +189,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 Wymagana inwentaryzacja: {CATEGORY_LABELS[check.category] || check.category}
               </h2>
               <p className="text-sm text-[#94A3B8] mt-1">
-                Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#E8B76A]">Brak / Mam mniej</b> aby zglosic niezgodność.
+                Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#E8B76A]">{t('inv.missing_or_less')}</b> aby zglosic niezgodność.
               </p>
               {checks.length > 1 && (
                 <p className="text-xs text-[#E8B76A] mt-1">
@@ -322,7 +324,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <div className="text-sm text-[#94A3B8]">Sprzęt</div>
+                <div className="text-sm text-[#94A3B8]">{t('inv.equipment_label')}</div>
                 <div className="text-[#CBD5E1] font-semibold">{shortageModal.equipment.name}</div>
                 {shortageModal.equipment.brand && (
                   <div className="text-xs text-[#94A3B8]">{shortageModal.equipment.brand}</div>
@@ -349,7 +351,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 </p>
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">Opis (opcjonalnie)</label>
+                <label className="text-sm text-[#CBD5E1] block mb-1">{t('inv.description_optional')}</label>
                 <textarea
                   value={shortageDesc}
                   onChange={(e) => setShortageDesc(e.target.value)}
@@ -360,7 +362,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                 />
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">Zdjecie (opcjonalnie)</label>
+                <label className="text-sm text-[#CBD5E1] block mb-1">{t('inv.photo_optional')}</label>
                 <label
                   htmlFor="shortage-photo-input"
                   className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-[#1E293B] border border-[#334155] rounded text-sm text-[#CBD5E1] hover:border-[#5F7151] w-fit"

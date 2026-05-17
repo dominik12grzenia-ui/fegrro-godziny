@@ -6,8 +6,10 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Package, Plus, Minus, ShoppingCart, History, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export const WarehouseForeman = () => {
+  const { t } = useLanguage();
   const [view, setView] = useState('catalog'); // catalog | history
   const [materials, setMaterials] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -41,7 +43,7 @@ export const WarehouseForeman = () => {
       setOrders(o.data);
       setSites(s.data || []);
     } catch (_e) {
-      toast.error('Błąd pobierania');
+      toast.error(t('wh.fetch_error'));
     } finally {
       setLoading(false);
     }
@@ -91,7 +93,7 @@ export const WarehouseForeman = () => {
         note: note.trim() || null,
         site_id: siteId || null,
       });
-      toast.success('Zamówienie wysłane do administratora');
+      toast.success(t('wh.order_sent_admin'));
       setCart({});
       setNote('');
       fetchAll();
@@ -102,7 +104,7 @@ export const WarehouseForeman = () => {
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie magazynu...</p>;
+  if (loading) return <p className="text-[#94A3B8] p-4">{t('wh.loading_dots')}</p>;
 
   return (
     <div className="space-y-3">
@@ -133,7 +135,7 @@ export const WarehouseForeman = () => {
             </CardHeader>
             <CardContent>
               {materials.length === 0 ? (
-                <p className="text-[#94A3B8] text-sm">Magazyn jest pusty - poproś admina o dodanie materiałów.</p>
+                <p className="text-[#94A3B8] text-sm">{t('wh.empty_admin_add')}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {materials.map((m) => {
@@ -242,7 +244,7 @@ export const WarehouseForeman = () => {
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
-              <p className="text-[#94A3B8] text-sm">Jeszcze nic nie zamówiłeś.</p>
+              <p className="text-[#94A3B8] text-sm">{t('wh.no_orders_yet2')}</p>
             ) : (
               <div className="space-y-2">
                 {orders.map((o) => {

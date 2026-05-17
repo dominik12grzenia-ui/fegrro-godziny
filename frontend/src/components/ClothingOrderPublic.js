@@ -6,12 +6,14 @@ import { Input } from './ui/input';
 import { Shirt, Check, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { BODY_TYPES } from './BodySilhouettes';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const MONTH_NAMES = ['Sty', 'Lut', 'Mar', 'Kwi', 'Maj', 'Cze', 'Lip', 'Sie', 'Wrz', 'Paz', 'Lis', 'Gru'];
 const GARMENT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
 
 export const ClothingOrderPublic = ({ token }) => {
+  const { t } = useLanguage();
   const [types, setTypes] = useState([]);
   const [myOrders, setMyOrders] = useState([]);
   const [profile, setProfile] = useState({
@@ -61,7 +63,7 @@ export const ClothingOrderPublic = ({ token }) => {
         jacket_size: profile.jacket_size || null,
         waist: profile.waist || null,
       });
-      toast.success('Wymiary zapisane');
+      toast.success(t('clothing.sizes_saved'));
       setProfileDirty(false);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Błąd');
@@ -76,7 +78,7 @@ export const ClothingOrderPublic = ({ token }) => {
         clothing_type_id: ct.id,
         quantity: 1,
       });
-      toast.success('Zamowienie wyslane');
+      toast.success(t('clothing.order_sent'));
       fetchData();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Błąd');
@@ -123,14 +125,14 @@ export const ClothingOrderPublic = ({ token }) => {
           <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
             <div className="flex items-center gap-2 mb-2">
               <User className="h-4 w-4 text-[#5F7151]" />
-              <span className="text-[#CBD5E1] font-semibold text-sm">Moje wymiary</span>
+              <span className="text-[#CBD5E1] font-semibold text-sm">{t('clothing.my_sizes')}</span>
               {!profileComplete && (
-                <span className="text-[10px] bg-[#4A2020] text-[#E8B76A] px-2 py-0.5 rounded font-semibold uppercase">Uzupełnij</span>
+                <span className="text-[10px] bg-[#4A2020] text-[#E8B76A] px-2 py-0.5 rounded font-semibold uppercase">{t('clothing_pub.complete')}</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div>
-                <label className="text-[10px] text-[#94A3B8]">Rozmiar buta</label>
+                <label className="text-[10px] text-[#94A3B8]">{t('clothing.shoe_size')}</label>
                 <Input
                   value={profile.shoe_size}
                   onChange={(e) => { setProfile((p) => ({ ...p, shoe_size: e.target.value })); setProfileDirty(true); }}
@@ -140,7 +142,7 @@ export const ClothingOrderPublic = ({ token }) => {
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#94A3B8]">Wzrost (cm)</label>
+                <label className="text-[10px] text-[#94A3B8]">{t('clothing.height_cm')}</label>
                 <Input
                   value={profile.height}
                   onChange={(e) => { setProfile((p) => ({ ...p, height: e.target.value })); setProfileDirty(true); }}
@@ -151,7 +153,7 @@ export const ClothingOrderPublic = ({ token }) => {
               </div>
             </div>
             <div>
-              <label className="text-[10px] text-[#94A3B8] block mb-1">Sylwetka</label>
+              <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.body_type')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {BODY_TYPES.map((bt) => {
                   const selected = profile.body_type === bt.value;
@@ -175,7 +177,7 @@ export const ClothingOrderPublic = ({ token }) => {
             {/* New: pants/jacket sizes + waist */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div>
-                <label className="text-[10px] text-[#94A3B8] block mb-1">Rozmiar spodni</label>
+                <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.pants_size')}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {GARMENT_SIZES.map((sz) => {
                     const selected = profile.pants_size === sz;
@@ -194,7 +196,7 @@ export const ClothingOrderPublic = ({ token }) => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] text-[#94A3B8] block mb-1">Rozmiar kurtki</label>
+                <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.jacket_size')}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {GARMENT_SIZES.map((sz) => {
                     const selected = profile.jacket_size === sz;
@@ -214,7 +216,7 @@ export const ClothingOrderPublic = ({ token }) => {
               </div>
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-[#94A3B8]">Obwod w pasie (cm)</label>
+              <label className="text-[10px] text-[#94A3B8]">{t('clothing.waist_cm')}</label>
               <Input
                 value={profile.waist}
                 onChange={(e) => { setProfile((p) => ({ ...p, waist: e.target.value })); setProfileDirty(true); }}
@@ -301,7 +303,7 @@ export const ClothingOrderPublic = ({ token }) => {
               <div className="mt-3 pt-3 border-t border-[#334155] space-y-3">
                 {pending.length > 0 && (
                   <div>
-                    <p className="text-[#E8B76A] text-xs font-semibold mb-1">Zamówione (czekają na realizację)</p>
+                    <p className="text-[#E8B76A] text-xs font-semibold mb-1">{t('clothing.ordered_waiting')}</p>
                     <div className="space-y-1">
                       {pending.map((o) => (
                         <div key={o.id} className="text-xs bg-[#1E293B] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
@@ -317,7 +319,7 @@ export const ClothingOrderPublic = ({ token }) => {
                 )}
                 {issued.length > 0 && (
                   <div>
-                    <p className="text-[#6B8E4E] text-xs font-semibold mb-1">Dostarczone</p>
+                    <p className="text-[#6B8E4E] text-xs font-semibold mb-1">{t('clothing.delivered')}</p>
                     <div className="space-y-1">
                       {issued.slice(0, 15).map((o) => (
                         <div key={o.id} className="text-xs bg-[#1E293B]/60 p-2 rounded flex justify-between flex-wrap gap-2 opacity-70" data-testid={`my-clothing-${o.id}`}>
@@ -343,7 +345,7 @@ export const ClothingOrderPublic = ({ token }) => {
           onClick={() => setLightbox(null)}
           data-testid="clothing-lightbox"
         >
-          <img src={lightbox} alt="Podglad" className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
+          <img src={lightbox} alt={t('clothing.preview_alt')} className="max-w-[95vw] max-h-[95vh] object-contain rounded" />
         </div>
       )}
     </>
