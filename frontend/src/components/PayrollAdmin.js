@@ -238,11 +238,15 @@ export const PayrollAdmin = () => {
     driver_zl: 'Kierowca',
     other_plus_zl: 'Inne +',
   };
-  // Formater: usuwa zera po kropce. 0.00→"0", 12.00→"12", 12.50→"12.5", 12.55→"12.55"
+  // Format polski: 25400.5 -> "25 400,5", 1234.56 -> "1 234,56", 0 -> "0"
   const fmt = (v) => {
     const n = Number(v ?? 0);
     if (!isFinite(n)) return '0';
-    return n.toFixed(2).replace(/\.?0+$/, '') || '0';
+    // Zaokraglij do 2 miejsc, usun zera, wymien kropka na przecinek, dodaj separator tysiecy
+    let s = n.toFixed(2).replace(/\.?0+$/, '') || '0';
+    const [intPart, decPart] = s.split('.');
+    const intWithSep = parseInt(intPart, 10).toLocaleString('pl-PL').replace(/\u00A0/g, ' ');
+    return decPart ? `${intWithSep},${decPart}` : intWithSep;
   };
   const fmtVal = (field, v) => {
     if (field === 'is_fixed_salary') return v ? 'TAK' : 'NIE';
@@ -464,7 +468,7 @@ export const PayrollAdmin = () => {
                 }
               >
                 <div className="text-[#94A3B8]">Suma godzin</div>
-                <div className="text-white font-bold text-lg" data-testid="payroll-total-hours">{data.totals.total_hours} h</div>
+                <div className="text-white font-bold text-lg" data-testid="payroll-total-hours">{fmt(data.totals.total_hours)} h</div>
                 {diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) && (
                   <span
                     className="absolute top-1.5 right-1.5 flex h-3 w-3"
@@ -530,8 +534,8 @@ export const PayrollAdmin = () => {
                       />
                     </th>
                     <th className="p-2 text-left">Pracownik</th>
-                    <th className="p-2 text-center">Stala</th>
                     <th className="p-2 text-right">Godziny</th>
+                    <th className="p-2 text-center">Stala</th>
                     <th className="p-2 text-right">Stawka zl/h</th>
                     <th className="p-2 text-right">Kwota godzin</th>
                     <th className="p-2 text-right">Zaliczki</th>
@@ -558,7 +562,7 @@ export const PayrollAdmin = () => {
                             {r.full_name}
                           </button>
                         </td>
-                        <td className="p-2 text-right text-white font-semibold">{r.total_hours}</td>
+                        <td className="p-2 text-right text-white font-semibold">{fmt(r.total_hours)}</td>
                         <td className="p-2 text-center">
                           <input
                             type="checkbox"

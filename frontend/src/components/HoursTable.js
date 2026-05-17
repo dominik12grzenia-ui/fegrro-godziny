@@ -966,7 +966,7 @@ export const HoursTable = () => {
                           >
                             {advanceSummary[employee.id] ? (
                               <span className="text-[#E8836A] font-bold text-sm">
-                                {advanceSummary[employee.id]} zl
+                                {Number(advanceSummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
                               </span>
                             ) : (
                               <span className="text-[#4A5568] text-xs">-</span>
@@ -981,7 +981,7 @@ export const HoursTable = () => {
                           >
                             {penaltySummary[employee.id] ? (
                               <span className="text-[#DC2626] font-bold text-sm">
-                                {penaltySummary[employee.id]} zl
+                                {Number(penaltySummary[employee.id] || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
                               </span>
                             ) : (
                               <span className="text-[#4A5568] text-xs">-</span>
@@ -1188,7 +1188,7 @@ export const HoursTable = () => {
               <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma zaliczek:</span>
                 <span className="text-[#E8836A] font-bold text-xl" data-testid="advance-total">
-                  {advanceList.reduce((s, a) => s + a.amount, 0)} zl
+                  {Number(advanceList.reduce((s, a) => s + a.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
                 </span>
               </div>
 
@@ -1198,7 +1198,7 @@ export const HoursTable = () => {
                   {advanceList.map(adv => (
                     <div key={adv.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#CBD5E1] font-bold text-lg">{adv.amount} zl</span>
+                        <span className="text-[#CBD5E1] font-bold text-lg">{Number(adv.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl</span>
                         <span className="text-[#64748B] text-[10px]">
                           {adv.created_at ? new Date(adv.created_at).toLocaleString('pl-PL') : ''}
                         </span>
@@ -1330,7 +1330,7 @@ export const HoursTable = () => {
               <div className="p-3 bg-[#1E293B] rounded-lg border border-[#334155] flex items-center justify-between">
                 <span className="text-[#94A3B8] text-sm">Suma kar:</span>
                 <span className="text-[#DC2626] font-bold text-xl" data-testid="penalty-total">
-                  {penaltyList.reduce((s, p) => s + p.amount, 0)} zl
+                  {Number(penaltyList.reduce((s, p) => s + p.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl
                 </span>
               </div>
 
@@ -1339,7 +1339,7 @@ export const HoursTable = () => {
                   {penaltyList.map(pen => (
                     <div key={pen.id} className="p-3 bg-[#1E293B] rounded-lg border border-[#334155]">
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#DC2626] font-bold text-lg">{pen.amount} zl</span>
+                        <span className="text-[#DC2626] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zl</span>
                         <span className="text-[#64748B] text-[10px]">
                           {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
                         </span>

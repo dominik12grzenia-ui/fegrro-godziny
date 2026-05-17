@@ -1,3 +1,20 @@
+## Iteration 43 (2026-05-17) — Poprawki UX
+
+### Kolejnosc kolumn w PayrollAdmin
+Headery "Stala | Godziny" byly zamienione miejscami z komorkami (pod "Stala" pokazywala sie liczba godzin, pod "Godziny" - checkbox is_fixed_salary). Naprawione: teraz "Pracownik | Godziny | Stala | Stawka zl/h | ...".
+
+### Format polski PLN we wszystkich modulach
+- PayrollAdmin: `fmt()` przepisana z `n.toFixed(2).replace(/\.?0+$/,'')` na polski format z separatorem tysiecy: `25400.5` -> `"25 400,5"`. Stosowane wszedzie w tym pliku.
+- HoursTable: zaliczki/kary inline w wierszach i modalach z `toLocaleString('pl-PL')`
+- Finance.js: juz mial `fmtPLN`/`fmtNum` z `toLocaleString('pl-PL')` (iter 40)
+
+### Format pelnego separatora
+`fmt(25400.56)` → `"25 400,56"` (NBSP zamienione na zwykle space)
+`fmt(0)` → `"0"`
+`fmt(12)` → `"12"`
+`fmt(12.5)` → `"12,5"`
+
+
 ## Iteration 42 (2026-05-17) — Fallback payroll_records + automatyczny resync codzienny
 
 ### Drugi bug w sync
