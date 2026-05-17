@@ -28,6 +28,7 @@ export const PayrollAdmin = () => {
   const nameInputRef = React.useRef(null);
   const phoneInputRef = React.useRef(null);
   const [showArchived, setShowArchived] = useState(false);
+  const [showBudowaBreakdown, setShowBudowaBreakdown] = useState(false);
   const [archived, setArchived] = useState([]);
   const [auditFor, setAuditFor] = useState(null);  // {emp_id, name}
   const [auditEntries, setAuditEntries] = useState([]);
@@ -513,6 +514,160 @@ export const PayrollAdmin = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Breakdown per budowa */}
+      {data && data.rows && data.rows.length > 0 && (
+        <Card className="bg-[#2A384C] border-[#334155]">
+          <CardHeader className="pb-2">
+            <button
+              onClick={() => setShowBudowaBreakdown((v) => !v)}
+              className="flex items-center gap-2 text-[#CBD5E1] hover:text-white"
+              data-testid="payroll-toggle-budowa-breakdown"
+            >
+              {showBudowaBreakdown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+              <span className="font-semibold">Podzial wyplat na budowy</span>
+              <span className="text-xs text-[#94A3B8] font-normal">(pro-rata wg godzin pracownika)</span>
+            </button>
+          </CardHeader>
+          {showBudowaBreakdown && (
+            <CardContent className="p-0 overflow-x-auto">
+              {(() => {
+                // Agregacja per budowa: pro-rata z godzin pracownika
+                // Dla kazdego pracownika: ratio = h_na_budowie / pelne_godziny
+                // Skladniki: kwota_godzin (hours_amount), kary, dodatki (bonus), kierowca, inne_minus, inne_plus
+                // Zaliczki: oddzielnie (do reki = wyplata - zaliczki)
+                const budowaMap = new Map();
+                // budowa_id -> { name, hours, hours_amount, kary, bonus, driver, other_minus, other_plus, zaliczki, do_reki }
+                const ensureBud = (id, name) => {
+                  if (!budowaMap.has(id)) {
+                    budowaMap.set(id, {
+                      id, name, hours: 0, hours_amount: 0, kary: 0,
+                      bonus: 0, driver: 0, other_minus: 0, other_plus: 0,
+                      zaliczki: 0, do_reki: 0,
+                    });
+                  }
+                  return budowaMap.get(id);
+                };
+                for (const r of data.rows) {
+                  const full_h = Number(r.total_hours) || 0;
+                  const sites = r.sites_breakdown || [];
+                  const rec = r.record || {};
+                  const ha = Number(r.computed?.hours_amount) || 0;
+                  const kary = Number(r.computed?.penalties_zl || r.auto_penalties_zl) || 0;
+                  const bonus = Number(rec.bonus_zl) || 0;
+                  const driver = Number(rec.driver_zl) || 0;
+                  const o_minus = Number(rec.other_minus_zl) || 0;
+                  const o_plus = Number(rec.other_plus_zl) || 0;
+                  const zal = Number(r.auto_advances_zl) || 0;
+                  const do_reki = Number(r.computed?.payout) || 0;
+                  if (full_h <= 0 || sites.length === 0) {
+                    const b = ensureBud(null, '(bez budowy)');
+                    b.hours += full_h;
+                    b.hours_amount += ha;
+                    b.kary += kary;
+                    b.bonus += bonus;
+                    b.driver += driver;
+                    b.other_minus += o_minus;
+                    b.other_plus += o_plus;
+                    b.zaliczki += zal;
+                    b.do_reki += do_reki;
+                    continue;
+                  }
+                  let acc_ratio = 0;
+                  for (const s of sites) {
+                    const sh = Number(s.hours) || 0;
+                    const ratio = full_h > 0 ? sh / full_h : 0;
+                    const b = ensureBud(s.site_id || null, s.site_name || '(bez budowy)');
+                    b.hours += sh;
+                    b.hours_amount += ha * ratio;
+                    b.kary += kary * ratio;
+                    b.bonus += bonus * ratio;
+                    b.driver += driver * ratio;
+                    b.other_minus += o_minus * ratio;
+                    b.other_plus += o_plus * ratio;
+                    b.zaliczki += zal * ratio;
+                    b.do_reki += do_reki * ratio;
+                    acc_ratio += ratio;
+                  }
+                  // Niedoliczone godziny -> "(bez budowy)"
+                  if (acc_ratio < 0.9999) {
+                    const rem = 1 - acc_ratio;
+                    const b = ensureBud(null, '(bez budowy)');
+                    b.hours += full_h * rem;
+                    b.hours_amount += ha * rem;
+                    b.kary += kary * rem;
+                    b.bonus += bonus * rem;
+                    b.driver += driver * rem;
+                    b.other_minus += o_minus * rem;
+                    b.other_plus += o_plus * rem;
+                    b.zaliczki += zal * rem;
+                    b.do_reki += do_reki * rem;
+                  }
+                }
+                const list = Array.from(budowaMap.values()).sort((a, b) => {
+                  if (a.id === null) return 1;
+                  if (b.id === null) return -1;
+                  return (a.name || '').localeCompare(b.name || '');
+                });
+                const sum = (k) => list.reduce((s, b) => s + (b[k] || 0), 0);
+                return (
+                  <table className="w-full text-sm" data-testid="payroll-budowa-breakdown-table">
+                    <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
+                      <tr>
+                        <th className="p-2 text-left">Budowa</th>
+                        <th className="p-2 text-right">Godziny</th>
+                        <th className="p-2 text-right">Kwota godzin</th>
+                        <th className="p-2 text-right">Kary</th>
+                        <th className="p-2 text-right">Dodatki +</th>
+                        <th className="p-2 text-right">Kierowca +</th>
+                        <th className="p-2 text-right">Inne -</th>
+                        <th className="p-2 text-right">Inne +</th>
+                        <th className="p-2 text-right">Zaliczki</th>
+                        <th className="p-2 text-right text-[#5F7151]">Do reki</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {list.map((b, idx) => (
+                        <tr key={b.id || 'none'}
+                          className={`${idx % 2 === 0 ? 'bg-[#1E293B]/40' : ''} ${b.id === null ? 'border-l-2 border-l-[#E8B76A]' : ''}`}
+                          data-testid={`payroll-budowa-row-${b.id || 'none'}`}>
+                          <td className="p-2 text-[#CBD5E1] font-medium">
+                            {b.id === null ? <span className="text-[#E8B76A]">{b.name}</span> : b.name}
+                          </td>
+                          <td className="p-2 text-right text-white">{fmt(b.hours)}</td>
+                          <td className="p-2 text-right text-[#CBD5E1]">{fmt(b.hours_amount)}</td>
+                          <td className="p-2 text-right text-[#DC2626]">{fmt(b.kary)}</td>
+                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.bonus)}</td>
+                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.driver)}</td>
+                          <td className="p-2 text-right text-[#E8836A]">{fmt(b.other_minus)}</td>
+                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.other_plus)}</td>
+                          <td className="p-2 text-right text-[#E8836A]">{fmt(b.zaliczki)}</td>
+                          <td className="p-2 text-right text-[#5F7151] font-bold">{fmt(b.do_reki)} zl</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-[#5F7151] bg-[#1E293B] font-bold">
+                        <td className="p-2 text-white">SUMA</td>
+                        <td className="p-2 text-right text-white">{fmt(sum('hours'))}</td>
+                        <td className="p-2 text-right text-white">{fmt(sum('hours_amount'))}</td>
+                        <td className="p-2 text-right text-[#DC2626]">{fmt(sum('kary'))}</td>
+                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('bonus'))}</td>
+                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('driver'))}</td>
+                        <td className="p-2 text-right text-[#E8836A]">{fmt(sum('other_minus'))}</td>
+                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('other_plus'))}</td>
+                        <td className="p-2 text-right text-[#E8836A]">{fmt(sum('zaliczki'))}</td>
+                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('do_reki'))} zl</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                );
+              })()}
+              <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#334155]">
+                Wiersz oznaczony <span className="text-[#E8B76A]">pomaranczem</span> = pracownicy bez przypisania do zadnej budowy (lub czesc godzin "bez budowy"). Pro-rata = stosunek godzin pracownika na budowie do pelnych godzin.
+              </div>
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Table */}
       <Card className="bg-[#2A384C] border-[#334155]">
