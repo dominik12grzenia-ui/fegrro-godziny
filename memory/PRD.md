@@ -1,3 +1,23 @@
+## Iteration 42 (2026-05-17) — Fallback payroll_records + automatyczny resync codzienny
+
+### Drugi bug w sync
+`/api/payroll` ma fallback: jesli pracownik nie ma `payroll_record` dla danego miesiaca, bierze rate/fixed/driver z najnowszego POPRZEDNIEGO miesiaca. Sync nie mial tego fallbacku - dlatego maj dawal 14 105 zl zamiast 124 141 zl (29 z 33 pracownikow nie mialo rekordu w maju, ich payout liczyl sie z rate=0).
+
+### Naprawa
+W `_do_sync_month()` po pobraniu payroll_records dla biezacego miesiaca:
+- Lista `missing_ids` (pracownicy bez rekordu)
+- Dla nich query: `find({"employee_id": {"$in": missing_ids}, "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]}).sort([("year",-1),("month",-1)])`
+- Pierwszy wynik = najnowszy poprzedni → kopiuje rate/is_fixed_salary/fixed_salary_amount/driver_zl. Bonusy/other_zl NIE kopiowane (specyficzne miesiacowo).
+
+### Automatyczny resync codzienny (cron)
+- Dodany `cron_payroll_sync()` w `finance.py` - codziennie o 03:00 wywoluje `_do_sync_month` dla wszystkich miesiecy od 2026-01 do biezacego
+- Zarejestrowane w `server.py` jako `payroll_sync_daily` (CronTrigger hour=3, minute=0)
+- Status zapisywany w `finance_settings.last_payroll_sync_at/status/summary/error`
+
+### Endpoint dla recznego wymuszenia
+- `POST /api/finance/sync-all-months?from_year=2026&from_month=1` (wczesniejsza iteracja)
+
+
 ## Iteration 41 (2026-05-17) — Naprawa alokacji wyplat per budowa
 
 ### Diagnoza problemu

@@ -1236,6 +1236,44 @@ async def sync_all_months(
     return aggregate
 
 
+async def cron_payroll_sync():
+    """Cron: codziennie o 03:00 resyncuje GODZINY+WYPLATY -> finance_zapisy
+    dla wszystkich miesiecy od stycznia 2026 do biezacego (idempotentnie nadpisuje source=auto_*)."""
+    try:
+        now = datetime.now()
+        results = []
+        yr, mo = 2026, 1
+        while (yr, mo) <= (now.year, now.month):
+            s = await _do_sync_month(yr, mo, "cron_payroll")
+            results.append(s)
+            if mo == 12:
+                yr += 1
+                mo = 1
+            else:
+                mo += 1
+        total_kp = round(sum(r.get("total_kp", 0) for r in results), 2)
+        total_g = round(sum(r.get("total_godziny", 0) for r in results), 2)
+        logger.info(f"[cron_payroll_sync] OK: {len(results)} mc, total_godziny={total_g}, total_kp={total_kp}")
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_payroll_sync_at": datetime.now().isoformat(),
+                       "last_payroll_sync_status": "ok",
+                       "last_payroll_sync_summary": {
+                           "months": len(results), "total_godziny": total_g, "total_kp": total_kp,
+                       }}},
+            upsert=True,
+        )
+    except Exception as e:
+        logger.exception("[cron_payroll_sync] blad")
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_payroll_sync_at": datetime.now().isoformat(),
+                       "last_payroll_sync_status": "error",
+                       "last_payroll_sync_error": f"{type(e).__name__}: {e}"}},
+            upsert=True,
+        )
+
+
 # ============= FAKTUROWNIA: Pobranie faktur kosztowych z pozycjami =============
 def _iter_months(y1: int, m1: int, y2: int, m2: int):
     """Generator par (year, month) od (y1, m1) do (y2, m2) wlacznie."""

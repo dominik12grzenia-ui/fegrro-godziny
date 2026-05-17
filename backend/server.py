@@ -37,7 +37,7 @@ from routes.bhp import router as bhp_router
 from routes.warehouse import router as warehouse_router
 from routes.push import router as push_router
 from routes.payroll import router as payroll_router
-from routes.finance import router as finance_router, cron_fakturownia_sync
+from routes.finance import router as finance_router, cron_fakturownia_sync, cron_payroll_sync
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -281,9 +281,16 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=600
     )
+    scheduler.add_job(
+        cron_payroll_sync,
+        CronTrigger(hour=3, minute=0),
+        id="payroll_sync_daily",
+        replace_existing=True,
+        misfire_grace_time=3600
+    )
     scheduler.start()
     set_scheduler(scheduler)
-    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min")
+    logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min | Wyplaty codziennie o 03:00")
 
 
 @app.on_event("shutdown")
