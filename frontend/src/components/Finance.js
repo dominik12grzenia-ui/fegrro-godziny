@@ -77,7 +77,7 @@ const BudowyPanel = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);  // budowa or null
-  const [form, setForm] = useState({ name: '', code: '', show_in_hours: false, is_gir: false, is_dw: false });
+  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0 });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -105,7 +105,7 @@ const BudowyPanel = () => {
         toast.success('Dodano');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ name: '', code: '', show_in_hours: false, is_gir: false, is_dw: false });
+      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0 });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
@@ -116,7 +116,10 @@ const BudowyPanel = () => {
     setEditing(b);
     setForm({
       name: b.name, code: b.code || '',
-      show_in_hours: !!b.show_in_hours, is_gir: !!b.is_gir, is_dw: !!b.is_dw,
+      show_in_hours: !!b.show_in_hours, is_gir: !!b.is_gir,
+      kaucja_gir_pct: b.kaucja_gir_pct != null ? b.kaucja_gir_pct : 2.0,
+      is_dw: !!b.is_dw,
+      kaucja_dw_pct: b.kaucja_dw_pct != null ? b.kaucja_dw_pct : 2.0,
     });
     setShowAdd(true);
   };
@@ -160,7 +163,7 @@ const BudowyPanel = () => {
             data-testid="finance-import-from-sites">
             Importuj z tabeli godzin
           </Button>
-          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:false, is_gir:false, is_dw:false }); setShowAdd(true); }}
+          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0 }); setShowAdd(true); }}
             className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
@@ -175,8 +178,8 @@ const BudowyPanel = () => {
               <th className="p-2 text-left">Nazwa</th>
               <th className="p-2 text-left">Kod</th>
               <th className="p-2 text-center">W godzinach</th>
-              <th className="p-2 text-center">GIR 2%</th>
-              <th className="p-2 text-center">DW 2%</th>
+              <th className="p-2 text-center">GIR %</th>
+              <th className="p-2 text-center">DW %</th>
               <th className="p-2 text-center">Status</th>
               <th className="p-2 text-right">Akcje</th>
             </tr>
@@ -187,8 +190,8 @@ const BudowyPanel = () => {
                 <td className="p-2 text-white font-medium">{b.name}</td>
                 <td className="p-2 text-[#94A3B8]">{b.code || '-'}</td>
                 <td className="p-2 text-center">{b.show_in_hours ? <span className="text-[#5F7151]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="p-2 text-center">{b.is_gir ? <span className="text-[#E8B76A]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
-                <td className="p-2 text-center">{b.is_dw ? <span className="text-[#E8B76A]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="p-2 text-center">{b.is_gir ? <span className="text-[#E8B76A]">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
+                <td className="p-2 text-center">{b.is_dw ? <span className="text-[#E8B76A]">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
                 <td className="p-2 text-center">
                   {b.is_archived ? <span className="text-[#94A3B8] text-xs">Archiwum</span> : <span className="text-[#5F7151] text-xs">Aktywna</span>}
                 </td>
@@ -232,16 +235,32 @@ const BudowyPanel = () => {
                 className="accent-[#5F7151]" data-testid="finance-budowa-show-in-hours" />
               <span>Pokaz w liscie godzin (przypisywanie pracownikow)</span>
             </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E293B] rounded">
-              <input type="checkbox" checked={form.is_gir} onChange={(e) => setForm({...form, is_gir: e.target.checked})}
-                className="accent-[#E8B76A]" />
-              <span>Budowa GIR (Kaucja 2% z przychodu)</span>
-            </label>
-            <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E293B] rounded">
-              <input type="checkbox" checked={form.is_dw} onChange={(e) => setForm({...form, is_dw: e.target.checked})}
-                className="accent-[#E8B76A]" />
-              <span>Budowa DW (Kaucja 2% z przychodu)</span>
-            </label>
+            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#1E293B] rounded">
+              <label className="flex items-center gap-2 cursor-pointer flex-1">
+                <input type="checkbox" checked={form.is_gir} onChange={(e) => setForm({...form, is_gir: e.target.checked})}
+                  className="accent-[#E8B76A]" data-testid="finance-budowa-is-gir" />
+                <span>Budowa GIR — Kaucja</span>
+              </label>
+              <Input type="number" step="0.1" min="0" max="100" value={form.kaucja_gir_pct}
+                onChange={(e) => setForm({...form, kaucja_gir_pct: parseFloat(e.target.value) || 0})}
+                disabled={!form.is_gir}
+                className="w-20 no-spinner bg-[#1E293B] border-[#334155] text-white text-right"
+                data-testid="finance-budowa-gir-pct" />
+              <span className="text-[#94A3B8]">% z przychodu</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#1E293B] rounded">
+              <label className="flex items-center gap-2 cursor-pointer flex-1">
+                <input type="checkbox" checked={form.is_dw} onChange={(e) => setForm({...form, is_dw: e.target.checked})}
+                  className="accent-[#E8B76A]" data-testid="finance-budowa-is-dw" />
+                <span>Budowa DW — Kaucja</span>
+              </label>
+              <Input type="number" step="0.1" min="0" max="100" value={form.kaucja_dw_pct}
+                onChange={(e) => setForm({...form, kaucja_dw_pct: parseFloat(e.target.value) || 0})}
+                disabled={!form.is_dw}
+                className="w-20 no-spinner bg-[#1E293B] border-[#334155] text-white text-right"
+                data-testid="finance-budowa-dw-pct" />
+              <span className="text-[#94A3B8]">% z przychodu</span>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}

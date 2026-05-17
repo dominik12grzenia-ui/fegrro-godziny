@@ -99,6 +99,7 @@ class ConstructionSite(BaseModel):
     category: Optional[str] = "budowa"  # budowa | sklep | magazyn | inne
     address: Optional[str] = None
     visible_to_foremen: bool = True
+    finance_budowa_id: Optional[str] = None
 
 
 class SiteCreate(BaseModel):

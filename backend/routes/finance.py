@@ -90,10 +90,12 @@ async def ensure_kody_seed():
 # ============= MODELS =============
 class BudowaCreate(BaseModel):
     name: str
-    code: Optional[str] = None  # opcjonalny "G15" lub krotka nazwa
-    show_in_hours: bool = False
-    is_gir: bool = False  # dla obliczania Kaucji GIR (2%)
-    is_dw: bool = False  # dla obliczania Kaucji DW (2%)
+    code: Optional[str] = None
+    show_in_hours: bool = True  # default TRUE - admin chce zwykle przypisywac pracownikow
+    is_gir: bool = False
+    kaucja_gir_pct: Optional[float] = 2.0  # domyslnie 2%, ale admin moze zmienic
+    is_dw: bool = False
+    kaucja_dw_pct: Optional[float] = 2.0
     notes: Optional[str] = None
 
 
@@ -102,7 +104,9 @@ class BudowaUpdate(BaseModel):
     code: Optional[str] = None
     show_in_hours: Optional[bool] = None
     is_gir: Optional[bool] = None
+    kaucja_gir_pct: Optional[float] = None
     is_dw: Optional[bool] = None
+    kaucja_dw_pct: Optional[float] = None
     notes: Optional[str] = None
 
 
@@ -211,7 +215,9 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "code": payload.code or "",
         "show_in_hours": bool(payload.show_in_hours),
         "is_gir": bool(payload.is_gir),
+        "kaucja_gir_pct": float(payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0),
         "is_dw": bool(payload.is_dw),
+        "kaucja_dw_pct": float(payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0),
         "notes": payload.notes or "",
         "is_archived": False,
         "created_at": datetime.now().isoformat(),
@@ -450,11 +456,15 @@ async def rachunek_wynikow(
         sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
         sum_by_cat[cat][m] += v
 
-    # Kaucje: GIR i DW = 2% z przychodu PZS dla budow z is_gir/is_dw
-    gir_budowy = await db.finance_budowy.find({"is_gir": True}, {"_id": 0, "id": 1}).to_list(length=None)
-    dw_budowy = await db.finance_budowy.find({"is_dw": True}, {"_id": 0, "id": 1}).to_list(length=None)
-    gir_ids = {b["id"] for b in gir_budowy}
-    dw_ids = {b["id"] for b in dw_budowy}
+    # Kaucje: GIR i DW = % per-budowa z przychodu PZS dla budow z is_gir/is_dw
+    gir_budowy = await db.finance_budowy.find(
+        {"is_gir": True}, {"_id": 0, "id": 1, "kaucja_gir_pct": 1}
+    ).to_list(length=None)
+    dw_budowy = await db.finance_budowy.find(
+        {"is_dw": True}, {"_id": 0, "id": 1, "kaucja_dw_pct": 1}
+    ).to_list(length=None)
+    gir_pct = {b["id"]: float(b.get("kaucja_gir_pct") or 2.0) / 100.0 for b in gir_budowy}
+    dw_pct = {b["id"]: float(b.get("kaucja_dw_pct") or 2.0) / 100.0 for b in dw_budowy}
     kaucja_gir = {m: 0.0 for m in range(1, 13)}
     kaucja_dw = {m: 0.0 for m in range(1, 13)}
     for z in zapisy:
@@ -462,10 +472,10 @@ async def rachunek_wynikow(
             m = z["month"]
             v = float(z.get("netto") or 0)
             bid = z.get("budowa_id")
-            if bid in gir_ids:
-                kaucja_gir[m] += v * KAUCJA_PROCENT
-            if bid in dw_ids:
-                kaucja_dw[m] += v * KAUCJA_PROCENT
+            if bid in gir_pct:
+                kaucja_gir[m] += v * gir_pct[bid]
+            if bid in dw_pct:
+                kaucja_dw[m] += v * dw_pct[bid]
 
     def month_arr(d: dict, mfn=lambda x: x) -> list:
         return [round(mfn(d.get(m, 0.0)), 2) for m in range(1, 13)]
@@ -695,8 +705,8 @@ async def sprzedaz(
         # Y-AI (widoczne od razu)
         Y = E
         Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
-        AA = E * KAUCJA_PROCENT if b.get("is_gir") else 0.0
-        AB = E * KAUCJA_PROCENT if b.get("is_dw") else 0.0
+        AA = E * (float(b.get("kaucja_gir_pct") or 2.0) / 100.0) if b.get("is_gir") else 0.0
+        AB = E * (float(b.get("kaucja_dw_pct") or 2.0) / 100.0) if b.get("is_dw") else 0.0
         AC = Y - Z - AA - AB  # zysk netto (Roznica)
         AD_pct = safe_div(AC, Y)
         # godziny z aplikacji - z hour_entries dla tej budowy (sites z finance_budowa_id=bid)

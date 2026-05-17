@@ -30,7 +30,7 @@ async def get_sites(
             "id": 1, "name": 1, "location_lat": 1, "location_lng": 1,
             "google_maps_url": 1, "is_active": 1, "month": 1,
             "excel_column": 1, "created_at": 1, "category": 1, "address": 1,
-            "visible_to_foremen": 1
+            "visible_to_foremen": 1, "finance_budowa_id": 1
         }
     ).to_list(1000)
     return sites
