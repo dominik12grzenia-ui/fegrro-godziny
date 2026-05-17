@@ -988,8 +988,10 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         logger.error(f"[fakturownia] HTTP error: {e}")
         raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
 
+    # Pobierz istniejace wpisy fakturownia PO position_id GLOBALNIE (nie ograniczamy do roku/miesiaca,
+    # bo sell_date faktury moze byc w innym miesiacu niz issue_date i przesuwac wpis miedzy miesiacami)
     existing = await db.finance_zapisy.find(
-        {"year": yr, "month": mo, "source": "fakturownia"},
+        {"source": "fakturownia"},
         {"_id": 0, "id": 1, "fakturownia_position_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
     ).to_list(length=None)
     existing_by_pos = {e.get("fakturownia_position_id"): e for e in existing if e.get("fakturownia_position_id")}
@@ -1015,8 +1017,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "total_price_gross": float(inv.get("price_gross") or 0),
             }]
 
-        for pos in positions:
-            pos_id = str(pos.get("id") or f"inv_{inv_id}_idx{positions.index(pos)}")
+        for pos_idx, pos in enumerate(positions):
+            raw_id = pos.get("id")
+            pos_id = str(raw_id) if raw_id else f"inv_{inv_id}_idx{pos_idx}"
             netto = float(pos.get("total_price_net") or pos.get("price_net") or 0)
             brutto = float(pos.get("total_price_gross") or pos.get("price_gross") or 0)
             name = (pos.get("name") or "").strip()
@@ -1072,9 +1075,18 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 created += 1
 
     # Usun pozycje ktorych juz NIE ma w Fakturowni TYLKO te bez przypisanego kod_id
+    # ALE TYLKO w obrebie pobranego okresu (yr,mo) - inne miesiace zostawiamy.
     removed = 0
     for pos_id, ez in existing_by_pos.items():
-        if pos_id not in new_position_ids and not ez.get("kod_id"):
+        if pos_id in new_position_ids:
+            continue
+        if ez.get("kod_id"):
+            continue
+        # Sprawdz miesiac istniejacego wpisu - jezeli jest w naszym pobieranym okresie, mozemy usunac
+        full = await db.finance_zapisy.find_one(
+            {"id": ez["id"]}, {"_id": 0, "year": 1, "month": 1}
+        )
+        if full and full.get("year") == yr and full.get("month") == mo:
             await db.finance_zapisy.delete_one({"id": ez["id"]})
             removed += 1
 
