@@ -1,3 +1,15 @@
+## Iteration 46 (2026-05-17) — Banner mismatch nie sumuje projekcji przyszlych miesiecy
+
+### Bug
+Banner pokazywal niezgodnosc 137 640 zl dla "Caly rok 2026" mimo poprawnego sync. Powod: frontend sumowal `/api/payroll` dla wszystkich 12 miesiecy, a backend dla mc 6-12 (przyszle) zwraca PROJEKCJE z fallbacku (LESZEK fixed 8000, DANIEL fixed 10000, ANDRII driver 500) = 18 500 zl/miesiac × 7 miesiecy = 129 500 zl sztucznej roznicy.
+
+### Naprawa
+Frontend `fetchData()`:
+- Bierze tylko miesiace od stycznia do **biezacego miesiaca wlacznie**
+- Dla wybranego konkretnego miesiaca: jesli przyszly -> `setPayrollExpected(null)` (brak bannera)
+- `maxMonth = year < currentYear ? 12 : (year > currentYear ? 0 : currentMonth)`
+
+
 ## Iteration 45 (2026-05-17) — Naprawa nazw budow w Payroll + banner niezgodnosci KP
 
 ### Bug: backend uzywal niewlasciwej kolekcji

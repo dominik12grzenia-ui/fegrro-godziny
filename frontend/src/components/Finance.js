@@ -358,32 +358,44 @@ const ZapisyPanel = ({ year }) => {
       setBudowy(bRes.data.rows);
       setKody(kRes.data.rows);
       // Fetch oczekiwana suma wyplat (dla wybranego miesiaca lub calego roku)
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+      const isFutureMonth = (y, m) => y > currentYear || (y === currentYear && m > currentMonth);
+
       if (month > 0) {
-        try {
-          const pRes = await api.get(`/payroll?year=${year}&month=${month}`);
-          const prows = pRes.data?.rows || [];
-          let totalKoszt = 0;
-          for (const r of prows) {
-            const rec = r.record || {};
-            const h = Number(r.total_hours) || 0;
-            const rate = Number(rec.rate) || 0;
-            const fixed = Number(rec.fixed_salary_amount) || 0;
-            const is_fixed = !!rec.is_fixed_salary;
-            const ha = is_fixed ? fixed : h * rate;
-            const bonus = Number(rec.bonus_zl) || 0;
-            const driver = Number(rec.driver_zl) || 0;
-            const op = Number(rec.other_plus_zl) || 0;
-            const om = Number(rec.other_minus_zl) || 0;
-            const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
-            totalKoszt += ha + bonus + driver + op - om - pen;
-          }
-          setPayrollExpected({ year, month, total: totalKoszt });
-        } catch { setPayrollExpected(null); }
+        // Miesiac przyszly - /api/payroll zwraca tylko projekcje fixed_salary (nie realne wyplaty)
+        if (isFutureMonth(year, month)) {
+          setPayrollExpected(null);
+        } else {
+          try {
+            const pRes = await api.get(`/payroll?year=${year}&month=${month}`);
+            const prows = pRes.data?.rows || [];
+            let totalKoszt = 0;
+            for (const r of prows) {
+              const rec = r.record || {};
+              const h = Number(r.total_hours) || 0;
+              const rate = Number(rec.rate) || 0;
+              const fixed = Number(rec.fixed_salary_amount) || 0;
+              const is_fixed = !!rec.is_fixed_salary;
+              const ha = is_fixed ? fixed : h * rate;
+              const bonus = Number(rec.bonus_zl) || 0;
+              const driver = Number(rec.driver_zl) || 0;
+              const op = Number(rec.other_plus_zl) || 0;
+              const om = Number(rec.other_minus_zl) || 0;
+              const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
+              totalKoszt += ha + bonus + driver + op - om - pen;
+            }
+            setPayrollExpected({ year, month, total: totalKoszt });
+          } catch { setPayrollExpected(null); }
+        }
       } else {
-        // Caly rok: suma 12 miesiecy
+        // Caly rok: suma TYLKO od stycznia do biezacego miesiaca wlacznie
+        // (przyszle miesiace zwracaja "projekcje" fixed_salary z fallbacku - nie sa to realne wyplaty)
         try {
+          const maxMonth = year < currentYear ? 12 : (year > currentYear ? 0 : currentMonth);
           let totalKoszt = 0;
-          for (let m = 1; m <= 12; m++) {
+          for (let m = 1; m <= maxMonth; m++) {
             const pRes = await api.get(`/payroll?year=${year}&month=${m}`);
             const prows = pRes.data?.rows || [];
             for (const r of prows) {
