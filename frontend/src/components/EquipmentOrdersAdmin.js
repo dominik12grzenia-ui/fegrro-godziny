@@ -3,7 +3,7 @@ import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
-import { ShoppingCart, Check, X, Clock, Package } from 'lucide-react';
+import { ShoppingCart, Check, X, Clock, Package, History } from 'lucide-react';
 import { toast } from 'sonner';
 
 const STATUS_BADGE = {
@@ -20,15 +20,16 @@ const STATUS_BADGE = {
 export const EquipmentOrdersAdmin = ({ category }) => {
   const [orders, setOrders] = useState([]);
   const [issueQty, setIssueQty] = useState({}); // {order_id: string}
+  const [showHistory, setShowHistory] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
-      const r = await api.get('/equipment/orders');
+      const r = await api.get(`/equipment/orders${showHistory ? '?include_history=true' : ''}`);
       setOrders((r.data || []).filter((o) => o.category === category));
     } catch {
       // silent
     }
-  }, [category]);
+  }, [category, showHistory]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
@@ -81,17 +82,26 @@ export const EquipmentOrdersAdmin = ({ category }) => {
   };
 
   const active = orders.filter((o) => o.status === 'pending' || o.status === 'partial');
-  const recent = orders.filter((o) => o.status === 'issued' || o.status === 'rejected').slice(0, 10);
+  const recent = orders.filter((o) => o.status === 'issued' || o.status === 'rejected').slice(0, showHistory ? 100 : 10);
 
-  if (active.length === 0 && recent.length === 0) return null;
+  if (active.length === 0 && recent.length === 0 && !showHistory) return null;
 
   return (
     <Card className="bg-[#2A384C] border-[#E8B76A]" data-testid="equipment-orders-admin">
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-[#E8B76A] flex items-center gap-2">
           <ShoppingCart className="h-5 w-5" />
           Zamówienia brygadzistów {active.length > 0 && <span className="text-sm text-white">({active.length})</span>}
         </CardTitle>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setShowHistory((v) => !v)}
+          className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+          data-testid="equipment-orders-toggle-history">
+          <History className="h-3.5 w-3.5 mr-1" />
+          {showHistory ? 'Ukryj historię' : 'Pokaż historię'}
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-2">
@@ -175,6 +185,11 @@ export const EquipmentOrdersAdmin = ({ category }) => {
             );
           })}
         </div>
+        {!showHistory && (
+          <div className="mt-3 text-xs text-[#94A3B8] italic">
+            Zamówienia wydane / odrzucone starsze niż 7 dni są ukryte. Kliknij <strong>Pokaż historię</strong>, aby zobaczyć wszystkie.
+          </div>
+        )}
       </CardContent>
     </Card>
   );

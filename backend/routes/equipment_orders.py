@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 
 from database import db
@@ -229,6 +229,7 @@ async def create_equipment_order(payload: EquipmentOrderCreate,
 @router.get("/equipment/orders")
 async def list_equipment_orders(
     status: Optional[str] = None,
+    include_history: bool = False,
     current_user: dict = Depends(get_current_user),
 ):
     """List equipment orders. Admin sees all; foreman sees his own only.
@@ -236,12 +237,24 @@ async def list_equipment_orders(
     Enriches each order with the up-to-date `category` from its equipment doc
     so historic orders (from before category was set) and recategorized items
     show up in the right admin/foreman tab.
+
+    Domyslnie ukrywa zamowienia "issued"/"rejected" starsze niz 7 dni od
+    daty wydania/odrzucenia - admin nie musi widziec w aktywnym widoku
+    "Roman Chufrida - DMUCHAWA SPALINOWA - Odrzucone" przez nieskonczenie dlugi czas.
+    Aby zobaczyc pelna historie ustaw `include_history=true`.
     """
     query = {}
     if status:
         query["status"] = status
     if current_user.get("role") != "admin":
         query["foreman_id"] = current_user["sub"]
+    if not include_history:
+        # Ukrywamy issued/rejected starsze niz 7 dni
+        cutoff = (datetime.now() - timedelta(days=7)).isoformat()
+        query["$nor"] = [
+            {"status": "issued", "issued_at": {"$lt": cutoff}},
+            {"status": "rejected", "rejected_at": {"$lt": cutoff}},
+        ]
     items = await db.equipment_orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
     if not items:
         return items
