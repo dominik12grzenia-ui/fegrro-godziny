@@ -367,6 +367,7 @@ const ZapisyPanel = ({ year }) => {
             let totalKoszt = 0;
             for (const r of prows) {
               const rec = r.record || {};
+              const comp = r.computed || {};
               const h = Number(r.total_hours) || 0;
               const rate = Number(rec.rate) || 0;
               const fixed = Number(rec.fixed_salary_amount) || 0;
@@ -376,7 +377,8 @@ const ZapisyPanel = ({ year }) => {
               const driver = Number(rec.driver_zl) || 0;
               const op = Number(rec.other_plus_zl) || 0;
               const om = Number(rec.other_minus_zl) || 0;
-              const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
+              // Kary: backend zwraca w computed.penalties_zl lub r.auto_penalties_zl
+              const pen = Number(comp.penalties_zl ?? r.auto_penalties_zl) || 0;
               totalKoszt += ha + bonus + driver + op - om - pen;
             }
             setPayrollExpected({ year, month, total: totalKoszt });
@@ -393,6 +395,7 @@ const ZapisyPanel = ({ year }) => {
             const prows = pRes.data?.rows || [];
             for (const r of prows) {
               const rec = r.record || {};
+              const comp = r.computed || {};
               const h = Number(r.total_hours) || 0;
               const rate = Number(rec.rate) || 0;
               const fixed = Number(rec.fixed_salary_amount) || 0;
@@ -402,7 +405,8 @@ const ZapisyPanel = ({ year }) => {
               const driver = Number(rec.driver_zl) || 0;
               const op = Number(rec.other_plus_zl) || 0;
               const om = Number(rec.other_minus_zl) || 0;
-              const pen = Number(rec.penalties_total ?? rec.manual_penalties_zl) || 0;
+              // Kary: backend zwraca w computed.penalties_zl lub r.auto_penalties_zl
+              const pen = Number(comp.penalties_zl ?? r.auto_penalties_zl) || 0;
               totalKoszt += ha + bonus + driver + op - om - pen;
             }
           }
