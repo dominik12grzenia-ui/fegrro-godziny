@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import {
   RefreshCw, AlertTriangle, Link as LinkIcon,
-  Copy, ExternalLink, Warehouse, Trash2,
+  Copy, ExternalLink, Warehouse, Trash2, Key, Save,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,6 +13,86 @@ const MONTH_NAMES = [
   'Styczen', 'Luty', 'Marzec', 'Kwiecien', 'Maj', 'Czerwiec',
   'Lipiec', 'Sierpien', 'Wrzesien', 'Pazdziernik', 'Listopad', 'Grudzien',
 ];
+
+const FakturowniaApiCard = () => {
+  const [settings, setSettings] = useState(null);
+  const [apiKey, setApiKey] = useState('');
+  const [domain, setDomain] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const fetchSettings = async () => {
+    try {
+      const r = await api.get('/finance/settings');
+      setSettings(r.data);
+      setDomain(r.data.fakturownia_domain || '');
+    } catch (_e) { /* ignore */ }
+  };
+  useEffect(() => { fetchSettings(); }, []);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const payload = {};
+      if (apiKey.trim()) payload.fakturownia_api_key = apiKey.trim();
+      if (domain.trim() !== (settings?.fakturownia_domain || '')) payload.fakturownia_domain = domain.trim();
+      if (Object.keys(payload).length === 0) {
+        toast.info('Brak zmian do zapisania');
+        return;
+      }
+      await api.put('/finance/settings', payload);
+      toast.success('Zapisano ustawienia Fakturowni');
+      setApiKey('');
+      fetchSettings();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad zapisu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="bg-[#2A384C] border-[#334155]">
+      <CardHeader>
+        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <Key className="h-5 w-5 text-[#E8B76A]" />
+          Fakturownia - API key
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <p className="text-sm text-[#94A3B8]">
+          Klucz API z Fakturowni — uzywany do automatycznego pobierania kosztow (faktury wchodzace).
+          Wygeneruj na <a href="https://app.fakturownia.pl" target="_blank" rel="noreferrer" className="text-[#5F7151] underline">app.fakturownia.pl → Ustawienia → API</a>.
+        </p>
+        <div>
+          <label className="text-xs text-[#94A3B8] block mb-1">Subdomena (np. "mojafirma" dla mojafirma.fakturownia.pl)</label>
+          <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="mojafirma"
+            className="bg-[#1E293B] border-[#334155] text-white" data-testid="fakturownia-domain-input" />
+        </div>
+        <div>
+          <label className="text-xs text-[#94A3B8] block mb-1">
+            Klucz API {settings?.fakturownia_api_key_set && <span className="text-[#5F7151]">(zapisany: {settings.fakturownia_api_key_preview})</span>}
+          </label>
+          <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
+            placeholder={settings?.fakturownia_api_key_set ? "Wpisz nowy aby zaktualizowac" : "Wklej klucz API"}
+            className="bg-[#1E293B] border-[#334155] text-white" data-testid="fakturownia-api-input" />
+        </div>
+        <Button onClick={save} disabled={saving} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white"
+          data-testid="fakturownia-save-btn">
+          <Save className="h-4 w-4 mr-2" />
+          {saving ? 'Zapisywanie...' : 'Zapisz'}
+        </Button>
+        {settings?.last_sync_at && (
+          <p className="text-xs text-[#94A3B8] mt-2 pt-2 border-t border-[#334155]">
+            Ostatnia synchronizacja: <span className="text-[#CBD5E1]">{settings.last_sync_at.slice(0, 16).replace('T', ' ')}</span>
+            {settings.last_sync_summary && (
+              <span className="ml-2">- {settings.last_sync_summary.g_zapisy} godzin + {settings.last_sync_summary.kp_zapisy} wyplat ({settings.last_sync_summary.total_godziny}h, {settings.last_sync_summary.total_kp?.toFixed(2)} zl)</span>
+            )}
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
 
 const WarehouseKeepersCard = () => {
   const [keepers, setKeepers] = useState([]);
@@ -216,6 +296,7 @@ export const ToolsTab = ({
       </Card>
 
       <WarehouseKeepersCard />
+      <FakturowniaApiCard />
 
       {/* Rotate worker tokens */}
       <Card className="bg-[#2A384C] border-[#334155]">

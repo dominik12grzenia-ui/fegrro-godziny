@@ -30,6 +30,16 @@ Helper `fmt(v)`: 0.00→"0", 12.50→"12.5". `fmtPct(v)`: 0.55→"55%".
 ### Mock/zaslepki
 - Import z Fakturowni: NIE zaimplementowane (P1). Tylko reczne wpisywanie zapisow przez UI.
 
+### Iteration 37.1 (2026-05-17) — Auto-sync z Godzin/Wyplat + Fakturownia API key
+- **Tools > Fakturownia - API key**: nowa karta w zakladce Narzedzia. Admin moze ustawic/zaktualizowac klucz API i subdomene (`PUT /api/finance/settings`). Klucz przechowywany w `db.finance_settings`, GET zwraca tylko podglad `****abcd`.
+- **POST /api/finance/sync-current-month**: synchronizuje TYLKO biezacy miesiac (today.year/today.month):
+  - Dla kazdej budowy z `show_in_hours=true`: zapis `kod=G, netto=suma godzin z hour_entries`
+  - Dla kazdego pracownika z godzinami: alokacja pro-rata wg `(godziny_w_budowie / godziny_total)` na kazdej budowie, `kod=KP_WYNAGRODZENIA, netto = (hours_amount + bonus + driver + other_plus - other_minus - advances - penalties) * ratio`
+  - Idempotentne: usuwa stare `source in [auto_hours, auto_payroll]` przed insertem.
+  - NIE rusza `source=manual` ani innych miesiecy.
+- **UI Sync** w zakladce Finanse > Zapisy: pomaranczowy przycisk "Sync biezacy miesiac". Toast pokazuje wynik (g_zapisy + kp_zapisy + sumy).
+- **Badge AUTO** w tabeli zapisow przy wierszach auto-zsynchronizowanych.
+
 
 # FeGrro - System Rejestracji Godzin Pracy
 

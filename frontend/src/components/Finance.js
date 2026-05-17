@@ -323,11 +323,31 @@ const ZapisyPanel = ({ year }) => {
 
   const totalNetto = rows.reduce((s, r) => s + (r.netto || 0), 0);
 
+  const syncCurrent = async () => {
+    if (!window.confirm(
+      'Synchronizowac godziny i wyplaty z biezacym miesiacem?\n\n' +
+      'Tylko AKTUALNY miesiac - nie przyszly, nie historyczne. ' +
+      'Stare auto-zapisy zostana nadpisane, ale reczne wpisy nie sa ruszane.'
+    )) return;
+    try {
+      const r = await api.post('/finance/sync-current-month');
+      toast.success(`Sync OK: ${r.data.g_zapisy} godzin + ${r.data.kp_zapisy} wyplat (${r.data.total_godziny}h, ${r.data.total_kp?.toFixed(2)} zl)`);
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad synchronizacji');
+    }
+  };
+
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader className="flex flex-row items-center justify-between gap-3">
         <CardTitle className="text-white">Zapisy ksiegowe ({rows.length}, suma: {fmt(totalNetto)} zl)</CardTitle>
         <div className="flex items-center gap-2">
+          <Button onClick={syncCurrent} variant="outline"
+            className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
+            data-testid="finance-sync-current">
+            Sync biezacy miesiac
+          </Button>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
             className="bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-zapisy-month">
@@ -357,9 +377,14 @@ const ZapisyPanel = ({ year }) => {
           </thead>
           <tbody>
             {rows.map((z) => (
-              <tr key={z.id} className="border-t border-[#334155] hover:bg-[#1E293B]/50" data-testid={`finance-zapis-row-${z.id}`}>
+              <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : ''}`} data-testid={`finance-zapis-row-${z.id}`}>
                 <td className="p-2 text-white">{z.date}</td>
-                <td className="p-2 text-[#CBD5E1]">{z.kontrahent || '-'}</td>
+                <td className="p-2 text-[#CBD5E1]">
+                  {z.kontrahent || '-'}
+                  {z.source && z.source.startsWith('auto_') && (
+                    <span className="ml-1 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded" title="Auto-sync z godzin/wyplat">AUTO</span>
+                  )}
+                </td>
                 <td className="p-2 text-[#CBD5E1] text-xs">{kodName(z.kod_id)}</td>
                 <td className="p-2 text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</td>
                 <td className="p-2 text-right text-white font-mono">{fmt(z.netto)}</td>
