@@ -1150,7 +1150,7 @@ const RachunekWynikowPanel = ({ year }) => {
         <CardTitle className="text-white">Rachunek wynikow {year}</CardTitle>
         <Button onClick={() => setShowAddKod(true)}
           className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-btn">
-          <Plus className="h-4 w-4 mr-1" /> Dodaj kod kosztu
+          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
         </Button>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
@@ -1251,7 +1251,7 @@ const RachunekWynikowPanel = ({ year }) => {
       <Dialog open={showAddKod} onOpenChange={setShowAddKod}>
         <DialogContent className="bg-[#2A384C] border-[#334155] text-white">
           <DialogHeader>
-            <DialogTitle>Dodaj kod kosztu</DialogTitle>
+            <DialogTitle>Dodaj pozycje kosztowa</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div>
