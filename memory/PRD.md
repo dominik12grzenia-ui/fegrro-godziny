@@ -1,3 +1,25 @@
+## Iteration 38 (2026-05-17) — Production deploy fixes + Fakturownia sync warnings
+
+### Backend fixes
+- **Python 3.13.5 pinning na Render**: `.python-version`, `runtime.txt`, `render.yaml` zaktualizowane. Default Render 3.14.3 ma bug w `typing.Union` -> `httpx 0.28` -> AttributeError. Powod: Render od 11.02.2026 ignoruje `runtime.txt` z mniejszym pinningu (`python-3.11.10` nieobslugiwany), trzeba `.python-version` LUB pelny semver w `PYTHON_VERSION`.
+- **POST /api/finance/test-fakturownia**: przepisany na `requests` (synchroniczny, omija bug Python 3.14). Czytelne komunikaty bledow zamiast HTTP 500 (Nieprawidlowy klucz API, Subdomena nie istnieje, Timeout, etc.). Defensywne czyszczenie subdomeny: usuwa `https://`, `.fakturownia.pl`, sciezki.
+- **PUT /api/finance/settings**: automatycznie wycina `.fakturownia.pl` z subdomeny przy zapisie (np. `fegrrospzoo.fakturownia.pl` → `fegrrospzoo`).
+- **Sync status tracking**: `_record_fakturownia_sync_error()` helper. Wszystkie scenariusze (cron, manual sync, test) zapisuja `last_fakturownia_sync_status` (`ok`/`error`) + `last_fakturownia_sync_error` (krotki opis) do `finance_settings`.
+
+### Frontend
+- **ToolsTab.js `describeError()` helper**: czytelne komunikaty z HTTP code + treoscia bledu (np. "Test nieudany (HTTP 401: Nieprawidlowy klucz API)" zamiast generycznego "Blad testu polaczenia").
+- **Finance.js banner `FakturowniaSyncWarning`** (nowy komponent): czerwony baner z ostrzezeniem nad wszystkimi podzakladkami Finansow. Pokazuje sie tylko gdy `last_fakturownia_sync_status === 'error'`. Auto-pollinguje co 60s (admin nie musi odswiezac). Mozna ukryc.
+
+### Bug fixes znalezione
+1. Produkcja na Render miala stary kod (subdomena zapisana jako `fegrrospzoo.fakturownia.pl` zamiast `fegrrospzoo`) -> 500 Internal Server Error.
+2. Render default Python 3.14.3 ma bug `'typing.Union' object has no attribute '__module__'` z httpx -> wszystkie endpointy uzywajace httpx wyrzucaly AttributeError.
+
+### Deployment workflow
+- Save to GitHub w Emergent
+- Render: `Manual Deploy → Clear build cache & deploy` (potrzebne aby wymusic Python 3.13.5 zamiast cache 3.14.3)
+- Po deploy: w UI Narzedzia wpisac klucz API i subdomena `fegrrospzoo`
+
+
 ## Iteration 37 (2026-05-17) — Modul Finanse
 
 Stworzono kompleksowy modul **Finanse** odwzorowujacy plik Excel "Bilans 2026" z 4 podzakladkami w Panelu Admina.

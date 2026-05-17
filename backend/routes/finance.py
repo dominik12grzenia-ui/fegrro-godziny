@@ -793,6 +793,10 @@ async def get_finance_settings(current_user: dict = Depends(get_current_admin)):
         "fakturownia_domain": doc.get("fakturownia_domain", ""),
         "last_sync_at": doc.get("last_sync_at"),
         "last_sync_summary": doc.get("last_sync_summary"),
+        "last_fakturownia_sync_at": doc.get("last_fakturownia_sync_at"),
+        "last_fakturownia_sync_summary": doc.get("last_fakturownia_sync_summary"),
+        "last_fakturownia_sync_status": doc.get("last_fakturownia_sync_status"),
+        "last_fakturownia_sync_error": doc.get("last_fakturownia_sync_error"),
     }
 
 
@@ -1014,6 +1018,19 @@ def _iter_months(y1: int, m1: int, y2: int, m2: int):
             m += 1
 
 
+async def _record_fakturownia_sync_error(msg: str):
+    """Zapisuje informacje o nieudanym sync w finance_settings."""
+    try:
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
+                       "last_fakturownia_sync_status": "error",
+                       "last_fakturownia_sync_error": msg}},
+        )
+    except Exception:
+        logger.exception("[fakturownia] nie udalo sie zapisac stanu bledu")
+
+
 async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_system",
                                  skip_removal: bool = False) -> dict:
     """Logika pobierania faktur z Fakturowni - wywolywalna z endpointu i crona.
@@ -1054,8 +1071,10 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                     }
                     resp = await client.get(base_url, params=params)
                     if resp.status_code == 401:
+                        await _record_fakturownia_sync_error("Nieprawidlowy klucz API")
                         raise HTTPException(status_code=400, detail="Fakturownia: nieprawidlowy klucz API")
                     if resp.status_code == 404:
+                        await _record_fakturownia_sync_error(f"Subdomena '{domain}' nie istnieje")
                         raise HTTPException(status_code=400, detail=f"Fakturownia: subdomena '{domain}' nie istnieje")
                     resp.raise_for_status()
                     data = resp.json()
@@ -1073,6 +1092,7 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                         break
     except httpx.HTTPError as e:
         logger.error(f"[fakturownia] HTTP error: {e}")
+        await _record_fakturownia_sync_error(f"Blad polaczenia: {type(e).__name__}")
         raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
 
     # Pobierz istniejace wpisy fakturownia PO position_id GLOBALNIE (nie ograniczamy do roku/miesiaca,
@@ -1201,7 +1221,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     await db.finance_settings.update_one(
         {"id": "main"},
         {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
-                   "last_fakturownia_sync_summary": summary},
+                   "last_fakturownia_sync_summary": summary,
+                   "last_fakturownia_sync_status": "ok",
+                   "last_fakturownia_sync_error": None},
          "$setOnInsert": {"id": "main"}},
         upsert=True,
     )
@@ -1390,10 +1412,29 @@ async def cron_fakturownia_sync():
                      f"{total_updated} zaktualizowanych, "
                      f"{total_removed} usunietych "
                      f"(zakres {SYNC_FROM_YEAR:04d}-{SYNC_FROM_MONTH:02d} -> {now.year:04d}-{now.month:02d})")
+        # Zapis sukcesu w settings (czysci poprzedni blad jesli byl)
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
+                       "last_fakturownia_sync_status": "ok",
+                       "last_fakturownia_sync_error": None}},
+        )
     except HTTPException as e:
         logger.warning(f"[cron_fakturownia] {e.detail}")
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
+                       "last_fakturownia_sync_status": "error",
+                       "last_fakturownia_sync_error": f"HTTP {e.status_code}: {e.detail}"}},
+        )
     except Exception as e:
         logger.error(f"[cron_fakturownia] nieoczekiwany blad: {e}", exc_info=True)
+        await db.finance_settings.update_one(
+            {"id": "main"},
+            {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
+                       "last_fakturownia_sync_status": "error",
+                       "last_fakturownia_sync_error": f"{type(e).__name__}: {e}"}},
+        )
 
 
 
