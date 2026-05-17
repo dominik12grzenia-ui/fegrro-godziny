@@ -563,32 +563,11 @@ const ZapisyPanel = ({ year }) => {
           } catch { setPayrollExpected(null); }
         }
       } else {
-        // Caly rok: suma TYLKO od stycznia do biezacego miesiaca wlacznie
-        // (przyszle miesiace zwracaja "projekcje" fixed_salary z fallbacku - nie sa to realne wyplaty)
+        // Caly rok: jedno wywolanie /payroll/year-totals zamiast petli 12 GET-ow.
+        // Backend juz wie ze przyszle miesiace pomijac.
         try {
-          const maxMonth = year < currentYear ? 12 : (year > currentYear ? 0 : currentMonth);
-          let totalKoszt = 0;
-          for (let m = 1; m <= maxMonth; m++) {
-            const pRes = await api.get(`/payroll?year=${year}&month=${m}`);
-            const prows = pRes.data?.rows || [];
-            for (const r of prows) {
-              const rec = r.record || {};
-              const comp = r.computed || {};
-              const h = Number(r.total_hours) || 0;
-              const rate = Number(rec.rate) || 0;
-              const fixed = Number(rec.fixed_salary_amount) || 0;
-              const is_fixed = !!rec.is_fixed_salary;
-              const ha = is_fixed ? fixed : h * rate;
-              const bonus = Number(rec.bonus_zl) || 0;
-              const driver = Number(rec.driver_zl) || 0;
-              const op = Number(rec.other_plus_zl) || 0;
-              const om = Number(rec.other_minus_zl) || 0;
-              // Kary: backend zwraca w computed.penalties_zl lub r.auto_penalties_zl
-              const pen = Number(comp.penalties_zl ?? r.auto_penalties_zl) || 0;
-              totalKoszt += ha + bonus + driver + op - om - pen;
-            }
-          }
-          setPayrollExpected({ year, month: 0, total: totalKoszt });
+          const yt = await api.get(`/payroll/year-totals?year=${year}`);
+          setPayrollExpected({ year, month: 0, total: yt.data?.total || 0 });
         } catch { setPayrollExpected(null); }
       }
     } catch {

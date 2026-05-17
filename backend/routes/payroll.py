@@ -268,6 +268,90 @@ async def list_payroll(
     }
 
 
+# ============= Suma kosztow wyplat na rok (do bannera Finance) =============
+@router.get("/payroll/year-totals")
+async def payroll_year_totals(
+    year: int = Query(...),
+    _user: dict = Depends(get_current_admin),
+):
+    """Zwraca sume KOSZTU WYPLAT (hours_amount + bonus + driver + other_plus
+    - other_minus - penalties) dla calego roku, miesiac po miesiacu.
+
+    Optymalizacja: 1 zapytanie zamiast 12 osobnych GET /payroll.
+    Frontend uzywa tego endpoint w bannerze niezgodnosci Finance->Zapisy.
+    """
+    now = datetime.now()
+    current_year = now.year
+    current_month = now.month
+    if year < current_year:
+        max_month = 12
+    elif year == current_year:
+        max_month = current_month
+    else:
+        return {"year": year, "max_month": 0, "total": 0.0, "by_month": {}}
+
+    records = await db.payroll_records.find(
+        {"year": year, "month": {"$lte": max_month}},
+        {"_id": 0},
+    ).to_list(20000)
+
+    pipeline = [
+        {"$match": {"year": year, "month": {"$lte": max_month}}},
+        {"$group": {
+            "_id": {"emp": "$employee_id", "month": "$month"},
+            "total": {"$sum": {"$convert": {"input": "$hours_worked",
+                                              "to": "double", "onError": 0, "onNull": 0}}},
+        }},
+    ]
+    hours_map: dict = {}
+    async for row in db.hour_entries.aggregate(pipeline):
+        eid = row["_id"].get("emp")
+        m = row["_id"].get("month")
+        if eid and m:
+            hours_map[(eid, m)] = float(row.get("total") or 0)
+
+    adv_pipe = [
+        {"$match": {"year": year, "month": {"$lte": max_month}}},
+        {"$group": {"_id": {"emp": "$employee_id", "month": "$month"},
+                     "h": {"$sum": "$hours"}}},
+    ]
+    pen_map: dict = {}
+    async for row in db.penalties.aggregate(adv_pipe):
+        eid = row["_id"].get("emp")
+        m = row["_id"].get("month")
+        if eid and m:
+            pen_map[(eid, m)] = float(row.get("h") or 0)
+
+    by_month: dict = {m: 0.0 for m in range(1, max_month + 1)}
+    for r in records:
+        eid = r["employee_id"]
+        m = int(r["month"])
+        if m > max_month:
+            continue
+        hours = hours_map.get((eid, m), 0.0)
+        rate = float(r.get("rate") or 0)
+        fixed_amt = float(r.get("fixed_salary_amount") or 0)
+        is_fixed = bool(r.get("is_fixed_salary"))
+        ha = fixed_amt if is_fixed else hours * rate
+        bonus = float(r.get("bonus_zl") or 0)
+        driver = float(r.get("driver_zl") or 0)
+        op = float(r.get("other_plus_zl") or 0)
+        om = float(r.get("other_minus_zl") or 0)
+        pen_h = pen_map.get((eid, m), 0.0)
+        pen_zl = pen_h * rate
+        koszt = ha + bonus + driver + op - om - pen_zl
+        by_month[m] += koszt
+
+    total = round(sum(by_month.values()), 2)
+    return {
+        "year": year,
+        "max_month": max_month,
+        "total": total,
+        "by_month": {str(m): round(v, 2) for m, v in by_month.items()},
+    }
+
+
+
 async def _get_user_name(user_id: str) -> str:
     if not user_id:
         return "?"

@@ -205,3 +205,112 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+/* =========================================================================
+ *  FAST-PATH: in-memory cache + request deduplication for read-only GETs.
+ *
+ *  Goal: zakladka Finanse i przelaczanie miesiecy nie powinno re-pobierac
+ *  tych samych "rzadko zmieniajacych sie" zasobow (kody kosztow, budowy,
+ *  ustawienia, kontrahenci) co 200ms. Stale-while-revalidate: pierwszy
+ *  request laduje sie z sieci, kolejne w ciagu TTL wracaja natychmiast
+ *  z cache; rownolegle duplikaty (np. 3 komponenty pobieraja /finance/kody)
+ *  sa zlewane do jednego requestu i wynik dostaje kazdy subscriber.
+ *
+ *  TTL osobno per prefix. Mutacje (POST/PUT/PATCH/DELETE) na danym prefixie
+ *  automatycznie invaliduja cache calego prefixu.
+ * ===================================================================== */
+const _getCache = new Map(); // url -> { ts, data, status, headers }
+const _inflight = new Map(); // url -> Promise
+
+// Mapa prefix -> TTL ms. Co nie pasuje = nie cachujemy.
+const CACHEABLE_TTL = [
+  // Slowniki (rzadkie zmiany)
+  ['/finance/kody', 60_000],
+  ['/finance/budowy', 30_000],
+  ['/finance/settings', 60_000],
+  // Lekkie podsumowania
+  ['/payroll/year-totals', 30_000],
+  // Listy uzywane czesto miedzy zakladkami
+  ['/sites', 30_000],
+  ['/construction-sites', 30_000],
+  ['/employees', 30_000],
+  ['/foremen', 30_000],
+  // BHP/alerty/odzywka admin (admin pobierze raz na X)
+  ['/bhp/alerts', 60_000],
+  ['/clothing/types', 60_000],
+];
+
+function _matchTtl(url) {
+  for (const [prefix, ttl] of CACHEABLE_TTL) {
+    if (url.startsWith(prefix)) return ttl;
+  }
+  return 0;
+}
+
+function _purgePrefix(prefix) {
+  for (const k of Array.from(_getCache.keys())) {
+    if (k.startsWith(prefix)) _getCache.delete(k);
+  }
+  for (const k of Array.from(_inflight.keys())) {
+    if (k.startsWith(prefix)) _inflight.delete(k);
+  }
+}
+
+// Wrapper na metodach GET. Zamieniamy zwracajac z cache jezeli swieze.
+const _origGet = api.get.bind(api);
+api.get = (url, config = {}) => {
+  // Skip-cache: gdy uzywamy { skipCache: true }
+  if (config && config.skipCache) return _origGet(url, config);
+  const ttl = _matchTtl(url);
+  if (!ttl) return _origGet(url, config);
+  const now = Date.now();
+  const cached = _getCache.get(url);
+  if (cached && now - cached.ts < ttl) {
+    // Natychmiast zwroc kopie odpowiedzi
+    return Promise.resolve({ data: cached.data, status: cached.status, headers: cached.headers });
+  }
+  // Deduplikacja: jezeli rownolegle juz leci - zwroc to samo Promise
+  if (_inflight.has(url)) return _inflight.get(url);
+  const p = _origGet(url, config)
+    .then((r) => {
+      _getCache.set(url, {
+        ts: Date.now(), data: r.data, status: r.status, headers: r.headers,
+      });
+      _inflight.delete(url);
+      return r;
+    })
+    .catch((e) => {
+      _inflight.delete(url);
+      throw e;
+    });
+  _inflight.set(url, p);
+  return p;
+};
+
+// Auto-invalidate po mutacjach. Wyciagamy prefix z URL i czyscimy.
+function _invalidateOnMutation(url) {
+  if (!url) return;
+  // url moze byc np. '/finance/budowy/abc/archive' - cleanup '/finance/budowy'
+  for (const [prefix] of CACHEABLE_TTL) {
+    if (url.startsWith(prefix)) {
+      _purgePrefix(prefix);
+    }
+  }
+  // Po edycji wyplat / godzin / zaliczek - invaliduj /payroll/year-totals
+  if (url.startsWith('/payroll') || url.startsWith('/hours') ||
+      url.startsWith('/advances') || url.startsWith('/penalties')) {
+    _purgePrefix('/payroll/year-totals');
+  }
+}
+
+['post', 'put', 'patch', 'delete'].forEach((method) => {
+  const orig = api[method].bind(api);
+  api[method] = (url, ...rest) => {
+    _invalidateOnMutation(url);
+    return orig(url, ...rest);
+  };
+});
+
+// Eksport - rzadko potrzebne, ale przydatne po mass-sync
+export const invalidateApiCache = (prefix) => _purgePrefix(prefix);
+export const clearAllApiCache = () => { _getCache.clear(); _inflight.clear(); };
