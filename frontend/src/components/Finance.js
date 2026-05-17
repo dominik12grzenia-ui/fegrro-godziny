@@ -227,7 +227,6 @@ const BudowyPanel = () => {
           <thead className="bg-[#1E293B] text-[#94A3B8]">
             <tr>
               <th className="p-2 text-left">Nazwa</th>
-              <th className="p-2 text-left">Kod</th>
               <th className="p-2 text-center">W godzinach</th>
               <th className="p-2 text-center">GIR %</th>
               <th className="p-2 text-center">DW %</th>
@@ -239,7 +238,6 @@ const BudowyPanel = () => {
             {rows.map((b) => (
               <tr key={b.id} className="border-t border-[#334155] hover:bg-[#1E293B]/50" data-testid={`finance-budowa-row-${b.id}`}>
                 <td className="p-2 text-white font-medium">{b.name}</td>
-                <td className="p-2 text-[#94A3B8]">{b.code || '-'}</td>
                 <td className="p-2 text-center">{b.show_in_hours ? <span className="text-[#5F7151]">TAK</span> : <span className="text-[#475569]">-</span>}</td>
                 <td className="p-2 text-center">{b.is_gir ? <span className="text-[#E8B76A]">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
                 <td className="p-2 text-center">{b.is_dw ? <span className="text-[#E8B76A]">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#475569]">-</span>}</td>
@@ -275,11 +273,6 @@ const BudowyPanel = () => {
               <Input value={form.name} onChange={(e) => setForm({...form, name: e.target.value})}
                 placeholder="np. LEBA, SASINO" className="bg-[#1E293B] border-[#334155] text-white" autoFocus
                 data-testid="finance-budowa-name" />
-            </div>
-            <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Kod (opcjonalnie)</label>
-              <Input value={form.code} onChange={(e) => setForm({...form, code: e.target.value})}
-                placeholder="np. G3" className="bg-[#1E293B] border-[#334155] text-white" />
             </div>
             <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E293B] rounded">
               <input type="checkbox" checked={form.show_in_hours} onChange={(e) => setForm({...form, show_in_hours: e.target.checked})}
