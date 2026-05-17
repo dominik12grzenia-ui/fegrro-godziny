@@ -1403,6 +1403,8 @@ async def cron_fakturownia_sync():
 @router.post("/finance/test-fakturownia")
 async def test_fakturownia(current_user: dict = Depends(get_current_admin)):
     """Testuje polaczenie z Fakturownia API. Zwraca info o koncie lub blad."""
+    import asyncio
+    import requests as _req  # sync fallback (omija httpx + Python 3.14 typing bug)
     settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
     api_token = settings.get("fakturownia_api_key")
     domain = settings.get("fakturownia_domain")
@@ -1413,30 +1415,33 @@ async def test_fakturownia(current_user: dict = Depends(get_current_admin)):
     if domain.endswith(".fakturownia.pl"):
         domain = domain[: -len(".fakturownia.pl")]
     url = f"https://{domain}.fakturownia.pl/account.json"
+
+    def _do_request():
+        return _req.get(url, params={"api_token": api_token}, timeout=15)
+
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(url, params={"api_token": api_token})
-            if resp.status_code == 401:
-                return {"ok": False, "error": "Nieprawidlowy klucz API"}
-            if resp.status_code == 403:
-                return {"ok": False, "error": "Brak uprawnien dla tego klucza"}
-            if resp.status_code == 404:
-                return {"ok": False, "error": f"Subdomena '{domain}' nie istnieje"}
-            if resp.status_code >= 400:
-                return {"ok": False, "error": f"Fakturownia odpowiedziala HTTP {resp.status_code}"}
-            try:
-                data = resp.json()
-            except Exception:
-                return {"ok": False, "error": "Fakturownia zwrocila nieprawidlowa odpowiedz (nie-JSON)"}
-            return {
-                "ok": True,
-                "company_name": data.get("company_name") or data.get("name") or "",
-                "prefix": data.get("prefix") or domain,
-            }
-    except httpx.TimeoutException:
+        resp = await asyncio.to_thread(_do_request)
+        if resp.status_code == 401:
+            return {"ok": False, "error": "Nieprawidlowy klucz API"}
+        if resp.status_code == 403:
+            return {"ok": False, "error": "Brak uprawnien dla tego klucza"}
+        if resp.status_code == 404:
+            return {"ok": False, "error": f"Subdomena '{domain}' nie istnieje"}
+        if resp.status_code >= 400:
+            return {"ok": False, "error": f"Fakturownia odpowiedziala HTTP {resp.status_code}"}
+        try:
+            data = resp.json()
+        except Exception:
+            return {"ok": False, "error": "Fakturownia zwrocila nieprawidlowa odpowiedz (nie-JSON)"}
+        return {
+            "ok": True,
+            "company_name": data.get("company_name") or data.get("name") or "",
+            "prefix": data.get("prefix") or domain,
+        }
+    except _req.exceptions.Timeout:
         return {"ok": False, "error": f"Timeout - Fakturownia nie odpowiada w 15s (domena: {domain})"}
-    except httpx.HTTPError as e:
-        return {"ok": False, "error": f"Blad polaczenia: {type(e).__name__}: {e}"}
+    except _req.exceptions.ConnectionError as e:
+        return {"ok": False, "error": f"Blad polaczenia: {e}"}
     except Exception as e:
         logger.exception("[test-fakturownia] nieoczekiwany blad")
         return {"ok": False, "error": f"Nieoczekiwany blad: {type(e).__name__}: {e}"}
