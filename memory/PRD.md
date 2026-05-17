@@ -1,3 +1,23 @@
+## Iteration 45 (2026-05-17) — Naprawa nazw budow w Payroll + banner niezgodnosci KP
+
+### Bug: backend uzywal niewlasciwej kolekcji
+PayrollAdmin pokazywal wszystkie godziny w pseudo-budowie "(bez budowy)" mimo ze hour_entries mialy realne site_id. Przyczyna: `db.sites.find()` - ale wlasciwa kolekcja to `db.construction_sites` (z `db.sites` migrowano w starej iteracji).
+
+### Naprawa - 3 wystapienia
+- `payroll.py:145` - `db.sites.find` -> `db.construction_sites.find` (mapowanie site_name dla sites_breakdown)
+- `hours.py:26` - `db.sites.find_one` -> `db.construction_sites.find_one` (check existing hours na innej budowie)
+- `warehouse.py:215` - `db.sites.find_one` -> `db.construction_sites.find_one` (lookup nazwy budowy)
+
+### Skutek po deploy
+- PayrollAdmin "Podzial kosztu wynagrodzen na budowy" pokaze realne nazwy: Castorama, LEBA, SASINO, DRUTEX, GUS-LO itp.
+- "(bez budowy)" tylko dla pracownikow ktorzy faktycznie nie maja godzin przypisanych do zadnej budowy
+
+### Banner niezgodnosci KP (Finanse → Zapisy)
+- Liczy oczekiwana sume KP z /api/payroll (per pracownik: ha + bonus + driver + o_plus - o_minus - kary)
+- Porownuje z suma KP_WYNAGRODZENIA (source=auto_payroll) z rows
+- Jesli roznica >1 zl -> czerwony banner z przyciskiem "Sync ten miesiac" / "Sync wszystkie"
+
+
 ## Iteration 44 (2026-05-17) — Manualne budowy w tabeli godzin
 
 ### Problem

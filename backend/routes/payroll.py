@@ -142,7 +142,7 @@ async def list_payroll(
     site_ids = set()
     for sites in breakdown_map.values():
         site_ids.update(sites.keys())
-    sites_docs = await db.sites.find(
+    sites_docs = await db.construction_sites.find(
         {"id": {"$in": [s for s in site_ids if s]}},
         {"_id": 0, "id": 1, "name": 1},
     ).to_list(1000)

@@ -212,7 +212,7 @@ async def create_order(payload: OrderCreate, current_user: dict = Depends(get_cu
     # Resolve site name (if provided)
     site_name = None
     if payload.site_id:
-        site = await db.sites.find_one({"id": payload.site_id}, {"_id": 0, "name": 1})
+        site = await db.construction_sites.find_one({"id": payload.site_id}, {"_id": 0, "name": 1})
         if site:
             site_name = site.get("name")
 

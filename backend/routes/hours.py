@@ -23,7 +23,7 @@ async def check_existing_hours(
         "site_id": {"$ne": site_id}
     }, {"_id": 0})
     if existing:
-        site = await db.sites.find_one({"id": existing["site_id"]}, {"_id": 0, "name": 1})
+        site = await db.construction_sites.find_one({"id": existing["site_id"]}, {"_id": 0, "name": 1})
         return {
             "has_hours": True,
             "hours": existing.get("hours_worked", 0),
