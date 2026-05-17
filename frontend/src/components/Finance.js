@@ -251,9 +251,10 @@ const ZapisyPanel = ({ year }) => {
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [filterUnassigned, setFilterUnassigned] = useState(false);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
-    kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', notes: '',
+    kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
   });
 
   const fetchData = useCallback(async () => {
@@ -288,6 +289,7 @@ const ZapisyPanel = ({ year }) => {
         kod_id: form.kod_id,
         budowa_id: form.budowa_id || null,
         nr_faktury: form.nr_faktury,
+        pozycja_nazwa: form.pozycja_nazwa,
         notes: form.notes,
       };
       if (editing) {
@@ -298,7 +300,7 @@ const ZapisyPanel = ({ year }) => {
         toast.success('Dodano zapis');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', notes: '' });
+      setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
@@ -309,10 +311,19 @@ const ZapisyPanel = ({ year }) => {
     setEditing(z);
     setForm({
       date: z.date, kontrahent: z.kontrahent || '', netto: String(z.netto),
-      kod_id: z.kod_id, budowa_id: z.budowa_id || '',
-      nr_faktury: z.nr_faktury || '', notes: z.notes || '',
+      kod_id: z.kod_id || 'PZS', budowa_id: z.budowa_id || '',
+      nr_faktury: z.nr_faktury || '', pozycja_nazwa: z.pozycja_nazwa || '', notes: z.notes || '',
     });
     setShowAdd(true);
+  };
+
+  const quickAssign = async (z, field, value) => {
+    try {
+      await api.put(`/finance/zapisy/${z.id}`, { [field]: value });
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
   };
 
   const remove = async (z) => {
@@ -322,6 +333,8 @@ const ZapisyPanel = ({ year }) => {
   };
 
   const totalNetto = rows.reduce((s, r) => s + (r.netto || 0), 0);
+  const unassignedCount = rows.filter(r => r.source === 'fakturownia' && !r.kod_id).length;
+  const filteredRows = filterUnassigned ? rows.filter(r => r.source === 'fakturownia' && !r.kod_id) : rows;
 
   const syncCurrent = async () => {
     if (!window.confirm(
@@ -340,8 +353,23 @@ const ZapisyPanel = ({ year }) => {
 
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
-      <CardHeader className="flex flex-row items-center justify-between gap-3">
-        <CardTitle className="text-white">Zapisy ksiegowe ({rows.length}, suma: {fmt(totalNetto)} zl)</CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+        <CardTitle className="text-white">
+          Zapisy ksiegowe ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmt(totalNetto)} zl)
+          {unassignedCount > 0 && !filterUnassigned && (
+            <button onClick={() => setFilterUnassigned(true)}
+              className="ml-3 px-2 py-0.5 text-xs bg-[#E8B76A]/20 text-[#E8B76A] rounded hover:bg-[#E8B76A]/30"
+              data-testid="finance-unassigned-filter">
+              {unassignedCount} bez kodu (kliknij aby przefiltrowac)
+            </button>
+          )}
+          {filterUnassigned && (
+            <button onClick={() => setFilterUnassigned(false)}
+              className="ml-3 px-2 py-0.5 text-xs bg-[#334155] text-[#CBD5E1] rounded hover:bg-[#475569]">
+              Pokaz wszystkie
+            </button>
+          )}
+        </CardTitle>
         <div className="flex items-center gap-2">
           <Button onClick={syncCurrent} variant="outline"
             className="border-[#E8B76A] text-[#E8B76A] hover:bg-[#334155] hover:text-[#E8B76A]"
@@ -367,28 +395,59 @@ const ZapisyPanel = ({ year }) => {
           <thead className="bg-[#1E293B] text-[#94A3B8]">
             <tr>
               <th className="p-2 text-left">Data</th>
-              <th className="p-2 text-left">Kontrahent</th>
+              <th className="p-2 text-left">Kontrahent / Faktura</th>
+              <th className="p-2 text-left">Pozycja</th>
               <th className="p-2 text-left">Kod kosztu</th>
               <th className="p-2 text-left">Budowa</th>
               <th className="p-2 text-right">Netto</th>
-              <th className="p-2 text-left">Nr fakt.</th>
               <th className="p-2 text-right">Akcje</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((z) => (
-              <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : ''}`} data-testid={`finance-zapis-row-${z.id}`}>
-                <td className="p-2 text-white">{z.date}</td>
-                <td className="p-2 text-[#CBD5E1]">
-                  {z.kontrahent || '-'}
+            {filteredRows.map((z) => {
+              const isFakturownia = z.source === 'fakturownia';
+              const isUnassigned = isFakturownia && !z.kod_id;
+              return (
+              <tr key={z.id} className={`border-t border-[#334155] hover:bg-[#1E293B]/50 ${
+                isUnassigned ? 'bg-[#E8B76A]/10 ring-1 ring-inset ring-[#E8B76A]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#1E293B]/40' : '')
+              }`} data-testid={`finance-zapis-row-${z.id}`}>
+                <td className="p-2 text-white text-xs whitespace-nowrap">{z.date}</td>
+                <td className="p-2 text-[#CBD5E1] text-xs">
+                  <div>{z.kontrahent || '-'}</div>
+                  {z.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{z.nr_faktury}</div>}
+                  {isFakturownia && <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">FAKTUROWNIA</span>}
                   {z.source && z.source.startsWith('auto_') && (
-                    <span className="ml-1 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded" title="Auto-sync z godzin/wyplat">AUTO</span>
+                    <span className="inline-block mt-0.5 text-[10px] bg-[#E8B76A]/20 text-[#E8B76A] px-1 rounded">AUTO</span>
                   )}
                 </td>
-                <td className="p-2 text-[#CBD5E1] text-xs">{kodName(z.kod_id)}</td>
-                <td className="p-2 text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</td>
-                <td className="p-2 text-right text-white font-mono">{fmt(z.netto)}</td>
-                <td className="p-2 text-[#94A3B8] text-xs">{z.nr_faktury || '-'}</td>
+                <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
+                <td className="p-2 text-xs">
+                  {isFakturownia ? (
+                    <select value={z.kod_id || ''} onChange={(e) => quickAssign(z, 'kod_id', e.target.value)}
+                      className={`w-full bg-[#1E293B] border rounded px-1 py-1 text-xs ${isUnassigned ? 'border-[#E8B76A] text-[#E8B76A]' : 'border-[#334155] text-white'}`}
+                      data-testid={`finance-quick-kod-${z.id}`}>
+                      <option value="">— przypisz kod —</option>
+                      {['PZS','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
+                        const ck = kody.filter(k => k.category === cat);
+                        if (!ck.length) return null;
+                        return <optgroup key={cat} label={cat}>
+                          {ck.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                        </optgroup>;
+                      })}
+                    </select>
+                  ) : <span className="text-[#CBD5E1]">{kodName(z.kod_id)}</span>}
+                </td>
+                <td className="p-2 text-xs">
+                  {isFakturownia ? (
+                    <select value={z.budowa_id || ''} onChange={(e) => quickAssign(z, 'budowa_id', e.target.value)}
+                      className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-1 py-1 text-xs"
+                      data-testid={`finance-quick-budowa-${z.id}`}>
+                      <option value="">— bez budowy —</option>
+                      {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                    </select>
+                  ) : <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>}
+                </td>
+                <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmt(z.netto)}</td>
                 <td className="p-2 text-right">
                   <div className="flex items-center gap-1 justify-end">
                     <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#334155] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
@@ -396,7 +455,8 @@ const ZapisyPanel = ({ year }) => {
                   </div>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>}
       </CardContent>
@@ -419,6 +479,11 @@ const ZapisyPanel = ({ year }) => {
               <label className="text-sm text-[#94A3B8] block mb-1">Kontrahent</label>
               <Input value={form.kontrahent} onChange={(e) => setForm({...form, kontrahent: e.target.value})}
                 placeholder="np. INWESTOR ABC" className="bg-[#1E293B] border-[#334155] text-white" />
+            </div>
+            <div className="col-span-2">
+              <label className="text-sm text-[#94A3B8] block mb-1">Pozycja (nazwa towaru/uslugi)</label>
+              <Input value={form.pozycja_nazwa} onChange={(e) => setForm({...form, pozycja_nazwa: e.target.value})}
+                placeholder="np. Beton B25, Stal preta fi12" className="bg-[#1E293B] border-[#334155] text-white" />
             </div>
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Kod kosztu</label>

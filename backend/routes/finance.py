@@ -16,6 +16,7 @@ Logika obliczen:
 """
 import logging
 import uuid
+import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from datetime import datetime
 from typing import Optional, List
@@ -109,6 +110,7 @@ class ZapisCreate(BaseModel):
     kod_id: str  # z finance_kody (np. KBB_BETON, PZS, KP_WYNAGRODZENIA)
     budowa_id: Optional[str] = None  # finance_budowy.id - jezeli koszt budowy
     nr_faktury: Optional[str] = None
+    pozycja_nazwa: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -120,6 +122,7 @@ class ZapisUpdate(BaseModel):
     kod_id: Optional[str] = None
     budowa_id: Optional[str] = None
     nr_faktury: Optional[str] = None
+    pozycja_nazwa: Optional[str] = None
     notes: Optional[str] = None
 
 
@@ -322,6 +325,7 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
         "kod_category": kod["category"],
         "budowa_id": payload.budowa_id,
         "nr_faktury": (payload.nr_faktury or "").strip(),
+        "pozycja_nazwa": (payload.pozycja_nazwa or "").strip(),
         "notes": (payload.notes or "").strip(),
         "source": "manual",
         "created_at": datetime.now().isoformat(),
@@ -926,3 +930,211 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
         upsert=True,
     )
     return summary
+
+
+# ============= FAKTUROWNIA: Pobranie faktur kosztowych z pozycjami =============
+@router.post("/finance/sync-from-fakturownia")
+async def sync_from_fakturownia(
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Pobiera faktury kosztowe z Fakturowni dla danego miesiaca (domyslnie biezacy).
+
+    Kazda POZYCJA faktury staje sie osobnym wpisem w finance_zapisy, dzieki czemu
+    admin moze podzielic koszt na rozne budowy.
+
+    Idempotentnie: jezeli pozycja juz istnieje (po fakturownia_position_id),
+    aktualizuje TYLKO netto/nazwe pozycji. NIE rusza kod_id/budowa_id/notes
+    (ktore admin juz mogl ustawic recznie).
+    """
+    settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+    api_token = settings.get("fakturownia_api_key")
+    domain = settings.get("fakturownia_domain")
+    if not api_token or not domain:
+        raise HTTPException(
+            status_code=400,
+            detail="Brak konfiguracji Fakturowni. Ustaw klucz API i subdomene w Narzedziach.",
+        )
+    now = datetime.now()
+    yr, mo = year or now.year, month or now.month
+    date_from = f"{yr:04d}-{mo:02d}-01"
+    last_day = 31 if mo in (1, 3, 5, 7, 8, 10, 12) else (30 if mo != 2 else 29)
+    date_to = f"{yr:04d}-{mo:02d}-{last_day:02d}"
+
+    base_url = f"https://{domain}.fakturownia.pl/invoices.json"
+    all_invoices: list = []
+    page = 1
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while True:
+                params = {
+                    "api_token": api_token,
+                    "income": "no",  # tylko faktury KOSZTOWE
+                    "include_positions": "true",
+                    "period": "more",
+                    "date_from": date_from,
+                    "date_to": date_to,
+                    "page": str(page),
+                    "per_page": "100",
+                }
+                resp = await client.get(base_url, params=params)
+                if resp.status_code == 401:
+                    raise HTTPException(status_code=400, detail="Fakturownia: nieprawidlowy klucz API")
+                if resp.status_code == 404:
+                    raise HTTPException(status_code=400, detail=f"Fakturownia: subdomena '{domain}' nie istnieje")
+                resp.raise_for_status()
+                data = resp.json()
+                # Fakturownia zwraca albo list albo dict z paginacja
+                page_invoices = data if isinstance(data, list) else data.get("invoices", [])
+                if not page_invoices:
+                    break
+                all_invoices.extend(page_invoices)
+                if len(page_invoices) < 100:
+                    break  # ostatnia strona
+                page += 1
+                if page > 50:  # safety
+                    break
+    except httpx.HTTPError as e:
+        logger.error(f"[fakturownia] HTTP error: {e}")
+        raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
+
+    # Pobierz aktualne wpisy fakturownia dla tego miesiaca, zeby zachowac ustawione przez admina kod_id/budowa_id
+    existing = await db.finance_zapisy.find(
+        {"year": yr, "month": mo, "source": "fakturownia"},
+        {"_id": 0, "id": 1, "fakturownia_position_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
+    ).to_list(length=None)
+    existing_by_pos = {e.get("fakturownia_position_id"): e for e in existing if e.get("fakturownia_position_id")}
+
+    created = 0
+    updated = 0
+    skipped = 0
+    new_position_ids: set = set()
+
+    for inv in all_invoices:
+        inv_id = inv.get("id")
+        # Data sprzedazy lub wystawienia
+        issue_date = inv.get("sell_date") or inv.get("issue_date") or inv.get("transaction_date")
+        if not issue_date:
+            issue_date = f"{yr:04d}-{mo:02d}-01"
+        # Kontrahent: dla faktury KOSZTOWEJ - sprzedawca to "buyer_*" (zgodnie z API)
+        kontrahent = (inv.get("buyer_name") or inv.get("seller_name") or "").strip()
+        nr_fakt = (inv.get("number") or "").strip()
+        positions = inv.get("positions") or []
+        if not positions:
+            # Jezeli brak pozycji - tworzymy 1 wpis z calej faktury
+            pos_id = f"inv_{inv_id}_total"
+            netto_total = float(inv.get("price_net") or 0)
+            brutto_total = float(inv.get("price_gross") or 0)
+            positions = [{
+                "id": pos_id,
+                "name": "(brak pozycji - kwota laczna)",
+                "total_price_net": netto_total,
+                "total_price_gross": brutto_total,
+            }]
+
+        for pos in positions:
+            pos_id = str(pos.get("id") or f"inv_{inv_id}_idx{positions.index(pos)}")
+            netto = float(pos.get("total_price_net") or pos.get("price_net") or 0)
+            brutto = float(pos.get("total_price_gross") or pos.get("price_gross") or 0)
+            name = (pos.get("name") or "").strip()
+            new_position_ids.add(pos_id)
+            if not netto and not brutto:
+                skipped += 1
+                continue
+            existing_z = existing_by_pos.get(pos_id)
+            try:
+                d = datetime.strptime(issue_date, "%Y-%m-%d")
+                iso_date = issue_date
+                year_v, month_v = d.year, d.month
+            except ValueError:
+                iso_date = date_from
+                year_v, month_v = yr, mo
+
+            if existing_z:
+                # Update tylko technicznych pol, zachowujemy admin assignments
+                await db.finance_zapisy.update_one(
+                    {"id": existing_z["id"]},
+                    {"$set": {
+                        "date": iso_date, "year": year_v, "month": month_v,
+                        "kontrahent": kontrahent, "netto": round(netto, 2),
+                        "brutto": round(brutto, 2),
+                        "nr_faktury": nr_fakt, "pozycja_nazwa": name,
+                        "updated_at": datetime.now().isoformat(),
+                        "updated_by": current_user["sub"],
+                    }},
+                )
+                updated += 1
+            else:
+                doc = {
+                    "id": str(uuid.uuid4()),
+                    "date": iso_date, "year": year_v, "month": month_v,
+                    "kontrahent": kontrahent,
+                    "netto": round(netto, 2), "brutto": round(brutto, 2),
+                    "kod_id": None, "kod_category": None,  # admin musi przypisac
+                    "budowa_id": None,
+                    "nr_faktury": nr_fakt,
+                    "pozycja_nazwa": name,
+                    "notes": "",
+                    "source": "fakturownia",
+                    "fakturownia_invoice_id": inv_id,
+                    "fakturownia_position_id": pos_id,
+                    "created_at": datetime.now().isoformat(),
+                    "created_by": current_user["sub"],
+                }
+                await db.finance_zapisy.insert_one(doc)
+                created += 1
+
+    # Usun wpisy ktorych juz NIE ma w Fakturowni (faktura anulowana/usunieta)
+    # ale TYLKO te bez przypisanego kod_id (admin jeszcze nie kategoryzowal)
+    removed = 0
+    for pos_id, ez in existing_by_pos.items():
+        if pos_id not in new_position_ids and not ez.get("kod_id"):
+            await db.finance_zapisy.delete_one({"id": ez["id"]})
+            removed += 1
+
+    summary = {
+        "year": yr, "month": mo,
+        "invoices_fetched": len(all_invoices),
+        "positions_created": created,
+        "positions_updated": updated,
+        "positions_removed": removed,
+        "skipped_empty": skipped,
+    }
+    await db.finance_settings.update_one(
+        {"id": "main"},
+        {"$set": {"last_fakturownia_sync_at": datetime.now().isoformat(),
+                   "last_fakturownia_sync_summary": summary},
+         "$setOnInsert": {"id": "main"}},
+        upsert=True,
+    )
+    return summary
+
+
+# ============= Test polaczenia z Fakturownia =============
+@router.post("/finance/test-fakturownia")
+async def test_fakturownia(current_user: dict = Depends(get_current_admin)):
+    """Testuje polaczenie z Fakturownia API. Zwraca info o koncie lub blad."""
+    settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+    api_token = settings.get("fakturownia_api_key")
+    domain = settings.get("fakturownia_domain")
+    if not api_token or not domain:
+        raise HTTPException(status_code=400, detail="Brak konfiguracji - ustaw klucz API i subdomene")
+    url = f"https://{domain}.fakturownia.pl/account.json"
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(url, params={"api_token": api_token})
+            if resp.status_code == 401:
+                return {"ok": False, "error": "Nieprawidlowy klucz API"}
+            if resp.status_code == 404:
+                return {"ok": False, "error": f"Subdomena '{domain}' nie istnieje"}
+            resp.raise_for_status()
+            data = resp.json()
+            return {
+                "ok": True,
+                "company_name": data.get("company_name") or data.get("name") or "",
+                "prefix": data.get("prefix") or domain,
+            }
+    except httpx.HTTPError as e:
+        return {"ok": False, "error": f"Blad polaczenia: {e}"}
+

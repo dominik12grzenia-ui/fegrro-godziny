@@ -14,6 +14,60 @@ const MONTH_NAMES = [
   'Lipiec', 'Sierpien', 'Wrzesien', 'Pazdziernik', 'Listopad', 'Grudzien',
 ];
 
+const FakturowniaActions = ({ onChange }) => {
+  const [testing, setTesting] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const test = async () => {
+    setTesting(true); setTestResult(null);
+    try {
+      const r = await api.post('/finance/test-fakturownia');
+      setTestResult(r.data);
+      if (r.data.ok) toast.success(`Polaczenie OK: ${r.data.company_name || r.data.prefix}`);
+      else toast.error(r.data.error);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad testu');
+    } finally { setTesting(false); }
+  };
+
+  const sync = async () => {
+    if (!window.confirm(
+      'Pobrac faktury kosztowe z Fakturowni za biezacy miesiac?\n\n' +
+      'Kazda pozycja stanie sie osobnym wpisem - mozesz potem przypisac kod i budowe.'
+    )) return;
+    setSyncing(true);
+    try {
+      const r = await api.post('/finance/sync-from-fakturownia');
+      toast.success(`Pobrano ${r.data.invoices_fetched} faktur: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych pozycji`);
+      onChange && onChange();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad pobierania');
+    } finally { setSyncing(false); }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 pt-2 border-t border-[#334155] mt-2">
+      <Button onClick={test} disabled={testing} variant="outline"
+        className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white"
+        data-testid="fakturownia-test-btn">
+        {testing ? 'Testowanie...' : 'Test polaczenia'}
+      </Button>
+      <Button onClick={sync} disabled={syncing}
+        className="bg-[#E8B76A] hover:bg-[#D9A656] text-[#1E293B] font-semibold"
+        data-testid="fakturownia-sync-btn">
+        {syncing ? 'Pobieranie...' : 'Pobierz faktury z biezacego miesiaca'}
+      </Button>
+      {testResult && testResult.ok && (
+        <span className="text-xs text-[#5F7151] self-center ml-2">✓ {testResult.company_name || testResult.prefix}</span>
+      )}
+      {testResult && !testResult.ok && (
+        <span className="text-xs text-[#DC2626] self-center ml-2">✗ {testResult.error}</span>
+      )}
+    </div>
+  );
+};
+
 const FakturowniaApiCard = () => {
   const [settings, setSettings] = useState(null);
   const [apiKey, setApiKey] = useState('');
@@ -81,6 +135,7 @@ const FakturowniaApiCard = () => {
           <Save className="h-4 w-4 mr-2" />
           {saving ? 'Zapisywanie...' : 'Zapisz'}
         </Button>
+        <FakturowniaActions onChange={fetchSettings} />
         {settings?.last_sync_at && (
           <p className="text-xs text-[#94A3B8] mt-2 pt-2 border-t border-[#334155]">
             Ostatnia synchronizacja: <span className="text-[#CBD5E1]">{settings.last_sync_at.slice(0, 16).replace('T', ' ')}</span>
