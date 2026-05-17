@@ -19,6 +19,15 @@ const FakturowniaActions = ({ onChange }) => {
   const [syncing, setSyncing] = useState(false);
   const [testResult, setTestResult] = useState(null);
 
+  const describeError = (e, fallback) => {
+    if (e.response) {
+      const det = e.response.data?.detail || e.response.data?.error;
+      return `${fallback} (HTTP ${e.response.status}${det ? ': ' + det : ''})`;
+    }
+    if (e.request) return `${fallback} - brak odpowiedzi backendu (sprawdz polaczenie internetowe)`;
+    return `${fallback}: ${e.message || e}`;
+  };
+
   const test = async () => {
     setTesting(true); setTestResult(null);
     try {
@@ -27,7 +36,9 @@ const FakturowniaActions = ({ onChange }) => {
       if (r.data.ok) toast.success(`Polaczenie OK: ${r.data.company_name || r.data.prefix}`);
       else toast.error(r.data.error);
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad testu');
+      const msg = describeError(e, 'Blad testu polaczenia');
+      setTestResult({ ok: false, error: msg });
+      toast.error(msg);
     } finally { setTesting(false); }
   };
 
@@ -43,7 +54,7 @@ const FakturowniaActions = ({ onChange }) => {
       toast.success(`Pobrano ${r.data.invoices_fetched} faktur z ${r.data.months_processed} miesiecy: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych`);
       onChange && onChange();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad pobierania');
+      toast.error(describeError(e, 'Blad pobierania'));
     } finally { setSyncing(false); }
   };
 
@@ -273,11 +284,18 @@ const FakturowniaApiCard = () => {
         if (t.data.ok) toast.success(`Polaczenie OK: ${t.data.company_name || t.data.prefix}`);
         else toast.error(`Test nieudany: ${t.data.error}`);
       } catch (e2) {
-        toast.error(e2.response?.data?.detail || 'Blad testu polaczenia');
+        const det = e2.response?.data?.detail || e2.response?.data?.error;
+        const status = e2.response?.status;
+        const msg = status
+          ? `Test nieudany (HTTP ${status}${det ? ': ' + det : ''})`
+          : e2.request
+            ? 'Test nieudany - brak odpowiedzi backendu'
+            : `Test nieudany: ${e2.message || e2}`;
+        toast.error(msg);
       }
       fetchSettings();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Blad zapisu');
+      toast.error(e.response?.data?.detail || `Blad zapisu (HTTP ${e.response?.status || '?'})`);
     } finally {
       setSaving(false);
     }
