@@ -4,7 +4,8 @@ import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { ChevronDown, ChevronRight, Plus, Archive, ArchiveRestore, Trash2, Edit2, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Archive, ArchiveRestore, Trash2, Edit2, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { toast } from 'sonner';
 
 const PL_MONTHS_SHORT = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paz','Lis','Gru'];
@@ -39,6 +40,183 @@ const SUBTABS = [
   { id: 'rw', label: 'Rachunek wynikow' },
   { id: 'sprzedaz', label: 'Sprzedaz' },
 ];
+
+// Slownik kolumn tabeli "Sprzedaz per budowa" - kliknij ikonke (?) zeby zobaczyc pelny opis i wzor
+const SPRZEDAZ_COL_INFO = {
+  Sprzedaz: {
+    title: 'Sprzedaz (PZS)',
+    desc: 'Suma netto faktur sprzedazowych wystawionych dla tej budowy w wybranym okresie.',
+    formula: 'SUMA(faktury sprzedazowe netto dla tej budowy)',
+  },
+  KP: {
+    title: 'KP - Koszty Pracownikow',
+    desc: 'Bezposrednie koszty pracownikow (wynagrodzenia, ZUS, wynagrodzenia na stawkach) przypisane wprost do tej budowy.',
+    formula: 'SUMA(zapisy KP gdzie budowa = ta budowa)',
+  },
+  'KP-alok': {
+    title: 'KP-alok - Alokowane Koszty Pracownikow',
+    desc: 'Czesc kosztow pracownikow nieprzypisana do zadnej konkretnej budowy, rozdzielona pro-rata wedlug udzialu sprzedazy/godzin tej budowy w sumie wszystkich budow.',
+    formula: 'KP (bez budowy) * (sprzedaz_tej_budowy / sprzedaz_wszystkich_budow)',
+  },
+  KBB: {
+    title: 'KBB - Koszty Bezposrednie Budowy',
+    desc: 'Materialy, najmy maszyn, podwykonawcy, transport - wszystko bezposrednio zwiazane z ta budowa.',
+    formula: 'SUMA(zapisy KBB gdzie budowa = ta budowa)',
+  },
+  'KBB-alok': {
+    title: 'KBB-alok - Alokowane Koszty Bezposrednie',
+    desc: 'KBB nieprzypisane do konkretnej budowy, rozdzielone pro-rata.',
+    formula: 'KBB (bez budowy) * udzial tej budowy',
+  },
+  'Marza brutto': {
+    title: 'Marza brutto',
+    desc: 'Pierwsza marza - po odjeciu wylacznie kosztow zmiennych (pracownikow i kosztow bezposrednich).',
+    formula: 'Sprzedaz - (KP + KP-alok + KBB + KBB-alok)',
+  },
+  'Marza brutto %': {
+    title: '% Marza brutto',
+    desc: 'Udzial marzy brutto w sprzedazy.',
+    formula: 'Marza brutto / Sprzedaz * 100%',
+  },
+  KSB: {
+    title: 'KSB - Koszty Stale Bezposrednie',
+    desc: 'Paliwa, samochody, odziez robocza, sprzet drobny - koszty stale przypisane do tej budowy.',
+    formula: 'SUMA(zapisy KSB gdzie budowa = ta budowa)',
+  },
+  'KSP uklady': {
+    title: 'KSP uklady - Koszty Slawkow/Ukladow',
+    desc: 'Wynajem i amortyzacja ukladow szalunkowych oraz innych dlugoterminowych ukladow, rozdzielone pro-rata pomiedzy budowy.',
+    formula: 'SUMA(KSP_STAWKI + KSP_UKLADY) * udzial tej budowy',
+  },
+  'Marza I': {
+    title: 'Marza I',
+    desc: 'Druga marza - po odjeciu kosztow stalych bezposrednich i ukladow/slawkow.',
+    formula: 'Marza brutto - KSB - KSP uklady',
+  },
+  'Marza I %': {
+    title: '% Marza I',
+    desc: 'Udzial Marzy I w sprzedazy.',
+    formula: 'Marza I / Sprzedaz * 100%',
+  },
+  'KSP alok': {
+    title: 'KSP alok - Alokowane Koszty Stale Posrednie',
+    desc: 'Biuro, ksiegowosc, oplaty bankowe, oprogramowanie - koszty administracyjne firmy rozdzielone pro-rata na budowy.',
+    formula: 'SUMA(KSP bez slawkow/ukladow) * udzial tej budowy',
+  },
+  'Marza II': {
+    title: 'Marza II',
+    desc: 'Trzecia marza - po odjeciu wszystkich kosztow operacyjnych firmy.',
+    formula: 'Marza I - KSP alok',
+  },
+  'Marza II %': {
+    title: '% Marza II',
+    desc: 'Udzial Marzy II w sprzedazy.',
+    formula: 'Marza II / Sprzedaz * 100%',
+  },
+  'Podatek alok': {
+    title: 'Podatek alok - Alokowany Podatek',
+    desc: 'Czesc obciazenia podatkowego (PPE/VAT) przypisana do tej budowy proporcjonalnie do jej udzialu w sprzedazy.',
+    formula: 'SUMA(podatki) * udzial tej budowy',
+  },
+  'Marza III': {
+    title: 'Marza III - Wynik netto',
+    desc: 'Ostateczna marza - zysk netto budowy po wszystkich kosztach i podatkach.',
+    formula: 'Marza II - Podatek alok',
+  },
+  'Marza III %': {
+    title: '% Marza III',
+    desc: 'Marza netto - finalny zysk procentowy budowy.',
+    formula: 'Marza III / Sprzedaz * 100%',
+  },
+  Przychod: {
+    title: 'Przychod (widoczny)',
+    desc: 'Faktyczny przychod netto z faktur sprzedazowych - dokladnie ta sama wartosc co Sprzedaz, ale wyswietlana zawsze (nawet gdy szczegoly sa schowane).',
+    formula: 'Sprzedaz netto',
+  },
+  Koszt: {
+    title: 'Koszt (widoczny)',
+    desc: 'Sumaryczny koszt budowy - wszystko z minusem zsumowane.',
+    formula: 'KP + KP-alok + KBB + KBB-alok + KSB + KSP uklady + KSP alok',
+  },
+  KGIR: {
+    title: 'KGIR - Kaucja Gwarancji Inwestora',
+    desc: 'Wartosc kaucji wstrzymanej przez inwestora (zwykle 2% sprzedazy) - zwracana po okresie gwarancyjnym.',
+    formula: 'Sprzedaz * kaucja_gir_pct (domyslnie 2%)',
+  },
+  KDW: {
+    title: 'KDW - Kaucja Dobrego Wykonania',
+    desc: 'Kaucja na dobre wykonanie / drobne wady (domyslnie 2% sprzedazy) - zwracana po usunieciu wad.',
+    formula: 'Sprzedaz * kaucja_dw_pct (domyslnie 2%)',
+  },
+  Roznica: {
+    title: 'Roznica - Wynik finansowy',
+    desc: 'Faktyczny wynik finansowy budowy po odjeciu kosztow i kaucji. To pokazuje ile budowa "zostawia" w firmie.',
+    formula: 'Przychod - Koszt - KGIR - KDW',
+  },
+  'Zysk%': {
+    title: '% Zysk',
+    desc: 'Procentowy wynik budowy - ile zostalo z kazdej zarobionej zlotowki.',
+    formula: 'Roznica / Przychod * 100%',
+  },
+  'Godz.': {
+    title: 'Godziny przepracowane',
+    desc: 'Suma godzin pracownikow wpisanych w tabeli godzin dla tej budowy w wybranym okresie.',
+    formula: 'SUMA(godziny dla tej budowy)',
+  },
+  'Przych/Rg': {
+    title: 'Przychod na roboczogodzine',
+    desc: 'Ile zlotych przychodu generuje 1 godzina pracy na tej budowie.',
+    formula: 'Przychod / Godziny',
+  },
+  'Zysk/Rg': {
+    title: 'Zysk na roboczogodzine',
+    desc: 'Ile zlotych zysku zostaje z 1 godziny pracy.',
+    formula: 'Roznica / Godziny',
+  },
+  'Koszt/Rg': {
+    title: 'Koszt na roboczogodzine',
+    desc: 'Ile zlotych kosztow generuje 1 godzina pracy.',
+    formula: 'Koszt / Godziny',
+  },
+  'Kszt zmienny': {
+    title: 'Koszt zmienny',
+    desc: 'Suma kosztow ktore zmieniaja sie wraz z liczba godzin - KP + KP-alok + KBB + KBB-alok.',
+    formula: 'KP + KP-alok + KBB + KBB-alok',
+  },
+};
+
+// Naglowek kolumny z ikonka (?) - po kliknieciu pokazuje pelen opis kolumny.
+const InfoHeader = ({ label, info, className = '', align = 'right' }) => {
+  if (!info) return <th className={className}>{label}</th>;
+  return (
+    <th className={className}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={`inline-flex items-center gap-1 hover:text-white transition-colors cursor-help ${align === 'right' ? 'flex-row-reverse' : ''}`}
+            data-testid={`sprzedaz-header-info-${label.replace(/\s+/g, '-').replace(/[^\w-]/g, '')}`}>
+            <HelpCircle className="h-3 w-3 opacity-60" />
+            <span>{label}</span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-80 bg-[#0F172A] border-[#334155] text-[#CBD5E1] text-xs p-4"
+          align="start"
+          side="bottom">
+          <div className="font-semibold text-[#E8B76A] text-sm mb-2">{info.title}</div>
+          <div className="text-[#CBD5E1] mb-3 leading-relaxed">{info.desc}</div>
+          {info.formula && (
+            <div className="pt-2 border-t border-[#334155]">
+              <div className="text-[10px] uppercase tracking-wide text-[#94A3B8] mb-1">Wzor</div>
+              <div className="font-mono text-[#5F7151] text-[11px] leading-relaxed">{info.formula}</div>
+            </div>
+          )}
+        </PopoverContent>
+      </Popover>
+    </th>
+  );
+};
 
 // Banner ostrzegajacy o nieudanym sync z Fakturowni.
 // Pollinguje co 60s zeby admin nie musial odswiezac strony.
@@ -1158,36 +1336,36 @@ const SprzedazPanel = ({ year }) => {
               <th className="p-2 text-left">#</th>
               <th className="p-2 text-left">Budowa</th>
               {showDetails && <>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Sprzedaz</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KP</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KP-alok</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KBB</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KBB-alok</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Marza brutto</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">%</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KSB</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KSP uklady</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Marza I</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">%</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">KSP alok</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Marza II</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">%</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Podatek alok</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">Marza III</th>
-                <th className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]">%</th>
+                <InfoHeader label="Sprzedaz" info={SPRZEDAZ_COL_INFO['Sprzedaz']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KP" info={SPRZEDAZ_COL_INFO['KP']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KP-alok" info={SPRZEDAZ_COL_INFO['KP-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KBB" info={SPRZEDAZ_COL_INFO['KBB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KBB-alok" info={SPRZEDAZ_COL_INFO['KBB-alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marza brutto" info={SPRZEDAZ_COL_INFO['Marza brutto']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza brutto %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KSB" info={SPRZEDAZ_COL_INFO['KSB']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KSP uklady" info={SPRZEDAZ_COL_INFO['KSP uklady']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marza I" info={SPRZEDAZ_COL_INFO['Marza I']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza I %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="KSP alok" info={SPRZEDAZ_COL_INFO['KSP alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marza II" info={SPRZEDAZ_COL_INFO['Marza II']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza II %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Podatek alok" info={SPRZEDAZ_COL_INFO['Podatek alok']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="Marza III" info={SPRZEDAZ_COL_INFO['Marza III']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
+                <InfoHeader label="%" info={SPRZEDAZ_COL_INFO['Marza III %']} className="p-2 text-right bg-[#1E293B]/70 text-[#E8B76A]" />
               </>}
               {/* Y-AI visible */}
-              <th className="p-2 text-right text-[#5F7151] font-bold">Przychod</th>
-              <th className="p-2 text-right text-[#E8836A] font-bold">Koszt</th>
-              <th className="p-2 text-right">KGIR</th>
-              <th className="p-2 text-right">KDW</th>
-              <th className="p-2 text-right text-[#E8B76A] font-bold">Roznica</th>
-              <th className="p-2 text-right">Zysk%</th>
-              <th className="p-2 text-right">Godz.</th>
-              <th className="p-2 text-right">Przych/Rg</th>
-              <th className="p-2 text-right">Zysk/Rg</th>
-              <th className="p-2 text-right">Koszt/Rg</th>
-              <th className="p-2 text-right">Kszt zmienny</th>
+              <InfoHeader label="Przychod" info={SPRZEDAZ_COL_INFO['Przychod']} className="p-2 text-right text-[#5F7151] font-bold" />
+              <InfoHeader label="Koszt" info={SPRZEDAZ_COL_INFO['Koszt']} className="p-2 text-right text-[#E8836A] font-bold" />
+              <InfoHeader label="KGIR" info={SPRZEDAZ_COL_INFO['KGIR']} className="p-2 text-right" />
+              <InfoHeader label="KDW" info={SPRZEDAZ_COL_INFO['KDW']} className="p-2 text-right" />
+              <InfoHeader label="Roznica" info={SPRZEDAZ_COL_INFO['Roznica']} className="p-2 text-right text-[#E8B76A] font-bold" />
+              <InfoHeader label="Zysk%" info={SPRZEDAZ_COL_INFO['Zysk%']} className="p-2 text-right" />
+              <InfoHeader label="Godz." info={SPRZEDAZ_COL_INFO['Godz.']} className="p-2 text-right" />
+              <InfoHeader label="Przych/Rg" info={SPRZEDAZ_COL_INFO['Przych/Rg']} className="p-2 text-right" />
+              <InfoHeader label="Zysk/Rg" info={SPRZEDAZ_COL_INFO['Zysk/Rg']} className="p-2 text-right" />
+              <InfoHeader label="Koszt/Rg" info={SPRZEDAZ_COL_INFO['Koszt/Rg']} className="p-2 text-right" />
+              <InfoHeader label="Kszt zmienny" info={SPRZEDAZ_COL_INFO['Kszt zmienny']} className="p-2 text-right" />
             </tr>
           </thead>
           <tbody>
