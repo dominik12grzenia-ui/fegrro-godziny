@@ -870,13 +870,42 @@ const RachunekWynikowPanel = ({ year }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({ kp: false, kbb: false, ksb: false, ksp: false });
+  const [showAddKod, setShowAddKod] = useState(false);
+  const [newKod, setNewKod] = useState({ name: '', category: 'KBB', order: 100 });
 
-  useEffect(() => {
+  const fetchRW = () => {
     setLoading(true);
     api.get(`/finance/rachunek-wynikow?year=${year}`)
       .then(r => setData(r.data))
-      .catch(() => toast.error('Blad pobierania rachunku wynikow'))
+      .catch(() => toast.error('Blad pobierania rachunku'))
       .finally(() => setLoading(false));
+  };
+
+  const submitNewKod = async () => {
+    const name = newKod.name.trim();
+    if (!name) { toast.error('Wpisz nazwe'); return; }
+    // Auto-generuj ID: CATEGORY_NAZWA (np. KBB_TELEFONY)
+    const slug = name.toUpperCase()
+      .replace(/[ĄĆĘŁŃÓŚŹŻ]/g, (c) => ({Ą:'A',Ć:'C',Ę:'E',Ł:'L',Ń:'N',Ó:'O',Ś:'S',Ź:'Z',Ż:'Z'}[c] || c))
+      .replace(/[^A-Z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '');
+    const id = `${newKod.category}_${slug}`;
+    try {
+      await api.post('/finance/kody', {
+        id, name, category: newKod.category, order: newKod.order || 100,
+      });
+      toast.success('Dodano kod');
+      setShowAddKod(false);
+      setNewKod({ name: '', category: 'KBB', order: 100 });
+      fetchRW();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad');
+    }
+  };
+
+  useEffect(() => {
+    fetchRW();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
 
   if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ladowanie...</CardContent></Card>;
@@ -902,7 +931,13 @@ const RachunekWynikowPanel = ({ year }) => {
 
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
-      <CardHeader><CardTitle className="text-white">Rachunek wynikow {year}</CardTitle></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-white">Rachunek wynikow {year}</CardTitle>
+        <Button onClick={() => setShowAddKod(true)}
+          className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-btn">
+          <Plus className="h-4 w-4 mr-1" /> Dodaj kod kosztu
+        </Button>
+      </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-rw-table">
           <thead className="bg-[#1E293B] text-[#94A3B8] sticky top-0">
@@ -959,6 +994,54 @@ const RachunekWynikowPanel = ({ year }) => {
           </tbody>
         </table>
       </CardContent>
+
+      {/* Modal: dodaj kod kosztu */}
+      <Dialog open={showAddKod} onOpenChange={setShowAddKod}>
+        <DialogContent className="bg-[#2A384C] border-[#334155] text-white">
+          <DialogHeader>
+            <DialogTitle>Dodaj kod kosztu</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Nazwa kodu</label>
+              <Input value={newKod.name} onChange={(e) => setNewKod({...newKod, name: e.target.value})}
+                placeholder="np. Telefony, Internet, Paliwo..." className="bg-[#1E293B] border-[#334155] text-white"
+                data-testid="rw-add-kod-name" />
+            </div>
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Kategoria (do ktorej grupy)</label>
+              <select value={newKod.category} onChange={(e) => setNewKod({...newKod, category: e.target.value})}
+                className="w-full bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-2 text-sm"
+                data-testid="rw-add-kod-category">
+                <option value="KBB">KBB - Koszty budowy bezposrednie</option>
+                <option value="KSB">KSB - Koszty stale budowy</option>
+                <option value="KSP">KSP - Koszty stale przedsiebiorstwa</option>
+                <option value="KP">KP - Koszty pracy</option>
+                <option value="G">G - Godziny</option>
+                <option value="PZS">PZS - Przychody sprzedazy</option>
+                <option value="PZSV">PZSV - Przychody sprzedazy VAT</option>
+                <option value="PPE">PPE - Przychody pozaoperacyjne</option>
+                <option value="PV">PV - Przychody VAT</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Kolejnosc w grupie (opcjonalnie)</label>
+              <Input type="number" value={newKod.order} onChange={(e) => setNewKod({...newKod, order: parseInt(e.target.value)||100})}
+                placeholder="100" className="bg-[#1E293B] border-[#334155] text-white" />
+            </div>
+            <div className="text-[10px] text-[#64748B]">
+              Po dodaniu kod bedzie dostepny w dropdownie "Kod kosztu" w Zapisach (faktury i recznych). Mozna usunac kod tylko jesli nie jest uzywany w zadnym zapisie.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddKod(false)}
+              className="border-[#334155] text-[#CBD5E1] hover:bg-[#334155] hover:text-white">Anuluj</Button>
+            <Button onClick={submitNewKod} className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="rw-add-kod-submit">
+              Dodaj
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };

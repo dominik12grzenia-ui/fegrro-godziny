@@ -145,11 +145,87 @@ class InvoiceUpdate(BaseModel):
 
 
 # ============= KODY =============
+class KodCreate(BaseModel):
+    """Admin tworzy nowy kod kosztowy w danej kategorii (KP/KBB/KSB/KSP/G/PZS/PZSV/PV/PPE)."""
+    id: str  # unikalny string ID, np. "KSB_TELEFONY" lub auto-generowany
+    name: str
+    category: str  # KP/KBB/KSB/KSP/G/PZS/PZSV/PV/PPE
+    order: Optional[int] = 100
+
+
+class KodUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    order: Optional[int] = None
+
+
 @router.get("/finance/kody")
 async def list_kody(current_user: dict = Depends(get_current_admin)):
     await ensure_kody_seed()
     rows = await db.finance_kody.find({}, {"_id": 0}).sort("order", 1).to_list(length=None)
     return {"rows": rows}
+
+
+@router.post("/finance/kody")
+async def create_kod(payload: KodCreate, current_user: dict = Depends(get_current_admin)):
+    valid_cats = ["PZS", "PZSV", "PPE", "PV", "G", "KP", "KBB", "KSB", "KSP"]
+    if payload.category not in valid_cats:
+        raise HTTPException(status_code=400, detail=f"Nieprawidlowa kategoria. Dostepne: {valid_cats}")
+    kid = payload.id.strip().upper().replace(" ", "_")
+    if not kid:
+        raise HTTPException(status_code=400, detail="ID kodu nie moze byc puste")
+    existing = await db.finance_kody.find_one({"id": kid})
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Kod o ID '{kid}' juz istnieje")
+    doc = {
+        "id": kid,
+        "name": payload.name.strip(),
+        "category": payload.category,
+        "order": payload.order or 999,
+        "is_custom": True,  # flaga: utworzony przez admina, nie z seed
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.finance_kody.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/finance/kody/{kod_id}")
+async def update_kod(kod_id: str, payload: KodUpdate, current_user: dict = Depends(get_current_admin)):
+    existing = await db.finance_kody.find_one({"id": kod_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kod nie znaleziony")
+    upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if "category" in upd:
+        valid_cats = ["PZS", "PZSV", "PPE", "PV", "G", "KP", "KBB", "KSB", "KSP"]
+        if upd["category"] not in valid_cats:
+            raise HTTPException(status_code=400, detail=f"Nieprawidlowa kategoria. Dostepne: {valid_cats}")
+        # Update kod_category w istniejacych zapisach/invoices
+        await db.finance_zapisy.update_many({"kod_id": kod_id}, {"$set": {"kod_category": upd["category"]}})
+        await db.finance_invoices.update_many({"kod_id": kod_id}, {"$set": {"kod_category": upd["category"]}})
+    upd["updated_at"] = datetime.now().isoformat()
+    upd["updated_by"] = current_user["sub"]
+    await db.finance_kody.update_one({"id": kod_id}, {"$set": upd})
+    return {"message": "Zaktualizowano"}
+
+
+@router.delete("/finance/kody/{kod_id}")
+async def delete_kod(kod_id: str, current_user: dict = Depends(get_current_admin)):
+    existing = await db.finance_kody.find_one({"id": kod_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Kod nie znaleziony")
+    if not existing.get("is_custom"):
+        raise HTTPException(status_code=400,
+                            detail="Mozna usunac tylko kody dodane recznie (is_custom). Systemowe kody (PZS, KP_WYNAGRODZENIA itd.) sa stale.")
+    # Czy sa zapisy/faktury z tym kodem?
+    z_count = await db.finance_zapisy.count_documents({"kod_id": kod_id})
+    i_count = await db.finance_invoices.count_documents({"kod_id": kod_id})
+    if z_count + i_count > 0:
+        raise HTTPException(status_code=400,
+                            detail=f"Nie mozna usunac - {z_count} zapisow i {i_count} faktur uzywa tego kodu. Najpierw przepisz je na inny kod.")
+    await db.finance_kody.delete_one({"id": kod_id})
+    return {"message": "Usunieto"}
 
 
 # ============= BUDOWY (finansowe, niezalezne od sites) =============
