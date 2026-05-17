@@ -1033,19 +1033,19 @@ const RachunekWynikowPanel = ({ year }) => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-1 group">
-                          <span className="cursor-pointer hover:text-white" onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
+                          <span className="cursor-pointer hover:text-white flex-1" onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
                             data-testid={`rw-kod-label-${r.kod_id}`}>
                             {r.name}
                           </span>
                           <button onClick={() => setEditingKod({ kod_id: r.kod_id, name: r.name })}
-                            className="opacity-0 group-hover:opacity-100 text-[#5F7151] hover:text-white"
+                            className="text-[#5F7151] hover:text-white opacity-50 hover:opacity-100"
                             title="Edytuj nazwe"
                             data-testid={`rw-kod-edit-btn-${r.kod_id}`}>
                             <Edit2 className="h-3 w-3" />
                           </button>
                           {isCustom && (
                             <button onClick={() => deleteKod(r.kod_id, r.name)}
-                              className="opacity-0 group-hover:opacity-100 text-[#DC2626] hover:text-white"
+                              className="text-[#DC2626] hover:text-white opacity-80 hover:opacity-100"
                               title="Usun kod (tylko gdy nieuzywany)"
                               data-testid={`rw-kod-del-btn-${r.kod_id}`}>
                               <Trash2 className="h-3 w-3" />
@@ -1087,17 +1087,7 @@ const RachunekWynikowPanel = ({ year }) => {
                 <option value="KSB">KSB - Koszty stale budowy</option>
                 <option value="KSP">KSP - Koszty stale przedsiebiorstwa</option>
                 <option value="KP">KP - Koszty pracy</option>
-                <option value="G">G - Godziny</option>
-                <option value="PZS">PZS - Przychody sprzedazy</option>
-                <option value="PZSV">PZSV - Przychody sprzedazy VAT</option>
-                <option value="PPE">PPE - Przychody pozaoperacyjne</option>
-                <option value="PV">PV - Przychody VAT</option>
               </select>
-            </div>
-            <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Kolejnosc w grupie (opcjonalnie)</label>
-              <Input type="number" value={newKod.order} onChange={(e) => setNewKod({...newKod, order: parseInt(e.target.value)||100})}
-                placeholder="100" className="bg-[#1E293B] border-[#334155] text-white" />
             </div>
             <div className="text-[10px] text-[#64748B]">
               Po dodaniu kod bedzie dostepny w dropdownie "Kod kosztu" w Zapisach (faktury i recznych). Mozna usunac kod tylko jesli nie jest uzywany w zadnym zapisie.
