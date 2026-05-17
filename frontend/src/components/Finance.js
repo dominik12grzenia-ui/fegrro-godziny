@@ -893,15 +893,15 @@ const RachunekWynikowPanel = ({ year }) => {
   const monthsHeader = PL_MONTHS_SHORT;
 
   const renderRow = (label, monthly, total, opts = {}) => (
-    <tr className={`border-t border-[#334155] ${opts.bg || ''}`} data-testid={opts.testid}>
-      <td className={`p-2 ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#2A384C]'} z-10`}>
+    <tr className={`border-t-2 border-[#334155] ${opts.bg || ''}`} data-testid={opts.testid}>
+      <td className={`p-2 border-r-2 border-[#475569] ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#2A384C]'} z-10`}>
         {opts.indent && <span className="ml-4" />}
         {label}
       </td>
       {monthly.map((v, i) => (
-        <td key={i} className={`p-1 text-right text-xs ${opts.valClass || 'text-[#CBD5E1]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
+        <td key={i} className={`p-1 text-right text-xs border-r border-[#334155] ${opts.valClass || 'text-[#CBD5E1]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
       ))}
-      <td className={`p-2 text-right font-bold ${opts.totalClass || 'text-white'} bg-[#1E293B]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
+      <td className={`p-2 text-right font-bold border-l-2 border-[#475569] ${opts.totalClass || 'text-white'} bg-[#1E293B]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
     </tr>
   );
 
@@ -911,12 +911,12 @@ const RachunekWynikowPanel = ({ year }) => {
     <Card className="bg-[#2A384C] border-[#334155]">
       <CardHeader><CardTitle className="text-white">Rachunek wynikow {year}</CardTitle></CardHeader>
       <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm border-collapse" data-testid="finance-rw-table">
+        <table className="w-full text-sm finance-grid-table" data-testid="finance-rw-table">
           <thead className="bg-[#1E293B] text-[#94A3B8] sticky top-0">
             <tr>
-              <th className="p-2 text-left sticky left-0 bg-[#1E293B] z-20">Pozycja</th>
-              {monthsHeader.map((m, i) => <th key={i} className="p-1 text-right text-xs min-w-[60px]">{m}</th>)}
-              <th className="p-2 text-right">SUMA</th>
+              <th className="p-2 text-left border-r-2 border-[#475569] sticky left-0 bg-[#1E293B] z-20">Pozycja</th>
+              {monthsHeader.map((m, i) => <th key={i} className="p-1 text-right text-xs min-w-[60px] border-r border-[#334155]">{m}</th>)}
+              <th className="p-2 text-right border-l-2 border-[#475569]">SUMA</th>
             </tr>
           </thead>
           <tbody>
@@ -936,7 +936,7 @@ const RachunekWynikowPanel = ({ year }) => {
               { labelClass: 'text-[#94A3B8]' })}
 
             {/* Wskazniki */}
-            <tr><td colSpan={14} className="p-1 bg-[#1E293B] text-[#94A3B8] text-xs uppercase">Wskazniki / R-G</td></tr>
+            <tr><td colSpan={14} className="p-1 bg-[#1E293B] text-[#94A3B8] text-xs uppercase border-y-2 border-[#475569]">Wskazniki / R-G</td></tr>
             {renderRow('Koszt R-G (firma + pracownik)', ratios.koszt_rg_firma_pracownik, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Przychody / R-G', ratios.przychody_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
             {renderRow('Koszty / R-G', ratios.koszty_rg, '-', { labelClass: 'text-[#94A3B8] italic', valClass: 'text-[#CBD5E1] text-xs italic' })}
@@ -946,19 +946,19 @@ const RachunekWynikowPanel = ({ year }) => {
             {/* Groups */}
             {['kp','kbb','ksb','ksp'].map(g => (
               <React.Fragment key={g}>
-                <tr className="border-t-2 border-[#475569] hover:bg-[#1E293B]/50 cursor-pointer" onClick={() => toggle(g)} data-testid={`rw-group-toggle-${g}`}>
-                  <td className="p-2 text-white font-semibold sticky left-0 bg-[#2A384C] z-10">
+                <tr className="border-t-4 border-[#5F7151] hover:bg-[#1E293B]/50 cursor-pointer" onClick={() => toggle(g)} data-testid={`rw-group-toggle-${g}`}>
+                  <td className="p-2 text-white font-semibold border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">
                     {expanded[g] ? <ChevronDown className="inline h-4 w-4 mr-1" /> : <ChevronRight className="inline h-4 w-4 mr-1" />}
                     {groups[g].label}
                   </td>
-                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1]">{fmtNum(v)}</td>)}
-                  <td className="p-2 text-right font-bold text-white bg-[#1E293B]">{fmtNum(groups[g].total)}</td>
+                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1] border-r border-[#334155]">{fmtNum(v)}</td>)}
+                  <td className="p-2 text-right font-bold text-white bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(groups[g].total)}</td>
                 </tr>
                 {expanded[g] && groups[g].rows.map((r) => (
                   <tr key={r.kod_id} className="border-t border-[#334155] bg-[#1E293B]/30" data-testid={`rw-detail-${r.kod_id}`}>
-                    <td className="p-2 pl-8 text-[#94A3B8] text-xs sticky left-0 bg-[#2A384C] z-10">{r.name}</td>
-                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8]">{fmtNum(v)}</td>)}
-                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B]">{fmtNum(r.total)}</td>
+                    <td className="p-2 pl-8 text-[#94A3B8] text-xs border-r-2 border-[#475569] sticky left-0 bg-[#2A384C] z-10">{r.name}</td>
+                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#94A3B8] border-r border-[#334155]">{fmtNum(v)}</td>)}
+                    <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#1E293B] border-l-2 border-[#475569]">{fmtNum(r.total)}</td>
                   </tr>
                 ))}
               </React.Fragment>
@@ -975,14 +975,16 @@ const SprzedazPanel = ({ year }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+  const [month, setMonth] = useState(0); // 0 = caly rok
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/finance/sprzedaz?year=${year}`)
+    const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
+    api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Blad pobierania sprzedazy'))
       .finally(() => setLoading(false));
-  }, [year]);
+  }, [year, month]);
 
   if (loading) return <Card className="bg-[#2A384C] border-[#334155]"><CardContent className="p-6 text-[#94A3B8]">Ladowanie...</CardContent></Card>;
   if (!data) return null;
@@ -991,16 +993,26 @@ const SprzedazPanel = ({ year }) => {
 
   return (
     <Card className="bg-[#2A384C] border-[#334155]">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-white">Sprzedaz per budowa {year}</CardTitle>
-        <Button variant="outline" onClick={() => setShowDetails(!showDetails)}
-          className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
-          data-testid="sprzedaz-toggle-details">
-          {showDetails ? <><ChevronDown className="h-4 w-4 mr-1" /> Ukryj szczegoly</> : <><ChevronRight className="h-4 w-4 mr-1" /> Rozwin szczegoly (kol. E-X)</>}
-        </Button>
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-white">
+          Sprzedaz per budowa {year}{month > 0 ? ` - ${PL_MONTHS_SHORT[month-1]}` : ' (caly rok)'}
+        </CardTitle>
+        <div className="flex items-center gap-2">
+          <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
+            className="bg-[#1E293B] border border-[#334155] text-white rounded px-2 py-1 text-sm"
+            data-testid="finance-sprzedaz-month">
+            <option value="0">Caly rok</option>
+            {PL_MONTHS_SHORT.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
+          </select>
+          <Button variant="outline" onClick={() => setShowDetails(!showDetails)}
+            className="border-[#5F7151] text-[#5F7151] hover:bg-[#334155] hover:text-[#5F7151]"
+            data-testid="sprzedaz-toggle-details">
+            {showDetails ? <><ChevronDown className="h-4 w-4 mr-1" /> Ukryj szczegoly</> : <><ChevronRight className="h-4 w-4 mr-1" /> Rozwin szczegoly (kol. E-X)</>}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
-        <table className="w-full text-sm border-collapse" data-testid="finance-sprzedaz-table">
+        <table className="w-full text-sm finance-grid-table" data-testid="finance-sprzedaz-table">
           <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
             <tr>
               <th className="p-2 text-left">#</th>

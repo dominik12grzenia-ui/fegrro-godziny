@@ -1,3 +1,27 @@
+## Iteration 47 (2026-05-17) — Auto-resync + UX poprawy w Finansach
+
+### Auto-resync zapobiegawczy
+Dodano `_do_sync_month()` wywolanie w 4 punktach (try/except, fallback do crona 03:00):
+- `payroll.py:update_payroll()` - po PUT rate/fixed/bonus/driver
+- `hours.py:create_hour_entry()` - po POST nowych godzin
+- `penalties.py:create_penalty()` - po POST kary
+- `penalties.py:delete_penalty()` - po DELETE kary
+
+Skutek: zmiana godziny lub wyplaty natychmiast aktualizuje `finance_zapisy` -> banner mismatch nigdy nie powinien sie pojawic w normalnym workflow.
+
+### UX: separatory w tabelach Finansow
+Nowa klasa CSS `.finance-grid-table` (w `index.css`):
+- 1px szare granice miedzy wszystkimi komorkami
+- 2px ciemniejsze granice okalajace (pierwsza i ostatnia kolumna)
+- Hover effect na wierszach
+Dodana do `finance-rw-table` i `finance-sprzedaz-table`. Grupy KP/KBB/KSB/KSP rozdzielone `border-t-4 border-[#5F7151]`.
+
+### Filtr miesiaca w Sprzedaz
+- Backend: `GET /finance/sprzedaz?year=Y&month=M` (month opcjonalne, gdy podany filtruje zapisy i invoices)
+- Frontend: nowy select `Caly rok | Sty | Lut | ...` w naglowku panelu Sprzedaz
+- Tytul dynamiczny: "Sprzedaz per budowa 2026 - Maj" lub "Sprzedaz per budowa 2026 (caly rok)"
+
+
 ## Iteration 46 (2026-05-17) — Banner mismatch nie sumuje projekcji przyszlych miesiecy
 
 ### Bug

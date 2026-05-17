@@ -346,6 +346,13 @@ async def update_payroll(
     if audit_entries:
         await db.payroll_audit.insert_many(audit_entries)
 
+    # Auto-resync finanse zapisy dla tego miesiaca (zeby KP zawsze byl zgodny z payroll)
+    try:
+        from routes.finance import _do_sync_month
+        await _do_sync_month(year, month, current_user["sub"])
+    except Exception:
+        logger.exception("[update_payroll] auto-resync finance failed")
+
     return {"message": "Zapisano", "employee_id": employee_id, "year": year, "month": month,
             "audit_changes": len(audit_entries)}
 

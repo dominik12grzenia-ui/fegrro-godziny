@@ -745,6 +745,7 @@ async def rachunek_wynikow(
 @router.get("/finance/sprzedaz")
 async def sprzedaz(
     year: int = Query(...),
+    month: Optional[int] = Query(None, ge=1, le=12),
     current_user: dict = Depends(get_current_admin),
 ):
     """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż.
@@ -778,14 +779,20 @@ async def sprzedaz(
     """
     await ensure_kody_seed()
     budowy = await db.finance_budowy.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
+    zap_filter = {"year": year}
+    if month is not None:
+        zap_filter["month"] = month
     zapisy = await db.finance_zapisy.find(
-        {"year": year},
+        zap_filter,
         {"_id": 0, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1,
          "parent_invoice_id": 1},
     ).to_list(length=None)
     # Faktury - reszty
+    inv_filter = {"year": year}
+    if month is not None:
+        inv_filter["month"] = month
     invoices = await db.finance_invoices.find(
-        {"year": year},
+        inv_filter,
         {"_id": 0, "id": 1, "netto": 1, "kod_id": 1, "kod_category": 1, "budowa_id": 1},
     ).to_list(length=None)
     assigned_pos_by_inv: dict = {}

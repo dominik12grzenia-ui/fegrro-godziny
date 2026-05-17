@@ -132,6 +132,16 @@ async def create_hour_entry(
         })
     
     entry_result = await db.hour_entries.find_one({"id": entry_id}, {"_id": 0})
+
+    # Auto-resync finanse zapisy dla miesiaca tej godziny
+    try:
+        from routes.finance import _do_sync_month
+        d = datetime.strptime(entry.work_date, "%Y-%m-%d")
+        await _do_sync_month(d.year, d.month, current_user["sub"])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("[create_hour_entry] auto-resync finance failed")
+
     return HourEntry(**entry_result)
 
 

@@ -81,4 +81,17 @@ code {
     [data-state="active"][role="tabpanel"] {
         background: #1E293B !important;
     }
+
+    /* Finance grid lines - separatory miedzy komorkami i wierszami */
+    .finance-grid-table { border-collapse: collapse; }
+    .finance-grid-table th,
+    .finance-grid-table td {
+        border-right: 1px solid #334155;
+        border-bottom: 1px solid #334155;
+    }
+    .finance-grid-table th:last-child,
+    .finance-grid-table td:last-child { border-right: 2px solid #475569; }
+    .finance-grid-table th:first-child,
+    .finance-grid-table td:first-child { border-right: 2px solid #475569; }
+    .finance-grid-table tr:hover td { background-color: rgba(30, 41, 59, 0.6); }
 }

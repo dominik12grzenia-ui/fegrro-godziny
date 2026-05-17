@@ -62,6 +62,13 @@ async def create_penalty(
     }
     await db.penalties.insert_one(pen_doc)
     del pen_doc["_id"]
+    # Auto-resync finance
+    try:
+        from routes.finance import _do_sync_month
+        await _do_sync_month(penalty.year, penalty.month, current_user["sub"])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("[create_penalty] auto-resync failed")
     return pen_doc
 
 
@@ -70,7 +77,15 @@ async def delete_penalty(
     penalty_id: str,
     current_user: dict = Depends(get_current_admin)
 ):
+    pen = await db.penalties.find_one({"id": penalty_id}, {"_id": 0, "year": 1, "month": 1})
     result = await db.penalties.delete_one({"id": penalty_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Kara nie znaleziona")
+    if pen:
+        try:
+            from routes.finance import _do_sync_month
+            await _do_sync_month(pen["year"], pen["month"], current_user["sub"])
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception("[delete_penalty] auto-resync failed")
     return {"message": "Kara usunieta"}
