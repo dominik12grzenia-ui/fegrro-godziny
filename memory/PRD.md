@@ -1,3 +1,23 @@
+## Iteration 41 (2026-05-17) — Naprawa alokacji wyplat per budowa
+
+### Diagnoza problemu
+Stary algorytm `sync-current-month` liczyl `hours_amount` z `emp_total_h` ktore ograniczalo godziny do TYLKO budow finansowych (z `finance_budowa_id`). Pracownik z 133h w hour_entries gdzie 123h jest na "(bez budowy)" mial liczona wyplate z 10h finansowych zamiast 133h pelnych - czyli wyplata pracownika spadala 13x. Suma KP per wszystkie budowy = 14 105 zł zamiast 124 141 zł.
+
+### Naprawa
+- `hours_per_emp_full` = wszystkie godziny pracownika niezaleznie od site_id (do wzoru z Wyplat)
+- `wyplata_emp = (full_h × rate albo fixed) + bonus + driver + o_plus - o_minus - kary` (BEZ odejmowania zaliczek - zaliczki to wczesniejsza wyplata, nie zmniejsza kosztu firmy)
+- Alokacja pro-rata `(h_na_budowie / full_h) × wyplata_emp` na kazda budowe finansowa
+- Reszta `(1 - sum_ratio) × wyplata_emp` → nowy zapis KP_WYNAGRODZENIA z `budowa_id=None` ("bez budowy")
+
+### Nowy endpoint
+- `POST /api/finance/sync-all-months?from_year=2026&from_month=1` - resync WSZYSTKICH miesiecy od podanego do biezacego (wszystkie godziny+wyplaty -> zapisy)
+- Refaktor: `_do_sync_month()` helper uzywany przez `/sync-current-month` i `/sync-all-months`
+
+### Validation
+- Produkcja przed naprawa: total_kp=14 105 zl, payroll total=124 141 zl ❌
+- Po deploy + sync-all-months: total_kp powinno =~ 124 141 zl ✅
+
+
 ## Iteration 40 (2026-05-17) — Filtr typu faktury + format polski PLN
 
 ### Frontend

@@ -1014,21 +1014,10 @@ async def update_finance_settings(
 
 
 # ============= AUTO-SYNC: GODZINY + WYPLATY -> ZAPISY =============
-@router.post("/finance/sync-current-month")
-async def sync_current_month(current_user: dict = Depends(get_current_admin)):
-    """Automatyczna synchronizacja DLA BIEZACEGO MIESIACA (today.year/today.month):
-    - Dla kazdej aktywnej budowy z show_in_hours=True i z linkiem do construction_sites:
-      * Pobiera godziny z hour_entries pogrupowane per pracownik+budowa
-      * Pobiera payroll_records dla pracownikow ktorzy mieli godziny
-      * Alokuje pro-rata wg godzin pracownika na danej budowie:
-        - KP_WYNAGRODZENIA = hours_amount + bonus + driver + other_plus - other_minus
-        - kod=G: suma godzin
-        - (kary/zaliczki traktowane jako odejmowanie od wynagrodzenia - juz w hours_amount kalkulacji w wyplatach)
-    - Stare zsynchronizowane wpisy (source=auto_*) sa nadpisywane.
-    - NIE rusza recznych wpisow (source=manual) ani innych miesiecy.
+async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict:
+    """Synchronizuje godziny+wyplaty dla danego miesiaca. Wewnetrzna funkcja
+    uzywana przez `/sync-current-month` i `/sync-all-months`.
     """
-    now = datetime.now()
-    year, month = now.year, now.month
     start = f"{year:04d}-{month:02d}-01"
     end = f"{year:04d}-{month:02d}-31"
 
@@ -1039,56 +1028,40 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
     ).to_list(length=None)
     site_to_bud = {s["id"]: s["finance_budowa_id"] for s in sites}
     if not site_to_bud:
-        return {
-            "year": year, "month": month,
-            "message": "Brak budow finansowych z linkiem do listy godzin (show_in_hours=true)",
-            "g_zapisy": 0, "kp_zapisy": 0,
-        }
+        return {"year": year, "month": month, "g_zapisy": 0, "kp_zapisy": 0,
+                "message": "Brak budow finansowych z linkiem"}
 
-    # 1) Agreguj godziny z hour_entries per (employee_id, site_id) w biezacym miesiacu
     pipeline_hours = [
-        {"$match": {"work_date": {"$gte": start, "$lte": end},
-                     "site_id": {"$in": list(site_to_bud.keys())}}},
+        {"$match": {"work_date": {"$gte": start, "$lte": end}}},
         {"$group": {
             "_id": {"emp": "$employee_id", "site": "$site_id"},
             "hours": {"$sum": {"$convert": {"input": "$hours_worked",
                                               "to": "double", "onError": 0, "onNull": 0}}},
         }},
     ]
-    hours_by_emp_site: dict = {}
-    hours_per_site: dict = {}  # bud_id -> suma godzin
-    hours_per_emp: dict = {}  # emp_id -> suma godzin (total dla pro-rata)
+    hours_by_emp_bud: dict = {}
+    hours_per_site: dict = {}
+    hours_per_emp_full: dict = {}
     async for r in db.hour_entries.aggregate(pipeline_hours):
         emp = r["_id"].get("emp")
         site = r["_id"].get("site")
         h = float(r.get("hours") or 0)
-        if not emp or not site:
+        if not emp:
             continue
-        bud_id = site_to_bud.get(site)
-        if not bud_id:
-            continue
-        hours_by_emp_site[(emp, bud_id)] = hours_by_emp_site.get((emp, bud_id), 0) + h
-        hours_per_site[bud_id] = hours_per_site.get(bud_id, 0) + h
-        hours_per_emp[emp] = hours_per_emp.get(emp, 0) + h
+        hours_per_emp_full[emp] = hours_per_emp_full.get(emp, 0) + h
+        bud_id = site_to_bud.get(site) if site else None
+        if bud_id:
+            hours_by_emp_bud[(emp, bud_id)] = hours_by_emp_bud.get((emp, bud_id), 0) + h
+            hours_per_site[bud_id] = hours_per_site.get(bud_id, 0) + h
 
-    # 2) Pobierz payroll_records dla biezacego miesiaca (tylko pracownicy ktorzy maja godziny)
-    emp_ids = list(hours_per_emp.keys())
+    emp_ids = list(hours_per_emp_full.keys())
     payroll_recs = {}
     if emp_ids:
         recs = await db.payroll_records.find(
-            {"year": year, "month": month, "employee_id": {"$in": emp_ids}},
-            {"_id": 0},
+            {"year": year, "month": month, "employee_id": {"$in": emp_ids}}, {"_id": 0},
         ).to_list(length=None)
         payroll_recs = {r["employee_id"]: r for r in recs}
 
-    # Pobierz auto-advances i auto-penalties per pracownik
-    adv_rows = await db.advances.find(
-        {"year": year, "month": month, "employee_id": {"$in": emp_ids}},
-        {"_id": 0, "employee_id": 1, "amount": 1},
-    ).to_list(length=None)
-    auto_adv = {}
-    for a in adv_rows:
-        auto_adv[a["employee_id"]] = auto_adv.get(a["employee_id"], 0) + float(a.get("amount") or 0)
     pen_rows = await db.penalties.find(
         {"year": year, "month": month, "employee_id": {"$in": emp_ids}},
         {"_id": 0, "employee_id": 1, "amount": 1},
@@ -1097,14 +1070,8 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
     for p in pen_rows:
         auto_pen[p["employee_id"]] = auto_pen.get(p["employee_id"], 0) + float(p.get("amount") or 0)
 
-    # 3) Oblicz alokacje per budowa: KP_WYNAGRODZENIA (kara+premia+kierowca razem w jednej kategorii KP).
-    # Per budowa sumujemy alokowane kwoty od kazdego pracownika.
-    kp_per_budowa: dict = {bid: 0.0 for bid in site_to_bud.values()}
-    for (emp, bud_id), h in hours_by_emp_site.items():
-        emp_total_h = hours_per_emp.get(emp, 0)
-        if emp_total_h <= 0:
-            continue
-        ratio = h / emp_total_h
+    wyplata_per_emp: dict = {}
+    for emp, full_h in hours_per_emp_full.items():
         rec = payroll_recs.get(emp, {})
         is_fixed = bool(rec.get("is_fixed_salary"))
         rate = float(rec.get("rate") or 0)
@@ -1113,34 +1080,35 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
         driver = float(rec.get("driver_zl") or 0)
         o_minus = float(rec.get("other_minus_zl") or 0)
         o_plus = float(rec.get("other_plus_zl") or 0)
-        if is_fixed:
-            hours_amount = fixed_amt
-        else:
-            hours_amount = emp_total_h * rate
-        emp_adv = auto_adv.get(emp, 0)
-        emp_pen = auto_pen.get(emp, 0)
-        # KP koszt firmy = wynagrodzenie + bonus + driver + other_plus - other_minus
-        # (zaliczki i kary nie sa kosztem dla firmy - to potracenia z wynagrodzenia pracownika.
-        # Dla rachunku wynikow liczy sie pelne KP brutto)
-        # Jednak user mowi: "Suma wyplaty kary i premii oraz kierowcy powinna byc tez dodana"
-        # Interpretacja: wpiszmy WYPLATA TOTAL (kwota faktycznie wyplacana) jako koszt KP
-        # Wyplata = hours_amount - adv - pen - other_minus + bonus + driver + other_plus
-        # Ale to nie jest koszt firmy, koszt firmy = hours_amount + bonus + driver + o_plus - o_minus
-        # Aby precyzyjnie: zapisuje 3 osobne wpisy: WYNAGRODZENIE (KP_WYNAGRODZENIA), BONUS+KIEROWCA (KP_STAWKI),
-        # ale prosciej i czytelniej dla usera: 1 wpis na budowa "Wyplaty {miesiac}" = suma kosztu firmy
-        # Final: KP_WYNAGRODZENIA per budowa = ratio * (hours_amount + bonus + driver + o_plus - o_minus - adv - pen)
-        # User chce: "Suma wyplaty kary i premii oraz kierowcy" -> kwota faktycznie wyplacana
-        wyplata_emp = hours_amount - emp_adv - emp_pen - o_minus + bonus + driver + o_plus
-        kp_per_budowa[bud_id] = kp_per_budowa.get(bud_id, 0) + wyplata_emp * ratio
+        hours_amount = fixed_amt if is_fixed else (full_h * rate)
+        wyplata_per_emp[emp] = hours_amount + bonus + driver + o_plus - o_minus - auto_pen.get(emp, 0)
 
-    # 4) Usun stare auto-zapisy dla tego miesiaca i wstaw nowe
+    kp_per_budowa: dict = {bid: 0.0 for bid in site_to_bud.values()}
+    kp_no_budowa: float = 0.0
+    for emp, full_h in hours_per_emp_full.items():
+        wyplata_emp = wyplata_per_emp.get(emp, 0)
+        if abs(wyplata_emp) < 0.01:
+            continue
+        if full_h <= 0:
+            kp_no_budowa += wyplata_emp
+            continue
+        allocated_ratio_sum = 0.0
+        for (e, bud_id), h in hours_by_emp_bud.items():
+            if e != emp:
+                continue
+            ratio = h / full_h
+            kp_per_budowa[bud_id] = kp_per_budowa.get(bud_id, 0) + wyplata_emp * ratio
+            allocated_ratio_sum += ratio
+        remaining_ratio = 1.0 - allocated_ratio_sum
+        if remaining_ratio > 0.0001:
+            kp_no_budowa += wyplata_emp * remaining_ratio
+
     deleted = await db.finance_zapisy.delete_many({
         "year": year, "month": month, "source": {"$in": ["auto_hours", "auto_payroll"]},
     })
 
-    iso_date = f"{year:04d}-{month:02d}-{min(now.day, 28):02d}"  # bezpiecznie max 28 dla luty
+    iso_date = f"{year:04d}-{month:02d}-15"
     new_zapisy = []
-    # Zapisy KOD=G per budowa
     for bud_id, h_sum in hours_per_site.items():
         if h_sum <= 0:
             continue
@@ -1149,14 +1117,11 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
             "date": iso_date, "year": year, "month": month,
             "kontrahent": f"AUTO: Godziny {year}-{month:02d}",
             "netto": round(h_sum, 2), "brutto": round(h_sum, 2),
-            "kod_id": "G", "kod_category": "G",
-            "budowa_id": bud_id,
+            "kod_id": "G", "kod_category": "G", "budowa_id": bud_id,
             "nr_faktury": "", "notes": "Auto-sync z tabeli godzin",
             "source": "auto_hours",
-            "created_at": datetime.now().isoformat(),
-            "created_by": current_user["sub"],
+            "created_at": datetime.now().isoformat(), "created_by": user_id,
         })
-    # Zapisy KP_WYNAGRODZENIA per budowa
     for bud_id, kp_sum in kp_per_budowa.items():
         if abs(kp_sum) < 0.01:
             continue
@@ -1165,31 +1130,81 @@ async def sync_current_month(current_user: dict = Depends(get_current_admin)):
             "date": iso_date, "year": year, "month": month,
             "kontrahent": f"AUTO: Wyplaty {year}-{month:02d}",
             "netto": round(kp_sum, 2), "brutto": round(kp_sum, 2),
-            "kod_id": "KP_WYNAGRODZENIA", "kod_category": "KP",
-            "budowa_id": bud_id,
-            "nr_faktury": "", "notes": "Auto-sync wyplat (wynagrodzenie + bonus + kierowca + inne - zaliczki - kary)",
+            "kod_id": "KP_WYNAGRODZENIA", "kod_category": "KP", "budowa_id": bud_id,
+            "nr_faktury": "", "notes": "Auto-sync wyplat (wynagrodzenie + bonus + kierowca + inne - other_minus - kary, BEZ zaliczek)",
             "source": "auto_payroll",
-            "created_at": datetime.now().isoformat(),
-            "created_by": current_user["sub"],
+            "created_at": datetime.now().isoformat(), "created_by": user_id,
+        })
+    if abs(kp_no_budowa) >= 0.01:
+        new_zapisy.append({
+            "id": str(uuid.uuid4()),
+            "date": iso_date, "year": year, "month": month,
+            "kontrahent": f"AUTO: Wyplaty {year}-{month:02d} (bez budowy)",
+            "netto": round(kp_no_budowa, 2), "brutto": round(kp_no_budowa, 2),
+            "kod_id": "KP_WYNAGRODZENIA", "kod_category": "KP", "budowa_id": None,
+            "nr_faktury": "", "notes": "Wyplaty za godziny nieprzypisane do budow finansowych (pro-rata reszta)",
+            "source": "auto_payroll",
+            "created_at": datetime.now().isoformat(), "created_by": user_id,
         })
     if new_zapisy:
         await db.finance_zapisy.insert_many(new_zapisy)
 
-    summary = {
+    return {
         "year": year, "month": month,
         "deleted_old_auto": deleted.deleted_count,
         "g_zapisy": sum(1 for z in new_zapisy if z["kod_id"] == "G"),
         "kp_zapisy": sum(1 for z in new_zapisy if z["kod_id"] == "KP_WYNAGRODZENIA"),
         "total_godziny": round(sum(hours_per_site.values()), 2),
-        "total_kp": round(sum(kp_per_budowa.values()), 2),
+        "total_kp": round(sum(kp_per_budowa.values()) + kp_no_budowa, 2),
+        "kp_no_budowa": round(kp_no_budowa, 2),
+        "employees_processed": len(emp_ids),
     }
+
+
+@router.post("/finance/sync-current-month")
+async def sync_current_month(current_user: dict = Depends(get_current_admin)):
+    """Synchronizacja BIEZACEGO miesiaca - kompatybilnosc."""
+    now = datetime.now()
+    summary = await _do_sync_month(now.year, now.month, current_user["sub"])
     await db.finance_settings.update_one(
         {"id": "main"},
         {"$set": {"last_sync_at": datetime.now().isoformat(), "last_sync_summary": summary},
-         "$setOnInsert": {"id": "main"}},
-        upsert=True,
+         "$setOnInsert": {"id": "main"}}, upsert=True,
     )
     return summary
+
+
+@router.post("/finance/sync-all-months")
+async def sync_all_months(
+    from_year: int = Query(2026), from_month: int = Query(1, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Resync WSZYSTKICH miesiecy od podanego do biezacego (godziny + wyplaty -> zapisy)."""
+    now = datetime.now()
+    yr, mo = from_year, from_month
+    results = []
+    while (yr, mo) <= (now.year, now.month):
+        s = await _do_sync_month(yr, mo, current_user["sub"])
+        results.append(s)
+        if mo == 12:
+            yr += 1
+            mo = 1
+        else:
+            mo += 1
+    aggregate = {
+        "months_processed": len(results),
+        "g_zapisy_total": sum(r.get("g_zapisy", 0) for r in results),
+        "kp_zapisy_total": sum(r.get("kp_zapisy", 0) for r in results),
+        "total_godziny": round(sum(r.get("total_godziny", 0) for r in results), 2),
+        "total_kp": round(sum(r.get("total_kp", 0) for r in results), 2),
+        "per_month": results,
+    }
+    await db.finance_settings.update_one(
+        {"id": "main"},
+        {"$set": {"last_sync_at": datetime.now().isoformat(), "last_sync_summary": aggregate}},
+        upsert=True,
+    )
+    return aggregate
 
 
 # ============= FAKTUROWNIA: Pobranie faktur kosztowych z pozycjami =============
