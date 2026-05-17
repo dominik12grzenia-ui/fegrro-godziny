@@ -1055,6 +1055,16 @@ async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict
             hours_per_site[bud_id] = hours_per_site.get(bud_id, 0) + h
 
     emp_ids = list(hours_per_emp_full.keys())
+
+    # Doloz pracownikow ktorzy maja payroll_record dla tego miesiaca ale BEZ godzin w hour_entries
+    # (np. fixed_salary, kierowca, bonus solo). Ich wyplata idzie cala do "bez budowy".
+    payroll_only_emp_ids = await db.payroll_records.distinct(
+        "employee_id", {"year": year, "month": month, "employee_id": {"$nin": emp_ids}}
+    )
+    for eid in payroll_only_emp_ids:
+        emp_ids.append(eid)
+        hours_per_emp_full[eid] = 0.0  # 0 godzin -> cala wyplata do kp_no_budowa
+
     payroll_recs = {}
     if emp_ids:
         recs = await db.payroll_records.find(
