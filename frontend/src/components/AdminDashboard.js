@@ -597,6 +597,7 @@ export const AdminDashboard = () => {
               />
             </Suspense>
           </TabsContent>
+          </div>
         </Tabs>
       </div>
     </div>
