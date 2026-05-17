@@ -86,12 +86,41 @@ const EmployeeLinksCard = () => {
   };
   useEffect(() => { fetchEmployees(); }, []);
 
+  const generateAll = async () => {
+    const missing = employees.filter(e => !e.public_token);
+    if (missing.length === 0) {
+      toast.info('Wszyscy pracownicy maja juz aktywne linki - nie ma czego generowac.');
+      return;
+    }
+    if (!window.confirm(
+      `Wygenerowac linki dla ${missing.length} pracownikow bez linku?\n\n` +
+      `Istniejacych ${employees.length - missing.length} linkow NIE rusze ` +
+      `— pracownicy ktorzy juz dostali link beda mogli z niego dalej korzystac.\n\n` +
+      `Aby zrotowac konkretny link (uniewaznic stary), klikaj "Nowy link" przy danym pracowniku.`
+    )) return;
+    setBusy('all');
+    try {
+      let ok = 0, fail = 0;
+      for (const emp of missing) {
+        try { await api.post(`/employees/${emp.id}/rotate-token?force=false`); ok++; }
+        catch { fail++; }
+      }
+      toast.success(`Wygenerowano ${ok} nowych linkow${fail > 0 ? `, blad: ${fail}` : ''}`);
+      fetchEmployees();
+    } finally { setBusy(null); }
+  };
+
   const generateLink = async (emp) => {
+    // Pojedynczo: rotacja (force=true), wymaga potwierdzenia jezeli juz ma link
+    if (emp.public_token && !window.confirm(
+      `${emp.full_name} ma juz aktywny link. Wygenerowac NOWY?\n\n` +
+      `Stary link przestanie dzialac - pracownik dostanie nowy do wyslania.\n` +
+      `(Przypisania ubran, BHP i godziny zostana zachowane.)`
+    )) return;
     setBusy(emp.id);
     try {
-      const r = await api.post(`/employees/${emp.id}/rotate-token`);
-      toast.success(`Wygenerowano link dla ${emp.full_name}`);
-      // Optimistic update
+      const r = await api.post(`/employees/${emp.id}/rotate-token?force=true`);
+      toast.success(emp.public_token ? `Zrotowano link dla ${emp.full_name}` : `Wygenerowano link dla ${emp.full_name}`);
       setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: r.data.token } : e));
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
@@ -107,23 +136,6 @@ const EmployeeLinksCard = () => {
       setEmployees(prev => prev.map(e => e.id === emp.id ? { ...e, public_token: null } : e));
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Blad');
-    } finally { setBusy(null); }
-  };
-
-  const generateAll = async () => {
-    if (!window.confirm(
-      'Wygenerowac linki dla WSZYSTKICH aktywnych pracownikow (nie zarchiwizowanych)?\n\n' +
-      'Pracownicy ktorzy juz maja link otrzymaja NOWY (stary przestanie dzialac).'
-    )) return;
-    setBusy('all');
-    try {
-      let ok = 0, fail = 0;
-      for (const emp of employees) {
-        try { await api.post(`/employees/${emp.id}/rotate-token`); ok++; }
-        catch { fail++; }
-      }
-      toast.success(`Wygenerowano ${ok} linkow${fail > 0 ? `, blad: ${fail}` : ''}`);
-      fetchEmployees();
     } finally { setBusy(null); }
   };
 
@@ -161,7 +173,7 @@ const EmployeeLinksCard = () => {
         <div className="flex gap-2">
           <Button onClick={generateAll} disabled={busy === 'all'}
             className="bg-[#5F7151] hover:bg-[#4A5A41] text-white" data-testid="generate-all-links-btn">
-            {busy === 'all' ? 'Generowanie...' : 'Generuj WSZYSTKIE linki'}
+            {busy === 'all' ? 'Generowanie...' : 'Generuj brakujace linki'}
           </Button>
           <Button onClick={revokeAll} disabled={busy === 'all-revoke' || withTokenCount === 0}
             variant="outline" className="border-[#DC2626] text-[#DC2626] hover:bg-[#7F1D1D] hover:text-white"

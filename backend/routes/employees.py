@@ -15,23 +15,45 @@ router = APIRouter()
 async def get_employees(
     active_only: bool = True,
     include_archived: bool = False,
+    include_deleted: bool = False,
     month: int = None,
     year: int = None,
     current_user: dict = Depends(get_current_user)
 ):
+    """Lista pracownikow z filtrowaniem.
+    - month+year: pokazuje pracownikow ktorzy istnieli w tym miesiacu (created_at <= ostatni dzien miesiaca)
+      ORAZ nie zostali zarchiwizowani przed nim (archived_at >= 1szy dzien miesiaca lub brak).
+      `is_deleted` ZAWSZE wlaczone w tym trybie (zachowuje historyczne wpisy).
+    - Bez month+year: standardowa lista aktywnych pracownikow.
+    """
     query = {}
     if month and year:
-        month_key = f"{year}-{month:02d}"
-        # Find employees active in this specific month OR old employees without active_months field
-        query["$or"] = [
-            {"active_months": month_key},
-            {"currently_active": True, "active_months": {"$exists": False}}
+        # Granice miesiaca
+        last_day = 31 if month in (1,3,5,7,8,10,12) else (30 if month != 2 else 29)
+        month_start = f"{year:04d}-{month:02d}-01"
+        month_end = f"{year:04d}-{month:02d}-{last_day:02d}T23:59:59"
+        # Pracownik powinien sie pokazac jezeli:
+        # 1. created_at <= koniec miesiaca (istnial wtedy lub byl utworzony w trakcie)
+        # 2. (NIE zarchiwizowany) LUB (archived_at >= poczatek miesiaca - czyli zarchiwizowany pozniej)
+        query["$and"] = [
+            {"$or": [
+                {"created_at": {"$lte": month_end}},
+                {"created_at": {"$exists": False}},  # legacy bez created_at
+            ]},
+            {"$or": [
+                {"is_archived": {"$exists": False}},
+                {"is_archived": False},
+                {"archived_at": {"$gte": month_start}},  # zarchiwizowany w tym lub pozniejszym miesiacu
+            ]},
         ]
-    elif active_only and not include_archived:
-        query["currently_active"] = True
-    if not include_archived:
-        query["$and"] = [{"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}]
-    
+    else:
+        if active_only and not include_archived:
+            query["currently_active"] = True
+        if not include_archived:
+            query["$and"] = [{"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}]
+        if not include_deleted:
+            query["is_deleted"] = {"$ne": True}
+
     employees = await db.employees.find(
         query,
         {
@@ -39,7 +61,8 @@ async def get_employees(
             "id": 1, "full_name": 1, "phone_number": 1,
             "user_id": 1, "currently_active": 1, "assigned_sites": 1,
             "active_months": 1, "created_at": 1, "updated_at": 1, "sync_source": 1,
-            "is_archived": 1, "archived_at": 1
+            "is_archived": 1, "archived_at": 1, "is_deleted": 1, "deleted_at": 1,
+            "public_token": 1,
         }
     ).sort("full_name", 1).to_list(1000)
     return employees
@@ -93,33 +116,34 @@ async def delete_employee(
     employee_id: str,
     current_user: dict = Depends(get_current_admin),
 ):
-    """Hard-delete employee + all related data. ONLY allowed for already-archived employees."""
+    """Soft-delete pracownika: ukrywa go z list aktywnych ale ZACHOWUJE wszystkie
+    dane historyczne (godziny, wyplaty, zaliczki, kary). Pracownik dalej widoczny
+    w tabeli godzin i wyplat dla miesiecy w ktorych mial dane.
+    Mozliwe tylko po archiwizacji.
+    """
     emp = await db.employees.find_one({"id": employee_id}, {"_id": 0})
     if not emp:
         raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
     if not emp.get("is_archived"):
         raise HTTPException(
             status_code=400,
-            detail="Najpierw zarchiwizuj pracownika - dopiero potem mozna usunac trwale.",
+            detail="Najpierw zarchiwizuj pracownika - dopiero potem mozna usunac.",
         )
-    # Cascade clean-up
-    counters = {
-        "hour_entries": await db.hour_entries.delete_many({"employee_id": employee_id}),
-        "assignments": await db.assignments.delete_many({"employee_id": employee_id}),
-        "advances": await db.advances.delete_many({"employee_id": employee_id}),
-        "penalties": await db.penalties.delete_many({"employee_id": employee_id}),
-        "absences": await db.absences.delete_many({"employee_id": employee_id}),
-        "clothing_orders": await db.clothing_orders.delete_many({"employee_id": employee_id}),
-        "bhp_documents": await db.bhp_documents.delete_many({"employee_id": employee_id}),
-        "bhp_issuances": await db.bhp_issuances.delete_many({"employee_id": employee_id}),
-        "payroll_records": await db.payroll_records.delete_many({"employee_id": employee_id}),
-    }
-    await db.employees.delete_one({"id": employee_id})
-    deleted_summary = {k: v.deleted_count for k, v in counters.items()}
+    # Soft delete: oznaczamy is_deleted, zachowujemy nazwe dla pliku wyplat
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {
+            "is_deleted": True,
+            "currently_active": False,
+            "is_archived": True,
+            "deleted_at": datetime.now().isoformat(),
+            "deleted_by": current_user["sub"],
+            "deleted_full_name": emp.get("full_name"),
+        }, "$unset": {"public_token": ""}},
+    )
     return {
-        "message": f"Trwale usunieto: {emp.get('full_name')}",
+        "message": f"Usunieto: {emp.get('full_name')}. Dane historyczne zachowane.",
         "employee_id": employee_id,
-        "cascaded": deleted_summary,
     }
 
 
@@ -233,18 +257,38 @@ async def generate_all_links(
 @router.post("/employees/{employee_id}/rotate-token")
 async def rotate_single_token(
     employee_id: str,
+    force: bool = False,
     current_user: dict = Depends(get_current_admin)
 ):
-    """Unievaznia link KONKRETNEGO pracownika - generuje nowy token."""
-    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1, "full_name": 1})
+    """Generuje link dla pracownika.
+    - force=False (default): jezeli pracownik ma juz token, zwraca istniejacy. Nie nadpisuje.
+      To zachowuje przypisania ubran/BHP - pracownik nie musi dostawac nowego linku.
+    - force=True: ZAWSZE generuje nowy token (stary przestaje dzialac).
+    """
+    emp = await db.employees.find_one(
+        {"id": employee_id},
+        {"_id": 0, "id": 1, "full_name": 1, "public_token": 1}
+    )
     if not emp:
         raise HTTPException(status_code=404, detail="Pracownik nie znaleziony")
+    if not force and emp.get("public_token"):
+        return {
+            "token": emp["public_token"],
+            "employee_id": employee_id,
+            "message": f"{emp['full_name']}: link juz istnial, zachowany.",
+            "preserved": True,
+        }
     new_token = secrets.token_urlsafe(16)
     await db.employees.update_one(
         {"id": employee_id},
         {"$set": {"public_token": new_token}}
     )
-    return {"token": new_token, "employee_id": employee_id, "message": f"Nowy link dla {emp['full_name']}"}
+    return {
+        "token": new_token,
+        "employee_id": employee_id,
+        "message": f"Nowy link dla {emp['full_name']}",
+        "preserved": False,
+    }
 
 
 @router.post("/employees/{employee_id}/revoke-token")

@@ -88,10 +88,29 @@ async def list_payroll(
     Pracownicy zarchiwizowani i bez godzin NIE sa pomijani jezeli maja zapisane
     pola payroll (np. premia bez godzin). Sortowane A-Z.
     """
-    # Aktywni pracownicy
+    # Pracownicy ktorzy istnieli w danym miesiacu:
+    # - created_at <= ostatni dzien miesiaca (istnial wtedy)
+    # - jezeli zarchiwizowany: archived_at musial byc >= 1szy dzien miesiaca (archiwizacja od nast. miesiaca)
+    # - is_deleted pracownicy SA wlaczeni (historyczne dane musza sie pojawic w wyplatach)
+    last_day = 31 if month in (1, 3, 5, 7, 8, 10, 12) else (30 if month != 2 else 29)
+    month_start = f"{year:04d}-{month:02d}-01"
+    month_end_iso = f"{year:04d}-{month:02d}-{last_day:02d}T23:59:59"
+    emps_query = {
+        "$and": [
+            {"$or": [
+                {"created_at": {"$lte": month_end_iso}},
+                {"created_at": {"$exists": False}},
+            ]},
+            {"$or": [
+                {"is_archived": {"$exists": False}},
+                {"is_archived": False},
+                {"archived_at": {"$gte": month_start}},
+            ]},
+        ],
+    }
     emps = await db.employees.find(
-        {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]},
-        {"_id": 0, "id": 1, "full_name": 1},
+        emps_query,
+        {"_id": 0, "id": 1, "full_name": 1, "deleted_full_name": 1, "is_deleted": 1},
     ).sort("full_name", 1).to_list(1000)
 
     start = f"{year:04d}-{month:02d}-01"
@@ -211,7 +230,8 @@ async def list_payroll(
         computed = _calc(total_hours, rec, auto_advances_zl=emp_adv, auto_penalties_zl=emp_pen)
         result.append({
             "employee_id": emp_id,
-            "full_name": emp.get("full_name"),
+            "full_name": emp.get("deleted_full_name") or emp.get("full_name"),
+            "is_deleted": bool(emp.get("is_deleted")),
             "total_hours": total_hours,
             "sites_breakdown": sites_breakdown,
             "record": {
