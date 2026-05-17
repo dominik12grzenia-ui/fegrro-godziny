@@ -1,0 +1,712 @@
+"""Finanse - bilans firmowy z Rachunkiem wynikow i Sprzedaza per budowa.
+
+Struktura zgodna z Excel "Bilans 2026 nowy poprawny":
+- KP (Koszty Pracownikow): wynagrodzenia, ZUS, wynagr. na stawkach
+- KBB (Koszty Bezposrednie Budowy): materialy, najmy, podwyk., transport
+- KSB (Koszty Stale Bezposrednie): paliwa, samochody, odziez, sprzet
+- KSP (Koszty Stale Posrednie): biuro, ksiegowosc, opl.bankowe
+- PZS (Przychody Sprzedazy), PPE (Podatek PPE), PV (Podatek VAT)
+- G (Godziny przepracowane)
+
+Logika obliczen:
+- SUMIFS(zapisy.netto, zapisy.kod_kosztu, KAT, zapisy.miesiac, MM, zapisy.budowa?, B)
+- Kaucja GIR = 2% z (przychod budowy GIR), Kaucja DW = 2% z (przychod budowy DW)
+- WYNIK NETTO = Przychody - Koszty + Podatek - KGIR - KDW
+- SPRZEDAZ per budowa: marża I, II, III z alokacją kosztów slawkowych pro-rata
+"""
+import logging
+import uuid
+from fastapi import APIRouter, HTTPException, Depends, Query, Body
+from datetime import datetime
+from typing import Optional, List
+from pydantic import BaseModel, Field
+
+from database import db
+from auth import get_current_admin
+
+router = APIRouter()
+logger = logging.getLogger(__name__)
+
+
+# ============= KODY (seed z Excela Kody!B2-B34) =============
+# Kazdy kod ma: id (skrot uzywany w UI), nazwa, kategoria (PZS/PPE/PV/G/KP/KBB/KSB/KSP)
+KODY_SEED = [
+    # Przychody i podatki
+    {"id": "PZS", "name": "Przychody ze sprzedazy netto", "category": "PZS", "order": 1},
+    {"id": "PZSV", "name": "Przychody ze sprzedazy VAT", "category": "PZSV", "order": 2},
+    {"id": "PPE", "name": "Podatek PPE", "category": "PPE", "order": 3},
+    {"id": "PV", "name": "Podatek VAT", "category": "PV", "order": 4},
+    {"id": "G", "name": "Ilosc przepracowanych godzin", "category": "G", "order": 5},
+    # KP - Koszty Pracownikow (Rachunek wynikow 19-22)
+    {"id": "KP_WYNAGRODZENIA", "name": "Wynagrodzenia pracownikow budowy", "category": "KP", "order": 10},
+    {"id": "KP_ZUS", "name": "ZUS pracownikow budowy", "category": "KP", "order": 11},
+    {"id": "KP_STAWKI", "name": "Wynagrodzenia pracownikow na stawkach", "category": "KP", "order": 12},
+    # KBB - Koszty Bezposrednie Budowy (R-W 23-37)
+    {"id": "KBB_STAL", "name": "Stal + tracone", "category": "KBB", "order": 20},
+    {"id": "KBB_BETON", "name": "Beton", "category": "KBB", "order": 21},
+    {"id": "KBB_MURARSKIE", "name": "Murarskie + tracone", "category": "KBB", "order": 22},
+    {"id": "KBB_POZOSTALE", "name": "Pozostale materialy", "category": "KBB", "order": 23},
+    {"id": "KBB_SZALUNKI", "name": "Szalunki", "category": "KBB", "order": 24},
+    {"id": "KBB_TRANSPORT", "name": "Transport", "category": "KBB", "order": 25},
+    {"id": "KBB_MAT_SZAL", "name": "Materialy szalunkow traconych", "category": "KBB", "order": 26},
+    {"id": "KBB_CZYSZCZENIE", "name": "Czyszczenie + uszkodzenia", "category": "KBB", "order": 27},
+    {"id": "KBB_NAJEM_MASZYN", "name": "Najem maszyn", "category": "KBB", "order": 28},
+    {"id": "KBB_NAJEM_DZWIGU", "name": "Najem dzwigu", "category": "KBB", "order": 29},
+    {"id": "KBB_PODWYKONAWCY", "name": "Uslugi podwykonawcow", "category": "KBB", "order": 30},
+    {"id": "KBB_KIEROWNIK", "name": "Najem kierownika", "category": "KBB", "order": 31},
+    {"id": "KBB_POPRAWKOWE", "name": "Materialy poprawkowe", "category": "KBB", "order": 32},
+    # KSB - Koszty Stale Bezposrednie (R-W 39-43)
+    {"id": "KSB_ODZIEZ", "name": "Odziez i badania pracownikow", "category": "KSB", "order": 40},
+    {"id": "KSB_AUTO", "name": "Koszty naprawy i ubezpieczenia samochodow", "category": "KSB", "order": 41},
+    {"id": "KSB_PALIWA", "name": "Paliwa", "category": "KSB", "order": 42},
+    {"id": "KSB_NAPRAWY_SPRZETU", "name": "Naprawy sprzetu", "category": "KSB", "order": 43},
+    {"id": "KSB_HILTI", "name": "Najem Hilti", "category": "KSB", "order": 44},
+    # KSP - Koszty Stale Posrednie (R-W 45-50)
+    {"id": "KSP_BIURO", "name": "Artykuly biurowe i drukarnie", "category": "KSP", "order": 50},
+    {"id": "KSP_SOFT", "name": "Oprogramowania i media", "category": "KSP", "order": 51},
+    {"id": "KSP_BANK", "name": "Oplaty bankowe", "category": "KSP", "order": 52},
+    {"id": "KSP_KSIEGOWOSC", "name": "Uslugi ksiegowe", "category": "KSP", "order": 53},
+    {"id": "KSP_STAWKI", "name": "Koszty slawek", "category": "KSP", "order": 54},
+    {"id": "KSP_UKLADY", "name": "Koszty ukladow", "category": "KSP", "order": 55},
+]
+KAUCJA_PROCENT = 0.02  # 2% dla GIR i DW (z Kody!H15, I15)
+
+
+async def ensure_kody_seed():
+    """Zapewnia ze kolekcja finance_kody zawiera wszystkie kody. Wywolywane przy startup."""
+    existing = await db.finance_kody.find({}, {"_id": 0, "id": 1}).to_list(length=None)
+    existing_ids = {k["id"] for k in existing}
+    new_kody = [k for k in KODY_SEED if k["id"] not in existing_ids]
+    if new_kody:
+        await db.finance_kody.insert_many(new_kody)
+        logger.info(f"[finance] seeded {len(new_kody)} kody")
+
+
+# ============= MODELS =============
+class BudowaCreate(BaseModel):
+    name: str
+    code: Optional[str] = None  # opcjonalny "G15" lub krotka nazwa
+    show_in_hours: bool = False
+    is_gir: bool = False  # dla obliczania Kaucji GIR (2%)
+    is_dw: bool = False  # dla obliczania Kaucji DW (2%)
+    notes: Optional[str] = None
+
+
+class BudowaUpdate(BaseModel):
+    name: Optional[str] = None
+    code: Optional[str] = None
+    show_in_hours: Optional[bool] = None
+    is_gir: Optional[bool] = None
+    is_dw: Optional[bool] = None
+    notes: Optional[str] = None
+
+
+class ZapisCreate(BaseModel):
+    date: str  # YYYY-MM-DD - data sprzedazy/wystawienia
+    kontrahent: Optional[str] = None
+    netto: float
+    brutto: Optional[float] = None
+    kod_id: str  # z finance_kody (np. KBB_BETON, PZS, KP_WYNAGRODZENIA)
+    budowa_id: Optional[str] = None  # finance_budowy.id - jezeli koszt budowy
+    nr_faktury: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class ZapisUpdate(BaseModel):
+    date: Optional[str] = None
+    kontrahent: Optional[str] = None
+    netto: Optional[float] = None
+    brutto: Optional[float] = None
+    kod_id: Optional[str] = None
+    budowa_id: Optional[str] = None
+    nr_faktury: Optional[str] = None
+    notes: Optional[str] = None
+
+
+# ============= KODY =============
+@router.get("/finance/kody")
+async def list_kody(current_user: dict = Depends(get_current_admin)):
+    await ensure_kody_seed()
+    rows = await db.finance_kody.find({}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    return {"rows": rows}
+
+
+# ============= BUDOWY (finansowe, niezalezne od sites) =============
+@router.get("/finance/budowy")
+async def list_budowy(
+    include_archived: bool = Query(False),
+    current_user: dict = Depends(get_current_admin),
+):
+    q = {} if include_archived else {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}
+    rows = await db.finance_budowy.find(q, {"_id": 0}).sort("name", 1).to_list(length=None)
+    return {"rows": rows}
+
+
+@router.post("/finance/budowy")
+async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_current_admin)):
+    name = payload.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nazwa nie moze byc pusta")
+    exists = await db.finance_budowy.find_one({"name": name}, {"_id": 0, "id": 1})
+    if exists:
+        raise HTTPException(status_code=400, detail=f"Budowa '{name}' juz istnieje")
+    bid = str(uuid.uuid4())
+    doc = {
+        "id": bid,
+        "name": name,
+        "code": payload.code or "",
+        "show_in_hours": bool(payload.show_in_hours),
+        "is_gir": bool(payload.is_gir),
+        "is_dw": bool(payload.is_dw),
+        "notes": payload.notes or "",
+        "is_archived": False,
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.finance_budowy.insert_one(doc)
+    # Jezeli show_in_hours = True, dodaj do sites collection
+    if payload.show_in_hours:
+        await _sync_to_sites(bid, name)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/finance/budowy/{budowa_id}")
+async def update_budowa(
+    budowa_id: str,
+    payload: BudowaUpdate,
+    current_user: dict = Depends(get_current_admin),
+):
+    existing = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if "name" in upd:
+        upd["name"] = upd["name"].strip()
+    upd["updated_at"] = datetime.now().isoformat()
+    upd["updated_by"] = current_user["sub"]
+    await db.finance_budowy.update_one({"id": budowa_id}, {"$set": upd})
+
+    # Sync z sites collection
+    new_show = upd.get("show_in_hours", existing.get("show_in_hours", False))
+    old_show = existing.get("show_in_hours", False)
+    new_name = upd.get("name", existing.get("name"))
+    if new_show and not old_show:
+        await _sync_to_sites(budowa_id, new_name)
+    elif old_show and not new_show:
+        await _remove_from_sites(budowa_id)
+    elif new_show and "name" in upd:
+        # nazwa sie zmienila - update site
+        await db.construction_sites.update_one(
+            {"finance_budowa_id": budowa_id}, {"$set": {"name": new_name}}
+        )
+    return {"message": "Zaktualizowano"}
+
+
+@router.post("/finance/budowy/{budowa_id}/archive")
+async def archive_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
+    """Archiwizuje budowe w finansach. Dane zapisow zostaja. Usuwa z sites (lista godzin)."""
+    res = await db.finance_budowy.update_one(
+        {"id": budowa_id},
+        {"$set": {
+            "is_archived": True,
+            "show_in_hours": False,
+            "archived_at": datetime.now().isoformat(),
+            "archived_by": current_user["sub"],
+        }},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    await _remove_from_sites(budowa_id)
+    return {"message": "Zarchiwizowano"}
+
+
+@router.post("/finance/budowy/{budowa_id}/unarchive")
+async def unarchive_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
+    res = await db.finance_budowy.update_one(
+        {"id": budowa_id},
+        {"$set": {"is_archived": False, "archived_at": None}},
+    )
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    return {"message": "Przywrocono"}
+
+
+@router.delete("/finance/budowy/{budowa_id}")
+async def delete_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
+    """Trwale usuniecie. Nie pozwala jezeli sa zapisy z ta budowa."""
+    cnt = await db.finance_zapisy.count_documents({"budowa_id": budowa_id})
+    if cnt > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Nie mozna usunac - jest {cnt} zapisow finansowych. Zarchiwizuj zamiast usuwac.",
+        )
+    await db.finance_budowy.delete_one({"id": budowa_id})
+    await _remove_from_sites(budowa_id)
+    return {"message": "Usunieto"}
+
+
+async def _sync_to_sites(budowa_id: str, name: str):
+    """Dodaje budowe do construction_sites jezeli jeszcze nie istnieje (po finance_budowa_id)."""
+    existing = await db.construction_sites.find_one(
+        {"finance_budowa_id": budowa_id}, {"_id": 0, "id": 1}
+    )
+    if existing:
+        return
+    site_doc = {
+        "id": str(uuid.uuid4()),
+        "name": name,
+        "finance_budowa_id": budowa_id,  # link
+        "is_active": True,
+        "address": "",
+        "created_at": datetime.now().isoformat(),
+    }
+    await db.construction_sites.insert_one(site_doc)
+
+
+async def _remove_from_sites(budowa_id: str):
+    """Usuwa wpis z construction_sites powiazany z budowa_id (jezeli istnieje)."""
+    await db.construction_sites.delete_one({"finance_budowa_id": budowa_id})
+
+
+# ============= ZAPISY (dziennik ksiegowy) =============
+@router.get("/finance/zapisy")
+async def list_zapisy(
+    year: Optional[int] = Query(None),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    budowa_id: Optional[str] = Query(None),
+    kod_id: Optional[str] = Query(None),
+    current_user: dict = Depends(get_current_admin),
+):
+    q = {}
+    if year is not None and month is not None:
+        start = f"{year:04d}-{month:02d}-01"
+        end = f"{year:04d}-{month:02d}-31"
+        q["date"] = {"$gte": start, "$lte": end}
+    elif year is not None:
+        q["date"] = {"$gte": f"{year:04d}-01-01", "$lte": f"{year:04d}-12-31"}
+    if budowa_id:
+        q["budowa_id"] = budowa_id
+    if kod_id:
+        q["kod_id"] = kod_id
+    rows = await db.finance_zapisy.find(q, {"_id": 0}).sort("date", -1).to_list(length=None)
+    return {"rows": rows, "total": len(rows)}
+
+
+@router.post("/finance/zapisy")
+async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_current_admin)):
+    # walidacje
+    try:
+        d = datetime.strptime(payload.date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Nieprawidlowy format daty (YYYY-MM-DD)")
+    kod = await db.finance_kody.find_one({"id": payload.kod_id}, {"_id": 0, "id": 1, "category": 1})
+    if not kod:
+        raise HTTPException(status_code=400, detail=f"Nieznany kod kosztu: {payload.kod_id}")
+    if payload.budowa_id:
+        bud = await db.finance_budowy.find_one({"id": payload.budowa_id}, {"_id": 0, "id": 1})
+        if not bud:
+            raise HTTPException(status_code=400, detail="Nieznana budowa")
+    zid = str(uuid.uuid4())
+    doc = {
+        "id": zid,
+        "date": payload.date,
+        "year": d.year,
+        "month": d.month,
+        "kontrahent": (payload.kontrahent or "").strip(),
+        "netto": float(payload.netto),
+        "brutto": float(payload.brutto) if payload.brutto is not None else float(payload.netto),
+        "kod_id": payload.kod_id,
+        "kod_category": kod["category"],
+        "budowa_id": payload.budowa_id,
+        "nr_faktury": (payload.nr_faktury or "").strip(),
+        "notes": (payload.notes or "").strip(),
+        "source": "manual",
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.finance_zapisy.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.put("/finance/zapisy/{zapis_id}")
+async def update_zapis(zapis_id: str, payload: ZapisUpdate, current_user: dict = Depends(get_current_admin)):
+    existing = await db.finance_zapisy.find_one({"id": zapis_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Zapis nie znaleziony")
+    upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    if "date" in upd:
+        try:
+            d = datetime.strptime(upd["date"], "%Y-%m-%d")
+            upd["year"] = d.year
+            upd["month"] = d.month
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Nieprawidlowa data")
+    if "kod_id" in upd:
+        kod = await db.finance_kody.find_one({"id": upd["kod_id"]}, {"_id": 0, "category": 1})
+        if not kod:
+            raise HTTPException(status_code=400, detail="Nieznany kod")
+        upd["kod_category"] = kod["category"]
+    if "netto" in upd:
+        upd["netto"] = float(upd["netto"])
+    if "brutto" in upd:
+        upd["brutto"] = float(upd["brutto"])
+    upd["updated_at"] = datetime.now().isoformat()
+    upd["updated_by"] = current_user["sub"]
+    await db.finance_zapisy.update_one({"id": zapis_id}, {"$set": upd})
+    return {"message": "Zaktualizowano"}
+
+
+@router.delete("/finance/zapisy/{zapis_id}")
+async def delete_zapis(zapis_id: str, current_user: dict = Depends(get_current_admin)):
+    res = await db.finance_zapisy.delete_one({"id": zapis_id})
+    if res.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Zapis nie znaleziony")
+    return {"message": "Usunieto"}
+
+
+# ============= RACHUNEK WYNIKOW =============
+@router.get("/finance/rachunek-wynikow")
+async def rachunek_wynikow(
+    year: int = Query(...),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Buduje tabele Rachunku Wynikow 12 msc x kategorie - identycznie jak w Excelu."""
+    await ensure_kody_seed()
+    # Pobierz wszystkie zapisy w tym roku
+    zapisy = await db.finance_zapisy.find(
+        {"year": year},
+        {"_id": 0, "month": 1, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1},
+    ).to_list(length=None)
+
+    # Agregacja: sum_by_kod[kod_id][month] = netto
+    sum_by_kod: dict = {}
+    sum_by_cat: dict = {}  # category -> {month: netto}
+    for z in zapisy:
+        m = z["month"]
+        kod = z["kod_id"]
+        cat = z.get("kod_category") or ""
+        v = float(z.get("netto") or 0)
+        sum_by_kod.setdefault(kod, {}).setdefault(m, 0.0)
+        sum_by_kod[kod][m] += v
+        sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
+        sum_by_cat[cat][m] += v
+
+    # Kaucje: GIR i DW = 2% z przychodu PZS dla budow z is_gir/is_dw
+    gir_budowy = await db.finance_budowy.find({"is_gir": True}, {"_id": 0, "id": 1}).to_list(length=None)
+    dw_budowy = await db.finance_budowy.find({"is_dw": True}, {"_id": 0, "id": 1}).to_list(length=None)
+    gir_ids = {b["id"] for b in gir_budowy}
+    dw_ids = {b["id"] for b in dw_budowy}
+    kaucja_gir = {m: 0.0 for m in range(1, 13)}
+    kaucja_dw = {m: 0.0 for m in range(1, 13)}
+    for z in zapisy:
+        if z.get("kod_id") == "PZS":
+            m = z["month"]
+            v = float(z.get("netto") or 0)
+            bid = z.get("budowa_id")
+            if bid in gir_ids:
+                kaucja_gir[m] += v * KAUCJA_PROCENT
+            if bid in dw_ids:
+                kaucja_dw[m] += v * KAUCJA_PROCENT
+
+    def month_arr(d: dict, mfn=lambda x: x) -> list:
+        return [round(mfn(d.get(m, 0.0)), 2) for m in range(1, 13)]
+
+    def sum_arr(arr: list) -> float:
+        return round(sum(arr), 2)
+
+    # Buduj wiersze
+    przychody = month_arr(sum_by_cat.get("PZS", {}))
+    podatek = month_arr(sum_by_cat.get("PPE", {}))
+    godziny = month_arr(sum_by_cat.get("G", {}))
+    kp_total = month_arr(sum_by_cat.get("KP", {}))
+    kbb_total = month_arr(sum_by_cat.get("KBB", {}))
+    ksb_total = month_arr(sum_by_cat.get("KSB", {}))
+    ksp_total = month_arr(sum_by_cat.get("KSP", {}))
+    koszty_total = [round(kp_total[i] + kbb_total[i] + ksb_total[i] + ksp_total[i], 2) for i in range(12)]
+    kaucja_gir_arr = [round(kaucja_gir[m], 2) for m in range(1, 13)]
+    kaucja_dw_arr = [round(kaucja_dw[m], 2) for m in range(1, 13)]
+    wynik = [round(przychody[i] - koszty_total[i] - podatek[i] - kaucja_gir_arr[i] - kaucja_dw_arr[i], 2)
+             for i in range(12)]
+
+    # Wskazniki per R-G
+    def ratio(a, b):
+        return round(a / b, 2) if b > 0 else 0
+
+    koszt_rg_firma_prac = [
+        ratio(kp_total[i] + ksb_total[i] + ksp_total[i], godziny[i]) for i in range(12)
+    ]
+    przychody_rg = [ratio(przychody[i] + podatek[i], godziny[i]) for i in range(12)]
+    koszty_rg = [ratio(koszty_total[i] + podatek[i], godziny[i]) for i in range(12)]
+    koszty_budowy_rg = [ratio(kbb_total[i], godziny[i]) for i in range(12)]
+    koszty_ogolne_rg = [ratio(ksb_total[i] + ksp_total[i], godziny[i]) for i in range(12)]
+
+    # Wiersze szczegolowe per kod (rozwijalne)
+    all_kody = await db.finance_kody.find({}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    kp_rows = []
+    for k in all_kody:
+        if k["category"] == "KP":
+            arr = month_arr(sum_by_kod.get(k["id"], {}))
+            kp_rows.append({"kod_id": k["id"], "name": k["name"], "monthly": arr, "total": sum_arr(arr)})
+    kbb_rows = []
+    for k in all_kody:
+        if k["category"] == "KBB":
+            arr = month_arr(sum_by_kod.get(k["id"], {}))
+            kbb_rows.append({"kod_id": k["id"], "name": k["name"], "monthly": arr, "total": sum_arr(arr)})
+    ksb_rows = []
+    for k in all_kody:
+        if k["category"] == "KSB":
+            arr = month_arr(sum_by_kod.get(k["id"], {}))
+            ksb_rows.append({"kod_id": k["id"], "name": k["name"], "monthly": arr, "total": sum_arr(arr)})
+    ksp_rows = []
+    for k in all_kody:
+        if k["category"] == "KSP":
+            arr = month_arr(sum_by_kod.get(k["id"], {}))
+            ksp_rows.append({"kod_id": k["id"], "name": k["name"], "monthly": arr, "total": sum_arr(arr)})
+
+    return {
+        "year": year,
+        "summary": {
+            "przychody_netto": {"monthly": przychody, "total": sum_arr(przychody)},
+            "suma_kosztow": {"monthly": koszty_total, "total": sum_arr(koszty_total)},
+            "podatek": {"monthly": podatek, "total": sum_arr(podatek)},
+            "kaucja_gir": {"monthly": kaucja_gir_arr, "total": sum_arr(kaucja_gir_arr)},
+            "kaucja_dw": {"monthly": kaucja_dw_arr, "total": sum_arr(kaucja_dw_arr)},
+            "wynik_netto": {"monthly": wynik, "total": sum_arr(wynik)},
+            "godziny": {"monthly": godziny, "total": sum_arr(godziny)},
+        },
+        "ratios": {
+            "koszt_rg_firma_pracownik": koszt_rg_firma_prac,
+            "przychody_rg": przychody_rg,
+            "koszty_rg": koszty_rg,
+            "koszty_budowy_rg": koszty_budowy_rg,
+            "koszty_ogolne_rg": koszty_ogolne_rg,
+        },
+        "groups": {
+            "kp": {
+                "label": "Koszty pracownikow",
+                "monthly": kp_total,
+                "total": sum_arr(kp_total),
+                "rows": kp_rows,
+            },
+            "kbb": {
+                "label": "Koszty budowy",
+                "monthly": kbb_total,
+                "total": sum_arr(kbb_total),
+                "rows": kbb_rows,
+            },
+            "ksb": {
+                "label": "Koszty stale bezposrednie",
+                "monthly": ksb_total,
+                "total": sum_arr(ksb_total),
+                "rows": ksb_rows,
+            },
+            "ksp": {
+                "label": "Koszty stale posrednie",
+                "monthly": ksp_total,
+                "total": sum_arr(ksp_total),
+                "rows": ksp_rows,
+            },
+        },
+    }
+
+
+# ============= SPRZEDAZ per budowa =============
+@router.get("/finance/sprzedaz")
+async def sprzedaz(
+    year: int = Query(...),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż.
+
+    Kolumny per budowa:
+    - E: Sprzedaz (PZS)
+    - F: KP (Wynagrodzenia z budowy) | G: udzial F w sumie | H: alokacja KP "stawkowych" pro-rata
+    - I: KBB | J: udzial I+F w (sumie I+F) | K: alokacja KSP_STAWKI pro-rata
+    - L: Marza brutto (E - I - F - H - K) - uwaga: kolumny K, H to alokacje pomocniczne
+    - M: %
+    - N: KSB | O: alokacja KSP_UKLADY pro-rata
+    - P: Marza I (L - N - O)
+    - Q: %
+    - R: KSP allokacja pro-rata wg G
+    - S: Marza II (P - R)
+    - T: %
+    - U: Podatek allokacja pro-rata wg E
+    - V: Marza III (S - U)
+    - W: %
+    - Y: Przychod (= E)
+    - Z: Koszt (= F+H+I+K+N+O+R+U)
+    - AA: Kaucja GIR (= 2% * PZS dla GIR-budowy)
+    - AB: Kaucja DW (= 2% * PZS dla DW-budowy)
+    - AC: Roznica = Y + Z (Z jest ujemny w Z+ logice; tu sumujemy)
+    - AD: Zysk %
+    - AE: Ilosc godzin
+    - AF: Przychod / godziny
+    - AG: Zysk / godziny
+    - AH: Koszt / godziny
+    - AI: Koszt zmienny (= F+H+I+K) - bez stałych
+    """
+    await ensure_kody_seed()
+    budowy = await db.finance_budowy.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
+    zapisy = await db.finance_zapisy.find(
+        {"year": year},
+        {"_id": 0, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1},
+    ).to_list(length=None)
+
+    # Sumaryczne kwoty z zapisow
+    def sum_by_kod(kod_id, budowa_id=None):
+        return sum(
+            float(z.get("netto") or 0)
+            for z in zapisy
+            if z.get("kod_id") == kod_id and (budowa_id is None or z.get("budowa_id") == budowa_id)
+        )
+
+    def sum_by_cat(category, budowa_id=None):
+        return sum(
+            float(z.get("netto") or 0)
+            for z in zapisy
+            if z.get("kod_category") == category and (budowa_id is None or z.get("budowa_id") == budowa_id)
+        )
+
+    # SUMA - rok (dla alokacji pro-rata)
+    total_pzs = sum_by_cat("PZS")
+    total_ksp = sum_by_cat("KSP")
+    total_ppe = sum_by_cat("PPE")
+    # "Slawkowe" - alokowane pro-rata: traktujemy je jako te bez budowa_id (czyli nieprzypisane)
+    kp_stawki_unassigned = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_id") == "KP_STAWKI" and not z.get("budowa_id")
+    )
+    ksp_stawki_unassigned = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_id") == "KSP_STAWKI" and not z.get("budowa_id")
+    )
+    ksp_uklady_unassigned = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_id") == "KSP_UKLADY" and not z.get("budowa_id")
+    )
+    # SUMA KP/KBB przypisane do budow (suma F i I w Excelu - to suma F23 i I23)
+    assigned_kp_sum = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_category") == "KP" and z.get("budowa_id")
+    )
+    assigned_kbb_sum = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_category") == "KBB" and z.get("budowa_id")
+    )
+
+    def safe_div(a, b):
+        return a / b if b > 0 else 0.0
+
+    rows = []
+    for idx, b in enumerate(budowy, 1):
+        bid = b["id"]
+        E = sum_by_cat("PZS", bid)
+        F = sum_by_cat("KP", bid)
+        Ib = sum_by_cat("KBB", bid)
+        N = sum_by_cat("KSB", bid)
+        # Alokacje pro-rata
+        # G = F / suma F (udzial w KP)
+        G = safe_div(F, assigned_kp_sum)
+        # H = (KP_STAWKI niezprzypisane) * G - alokacja pro-rata
+        H = kp_stawki_unassigned * G
+        # J = (F+I) / (suma F+I)
+        J = safe_div(F + Ib, assigned_kbb_sum + assigned_kp_sum)
+        # K = (KSP_STAWKI niezprzypisane) * J
+        K = ksp_stawki_unassigned * J
+        # Marza brutto = E - koszty zmienne (F+H+I+K). Konwencja: koszty dodatnie.
+        L_brutto = E - (F + H + Ib + K)
+        M_pct = safe_div(L_brutto, E)
+        O_aloc = ksp_uklady_unassigned * G  # alokacja KSP_UKLADY pro-rata G
+        P_marza1 = L_brutto - N - O_aloc
+        Q_pct = safe_div(P_marza1, E)
+        # R = KSP (oprocz KSP_STAWKI i KSP_UKLADY ktore juz alokowane) * G
+        ksp_other = total_ksp - ksp_stawki_unassigned - ksp_uklady_unassigned
+        R_aloc = ksp_other * G
+        S_marza2 = P_marza1 - R_aloc
+        T_pct = safe_div(S_marza2, E)
+        U_aloc = total_ppe * safe_div(E, total_pzs)  # podatek pro-rata po sprzedazy
+        V_marza3 = S_marza2 - U_aloc
+        W_pct = safe_div(V_marza3, E)
+
+        # Y-AI (widoczne od razu)
+        Y = E
+        Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
+        AA = E * KAUCJA_PROCENT if b.get("is_gir") else 0.0
+        AB = E * KAUCJA_PROCENT if b.get("is_dw") else 0.0
+        AC = Y - Z - AA - AB  # zysk netto (Roznica)
+        AD_pct = safe_div(AC, Y)
+        # godziny z aplikacji - z hour_entries dla tej budowy (sites z finance_budowa_id=bid)
+        # tu liczymy z finance_zapisy kod G:
+        AE = sum_by_kod("G", bid)
+        AF = safe_div(Y, AE) if AE > 0 else 0
+        AG = safe_div(AC, AE) if AE > 0 else 0
+        AH = safe_div(Z, AE) if AE > 0 else 0
+        AI = F + H + Ib + K  # koszty zmienne
+
+        rows.append({
+            "nr": idx,
+            "budowa_id": bid,
+            "name": b["name"],
+            "is_archived": b.get("is_archived", False),
+            "is_gir": b.get("is_gir", False),
+            "is_dw": b.get("is_dw", False),
+            # hidden detail columns (E-X)
+            "details": {
+                "sprzedaz": round(E, 2),
+                "kp": round(F, 2),
+                "kp_udzial": round(G, 4),
+                "kp_aloc": round(H, 2),
+                "kbb": round(Ib, 2),
+                "kbb_kp_udzial": round(J, 4),
+                "kbb_aloc": round(K, 2),
+                "marza_brutto": round(L_brutto, 2),
+                "marza_brutto_pct": round(M_pct, 4),
+                "ksb": round(N, 2),
+                "ksp_uklady_aloc": round(O_aloc, 2),
+                "marza1": round(P_marza1, 2),
+                "marza1_pct": round(Q_pct, 4),
+                "ksp_aloc": round(R_aloc, 2),
+                "marza2": round(S_marza2, 2),
+                "marza2_pct": round(T_pct, 4),
+                "podatek_aloc": round(U_aloc, 2),
+                "marza3": round(V_marza3, 2),
+                "marza3_pct": round(W_pct, 4),
+            },
+            # visible columns (Y-AI)
+            "visible": {
+                "przychod": round(Y, 2),
+                "koszt": round(Z, 2),
+                "kaucja_gir": round(AA, 2),
+                "kaucja_dw": round(AB, 2),
+                "roznica": round(AC, 2),
+                "zysk_pct": round(AD_pct, 4),
+                "godziny": round(AE, 2),
+                "przychod_rg": round(AF, 2),
+                "zysk_rg": round(AG, 2),
+                "koszt_rg": round(AH, 2),
+                "koszt_zmienny": round(AI, 2),
+            },
+        })
+
+    # Suma (footer)
+    sum_visible = {k: round(sum(r["visible"][k] for r in rows), 2) for k in
+                    ["przychod", "koszt", "kaucja_gir", "kaucja_dw", "roznica", "godziny", "koszt_zmienny"]}
+    sum_visible["zysk_pct"] = round(safe_div(sum_visible["roznica"], sum_visible["przychod"]), 4)
+    sum_visible["przychod_rg"] = round(safe_div(sum_visible["przychod"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
+    sum_visible["zysk_rg"] = round(safe_div(sum_visible["roznica"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
+    sum_visible["koszt_rg"] = round(safe_div(sum_visible["koszt"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
+
+    return {
+        "year": year,
+        "rows": rows,
+        "totals": {
+            "visible": sum_visible,
+        },
+    }

@@ -1,3 +1,36 @@
+## Iteration 37 (2026-05-17) — Modul Finanse
+
+Stworzono kompleksowy modul **Finanse** odwzorowujacy plik Excel "Bilans 2026" z 4 podzakladkami w Panelu Admina.
+
+### Backend (`/app/backend/routes/finance.py`)
+- Kolekcje: `finance_kody` (32 kody z Excela Kody!), `finance_budowy` (nazwy budow finansowych), `finance_zapisy` (dziennik ksiegowy)
+- Endpointy:
+  - `GET /api/finance/kody` (z auto-seedem)
+  - `GET/POST/PUT/DELETE /api/finance/budowy` + `/archive`, `/unarchive`
+  - `GET/POST/PUT/DELETE /api/finance/zapisy` (filtr: year, month, budowa_id, kod_id)
+  - `GET /api/finance/rachunek-wynikow?year=YYYY`
+  - `GET /api/finance/sprzedaz?year=YYYY`
+- Logika identyczna jak Excel: SUMIFS po kategoriach, alokacja pro-rata KSP_STAWKI/UKLADY, Kaucja GIR/DW = 2% z PZS
+
+### Integracja z lista godzin
+- Budowa z `show_in_hours=true` → automatyczny wpis w `construction_sites` (link przez `finance_budowa_id`)
+- Archiwizacja w finansach → usuwa z `construction_sites`, ale dane zapisow zostaja
+- Hard delete blokowany jezeli sa zapisy
+
+### Frontend (`/app/frontend/src/components/Finance.js`, ~700 linii)
+4 podzakladki:
+1. **Budowy** — CRUD, flagi `show_in_hours`, `is_gir`, `is_dw`, archive/unarchive
+2. **Zapisy** — dziennik ksiegowy, ręczne dodawanie/edycja/usuwanie, filtr miesiac/rok
+3. **Rachunek wynikow** — tabela 12 msc × kategorie, rozwijane grupy (KP/KBB/KSB/KSP), wskazniki per R-G
+4. **Sprzedaz** — tabela per budowa, kolumny E-X (szczegoly: KP-alok, KBB-alok, marze brutto/I/II/III) schowane pod toggle "Rozwin szczegoly", Y-AI (Przychod, Koszt, Roznica, Godz., Przych/Rg, Zysk/Rg, Koszt/Rg, Kszt zmienny) widoczne od razu
+
+### Formatowanie liczb
+Helper `fmt(v)`: 0.00→"0", 12.50→"12.5". `fmtPct(v)`: 0.55→"55%".
+
+### Mock/zaslepki
+- Import z Fakturowni: NIE zaimplementowane (P1). Tylko reczne wpisywanie zapisow przez UI.
+
+
 # FeGrro - System Rejestracji Godzin Pracy
 
 ## Production URLs
