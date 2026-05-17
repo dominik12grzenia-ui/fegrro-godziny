@@ -525,27 +525,19 @@ export const PayrollAdmin = () => {
               data-testid="payroll-toggle-budowa-breakdown"
             >
               {showBudowaBreakdown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <span className="font-semibold">Podzial wyplat na budowy</span>
-              <span className="text-xs text-[#94A3B8] font-normal">(pro-rata wg godzin pracownika)</span>
+              <span className="font-semibold">Podzial kosztu wynagrodzen na budowy</span>
+              <span className="text-xs text-[#94A3B8] font-normal">(pro-rata wg godzin pracownika; zaliczki nie wchodza)</span>
             </button>
           </CardHeader>
           {showBudowaBreakdown && (
             <CardContent className="p-0 overflow-x-auto">
               {(() => {
-                // Agregacja per budowa: pro-rata z godzin pracownika
-                // Dla kazdego pracownika: ratio = h_na_budowie / pelne_godziny
-                // Skladniki: kwota_godzin (hours_amount), kary, dodatki (bonus), kierowca, inne_minus, inne_plus
-                // Zaliczki: oddzielnie (do reki = wyplata - zaliczki)
+                // Koszt wynagrodzen pracownika = hours_amount + bonus + driver + other_plus - other_minus - kary
+                // (zaliczka NIE jest kosztem - to wczesniejsza wyplata, kwota juz w hours_amount)
+                // Alokacja pro-rata wg godzin pracownika na budowach + reszta -> "(bez budowy)"
                 const budowaMap = new Map();
-                // budowa_id -> { name, hours, hours_amount, kary, bonus, driver, other_minus, other_plus, zaliczki, do_reki }
                 const ensureBud = (id, name) => {
-                  if (!budowaMap.has(id)) {
-                    budowaMap.set(id, {
-                      id, name, hours: 0, hours_amount: 0, kary: 0,
-                      bonus: 0, driver: 0, other_minus: 0, other_plus: 0,
-                      zaliczki: 0, do_reki: 0,
-                    });
-                  }
+                  if (!budowaMap.has(id)) budowaMap.set(id, { id, name, hours: 0, koszt: 0 });
                   return budowaMap.get(id);
                 };
                 for (const r of data.rows) {
@@ -558,19 +550,12 @@ export const PayrollAdmin = () => {
                   const driver = Number(rec.driver_zl) || 0;
                   const o_minus = Number(rec.other_minus_zl) || 0;
                   const o_plus = Number(rec.other_plus_zl) || 0;
-                  const zal = Number(r.auto_advances_zl) || 0;
-                  const do_reki = Number(r.computed?.payout) || 0;
+                  const koszt = ha + bonus + driver + o_plus - o_minus - kary;
+                  if (Math.abs(koszt) < 0.005) continue;
                   if (full_h <= 0 || sites.length === 0) {
                     const b = ensureBud(null, '(bez budowy)');
                     b.hours += full_h;
-                    b.hours_amount += ha;
-                    b.kary += kary;
-                    b.bonus += bonus;
-                    b.driver += driver;
-                    b.other_minus += o_minus;
-                    b.other_plus += o_plus;
-                    b.zaliczki += zal;
-                    b.do_reki += do_reki;
+                    b.koszt += koszt;
                     continue;
                   }
                   let acc_ratio = 0;
@@ -579,29 +564,14 @@ export const PayrollAdmin = () => {
                     const ratio = full_h > 0 ? sh / full_h : 0;
                     const b = ensureBud(s.site_id || null, s.site_name || '(bez budowy)');
                     b.hours += sh;
-                    b.hours_amount += ha * ratio;
-                    b.kary += kary * ratio;
-                    b.bonus += bonus * ratio;
-                    b.driver += driver * ratio;
-                    b.other_minus += o_minus * ratio;
-                    b.other_plus += o_plus * ratio;
-                    b.zaliczki += zal * ratio;
-                    b.do_reki += do_reki * ratio;
+                    b.koszt += koszt * ratio;
                     acc_ratio += ratio;
                   }
-                  // Niedoliczone godziny -> "(bez budowy)"
                   if (acc_ratio < 0.9999) {
                     const rem = 1 - acc_ratio;
                     const b = ensureBud(null, '(bez budowy)');
                     b.hours += full_h * rem;
-                    b.hours_amount += ha * rem;
-                    b.kary += kary * rem;
-                    b.bonus += bonus * rem;
-                    b.driver += driver * rem;
-                    b.other_minus += o_minus * rem;
-                    b.other_plus += o_plus * rem;
-                    b.zaliczki += zal * rem;
-                    b.do_reki += do_reki * rem;
+                    b.koszt += koszt * rem;
                   }
                 }
                 const list = Array.from(budowaMap.values()).sort((a, b) => {
@@ -609,21 +579,15 @@ export const PayrollAdmin = () => {
                   if (b.id === null) return -1;
                   return (a.name || '').localeCompare(b.name || '');
                 });
-                const sum = (k) => list.reduce((s, b) => s + (b[k] || 0), 0);
+                const sumH = list.reduce((s, b) => s + (b.hours || 0), 0);
+                const sumK = list.reduce((s, b) => s + (b.koszt || 0), 0);
                 return (
                   <table className="w-full text-sm" data-testid="payroll-budowa-breakdown-table">
                     <thead className="bg-[#1E293B] text-[#94A3B8] text-xs">
                       <tr>
                         <th className="p-2 text-left">Budowa</th>
                         <th className="p-2 text-right">Godziny</th>
-                        <th className="p-2 text-right">Kwota godzin</th>
-                        <th className="p-2 text-right">Kary</th>
-                        <th className="p-2 text-right">Dodatki +</th>
-                        <th className="p-2 text-right">Kierowca +</th>
-                        <th className="p-2 text-right">Inne -</th>
-                        <th className="p-2 text-right">Inne +</th>
-                        <th className="p-2 text-right">Zaliczki</th>
-                        <th className="p-2 text-right text-[#5F7151]">Do reki</th>
+                        <th className="p-2 text-right text-[#E8836A]">Koszt wynagrodzen</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -635,34 +599,20 @@ export const PayrollAdmin = () => {
                             {b.id === null ? <span className="text-[#E8B76A]">{b.name}</span> : b.name}
                           </td>
                           <td className="p-2 text-right text-white">{fmt(b.hours)}</td>
-                          <td className="p-2 text-right text-[#CBD5E1]">{fmt(b.hours_amount)}</td>
-                          <td className="p-2 text-right text-[#DC2626]">{fmt(b.kary)}</td>
-                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.bonus)}</td>
-                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.driver)}</td>
-                          <td className="p-2 text-right text-[#E8836A]">{fmt(b.other_minus)}</td>
-                          <td className="p-2 text-right text-[#5F7151]">{fmt(b.other_plus)}</td>
-                          <td className="p-2 text-right text-[#E8836A]">{fmt(b.zaliczki)}</td>
-                          <td className="p-2 text-right text-[#5F7151] font-bold">{fmt(b.do_reki)} zl</td>
+                          <td className="p-2 text-right text-[#E8836A] font-semibold">{fmt(b.koszt)} zl</td>
                         </tr>
                       ))}
-                      <tr className="border-t-2 border-[#5F7151] bg-[#1E293B] font-bold">
+                      <tr className="border-t-2 border-[#E8836A] bg-[#1E293B] font-bold">
                         <td className="p-2 text-white">SUMA</td>
-                        <td className="p-2 text-right text-white">{fmt(sum('hours'))}</td>
-                        <td className="p-2 text-right text-white">{fmt(sum('hours_amount'))}</td>
-                        <td className="p-2 text-right text-[#DC2626]">{fmt(sum('kary'))}</td>
-                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('bonus'))}</td>
-                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('driver'))}</td>
-                        <td className="p-2 text-right text-[#E8836A]">{fmt(sum('other_minus'))}</td>
-                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('other_plus'))}</td>
-                        <td className="p-2 text-right text-[#E8836A]">{fmt(sum('zaliczki'))}</td>
-                        <td className="p-2 text-right text-[#5F7151]">{fmt(sum('do_reki'))} zl</td>
+                        <td className="p-2 text-right text-white">{fmt(sumH)}</td>
+                        <td className="p-2 text-right text-[#E8836A]">{fmt(sumK)} zl</td>
                       </tr>
                     </tbody>
                   </table>
                 );
               })()}
               <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#334155]">
-                Wiersz oznaczony <span className="text-[#E8B76A]">pomaranczem</span> = pracownicy bez przypisania do zadnej budowy (lub czesc godzin "bez budowy"). Pro-rata = stosunek godzin pracownika na budowie do pelnych godzin.
+                Koszt wynagrodzen = kwota godzin + dodatki + kierowca + inne+ - inne- - kary. Zaliczki <strong>NIE</strong> sa kosztem (to wczesniejsza wyplata, kwota juz w "kwocie godzin").
               </div>
             </CardContent>
           )}
