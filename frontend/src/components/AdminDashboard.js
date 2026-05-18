@@ -10,9 +10,11 @@ import { SkeletonBox, SkeletonCards, SkeletonTable } from './ui/skeletons';
 import { 
   Users, Building2, Clock, FileText, LogOut, 
   CheckCircle, XCircle, MapPin, Phone, Calendar,
-  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle, Shirt
+  RefreshCw, Download, Bell, AlertTriangle, Link, Copy, ExternalLink, Trash2, AlertCircle, Shirt, Plus
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from './ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { SitesMap } from './SitesMap';
 
 // Lazy-loaded heavy tabs — code-split away from the main bundle.
@@ -45,6 +47,130 @@ const TabSpinner = () => (
   <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
 );
 
+// =================== MODAL: SZYBKI DODAJ ZAPIS (z dashboardu) ===================
+// Niewielki wariant tego samego modala co w Finance.js - osobny komponent
+// zeby admin mogl szybko dodac koszt bez wchodzenia w Finanse.
+const QuickAddZapisModal = ({ open, onClose }) => {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(todayIso);
+  const [kontrahent, setKontrahent] = useState('');
+  const [notes, setNotes] = useState('');
+  const [netto, setNetto] = useState('');
+  const [kodId, setKodId] = useState('');
+  const [budowaId, setBudowaId] = useState('');
+  const [kody, setKody] = useState([]);
+  const [budowy, setBudowy] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([
+      api.get('/finance/kody').catch(() => ({ data: [] })),
+      api.get('/finance/budowy').catch(() => ({ data: [] })),
+    ]).then(([k, b]) => {
+      setKody(k.data || []);
+      setBudowy(b.data || []);
+    });
+    setDate(todayIso); setKontrahent(''); setNotes(''); setNetto(''); setKodId(''); setBudowaId('');
+  }, [open, todayIso]);
+
+  const handleSave = async () => {
+    if (!date) return toast.error('Podaj datę');
+    if (!netto || isNaN(parseFloat(netto))) return toast.error('Podaj kwotę netto');
+    if (!kodId) return toast.error('Wybierz kod kosztu');
+    setSaving(true);
+    try {
+      const d = new Date(date);
+      await api.post('/finance/zapisy', {
+        date,
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        kontrahent: kontrahent || '',
+        kod_id: kodId,
+        budowa_id: budowaId || null,
+        netto: parseFloat(netto),
+        brutto: parseFloat(netto),
+        notes: notes || '',
+        source: 'manual',
+      });
+      toast.success('Zapis dodany');
+      onClose();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Błąd zapisu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[#D4AF37]">Dodaj zapis (koszt bez faktury)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <label className="text-[#94A3B8] text-xs">Data</label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-date" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Kontrahent (opcjonalnie)</label>
+            <Input value={kontrahent} onChange={(e) => setKontrahent(e.target.value)}
+              placeholder="np. Bricomat sp. z o.o."
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-kontrahent" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Kod kosztu *</label>
+            <select value={kodId} onChange={(e) => setKodId(e.target.value)}
+              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              data-testid="dash-quickadd-kod">
+              <option value="">— wybierz —</option>
+              {kody.filter((k) => k.cat !== 'PZS' && k.cat !== 'PZSV').map((k) => (
+                <option key={k.id} value={k.id}>{k.cat} – {k.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Budowa (opcjonalnie)</label>
+            <select value={budowaId} onChange={(e) => setBudowaId(e.target.value)}
+              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              data-testid="dash-quickadd-budowa">
+              <option value="">— nieprzypisane —</option>
+              {budowy.filter((b) => !b.is_archived).map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Netto (PLN) *</label>
+            <Input type="number" step="0.01" value={netto} onChange={(e) => setNetto(e.target.value)}
+              placeholder="0,00"
+              className="bg-[#0B1120] border-[#2A3B59] text-white text-lg font-mono tabular-nums"
+              data-testid="dash-quickadd-netto" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Opis / uwagi (opcjonalnie)</label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="np. paliwo do koparki"
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-notes" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}
+            className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]"
+            data-testid="dash-quickadd-cancel">Anuluj</Button>
+          <Button onClick={handleSave} disabled={saving}
+            className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+            data-testid="dash-quickadd-save">
+            {saving ? 'Zapisywanie...' : 'Zapisz'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export const AdminDashboard = () => {
   const { user, logout, impersonateForeman } = useAuth();
   const navigate = useNavigate();
@@ -65,6 +191,7 @@ export const AdminDashboard = () => {
   const [notifications, setNotifications] = useState([]);
   const [absenceRequests, setAbsenceRequests] = useState([]);
   const [bhpAlerts, setBhpAlerts] = useState({ employees: [], documents: [] });
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
@@ -341,7 +468,7 @@ export const AdminDashboard = () => {
         })()}
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
           <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
@@ -390,6 +517,23 @@ export const AdminDashboard = () => {
                   <p className="text-3xl font-display font-bold text-[#4F6343] tracking-tight">{stats.pendingClothing}</p>
                 </div>
                 <Shirt className="h-10 w-10 text-[#4F6343] opacity-20 group-hover:opacity-40 transition-opacity" />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Szybkie dodanie kosztu/zapisu - bez konieczosci wchodzenia w Finanse */}
+          <Card
+            className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20 cursor-pointer hover:border-[#D4AF37] hover:bg-[#131C2F] transition-all group"
+            onClick={() => setQuickAddOpen(true)}
+            data-testid="stat-quick-add-zapis"
+          >
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-[#94A3B8] group-hover:text-white transition-colors mb-1">Dodaj zapis</p>
+                  <p className="text-base font-display font-bold text-[#D4AF37] tracking-tight">Koszt bez faktury</p>
+                </div>
+                <Plus className="h-10 w-10 text-[#D4AF37] opacity-30 group-hover:opacity-60 transition-opacity" />
               </div>
             </CardContent>
           </Card>
@@ -600,6 +744,7 @@ export const AdminDashboard = () => {
           </div>
         </Tabs>
       </div>
+      <QuickAddZapisModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </div>
   );
 };
