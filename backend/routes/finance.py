@@ -817,6 +817,96 @@ async def rachunek_wynikow(
     }
 
 
+# ============= PAYMENT SUMMARY (naleznosci/zobowiazania/przeterminowane) =============
+@router.get("/finance/payment-summary")
+async def payment_summary(
+    _user: dict = Depends(get_current_admin),
+):
+    """Zwraca podsumowanie platnosci na podstawie pol payment_to/payment_date
+    z `finance_invoices` (zasilane z Fakturowni).
+
+    - receivables: nieoplacone faktury SPRZEDAZOWE (kontrahenci nam winni)
+    - payables: nieoplacone faktury KOSZTOWE (my winni dostawcom)
+    - overdue_receivables: receivables z payment_to < dzis
+    - overdue_payables: payables z payment_to < dzis
+    """
+    today = datetime.now().date().isoformat()
+    invoices = await db.finance_invoices.find(
+        {"paid": {"$ne": True}, "source": "fakturownia"},
+        {"_id": 0, "id": 1, "date": 1, "kontrahent": 1, "nr_faktury": 1,
+         "netto": 1, "brutto": 1, "is_income": 1, "payment_to": 1, "payment_date": 1, "paid": 1},
+    ).to_list(length=5000)
+
+    receivables: list = []
+    payables: list = []
+    for inv in invoices:
+        is_income = bool(inv.get("is_income"))
+        item = {
+            "id": inv["id"],
+            "date": inv.get("date"),
+            "kontrahent": inv.get("kontrahent") or "",
+            "nr_faktury": inv.get("nr_faktury") or "",
+            "netto": float(inv.get("netto") or 0),
+            "brutto": float(inv.get("brutto") or 0),
+            "payment_to": inv.get("payment_to"),
+            "overdue": bool(inv.get("payment_to") and inv["payment_to"] < today),
+        }
+        if is_income:
+            receivables.append(item)
+        else:
+            payables.append(item)
+
+    def sum_brutto(items):
+        return round(sum(i["brutto"] for i in items), 2)
+
+    def sum_overdue(items):
+        return round(sum(i["brutto"] for i in items if i["overdue"]), 2)
+
+    # Sortuj rosnacao po payment_to (najpilniejsze pierwsze)
+    receivables.sort(key=lambda x: x.get("payment_to") or "9999-12-31")
+    payables.sort(key=lambda x: x.get("payment_to") or "9999-12-31")
+
+    return {
+        "today": today,
+        "receivables": {
+            "total": sum_brutto(receivables),
+            "overdue_total": sum_overdue(receivables),
+            "count": len(receivables),
+            "overdue_count": sum(1 for i in receivables if i["overdue"]),
+            "items": receivables[:50],
+        },
+        "payables": {
+            "total": sum_brutto(payables),
+            "overdue_total": sum_overdue(payables),
+            "count": len(payables),
+            "overdue_count": sum(1 for i in payables if i["overdue"]),
+            "items": payables[:50],
+        },
+    }
+
+
+# ============= TOGGLE PAYMENT STATUS (admin moze recznie oznaczyc faktura jako oplacona) =============
+@router.patch("/finance/invoices/{invoice_id}/mark-paid")
+async def toggle_invoice_paid(
+    invoice_id: str,
+    paid: bool = Query(True),
+    _user: dict = Depends(get_current_admin),
+):
+    """Recznie oznacza faktura jako oplacona/nieoplacona w lokalnej bazie
+    (nie wysyla zmiany do Fakturowni - to robi admin sam w panelu Fakturowni
+    lub przez auto-sync ktory nadpisze).
+    """
+    inv = await db.finance_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    if not inv:
+        raise HTTPException(404, "Faktura nie znaleziona")
+    today = datetime.now().date().isoformat()
+    update = {"paid": paid, "payment_date": today if paid else None,
+              "updated_at": datetime.now().isoformat()}
+    await db.finance_invoices.update_one({"id": invoice_id}, {"$set": update})
+    return {"ok": True, "invoice_id": invoice_id, "paid": paid}
+
+
+
 # ============= SPRZEDAZ per budowa =============
 @router.get("/finance/sprzedaz")
 async def sprzedaz(
@@ -1568,6 +1658,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "brutto": round(inv_brutto, 2),
                 "nr_faktury": nr_fakt,
                 "is_income": is_income,
+                "payment_to": inv.get("payment_to") or None,
+                "payment_date": inv.get("payment_date") or None,
+                "paid": bool(inv.get("payment_date")),
                 "updated_at": datetime.now().isoformat(),
                 "updated_by": user_id,
             }
@@ -1593,6 +1686,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "budowa_id": None,
                 "nr_faktury": nr_fakt,
                 "is_income": is_income,
+                "payment_to": inv.get("payment_to") or None,
+                "payment_date": inv.get("payment_date") or None,
+                "paid": bool(inv.get("payment_date")),
                 "notes": "",
                 "source": "fakturownia",
                 "fakturownia_invoice_id": inv_id,

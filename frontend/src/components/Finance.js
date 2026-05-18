@@ -35,10 +35,10 @@ const fmtPct = (v) => {
 };
 
 const SUBTABS = [
-  { id: 'budowy', label: 'Budowy' },
-  { id: 'zapisy', label: 'Zapisy' },
   { id: 'rw', label: 'Rachunek wyników' },
   { id: 'sprzedaz', label: 'Sprzedaż' },
+  { id: 'budowy', label: 'Budowy' },
+  { id: 'zapisy', label: 'Zapisy' },
 ];
 
 // Slownik kolumn tabeli "Sprzedaz per budowa" - kliknij ikonke (?) zeby zobaczyc pelny opis i wzor
@@ -270,14 +270,198 @@ const FakturowniaSyncWarning = () => {
   );
 };
 
+// =================== MODAL: SZYBKI DODAJ ZAPIS (koszt bez faktury) ===================
+const QuickAddZapis = ({ open, onClose }) => {
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [date, setDate] = useState(todayIso);
+  const [kontrahent, setKontrahent] = useState('');
+  const [notes, setNotes] = useState('');
+  const [netto, setNetto] = useState('');
+  const [kodId, setKodId] = useState('');
+  const [budowaId, setBudowaId] = useState('');
+  const [kody, setKody] = useState([]);
+  const [budowy, setBudowy] = useState([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    Promise.all([
+      api.get('/finance/kody').catch(() => ({ data: [] })),
+      api.get('/finance/budowy').catch(() => ({ data: [] })),
+    ]).then(([k, b]) => {
+      setKody(k.data || []);
+      setBudowy(b.data || []);
+    });
+    // Reset przy ponownym otwarciu
+    setDate(todayIso);
+    setKontrahent('');
+    setNotes('');
+    setNetto('');
+    setKodId('');
+    setBudowaId('');
+  }, [open, todayIso]);
+
+  const handleSave = async () => {
+    if (!date) return toast.error('Podaj datę');
+    if (!netto || isNaN(parseFloat(netto))) return toast.error('Podaj kwotę netto');
+    if (!kodId) return toast.error('Wybierz kod kosztu');
+    setSaving(true);
+    try {
+      const d = new Date(date);
+      await api.post('/finance/zapisy', {
+        date,
+        year: d.getFullYear(),
+        month: d.getMonth() + 1,
+        kontrahent: kontrahent || '',
+        kod_id: kodId,
+        budowa_id: budowaId || null,
+        netto: parseFloat(netto),
+        brutto: parseFloat(netto),
+        notes: notes || '',
+        source: 'manual',
+      });
+      toast.success('Zapis dodany');
+      onClose();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Błąd zapisu');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-[#D4AF37]">Dodaj zapis (koszt bez faktury)</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <div>
+            <label className="text-[#94A3B8] text-xs">Data</label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-date" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Kontrahent (opcjonalnie)</label>
+            <Input value={kontrahent} onChange={(e) => setKontrahent(e.target.value)}
+              placeholder="np. Bricomat sp. z o.o."
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-kontrahent" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Kod kosztu *</label>
+            <select value={kodId} onChange={(e) => setKodId(e.target.value)}
+              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              data-testid="quickadd-kod">
+              <option value="">— wybierz —</option>
+              {kody.filter((k) => k.cat !== 'PZS' && k.cat !== 'PZSV').map((k) => (
+                <option key={k.id} value={k.id}>{k.cat} – {k.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Budowa (opcjonalnie)</label>
+            <select value={budowaId} onChange={(e) => setBudowaId(e.target.value)}
+              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              data-testid="quickadd-budowa">
+              <option value="">— nieprzypisane —</option>
+              {budowy.filter((b) => !b.is_archived).map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Netto (PLN) *</label>
+            <Input type="number" step="0.01" value={netto} onChange={(e) => setNetto(e.target.value)}
+              placeholder="0,00"
+              className="bg-[#0B1120] border-[#2A3B59] text-white text-lg font-mono tabular-nums"
+              data-testid="quickadd-netto" />
+          </div>
+          <div>
+            <label className="text-[#94A3B8] text-xs">Opis / uwagi (opcjonalnie)</label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)}
+              placeholder="np. paliwo do koparki"
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-notes" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]" data-testid="quickadd-cancel">Anuluj</Button>
+          <Button onClick={handleSave} disabled={saving}
+            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="quickadd-save">
+            {saving ? 'Zapisywanie...' : 'Zapisz'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+// =================== PANEL: PODSUMOWANIE PLATNOSCI ===================
+const PaymentSummaryPanel = () => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+    api.get('/finance/payment-summary')
+      .then((r) => mounted && setData(r.data))
+      .catch(() => mounted && setData(null))
+      .finally(() => mounted && setLoading(false));
+    return () => { mounted = false; };
+  }, []);
+
+  if (loading) return null;
+  if (!data) return null;
+
+  const r = data.receivables;
+  const p = data.payables;
+  const overdueAny = r.overdue_count + p.overdue_count;
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" data-testid="payment-summary-panel">
+      {/* Naleznosci - kontrachenci nam winni */}
+      <div className="bg-[#131C2F] border-2 border-[#4F6343]/40 rounded-lg p-4" data-testid="receivables-tile">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[#94A3B8] text-xs uppercase tracking-wide">Kontrahenci mi do zapłaty</span>
+        </div>
+        <div className="text-2xl font-bold text-[#5F7552] tabular-nums">{fmtNum(r.total)}<span className="text-xs ml-1">zł</span></div>
+        <div className="text-xs text-[#94A3B8] mt-1">{r.count} faktur</div>
+      </div>
+      {/* Zobowiazania - my winni */}
+      <div className="bg-[#131C2F] border-2 border-[#D4AF37]/40 rounded-lg p-4" data-testid="payables-tile">
+        <div className="flex items-center justify-between mb-1">
+          <span className="text-[#94A3B8] text-xs uppercase tracking-wide">Do zapłaty</span>
+        </div>
+        <div className="text-2xl font-bold text-[#D4AF37] tabular-nums">{fmtNum(p.total)}<span className="text-xs ml-1">zł</span></div>
+        <div className="text-xs text-[#94A3B8] mt-1">{p.count} faktur</div>
+      </div>
+      {/* Przeterminowane */}
+      <div className={`rounded-lg p-4 border-2 ${overdueAny > 0 ? 'bg-[#9B2C2C]/15 border-[#9B2C2C]/60' : 'bg-[#131C2F] border-[#2A3B59]'}`} data-testid="overdue-tile">
+        <div className="flex items-center justify-between mb-1">
+          <span className={`text-xs uppercase tracking-wide ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>Przeterminowane</span>
+          {overdueAny > 0 && <AlertTriangle className="h-4 w-4 text-[#FCA5A5]" />}
+        </div>
+        <div className={`text-2xl font-bold tabular-nums ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>
+          {fmtNum(r.overdue_total + p.overdue_total)}<span className="text-xs ml-1">zł</span>
+        </div>
+        <div className="text-xs text-[#94A3B8] mt-1">
+          {overdueAny > 0
+            ? `${r.overdue_count} sprzedażowych + ${p.overdue_count} kosztowych`
+            : 'Brak przeterminowanych'}
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const Finance = () => {
-  const [active, setActive] = useState('budowy');
+  const [active, setActive] = useState('rw');
   const [year, setYear] = useState(new Date().getFullYear());
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   return (
     <div className="space-y-4">
       <FakturowniaSyncWarning />
-      {/* Subtab nav + year picker */}
+      {/* Subtab nav + year picker + quick add */}
       <div className="flex flex-wrap items-center gap-2 border-b border-[#2A3B59] pb-2">
         {SUBTABS.map(t => (
           <button
@@ -294,6 +478,15 @@ export const Finance = () => {
           </button>
         ))}
         <div className="ml-auto flex items-center gap-2">
+          {/* Skrot: Dodaj zapis (koszt bez faktury) */}
+          <Button
+            size="sm"
+            onClick={() => setQuickAddOpen(true)}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-semibold"
+            data-testid="finance-quick-add-zapis-btn"
+          >
+            <Plus className="h-4 w-4 mr-1" /> Dodaj zapis
+          </Button>
           <span className="text-[#94A3B8] text-sm">Rok:</span>
           <Input
             type="number"
@@ -305,6 +498,7 @@ export const Finance = () => {
           />
         </div>
       </div>
+      <QuickAddZapis open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
 
       {active === 'budowy' && <BudowyPanel />}
       {active === 'zapisy' && <ZapisyPanel year={year} />}
@@ -893,8 +1087,25 @@ const ZapisyPanel = ({ year }) => {
                       <td className="p-2 text-[#CBD5E1] text-xs">
                         <div className="font-semibold">{r.kontrahent || '-'}</div>
                         {r.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{r.nr_faktury}</div>}
-                        <span className="inline-block mt-0.5 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">FAKTUROWNIA</span>
-                        {r.is_income && <span className="inline-block mt-0.5 ml-1 text-[10px] bg-[#4F6343]/30 text-[#4F6343] px-1 rounded">SPRZEDAZ</span>}
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          <span className="text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">FAKTUROWNIA</span>
+                          {r.is_income && <span className="text-[10px] bg-[#4F6343]/30 text-[#5F7552] px-1 rounded">SPRZEDAŻ</span>}
+                          {r.paid && (
+                            <span className="text-[10px] bg-[#4F6343]/30 text-[#5F7552] px-1 rounded" title={r.payment_date ? `Zapłacono: ${r.payment_date}` : 'Zapłacona'} data-testid={`finance-invoice-paid-${r.id}`}>
+                              ✓ ZAPŁACONA
+                            </span>
+                          )}
+                          {!r.paid && r.payment_to && r.payment_to < new Date().toISOString().slice(0,10) && (
+                            <span className="text-[10px] bg-[#9B2C2C]/30 text-[#FCA5A5] px-1 rounded" title={`Termin minął: ${r.payment_to}`} data-testid={`finance-invoice-overdue-${r.id}`}>
+                              ⚠ PRZETERMINOWANA
+                            </span>
+                          )}
+                          {!r.paid && r.payment_to && r.payment_to >= new Date().toISOString().slice(0,10) && (
+                            <span className="text-[10px] bg-[#D4AF37]/15 text-[#D4AF37] px-1 rounded" title={`Termin do: ${r.payment_to}`}>
+                              Do zapłaty: {r.payment_to}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="p-2 text-[#94A3B8] text-xs italic">
                         {(r.positions || []).length} {(r.positions || []).length === 1 ? 'pozycja' : 'pozycji'}
@@ -1136,6 +1347,7 @@ const RachunekWynikowPanel = ({ year }) => {
 
   const { summary, ratios, groups } = data;
   const monthsHeader = PL_MONTHS_SHORT;
+  // Renderujemy panel platnosci nad tabela (kontrachenci do zaplaty / my do zaplaty / przeterminowane)
 
   const renderRow = (label, monthly, total, opts = {}) => (
     <tr className={`border-t-2 border-[#2A3B59] ${opts.bg || ''}`} data-testid={opts.testid}>
@@ -1153,14 +1365,17 @@ const RachunekWynikowPanel = ({ year }) => {
   const toggle = (k) => setExpanded(s => ({ ...s, [k]: !s[k] }));
 
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]">
-      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-        <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
-        <Button onClick={() => setShowAddKod(true)}
-          className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-btn">
-          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
-        </Button>
-      </CardHeader>
+    <>
+      {/* Podsumowanie platnosci - tylko w Rachunek wynikow */}
+      <PaymentSummaryPanel />
+      <Card className="bg-[#19243C] border-[#2A3B59]">
+        <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+          <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
+          <Button onClick={() => setShowAddKod(true)}
+            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-btn">
+            <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
+          </Button>
+        </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-rw-table">
           <thead className="bg-[#131C2F] text-[#94A3B8] sticky top-0">
@@ -1292,7 +1507,8 @@ const RachunekWynikowPanel = ({ year }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+      </Card>
+    </>
   );
 };
 
