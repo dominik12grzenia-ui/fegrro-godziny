@@ -274,15 +274,15 @@ async def payroll_year_totals(
     year: int = Query(...),
     _user: dict = Depends(get_current_admin),
 ):
-    """Zwraca sume KOSZTU WYPLAT (hours_amount + bonus + driver + other_plus
-    - other_minus - penalties) dla calego roku, miesiac po miesiacu.
+    """Zwraca sume KOSZTU WYPLAT (suma KP_WYNAGRODZENIA) dla calego roku.
 
-    Optymalizacja: 1 zapytanie zamiast 12 osobnych GET /payroll. Stosuje
-    DOKLADNIE TA SAMA LOGIKE co list_payroll/list_payroll_costs (rate +
-    fixed_salary + driver z fallbackiem z poprzedniego miesiaca dla
-    pracownikow bez rekordu w danym miesiacu). Tylko wtedy banner
-    'Niezgodnosc' w Finansach pokazuje rzeczywista sume z Wyplat.
+    KLUCZOWE: Uzywa DOKLADNIE TEJ SAMEJ LOGIKI co `_do_sync_month`
+    (z `routes.finance`) w trybie dry_run - czyli liczymy ile sync zapisze
+    do `finance_zapisy.KP_WYNAGRODZENIA` bez faktycznego zapisywania.
+    Dzieki temu banner "Niezgodnosc kosztu wynagrodzen" w UI Finance
+    porownuje dokladnie te same wartosci po obu stronach.
     """
+    from routes.finance import _do_sync_month  # late import - cykliczny modul
     now = datetime.now()
     current_year = now.year
     current_month = now.month
@@ -293,139 +293,22 @@ async def payroll_year_totals(
     else:
         return {"year": year, "max_month": 0, "total": 0.0, "by_month": {}}
 
-    # 1. Wszystkie payroll_records dla roku - z wszystkich miesiecy
-    records = await db.payroll_records.find(
-        {"year": year, "month": {"$lte": max_month}},
-        {"_id": 0},
-    ).to_list(20000)
-    # Mapa: (emp_id, month) -> record
-    rec_map: dict = {}
-    for r in records:
-        rec_map[(r["employee_id"], int(r["month"]))] = r
-
-    # 2. Defaults fallback: dla kazdego emp ktory NIE ma rekordu w danym miesiacu
-    # pobierz najnowszy poprzedni rekord (rate/fixed/driver, bez bonus/other).
-    # Robimy to globalnie - jeden zapytanie pobiera wszystkie rekordy < year-end.
-    all_prior = await db.payroll_records.find(
-        {"$or": [
-            {"year": {"$lt": year}},
-            {"year": year, "month": {"$lte": max_month}},
-        ]},
-        {"_id": 0, "employee_id": 1, "year": 1, "month": 1,
-         "rate": 1, "is_fixed_salary": 1, "fixed_salary_amount": 1,
-         "driver_zl": 1},
-    ).sort([("year", -1), ("month", -1)]).to_list(50000)
-    # Dla kazdego emp, dla kazdego miesiaca - znajdz najnowszy rekord <= (year, month)
-    # Optymalizacja: grupuj emp -> lista rekordow malejaco
-    emp_records: dict = {}  # emp_id -> [(year, month, rec_dict)]
-    for r in all_prior:
-        emp_records.setdefault(r["employee_id"], []).append(r)
-    # Posortowane juz malejaco
-
-    def get_defaults(emp_id, m):
-        """Zwraca defaultowe (rate, fixed, driver) dla emp z poprzedniego miesiaca <= (year, m-1).
-        Jezeli emp ma rekord w (year, m) - powinno byc juz w rec_map. Tu fallback gdy brak."""
-        for r in emp_records.get(emp_id, []):
-            ry, rm = int(r["year"]), int(r["month"])
-            if ry < year or (ry == year and rm < m):
-                return {
-                    "rate": float(r.get("rate") or 0),
-                    "is_fixed_salary": bool(r.get("is_fixed_salary")),
-                    "fixed_salary_amount": float(r.get("fixed_salary_amount") or 0),
-                    "driver_zl": float(r.get("driver_zl") or 0),
-                }
-        return None
-
-    # 3. Lista aktywnych pracownikow per miesiac (te sa wlaczane do bannera nawet bez rekordu)
-    # Dla efektywnosci pobieramy raz - wszystkie aktywne lub zarchiwizowane.
-    all_emps = await db.employees.find(
-        {}, {"_id": 0, "id": 1, "created_at": 1, "is_archived": 1, "archived_at": 1},
-    ).to_list(5000)
-
-    def emp_active_in_month(e, m):
-        last_day = 31 if m in (1, 3, 5, 7, 8, 10, 12) else (30 if m != 2 else 29)
-        month_start = f"{year:04d}-{m:02d}-01"
-        month_end_iso = f"{year:04d}-{m:02d}-{last_day:02d}T23:59:59"
-        created = (e.get("created_at") or "")
-        if created and created > month_end_iso:
-            return False
-        if e.get("is_archived"):
-            archived_at = e.get("archived_at") or ""
-            if archived_at and archived_at < month_start:
-                return False
-        return True
-
-    # 4. Godziny per (emp, month) z hour_entries
-    hours_pipe = [
-        {"$match": {"work_date": {"$gte": f"{year:04d}-01-01",
-                                    "$lte": f"{year:04d}-12-31"}}},
-        {"$project": {"emp": "$employee_id",
-                       "m": {"$toInt": {"$substr": ["$work_date", 5, 2]}},
-                       "h": {"$convert": {"input": "$hours_worked",
-                                            "to": "double", "onError": 0, "onNull": 0}}}},
-        {"$group": {"_id": {"emp": "$emp", "m": "$m"}, "total": {"$sum": "$h"}}},
-    ]
-    hours_map: dict = {}
-    async for row in db.hour_entries.aggregate(hours_pipe):
-        eid = row["_id"].get("emp")
-        m = row["_id"].get("m")
-        if eid and m:
-            hours_map[(eid, m)] = float(row.get("total") or 0)
-
-    # 5. Kary (penalties) per (emp, month) - liczone w godzinach
-    pen_pipe = [
-        {"$match": {"year": year, "month": {"$lte": max_month}}},
-        {"$group": {"_id": {"emp": "$employee_id", "month": "$month"},
-                     "h": {"$sum": "$hours"}}},
-    ]
-    pen_map: dict = {}
-    async for row in db.penalties.aggregate(pen_pipe):
-        eid = row["_id"].get("emp")
-        m = row["_id"].get("month")
-        if eid and m:
-            pen_map[(eid, m)] = float(row.get("h") or 0)
-
-    # 6. Iteracja: dla kazdego miesiaca [1, max_month], dla kazdego aktywnego emp
-    by_month: dict = {m: 0.0 for m in range(1, max_month + 1)}
+    by_month: dict = {}
+    total = 0.0
     for m in range(1, max_month + 1):
-        for e in all_emps:
-            if not emp_active_in_month(e, m):
-                continue
-            eid = e["id"]
-            rec = rec_map.get((eid, m))
-            if rec:
-                rate = float(rec.get("rate") or 0)
-                is_fixed = bool(rec.get("is_fixed_salary"))
-                fixed_amt = float(rec.get("fixed_salary_amount") or 0)
-                driver = float(rec.get("driver_zl") or 0)
-                bonus = float(rec.get("bonus_zl") or 0)
-                op = float(rec.get("other_plus_zl") or 0)
-                om = float(rec.get("other_minus_zl") or 0)
-            else:
-                # Fallback z poprzedniego miesiaca - bonus/other zerowane
-                d = get_defaults(eid, m)
-                if not d:
-                    continue
-                rate = d["rate"]
-                is_fixed = d["is_fixed_salary"]
-                fixed_amt = d["fixed_salary_amount"]
-                driver = d["driver_zl"]
-                bonus = 0.0
-                op = 0.0
-                om = 0.0
-            hours = hours_map.get((eid, m), 0.0)
-            ha = fixed_amt if is_fixed else hours * rate
-            pen_h = pen_map.get((eid, m), 0.0)
-            pen_zl = pen_h * rate
-            koszt = ha + bonus + driver + op - om - pen_zl
-            by_month[m] += koszt
+        try:
+            res = await _do_sync_month(year, m, "year_totals", dry_run=True)
+        except Exception:
+            res = {"total_kp": 0.0}
+        kp = float(res.get("total_kp") or 0)
+        by_month[str(m)] = round(kp, 2)
+        total += kp
 
-    total = round(sum(by_month.values()), 2)
     return {
         "year": year,
         "max_month": max_month,
-        "total": total,
-        "by_month": {str(m): round(v, 2) for m, v in by_month.items()},
+        "total": round(total, 2),
+        "by_month": by_month,
     }
 
 

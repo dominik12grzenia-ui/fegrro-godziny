@@ -1111,9 +1111,14 @@ async def update_finance_settings(
 
 
 # ============= AUTO-SYNC: GODZINY + WYPLATY -> ZAPISY =============
-async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict:
+async def _do_sync_month(year: int, month: int, user_id: str = "system",
+                          dry_run: bool = False) -> dict:
     """Synchronizuje godziny+wyplaty dla danego miesiaca. Wewnetrzna funkcja
     uzywana przez `/sync-current-month` i `/sync-all-months`.
+
+    Jezeli `dry_run=True` - liczy wszystko ale NIE usuwa starych zapisow
+    ani nie wstawia nowych. Uzywane do bannera "Niezgodnosc kosztu" w UI
+    Finance, ktory pokazuje ile by sie wyplat policzylo PO sync.
     """
     start = f"{year:04d}-{month:02d}-01"
     end = f"{year:04d}-{month:02d}-31"
@@ -1270,9 +1275,12 @@ async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict
         if remaining_ratio > 0.0001:
             kp_no_budowa += wyplata_emp * remaining_ratio
 
-    deleted = await db.finance_zapisy.delete_many({
-        "year": year, "month": month, "source": {"$in": ["auto_hours", "auto_payroll"]},
-    })
+    deleted_count = 0
+    if not dry_run:
+        deleted = await db.finance_zapisy.delete_many({
+            "year": year, "month": month, "source": {"$in": ["auto_hours", "auto_payroll"]},
+        })
+        deleted_count = deleted.deleted_count
 
     iso_date = f"{year:04d}-{month:02d}-15"
     new_zapisy = []
@@ -1313,18 +1321,19 @@ async def _do_sync_month(year: int, month: int, user_id: str = "system") -> dict
             "source": "auto_payroll",
             "created_at": datetime.now().isoformat(), "created_by": user_id,
         })
-    if new_zapisy:
+    if new_zapisy and not dry_run:
         await db.finance_zapisy.insert_many(new_zapisy)
 
     return {
         "year": year, "month": month,
-        "deleted_old_auto": deleted.deleted_count,
+        "deleted_old_auto": deleted_count,
         "g_zapisy": sum(1 for z in new_zapisy if z["kod_id"] == "G"),
         "kp_zapisy": sum(1 for z in new_zapisy if z["kod_id"] == "KP_WYNAGRODZENIA"),
         "total_godziny": round(sum(hours_per_site.values()), 2),
         "total_kp": round(sum(kp_per_budowa.values()) + kp_no_budowa, 2),
         "kp_no_budowa": round(kp_no_budowa, 2),
         "employees_processed": len(emp_ids),
+        "dry_run": dry_run,
     }
 
 
