@@ -22,7 +22,12 @@ const equipmentForemanImport = () => import('./EquipmentForeman').then((m) => ({
 const warehouseForemanImport = () => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman }));
 const EquipmentForeman = lazy(equipmentForemanImport);
 const WarehouseForeman = lazy(warehouseForemanImport);
-const EquipmentSpinner = () => <div className="p-4 text-center text-[#94A3B8] text-sm">{t('worker_dash.loading_eq_dots')}</div>;
+// Stały (statyczny) tekst spinnera - komponent jest module-level, wiec NIE moze
+// uzywac hooka useLanguage. Tekst po polsku/ukrainsku pokazywany jest tylko
+// na ulamek sekundy podczas lazy-load, wiec hardcoded PL jest akceptowalne.
+const EquipmentSpinner = () => (
+  <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
+);
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
