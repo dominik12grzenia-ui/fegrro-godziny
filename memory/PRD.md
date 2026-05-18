@@ -792,3 +792,32 @@ Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` n
 2. **Kliknac "Sync biezacy miesiac"** w zakladce Zapisy — istniejace 210 faktur zostanie zaktualizowanych z nowa logika (upsert update branch).
 3. Po sync badge `✓ ZAPŁACONA` pojawi sie obok faktur ktore w Fakturowni maja `status="paid"`.
 
+
+---
+
+## 2026-05-18 (cd.) — Filtry platnosci + global unpaid sync + diff badge
+
+### Backend
+- **`POST /api/finance/sync-fakturownia-unpaid`** — globalny sync wszystkich niezaplaconych faktur (bez filtra daty). Upsertuje TYLKO naglowki do `finance_invoices`. Zachowuje admin assignment (`kod_id`, `budowa_id`). Cel: stare niezaplacone faktury z poprzednich lat/miesiecy spoza zakresu regularnego synca pojawia sie w Payment Summary.
+- **`GET /api/finance/payment-discrepancy`** — porownuje sume niezaplaconych w App vs Fakturownia. Zwraca `{app, fakturownia, diff, has_discrepancy}`.
+- Cron `cron_fakturownia_sync` automatycznie odpala `_do_fakturownia_unpaid_sync_global` po regularnym sync (co 30 min).
+- Bugfix parsera dat: Fakturownia czasem zwraca `sell_date` jako `DD.MM.YYYY` zamiast `YYYY-MM-DD`. Nowy helper `_parse_date` probuje kilku formatow. Dzieki temu nie pomijamy faktur z formatem europejskim.
+
+### Wynik weryfikacji
+- App `payables` brutto: **179 933,09 zl** (56 faktur)
+- Fakturownia `payables` brutto: **179 933,09 zl** (56 faktur)
+- `diff`: 0 zl, `has_discrepancy`: false ✓
+
+### Frontend (`Finance.js`)
+- **Lifted state `paymentFilter`** w komponencie `Finance` — sterowany z dwoch miejsc:
+  - kafelki w Rachunek Wynikow (PaymentSummaryPanel) → klik przelacza tab na Zapisy + ustawia filtr
+  - chipy w Zapisy → uzytkownik moze recznie zmienic filtr
+- **Chipy filtra platnosci** w ZapisyPanel: `Wszystko / ✓ Oplacone (N) / Do zaplaty (N) / ⚠ Przeterminowane (N) / Kontrahenci mi do zaplaty (N)`. Licznik wyliczany lokalnie z `rows`.
+- **Discrepancy banner** — gdy `payment-discrepancy.has_discrepancy=true`, nad kafelkami pojawia sie zoltny pasek z roznica w PLN oraz przyciskiem **"Synchronizuj teraz"** wywolujacym `sync-fakturownia-unpaid`. Dodatkowo ikonka ⚠ przy kafelkach z rozbieznosciami.
+- Test IDs: `payment-filter-chips`, `payment-filter-{all|paid|overdue|due|receivables}`, `discrepancy-banner`, `discrepancy-sync-btn`, `discrepancy-badge`.
+
+### Auto-update z Fakturowni
+- TAK, zmiany w Fakturowni propagują sie w 2 sposoby:
+  1. **Cron co 30 min** (`fakturownia_sync_30min`) - automatycznie pobiera nowe i aktualizuje istniejace faktury w zakresie SYNC_FROM_YEAR-MONTH → biezacy miesiac. Plus globalny unpaid sync uzupelnia stare niezaplacone.
+  2. **Manualne**: przycisk "Sync biezacy miesiac" w Zapisy lub "Synchronizuj teraz" w banner rozbieznosci.
+

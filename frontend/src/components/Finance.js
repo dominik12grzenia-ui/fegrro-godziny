@@ -396,61 +396,129 @@ const QuickAddZapis = ({ open, onClose }) => {
 };
 
 // =================== PANEL: PODSUMOWANIE PLATNOSCI ===================
-const PaymentSummaryPanel = () => {
+const PaymentSummaryPanel = ({ onTileClick }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [discrepancy, setDiscrepancy] = useState(null);
+  const [syncing, setSyncing] = useState(false);
 
-  useEffect(() => {
-    let mounted = true;
+  const fetchData = useCallback(() => {
+    setLoading(true);
     api.get('/finance/payment-summary')
-      .then((r) => mounted && setData(r.data))
-      .catch(() => mounted && setData(null))
-      .finally(() => mounted && setLoading(false));
-    return () => { mounted = false; };
+      .then((r) => setData(r.data))
+      .catch(() => setData(null))
+      .finally(() => setLoading(false));
+    // Discrepancy z Fakturownia (async, niezalezne od summary)
+    api.get('/finance/payment-discrepancy')
+      .then((r) => setDiscrepancy(r.data))
+      .catch(() => setDiscrepancy(null));
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const syncUnpaid = async () => {
+    setSyncing(true);
+    try {
+      const r = await api.post('/finance/sync-fakturownia-unpaid');
+      const c = r.data.invoices_created;
+      const u = r.data.invoices_updated;
+      toast.success(`Sync OK: ${c} nowych, ${u} zaktualizowanych`);
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Błąd sync');
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   if (loading) return null;
   if (!data) return null;
 
   const r = data.receivables;
   const p = data.payables;
-  // "Przeterminowane" liczymy WYLACZNIE z faktur kosztowych (payables).
-  // Faktury sprzedazowe sa pokazywane osobno w kafelku "Kontrahenci mi do zaplaty".
   const overdueAny = p.overdue_count;
+  const diffP = discrepancy?.diff?.payables || 0;
+  const diffR = discrepancy?.diff?.receivables || 0;
+  const hasDiscP = Math.abs(diffP) > 1.0;
+  const hasDiscR = Math.abs(diffR) > 1.0;
+
+  const Tile = ({ filter, testId, borderColor, label, valueColor, value, sub, extra }) => (
+    <button
+      type="button"
+      onClick={() => onTileClick && onTileClick(filter)}
+      className={`text-left rounded-lg p-4 border-2 ${borderColor} bg-[#131C2F] hover:ring-2 hover:ring-[#D4AF37]/40 transition-all cursor-pointer`}
+      data-testid={testId}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-[#94A3B8] text-xs uppercase tracking-wide">{label}</span>
+        {extra}
+      </div>
+      <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>{fmtNum(value)}<span className="text-xs ml-1">zł</span></div>
+      <div className="text-xs text-[#94A3B8] mt-1">{sub}</div>
+    </button>
+  );
+
+  const DiscBadge = ({ diff, count }) => (
+    <span
+      title={`Rozbieżność z Fakturownia: ${diff > 0 ? '+' : ''}${fmtNum(diff)} zł (${count > 0 ? '+' : ''}${count} faktur). Kliknij aby zsynchronizować.`}
+      className="flex items-center gap-1"
+      data-testid="discrepancy-badge"
+    >
+      <AlertTriangle className="h-4 w-4 text-[#D4AF37]" />
+    </span>
+  );
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" data-testid="payment-summary-panel">
-      {/* Naleznosci - kontrachenci nam winni */}
-      <div className="bg-[#131C2F] border-2 border-[#4F6343]/40 rounded-lg p-4" data-testid="receivables-tile">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[#94A3B8] text-xs uppercase tracking-wide">Kontrahenci mi do zapłaty</span>
-        </div>
-        <div className="text-2xl font-bold text-[#5F7552] tabular-nums">{fmtNum(r.total)}<span className="text-xs ml-1">zł</span></div>
-        <div className="text-xs text-[#94A3B8] mt-1">{r.count} faktur</div>
-      </div>
-      {/* Zobowiazania - my winni */}
-      <div className="bg-[#131C2F] border-2 border-[#D4AF37]/40 rounded-lg p-4" data-testid="payables-tile">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[#94A3B8] text-xs uppercase tracking-wide">Do zapłaty</span>
-        </div>
-        <div className="text-2xl font-bold text-[#D4AF37] tabular-nums">{fmtNum(p.total)}<span className="text-xs ml-1">zł</span></div>
-        <div className="text-xs text-[#94A3B8] mt-1">{p.count} faktur</div>
-      </div>
-      {/* Przeterminowane - TYLKO kosztowe (faktury i zapisy ktore my musimy zaplacic) */}
-      <div className={`rounded-lg p-4 border-2 ${overdueAny > 0 ? 'bg-[#9B2C2C]/15 border-[#9B2C2C]/60' : 'bg-[#131C2F] border-[#2A3B59]'}`} data-testid="overdue-tile">
-        <div className="flex items-center justify-between mb-1">
-          <span className={`text-xs uppercase tracking-wide ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>Przeterminowane (koszty)</span>
-          {overdueAny > 0 && <AlertTriangle className="h-4 w-4 text-[#FCA5A5]" />}
-        </div>
-        <div className={`text-2xl font-bold tabular-nums ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>
-          {fmtNum(p.overdue_total)}<span className="text-xs ml-1">zł</span>
-        </div>
-        <div className="text-xs text-[#94A3B8] mt-1">
-          {overdueAny > 0
+    <div className="space-y-2 mb-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="payment-summary-panel">
+        <Tile
+          filter="receivables"
+          testId="receivables-tile"
+          borderColor="border-[#4F6343]/40"
+          label="Kontrahenci mi do zapłaty"
+          valueColor="text-[#5F7552]"
+          value={r.total}
+          sub={`${r.count} faktur`}
+          extra={hasDiscR ? <DiscBadge diff={diffR} count={discrepancy.diff.receivables_count} /> : null}
+        />
+        <Tile
+          filter="due"
+          testId="payables-tile"
+          borderColor="border-[#D4AF37]/40"
+          label="Do zapłaty"
+          valueColor="text-[#D4AF37]"
+          value={p.total}
+          sub={`${p.count} faktur`}
+          extra={hasDiscP ? <DiscBadge diff={diffP} count={discrepancy.diff.payables_count} /> : null}
+        />
+        <Tile
+          filter="overdue"
+          testId="overdue-tile"
+          borderColor={overdueAny > 0 ? 'border-[#9B2C2C]/60' : 'border-[#2A3B59]'}
+          label="Przeterminowane (koszty)"
+          valueColor={overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}
+          value={p.overdue_total}
+          sub={overdueAny > 0
             ? `${p.overdue_count} ${p.overdue_count === 1 ? 'faktura kosztowa' : 'faktur kosztowych'}`
-            : 'Brak przeterminowanych kosztow'}
-        </div>
+            : 'Brak przeterminowanych kosztów'}
+          extra={overdueAny > 0 ? <AlertTriangle className="h-4 w-4 text-[#FCA5A5]" /> : null}
+        />
       </div>
+      {(hasDiscP || hasDiscR) && (
+        <div className="flex items-center justify-between bg-[#D4AF37]/10 border border-[#D4AF37]/40 rounded p-2 text-xs text-[#D4AF37]" data-testid="discrepancy-banner">
+          <span>
+            ⚠ Rozbieżność z Fakturownia:
+            {hasDiscP && ` koszty ${diffP > 0 ? '+' : ''}${fmtNum(diffP)} zł`}
+            {hasDiscP && hasDiscR && ' • '}
+            {hasDiscR && ` przychody ${diffR > 0 ? '+' : ''}${fmtNum(diffR)} zł`}
+          </span>
+          <Button size="sm" onClick={syncUnpaid} disabled={syncing}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-semibold h-7 text-xs"
+            data-testid="discrepancy-sync-btn">
+            {syncing ? 'Synchronizuję...' : 'Synchronizuj teraz'}
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
@@ -459,6 +527,14 @@ export const Finance = () => {
   const [active, setActive] = useState('rw');
   const [year, setYear] = useState(new Date().getFullYear());
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // Filtr platnosci - lifted state, sterowany z kafelkow w Rachunku Wynikow
+  // i z chip'ow w Zapisy. Wartosci: 'all' | 'paid' | 'overdue' | 'due' | 'receivables'
+  const [paymentFilter, setPaymentFilter] = useState('all');
+
+  const handleTileClick = (filter) => {
+    setPaymentFilter(filter);
+    setActive('zapisy');
+  };
 
   return (
     <div className="space-y-4">
@@ -503,8 +579,8 @@ export const Finance = () => {
       <QuickAddZapis open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
 
       {active === 'budowy' && <BudowyPanel />}
-      {active === 'zapisy' && <ZapisyPanel year={year} />}
-      {active === 'rw' && <RachunekWynikowPanel year={year} />}
+      {active === 'zapisy' && <ZapisyPanel year={year} paymentFilter={paymentFilter} setPaymentFilter={setPaymentFilter} />}
+      {active === 'rw' && <RachunekWynikowPanel year={year} onTileClick={handleTileClick} />}
       {active === 'sprzedaz' && <SprzedazPanel year={year} />}
     </div>
   );
@@ -694,7 +770,7 @@ const BudowyPanel = () => {
 };
 
 // =========================== ZAPISY / FAKTURY ===========================
-const ZapisyPanel = ({ year }) => {
+const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   const [month, setMonth] = useState(0); // 0 = caly rok
   const [rows, setRows] = useState([]); // mixed: invoices + standalone
   const [budowy, setBudowy] = useState([]);
@@ -910,6 +986,22 @@ const ZapisyPanel = ({ year }) => {
   if (filterUnassigned) {
     filteredRows = filteredRows.filter(isUnassignedRow);
   }
+  // Filtr platnosci (chip'y nad tabela, sterowane tez z kafelkow Rachunku Wynikow)
+  const todayISO = new Date().toISOString().slice(0, 10);
+  if (paymentFilter === 'paid') {
+    filteredRows = filteredRows.filter(r => r.is_invoice && r.paid);
+  } else if (paymentFilter === 'overdue') {
+    filteredRows = filteredRows.filter(r => r.is_invoice && !r.is_income && !r.paid && r.payment_to && r.payment_to < todayISO);
+  } else if (paymentFilter === 'due') {
+    filteredRows = filteredRows.filter(r => r.is_invoice && !r.is_income && !r.paid);
+  } else if (paymentFilter === 'receivables') {
+    filteredRows = filteredRows.filter(r => r.is_invoice && r.is_income && !r.paid);
+  }
+  // Liczniki dla chipow (na bazie pelnego rows, nie filteredRows)
+  const paidCount = rows.filter(r => r.is_invoice && r.paid).length;
+  const overdueCount = rows.filter(r => r.is_invoice && !r.is_income && !r.paid && r.payment_to && r.payment_to < todayISO).length;
+  const dueCount = rows.filter(r => r.is_invoice && !r.is_income && !r.paid).length;
+  const receivablesCount = rows.filter(r => r.is_invoice && r.is_income && !r.paid).length;
 
   const syncCurrent = async () => {
     if (!window.confirm(
@@ -993,7 +1085,35 @@ const ZapisyPanel = ({ year }) => {
             </button>
           )}
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Filtr platnosci (Fakturownia paid/overdue/due/receivables) */}
+          <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]" data-testid="payment-filter-chips">
+            <button onClick={() => setPaymentFilter('all')}
+              className={`px-2 py-1 text-xs font-medium ${paymentFilter === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              data-testid="payment-filter-all">
+              Wszystko
+            </button>
+            <button onClick={() => setPaymentFilter('paid')}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'paid' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              data-testid="payment-filter-paid">
+              ✓ Opłacone ({paidCount})
+            </button>
+            <button onClick={() => setPaymentFilter('due')}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'due' ? 'bg-[#D4AF37] text-[#0B1120]' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              data-testid="payment-filter-due">
+              Do zapłaty ({dueCount})
+            </button>
+            <button onClick={() => setPaymentFilter('overdue')}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'overdue' ? 'bg-[#9B2C2C] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              data-testid="payment-filter-overdue">
+              ⚠ Przeterminowane ({overdueCount})
+            </button>
+            <button onClick={() => setPaymentFilter('receivables')}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'receivables' ? 'bg-[#5F7552] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              data-testid="payment-filter-receivables">
+              Kontrahenci mi do zapłaty ({receivablesCount})
+            </button>
+          </div>
           <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]">
             <button onClick={() => setFilterType('all')}
               className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
@@ -1269,7 +1389,7 @@ const ZapisyPanel = ({ year }) => {
 };
 
 // =========================== RACHUNEK WYNIKOW ===========================
-const RachunekWynikowPanel = ({ year }) => {
+const RachunekWynikowPanel = ({ year, onTileClick }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState({ kp: false, kbb: false, ksb: false, ksp: false });
@@ -1369,7 +1489,7 @@ const RachunekWynikowPanel = ({ year }) => {
   return (
     <>
       {/* Podsumowanie platnosci - tylko w Rachunek wynikow */}
-      <PaymentSummaryPanel />
+      <PaymentSummaryPanel onTileClick={onTileClick} />
       <Card className="bg-[#19243C] border-[#2A3B59]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>

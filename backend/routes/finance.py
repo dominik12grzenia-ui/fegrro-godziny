@@ -1811,6 +1811,257 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     return summary
 
 
+# ============= GLOBAL UNPAID SYNC (bez filtra daty) =============
+async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> dict:
+    """Pobiera WSZYSTKIE niezaplacone faktury z Fakturowni (bez filtra daty)
+    i upsertuje TYLKO naglowki do finance_invoices. Nie tworzy pozycji.
+
+    Cel: zapewnic ze stare niezaplacone faktury (z poprzednich lat lub miesiecy
+    przed wlaczeniem regularnego synca) pojawia sie w Payment Summary i Zapisy.
+
+    Zachowuje admin assignment (kod_id, budowa_id) - tylko aktualizuje pola
+    dotyczace platnosci.
+    """
+    settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+    api_token = settings.get("fakturownia_api_key")
+    domain = settings.get("fakturownia_domain")
+    if not api_token or not domain:
+        raise HTTPException(
+            status_code=400,
+            detail="Brak konfiguracji Fakturowni. Ustaw klucz API i subdomene w Narzedziach.",
+        )
+
+    base_url = f"https://{domain}.fakturownia.pl/invoices.json"
+    all_unpaid: list = []
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as cli:
+            for income_mode in ("no", "yes"):
+                page = 1
+                while True:
+                    params = {
+                        "api_token": api_token,
+                        "income": income_mode,
+                        "include_positions": "false",
+                        "page": str(page),
+                        "per_page": "100",
+                    }
+                    resp = await cli.get(base_url, params=params)
+                    if resp.status_code == 401:
+                        raise HTTPException(status_code=400, detail="Fakturownia: nieprawidlowy klucz API")
+                    if resp.status_code != 200:
+                        break
+                    data = resp.json()
+                    invs = data if isinstance(data, list) else data.get("invoices", [])
+                    if not invs:
+                        break
+                    for inv in invs:
+                        st = (inv.get("status") or "").lower()
+                        if st == "paid" or inv.get("paid_date"):
+                            continue
+                        inv["_income_type"] = income_mode
+                        all_unpaid.append(inv)
+                    if len(invs) < 100:
+                        break
+                    page += 1
+                    if page > 100:
+                        break
+    except httpx.HTTPError as e:
+        logger.error(f"[fakturownia_unpaid] HTTP error: {e}")
+        raise HTTPException(status_code=502, detail=f"Blad polaczenia z Fakturownia: {e}")
+
+    existing = await db.finance_invoices.find(
+        {"source": "fakturownia"},
+        {"_id": 0, "id": 1, "fakturownia_invoice_id": 1, "kod_id": 1, "budowa_id": 1},
+    ).to_list(length=None)
+    existing_by_fid = {e.get("fakturownia_invoice_id"): e for e in existing}
+
+    created = 0
+    updated = 0
+
+    def _parse_date(s: Optional[str]) -> Optional[tuple]:
+        """Probuje ISO YYYY-MM-DD oraz DD.MM.YYYY. Zwraca (iso_string, year, month) lub None."""
+        if not s:
+            return None
+        for fmt in ("%Y-%m-%d", "%d.%m.%Y", "%d/%m/%Y"):
+            try:
+                d = datetime.strptime(s, fmt)
+                return (d.strftime("%Y-%m-%d"), d.year, d.month)
+            except (ValueError, TypeError):
+                continue
+        return None
+
+    for inv in all_unpaid:
+        inv_id = inv.get("id")
+        is_income = inv.get("_income_type") == "yes"
+        # Spróbuj kolejno: issue_date (czesto ISO), sell_date (czesto DD.MM.YYYY), transaction_date
+        parsed = (_parse_date(inv.get("issue_date"))
+                  or _parse_date(inv.get("sell_date"))
+                  or _parse_date(inv.get("transaction_date")))
+        if not parsed:
+            continue
+        issue_date, year_v, month_v = parsed
+
+        kontrahent = (inv.get("buyer_name") or inv.get("seller_name") or "").strip()
+        nr_fakt = (inv.get("number") or "").strip()
+        inv_netto = float(inv.get("price_net") or 0)
+        inv_brutto = float(inv.get("price_gross") or 0)
+        status_val = (inv.get("status") or "").lower()
+
+        existing_inv = existing_by_fid.get(inv_id)
+        if existing_inv:
+            await db.finance_invoices.update_one(
+                {"id": existing_inv["id"]},
+                {"$set": {
+                    "payment_to": inv.get("payment_to") or None,
+                    "payment_date": None,
+                    "paid": False,
+                    "fakturownia_status": status_val or None,
+                    "updated_at": datetime.now().isoformat(),
+                    "updated_by": user_id,
+                }}
+            )
+            updated += 1
+        else:
+            auto_kod_id = "PZS" if is_income else None
+            auto_kod_category = "PZS" if is_income else None
+            doc = {
+                "id": str(uuid.uuid4()),
+                "date": issue_date,
+                "year": year_v, "month": month_v,
+                "kontrahent": kontrahent,
+                "netto": round(inv_netto, 2),
+                "brutto": round(inv_brutto, 2),
+                "kod_id": auto_kod_id,
+                "kod_category": auto_kod_category,
+                "budowa_id": None,
+                "nr_faktury": nr_fakt,
+                "is_income": is_income,
+                "payment_to": inv.get("payment_to") or None,
+                "payment_date": None,
+                "paid": False,
+                "fakturownia_status": status_val or None,
+                "notes": "",
+                "source": "fakturownia",
+                "fakturownia_invoice_id": inv_id,
+                "created_at": datetime.now().isoformat(),
+                "created_by": user_id,
+            }
+            await db.finance_invoices.insert_one(doc)
+            created += 1
+
+    return {
+        "fetched_unpaid": len(all_unpaid),
+        "invoices_created": created,
+        "invoices_updated": updated,
+    }
+
+
+@router.post("/finance/sync-fakturownia-unpaid")
+async def sync_fakturownia_unpaid(current_user: dict = Depends(get_current_admin)):
+    """Manualny global sync wszystkich niezaplaconych faktur.
+    Uzupelnia stare faktury ktore wypadly z zakresu regularnego synca."""
+    return await _do_fakturownia_unpaid_sync_global(current_user["sub"])
+
+
+# ============= PAYMENT DISCREPANCY (Fakturownia vs App) =============
+@router.get("/finance/payment-discrepancy")
+async def payment_discrepancy(_user: dict = Depends(get_current_admin)):
+    """Porownuje sume niezaplaconych faktur w App vs Fakturownia.
+    Zwraca diff w PLN i flaga has_discrepancy."""
+    # App side
+    pipe = [{"$match": {"source": "fakturownia", "paid": {"$ne": True}}},
+            {"$group": {"_id": "$is_income",
+                         "brutto": {"$sum": "$brutto"},
+                         "count": {"$sum": 1}}}]
+    app_payables = 0.0
+    app_receivables = 0.0
+    app_payables_count = 0
+    app_receivables_count = 0
+    async for r in db.finance_invoices.aggregate(pipe):
+        if r["_id"]:
+            app_receivables = float(r["brutto"])
+            app_receivables_count = r["count"]
+        else:
+            app_payables = float(r["brutto"])
+            app_payables_count = r["count"]
+
+    # Fakturownia side
+    settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+    api_token = settings.get("fakturownia_api_key")
+    domain = settings.get("fakturownia_domain")
+    fak_payables = 0.0
+    fak_receivables = 0.0
+    fak_payables_count = 0
+    fak_receivables_count = 0
+    fakturownia_ok = False
+
+    if api_token and domain:
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as cli:
+                for income_mode, is_inc in (("no", False), ("yes", True)):
+                    page = 1
+                    while True:
+                        resp = await cli.get(
+                            f"https://{domain}.fakturownia.pl/invoices.json",
+                            params={"api_token": api_token,
+                                     "income": income_mode,
+                                     "page": str(page),
+                                     "per_page": "100",
+                                     "include_positions": "false"},
+                        )
+                        if resp.status_code != 200:
+                            break
+                        invs = resp.json()
+                        invs = invs if isinstance(invs, list) else invs.get("invoices", [])
+                        if not invs:
+                            break
+                        for inv in invs:
+                            st = (inv.get("status") or "").lower()
+                            if st == "paid" or inv.get("paid_date"):
+                                continue
+                            pg = float(inv.get("price_gross") or 0)
+                            if is_inc:
+                                fak_receivables += pg
+                                fak_receivables_count += 1
+                            else:
+                                fak_payables += pg
+                                fak_payables_count += 1
+                        if len(invs) < 100:
+                            break
+                        page += 1
+                        if page > 100:
+                            break
+            fakturownia_ok = True
+        except Exception as e:
+            logger.warning(f"[payment_discrepancy] Fakturownia fetch failed: {e}")
+
+    payables_diff = round(fak_payables - app_payables, 2)
+    receivables_diff = round(fak_receivables - app_receivables, 2)
+
+    return {
+        "app": {
+            "payables": {"brutto": round(app_payables, 2), "count": app_payables_count},
+            "receivables": {"brutto": round(app_receivables, 2), "count": app_receivables_count},
+        },
+        "fakturownia": {
+            "available": fakturownia_ok,
+            "payables": {"brutto": round(fak_payables, 2), "count": fak_payables_count},
+            "receivables": {"brutto": round(fak_receivables, 2), "count": fak_receivables_count},
+        },
+        "diff": {
+            "payables": payables_diff,
+            "receivables": receivables_diff,
+            "payables_count": fak_payables_count - app_payables_count,
+            "receivables_count": fak_receivables_count - app_receivables_count,
+        },
+        "has_discrepancy": fakturownia_ok and (
+            abs(payables_diff) > 1.0 or abs(receivables_diff) > 1.0
+        ),
+    }
+
+
+
+
 @router.post("/finance/sync-from-fakturownia")
 async def sync_from_fakturownia(
     year: Optional[int] = Query(None),
@@ -1989,6 +2240,14 @@ async def cron_fakturownia_sync():
                      for yy, mm in _iter_months(SYNC_FROM_YEAR, SYNC_FROM_MONTH, now.year, now.month)],
         })
         total_removed = del_res.deleted_count
+
+        # Globalny unpaid sync - dopelnia stare niezaplacone faktury spoza zakresu
+        try:
+            unpaid_res = await _do_fakturownia_unpaid_sync_global("cron_system")
+            logger.info(f"[cron_fakturownia] unpaid sync: created={unpaid_res['invoices_created']}, "
+                        f"updated={unpaid_res['invoices_updated']}, total={unpaid_res['fetched_unpaid']}")
+        except Exception as ue:
+            logger.warning(f"[cron_fakturownia] unpaid sync failed: {ue}")
         logger.info(f"[cron_fakturownia] OK: {total_created} nowych, "
                      f"{total_updated} zaktualizowanych, "
                      f"{total_removed} usunietych "
