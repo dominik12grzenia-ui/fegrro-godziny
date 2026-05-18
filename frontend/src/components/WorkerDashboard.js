@@ -74,25 +74,38 @@ export const WorkerDashboard = () => {
       const year = selectedMonth.getFullYear();
       const monthNum = selectedMonth.getMonth() + 1;
 
-      // PRIMARY - render hours table as fast as possible
-      const [foremanRes, employeesRes, sitesRes, assignmentsRes, hoursRes] = await Promise.all([
+      // PRIMARY - render hours table as fast as possible.
+      // UWAGA: Promise.allSettled (nie Promise.all) zeby pojedynczy zawiesony
+      // endpoint nie blokowal calego ekranu (brygadzista widzialby spinner
+      // w nieskonczonosc). Plus axios ma timeout 15s = nigdy nie wisimy >15s.
+      const results = await Promise.allSettled([
         api.get('/foreman/me'),
         api.get(`/employees?month=${monthNum}&year=${year}`),
         api.get('/sites'),
         api.get(`/assignments?month=${monthName}&year=${year}`),
         api.get(`/hours?start_date=${format(startOfMonth(selectedMonth), 'yyyy-MM-dd')}&end_date=${format(new Date(year, selectedMonth.getMonth() + 1, 0), 'yyyy-MM-dd')}`),
       ]);
+      const [foremanRes, employeesRes, sitesRes, assignmentsRes, hoursRes] = results.map((r) =>
+        r.status === 'fulfilled' ? r.value : { data: null },
+      );
 
+      // Jezeli /foreman/me sie nie zaladowalo - krytyczne. Pokaz toast i zostaw default.
+      if (!foremanRes.data) {
+        toast.error('Nie udalo sie pobrac danych konta. Sprawdz polaczenie.');
+        setLoading(false);
+        return;
+      }
       const foreman = foremanRes.data;
       setForemanData(foreman);
       const foremanSiteIds = foreman.assigned_sites || [];
 
-      setSites(sitesRes.data);
-      const allAssignedSites = sitesRes.data.filter((s) => foremanSiteIds.includes(s.id));
+      const sitesData = sitesRes.data || [];
+      setSites(sitesData);
+      const allAssignedSites = sitesData.filter((s) => foremanSiteIds.includes(s.id));
       const onlyBudowy = allAssignedSites.filter((s) => s.excel_column);
       setMySites(onlyBudowy);
 
-      const allAssignments = assignmentsRes.data;
+      const allAssignments = assignmentsRes.data || [];
       const myAssignments = allAssignments.filter((a) => foremanSiteIds.includes(a.site_id));
       setAssignments(myAssignments);
 
@@ -100,10 +113,11 @@ export const WorkerDashboard = () => {
       myAssignments.forEach((a) => {
         if (a.assigned_dates && a.assigned_dates.length > 0) myEmployeeIds.add(a.employee_id);
       });
-      setEmployees(employeesRes.data.filter((e) => myEmployeeIds.has(e.id)));
+      const employeesData = employeesRes.data || [];
+      setEmployees(employeesData.filter((e) => myEmployeeIds.has(e.id)));
 
       const hoursMap = {};
-      hoursRes.data.forEach((entry) => {
+      (hoursRes.data || []).forEach((entry) => {
         hoursMap[`${entry.employee_id}-${entry.work_date}`] = entry.hours_worked;
       });
       setHourEntries(hoursMap);
@@ -119,7 +133,7 @@ export const WorkerDashboard = () => {
     } catch (error) {
       console.error('Failed to fetch data:', error);
       if (error.response?.status === 404) {
-        toast.error('Twoje konto nie zostalo jeszcze skonfigurowane');
+        toast.error('Twoje konto nie zostało jeszcze skonfigurowane');
       }
       setLoading(false);
     }

@@ -43,7 +43,8 @@ export const AuthProvider = ({ children }) => {
   const fetchCurrentUser = async () => {
     try {
       const response = await axios.get(`${API}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        timeout: 10000,
       });
       setUser(response.data);
       try {
@@ -61,8 +62,8 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await axios.post(`${API}/auth/admin/login`, {
         email,
-        password
-      });
+        password,
+      }, { timeout: 15000 });
       const { access_token, user: userData } = response.data;
       localStorage.setItem('token', access_token);
       localStorage.setItem('user_name', userData?.full_name || 'Admin');
@@ -80,10 +81,11 @@ export const AuthProvider = ({ children }) => {
 
   const loginForeman = async (fullName, password) => {
     try {
-      const response = await axios.post(`${API}/auth/foreman/login`, {
+      // Uzyj klienta `api` z timeoutem 15s zeby logowanie nigdy nie wisialo.
+      const response = await api.post('/auth/foreman/login', {
         email: fullName,  // backend reads from .email field
         password,
-      });
+      }, { timeout: 15000 });
       const { access_token, user_id, full_name, role, assigned_sites, message } = response.data;
       const userData = {
         id: user_id,
@@ -128,6 +130,7 @@ export const AuthProvider = ({ children }) => {
       }
       const response = await axios.post(`${API}/foremen/${foremanId}/impersonate`, {}, {
         headers: { Authorization: `Bearer ${token}` },
+        timeout: 15000,
       });
       const { access_token, user_id, full_name, role, assigned_sites } = response.data;
       const userData = {
@@ -195,7 +198,11 @@ export const AuthProvider = ({ children }) => {
 };
 
 export const api = axios.create({
-  baseURL: API
+  baseURL: API,
+  // Globalny timeout: zadne wywolanie nie moze wisiec dluzej niz 15s.
+  // Bez tego na slabym sygnale (np. brygadzista na budowie) Promise.all
+  // moze nigdy sie nie zakonczyc, ekran utknie na spinnerze.
+  timeout: 15000,
 });
 
 api.interceptors.request.use((config) => {
