@@ -821,3 +821,28 @@ Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` n
   1. **Cron co 30 min** (`fakturownia_sync_30min`) - automatycznie pobiera nowe i aktualizuje istniejace faktury w zakresie SYNC_FROM_YEAR-MONTH → biezacy miesiac. Plus globalny unpaid sync uzupelnia stare niezaplacone.
   2. **Manualne**: przycisk "Sync biezacy miesiac" w Zapisy lub "Synchronizuj teraz" w banner rozbieznosci.
 
+
+
+---
+
+## 2026-05-18 (3) — Netto/Brutto toggle + korekty + zgodnosc 1:1 z Fakturownia
+
+### Root cause rozbieznosci 206k vs 179k
+1. **Fakturownia w raporcie wydatkow pokazuje NETTO, App brutto**: 146 261,99 zl netto × 1,23 VAT ≈ 179 933,09 zl brutto. To bylo wlasciwe wyjasnienie 90% roznicy.
+2. **Korekty (kind=correction)** maja ujemny brutto w Fakturowni i sa odejmowane od sumy. App klampowal `max(brutto - paid_amount, 0)` co ZACHOWYWALO te wartosci jako 0. Fix: nie klampujemy do 0, korekty redukuja sume.
+3. **Stare faktury 2025**: Payment summary bez `year` filter wciagal stare niezaplacone z 2025. Teraz endpoint przyjmuje `?year=2026` i ogranicza do roku z paska "Rok".
+
+### Backend zmiany
+- `GET /finance/payment-summary?year=YYYY` — nowy parametr `year`. Zwraca `total_netto`/`total_brutto`/`overdue_netto`/`overdue_brutto`/`remaining_brutto` (uwzglednia paid_amount dla partial), oraz `remaining_netto` (proporcjonalne).
+- `GET /finance/payment-discrepancy?year=YYYY` — analogicznie. Loop Fakturowni bez klampowania korekt do 0.
+- Sync Fakturownia zapisuje `paid_amount` (kwota juz zaplacona) z pola `paid` (string z API; tak naprawde to amount, NIE boolean!).
+
+### Frontend zmiany (`PaymentSummaryPanel`)
+- **Toggle Netto/Brutto** (default netto - jak Fakturownia), zapamietywane w localStorage `fin_amount_mode`.
+- Czyta `year` propa - filtruje kafelki do biezacego roku z paska "Rok".
+- Pokazuje `zl netto` lub `zl brutto` przy kazdej wartosci.
+
+### Weryfikacja
+- App `payables.netto` dla year=2026: **146 261,99 zl** (54 faktur)
+- Fakturownia raport `Wydatki netto Nieoplacona 2026-01-01..2026-05-31`: **146 261,99 zl**
+- `diff.payables_netto: 0.0`, `has_discrepancy: false` ✓

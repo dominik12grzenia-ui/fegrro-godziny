@@ -396,23 +396,30 @@ const QuickAddZapis = ({ open, onClose }) => {
 };
 
 // =================== PANEL: PODSUMOWANIE PLATNOSCI ===================
-const PaymentSummaryPanel = ({ onTileClick }) => {
+const PaymentSummaryPanel = ({ onTileClick, year }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [discrepancy, setDiscrepancy] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  // Domyslnie netto - tak jak Fakturownia raporty wydatkow/przychodow
+  const [amountMode, setAmountMode] = useState(() => localStorage.getItem('fin_amount_mode') || 'netto');
+
+  const setMode = (m) => {
+    setAmountMode(m);
+    try { localStorage.setItem('fin_amount_mode', m); } catch { /* ignore */ }
+  };
 
   const fetchData = useCallback(() => {
     setLoading(true);
-    api.get('/finance/payment-summary')
+    const qs = year ? `?year=${year}` : '';
+    api.get(`/finance/payment-summary${qs}`)
       .then((r) => setData(r.data))
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-    // Discrepancy z Fakturownia (async, niezalezne od summary)
-    api.get('/finance/payment-discrepancy')
+    api.get(`/finance/payment-discrepancy${qs}`)
       .then((r) => setDiscrepancy(r.data))
       .catch(() => setDiscrepancy(null));
-  }, []);
+  }, [year]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -436,9 +443,14 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
 
   const r = data.receivables;
   const p = data.payables;
+  // Wybor netto vs brutto
+  const valKey = amountMode === 'brutto' ? '_brutto' : '_netto';
+  const rTotal = r[`total${valKey}`];
+  const pTotal = p[`total${valKey}`];
+  const pOverdue = p[`overdue${valKey}`];
   const overdueAny = p.overdue_count;
-  const diffP = discrepancy?.diff?.payables || 0;
-  const diffR = discrepancy?.diff?.receivables || 0;
+  const diffP = discrepancy?.diff?.[`payables${valKey}`] || 0;
+  const diffR = discrepancy?.diff?.[`receivables${valKey}`] || 0;
   const hasDiscP = Math.abs(diffP) > 1.0;
   const hasDiscR = Math.abs(diffR) > 1.0;
 
@@ -453,14 +465,14 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
         <span className="text-[#94A3B8] text-xs uppercase tracking-wide">{label}</span>
         {extra}
       </div>
-      <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>{fmtNum(value)}<span className="text-xs ml-1">zł</span></div>
+      <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>{fmtNum(value)}<span className="text-xs ml-1">zł {amountMode === 'brutto' ? 'brutto' : 'netto'}</span></div>
       <div className="text-xs text-[#94A3B8] mt-1">{sub}</div>
     </button>
   );
 
   const DiscBadge = ({ diff, count }) => (
     <span
-      title={`Rozbieżność z Fakturownia: ${diff > 0 ? '+' : ''}${fmtNum(diff)} zł (${count > 0 ? '+' : ''}${count} faktur). Kliknij aby zsynchronizować.`}
+      title={`Rozbieżność z Fakturownia: ${diff > 0 ? '+' : ''}${fmtNum(diff)} zł (${count > 0 ? '+' : ''}${count} faktur). Kliknij banner aby zsynchronizować.`}
       className="flex items-center gap-1"
       data-testid="discrepancy-badge"
     >
@@ -470,6 +482,22 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
 
   return (
     <div className="space-y-2 mb-4">
+      {/* Toggle Netto / Brutto */}
+      <div className="flex items-center justify-end gap-2 text-xs text-[#94A3B8]">
+        <span>Pokaż kwoty:</span>
+        <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]" data-testid="payment-amount-mode-toggle">
+          <button onClick={() => setMode('netto')}
+            className={`px-3 py-1 text-xs font-medium ${amountMode === 'netto' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+            data-testid="amount-mode-netto">
+            Netto
+          </button>
+          <button onClick={() => setMode('brutto')}
+            className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${amountMode === 'brutto' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+            data-testid="amount-mode-brutto">
+            Brutto
+          </button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" data-testid="payment-summary-panel">
         <Tile
           filter="receivables"
@@ -477,7 +505,7 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
           borderColor="border-[#4F6343]/40"
           label="Kontrahenci mi do zapłaty"
           valueColor="text-[#5F7552]"
-          value={r.total}
+          value={rTotal}
           sub={`${r.count} faktur`}
           extra={hasDiscR ? <DiscBadge diff={diffR} count={discrepancy.diff.receivables_count} /> : null}
         />
@@ -487,7 +515,7 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
           borderColor="border-[#D4AF37]/40"
           label="Do zapłaty"
           valueColor="text-[#D4AF37]"
-          value={p.total}
+          value={pTotal}
           sub={`${p.count} faktur`}
           extra={hasDiscP ? <DiscBadge diff={diffP} count={discrepancy.diff.payables_count} /> : null}
         />
@@ -497,7 +525,7 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
           borderColor={overdueAny > 0 ? 'border-[#9B2C2C]/60' : 'border-[#2A3B59]'}
           label="Przeterminowane (koszty)"
           valueColor={overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}
-          value={p.overdue_total}
+          value={pOverdue}
           sub={overdueAny > 0
             ? `${p.overdue_count} ${p.overdue_count === 1 ? 'faktura kosztowa' : 'faktur kosztowych'}`
             : 'Brak przeterminowanych kosztów'}
@@ -507,7 +535,7 @@ const PaymentSummaryPanel = ({ onTileClick }) => {
       {(hasDiscP || hasDiscR) && (
         <div className="flex items-center justify-between bg-[#D4AF37]/10 border border-[#D4AF37]/40 rounded p-2 text-xs text-[#D4AF37]" data-testid="discrepancy-banner">
           <span>
-            ⚠ Rozbieżność z Fakturownia:
+            ⚠ Rozbieżność z Fakturownia ({amountMode}):
             {hasDiscP && ` koszty ${diffP > 0 ? '+' : ''}${fmtNum(diffP)} zł`}
             {hasDiscP && hasDiscR && ' • '}
             {hasDiscR && ` przychody ${diffR > 0 ? '+' : ''}${fmtNum(diffR)} zł`}
@@ -1489,7 +1517,7 @@ const RachunekWynikowPanel = ({ year, onTileClick }) => {
   return (
     <>
       {/* Podsumowanie platnosci - tylko w Rachunek wynikow */}
-      <PaymentSummaryPanel onTileClick={onTileClick} />
+      <PaymentSummaryPanel onTileClick={onTileClick} year={year} />
       <Card className="bg-[#19243C] border-[#2A3B59]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>

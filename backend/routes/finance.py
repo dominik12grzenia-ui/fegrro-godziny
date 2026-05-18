@@ -820,6 +820,7 @@ async def rachunek_wynikow(
 # ============= PAYMENT SUMMARY (naleznosci/zobowiazania/przeterminowane) =============
 @router.get("/finance/payment-summary")
 async def payment_summary(
+    year: Optional[int] = Query(None, description="Filtruj po roku (issue_date)"),
     _user: dict = Depends(get_current_admin),
 ):
     """Zwraca podsumowanie platnosci na podstawie pol payment_to/payment_date
@@ -829,25 +830,45 @@ async def payment_summary(
     - payables: nieoplacone faktury KOSZTOWE (my winni dostawcom)
     - overdue_receivables: receivables z payment_to < dzis
     - overdue_payables: payables z payment_to < dzis
+
+    Zwraca zarowno netto jak i brutto (Fakturownia raporty domyslnie pokazuja netto).
+    Obsluguje czesciowe platnosci - liczy "kwote pozostala" (brutto - paid_amount).
     """
     today = datetime.now().date().isoformat()
+    q = {"paid": {"$ne": True}, "source": "fakturownia"}
+    if year is not None:
+        q["year"] = year
     invoices = await db.finance_invoices.find(
-        {"paid": {"$ne": True}, "source": "fakturownia"},
+        q,
         {"_id": 0, "id": 1, "date": 1, "kontrahent": 1, "nr_faktury": 1,
-         "netto": 1, "brutto": 1, "is_income": 1, "payment_to": 1, "payment_date": 1, "paid": 1},
+         "netto": 1, "brutto": 1, "is_income": 1, "payment_to": 1,
+         "payment_date": 1, "paid": 1, "paid_amount": 1,
+         "fakturownia_status": 1},
     ).to_list(length=5000)
 
     receivables: list = []
     payables: list = []
     for inv in invoices:
         is_income = bool(inv.get("is_income"))
+        brutto = float(inv.get("brutto") or 0)
+        netto = float(inv.get("netto") or 0)
+        paid_amt = float(inv.get("paid_amount") or 0)
+        # Kwota pozostala do zaplaty (czesciowe platnosci).
+        # UWAGA: korekty maja ujemny brutto - nie klampujemy do 0,
+        # zeby zgadzalo sie z raportem Fakturowni ktory odejmuje korekty.
+        remaining_brutto = brutto - paid_amt
+        # Netto pozostale proporcjonalnie do brutto
+        remaining_netto = round(netto * (remaining_brutto / brutto), 2) if brutto != 0 else 0.0
         item = {
             "id": inv["id"],
             "date": inv.get("date"),
             "kontrahent": inv.get("kontrahent") or "",
             "nr_faktury": inv.get("nr_faktury") or "",
-            "netto": float(inv.get("netto") or 0),
-            "brutto": float(inv.get("brutto") or 0),
+            "netto": round(netto, 2),
+            "brutto": round(brutto, 2),
+            "remaining_netto": remaining_netto,
+            "remaining_brutto": round(remaining_brutto, 2),
+            "paid_amount": round(paid_amt, 2),
             "payment_to": inv.get("payment_to"),
             "overdue": bool(inv.get("payment_to") and inv["payment_to"] < today),
         }
@@ -856,11 +877,11 @@ async def payment_summary(
         else:
             payables.append(item)
 
-    def sum_brutto(items):
-        return round(sum(i["brutto"] for i in items), 2)
+    def sum_field(items, field):
+        return round(sum(i[field] for i in items), 2)
 
-    def sum_overdue(items):
-        return round(sum(i["brutto"] for i in items if i["overdue"]), 2)
+    def sum_overdue(items, field):
+        return round(sum(i[field] for i in items if i["overdue"]), 2)
 
     # Sortuj rosnacao po payment_to (najpilniejsze pierwsze)
     receivables.sort(key=lambda x: x.get("payment_to") or "9999-12-31")
@@ -868,16 +889,21 @@ async def payment_summary(
 
     return {
         "today": today,
+        "year": year,
         "receivables": {
-            "total": sum_brutto(receivables),
-            "overdue_total": sum_overdue(receivables),
+            "total_brutto": sum_field(receivables, "remaining_brutto"),
+            "total_netto": sum_field(receivables, "remaining_netto"),
+            "overdue_brutto": sum_overdue(receivables, "remaining_brutto"),
+            "overdue_netto": sum_overdue(receivables, "remaining_netto"),
             "count": len(receivables),
             "overdue_count": sum(1 for i in receivables if i["overdue"]),
             "items": receivables[:50],
         },
         "payables": {
-            "total": sum_brutto(payables),
-            "overdue_total": sum_overdue(payables),
+            "total_brutto": sum_field(payables, "remaining_brutto"),
+            "total_netto": sum_field(payables, "remaining_netto"),
+            "overdue_brutto": sum_overdue(payables, "remaining_brutto"),
+            "overdue_netto": sum_overdue(payables, "remaining_netto"),
             "count": len(payables),
             "overdue_count": sum(1 for i in payables if i["overdue"]),
             "items": payables[:50],
@@ -1651,12 +1677,16 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         #   status: "paid" / "new" / "sent" / "partial" / "overdue" / "cancelled"
         #   paid_date: "YYYY-MM-DD" (gdy oplacona); czasem brak pola
         #   paid_at: timestamp
+        #   paid: kwota juz zaplacona (string, np. "1234.50") - dla partial platnosci
         # Wczesniej blednie szukalismy "payment_date" - takiego pola Fakturownia nie zwraca,
         # przez co WSZYSTKIE faktury mialy paid=False.
         status_val = (inv.get("status") or "").lower()
         paid_date_val = inv.get("paid_date") or inv.get("payment_date") or None
         if not paid_date_val and inv.get("paid_at"):
             paid_date_val = str(inv["paid_at"])[:10]
+        # Kwota juz zaplacona (dla czesciowych platnosci). UWAGA: "paid" w API to AMOUNT,
+        # nie boolean!
+        paid_amount_val = float(inv.get("paid") or 0)
         is_paid = status_val == "paid" or bool(paid_date_val)
 
         # ==== UPSERT naglowek faktury ====
@@ -1673,6 +1703,7 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "payment_to": inv.get("payment_to") or None,
                 "payment_date": paid_date_val,
                 "paid": is_paid,
+                "paid_amount": round(paid_amount_val, 2),
                 "fakturownia_status": status_val or None,
                 "updated_at": datetime.now().isoformat(),
                 "updated_by": user_id,
@@ -1702,6 +1733,7 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "payment_to": inv.get("payment_to") or None,
                 "payment_date": paid_date_val,
                 "paid": is_paid,
+                "paid_amount": round(paid_amount_val, 2),
                 "fakturownia_status": status_val or None,
                 "notes": "",
                 "source": "fakturownia",
@@ -1965,49 +1997,73 @@ async def sync_fakturownia_unpaid(current_user: dict = Depends(get_current_admin
 
 # ============= PAYMENT DISCREPANCY (Fakturownia vs App) =============
 @router.get("/finance/payment-discrepancy")
-async def payment_discrepancy(_user: dict = Depends(get_current_admin)):
+async def payment_discrepancy(
+    year: Optional[int] = Query(None, description="Filtruj po roku (sell_date)"),
+    _user: dict = Depends(get_current_admin),
+):
     """Porownuje sume niezaplaconych faktur w App vs Fakturownia.
-    Zwraca diff w PLN i flaga has_discrepancy."""
+    Zwraca diff w PLN i flaga has_discrepancy.
+
+    Zwraca zarowno brutto jak i netto - Fakturownia raporty domyslnie pokazuja netto.
+    Z parametrem `year` ogranicza zakres do faktur o sell_date w danym roku."""
     # App side
-    pipe = [{"$match": {"source": "fakturownia", "paid": {"$ne": True}}},
+    app_match = {"source": "fakturownia", "paid": {"$ne": True}}
+    if year is not None:
+        app_match["year"] = year
+    pipe = [{"$match": app_match},
             {"$group": {"_id": "$is_income",
-                         "brutto": {"$sum": "$brutto"},
+                         "brutto": {"$sum": {"$subtract": ["$brutto", {"$ifNull": ["$paid_amount", 0]}]}},
+                         "netto": {"$sum": "$netto"},
                          "count": {"$sum": 1}}}]
-    app_payables = 0.0
-    app_receivables = 0.0
+    app_payables_brutto = 0.0
+    app_payables_netto = 0.0
+    app_receivables_brutto = 0.0
+    app_receivables_netto = 0.0
     app_payables_count = 0
     app_receivables_count = 0
     async for r in db.finance_invoices.aggregate(pipe):
         if r["_id"]:
-            app_receivables = float(r["brutto"])
+            app_receivables_brutto = float(r["brutto"])
+            app_receivables_netto = float(r["netto"])
             app_receivables_count = r["count"]
         else:
-            app_payables = float(r["brutto"])
+            app_payables_brutto = float(r["brutto"])
+            app_payables_netto = float(r["netto"])
             app_payables_count = r["count"]
 
     # Fakturownia side
     settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
     api_token = settings.get("fakturownia_api_key")
     domain = settings.get("fakturownia_domain")
-    fak_payables = 0.0
-    fak_receivables = 0.0
+    fak_payables_brutto = 0.0
+    fak_payables_netto = 0.0
+    fak_receivables_brutto = 0.0
+    fak_receivables_netto = 0.0
     fak_payables_count = 0
     fak_receivables_count = 0
     fakturownia_ok = False
 
     if api_token and domain:
         try:
+            # Z filtrem rok uzywamy date_from/date_to, bez - pobieramy wszystko
+            extra_params = {}
+            if year is not None:
+                extra_params["date_from"] = f"{year:04d}-01-01"
+                extra_params["date_to"] = f"{year:04d}-12-31"
+                extra_params["period"] = "more"
             async with httpx.AsyncClient(timeout=30.0) as cli:
                 for income_mode, is_inc in (("no", False), ("yes", True)):
                     page = 1
                     while True:
+                        params = {"api_token": api_token,
+                                  "income": income_mode,
+                                  "page": str(page),
+                                  "per_page": "100",
+                                  "include_positions": "false",
+                                  **extra_params}
                         resp = await cli.get(
                             f"https://{domain}.fakturownia.pl/invoices.json",
-                            params={"api_token": api_token,
-                                     "income": income_mode,
-                                     "page": str(page),
-                                     "per_page": "100",
-                                     "include_positions": "false"},
+                            params=params,
                         )
                         if resp.status_code != 200:
                             break
@@ -2020,11 +2076,18 @@ async def payment_discrepancy(_user: dict = Depends(get_current_admin)):
                             if st == "paid" or inv.get("paid_date"):
                                 continue
                             pg = float(inv.get("price_gross") or 0)
+                            pn = float(inv.get("price_net") or 0)
+                            paid_amt = float(inv.get("paid") or 0)
+                            # Korekty maja ujemny brutto - nie klampujemy do 0,
+                            # zeby zgadzalo sie z raportem Fakturowni ktory odejmuje korekty.
+                            remaining = pg - paid_amt
                             if is_inc:
-                                fak_receivables += pg
+                                fak_receivables_brutto += remaining
+                                fak_receivables_netto += pn * (remaining / pg) if pg else 0
                                 fak_receivables_count += 1
                             else:
-                                fak_payables += pg
+                                fak_payables_brutto += remaining
+                                fak_payables_netto += pn * (remaining / pg) if pg else 0
                                 fak_payables_count += 1
                         if len(invs) < 100:
                             break
@@ -2035,27 +2098,40 @@ async def payment_discrepancy(_user: dict = Depends(get_current_admin)):
         except Exception as e:
             logger.warning(f"[payment_discrepancy] Fakturownia fetch failed: {e}")
 
-    payables_diff = round(fak_payables - app_payables, 2)
-    receivables_diff = round(fak_receivables - app_receivables, 2)
+    payables_diff_brutto = round(fak_payables_brutto - app_payables_brutto, 2)
+    payables_diff_netto = round(fak_payables_netto - app_payables_netto, 2)
+    receivables_diff_brutto = round(fak_receivables_brutto - app_receivables_brutto, 2)
+    receivables_diff_netto = round(fak_receivables_netto - app_receivables_netto, 2)
 
     return {
+        "year": year,
         "app": {
-            "payables": {"brutto": round(app_payables, 2), "count": app_payables_count},
-            "receivables": {"brutto": round(app_receivables, 2), "count": app_receivables_count},
+            "payables": {"brutto": round(app_payables_brutto, 2),
+                          "netto": round(app_payables_netto, 2),
+                          "count": app_payables_count},
+            "receivables": {"brutto": round(app_receivables_brutto, 2),
+                             "netto": round(app_receivables_netto, 2),
+                             "count": app_receivables_count},
         },
         "fakturownia": {
             "available": fakturownia_ok,
-            "payables": {"brutto": round(fak_payables, 2), "count": fak_payables_count},
-            "receivables": {"brutto": round(fak_receivables, 2), "count": fak_receivables_count},
+            "payables": {"brutto": round(fak_payables_brutto, 2),
+                          "netto": round(fak_payables_netto, 2),
+                          "count": fak_payables_count},
+            "receivables": {"brutto": round(fak_receivables_brutto, 2),
+                             "netto": round(fak_receivables_netto, 2),
+                             "count": fak_receivables_count},
         },
         "diff": {
-            "payables": payables_diff,
-            "receivables": receivables_diff,
+            "payables_brutto": payables_diff_brutto,
+            "payables_netto": payables_diff_netto,
+            "receivables_brutto": receivables_diff_brutto,
+            "receivables_netto": receivables_diff_netto,
             "payables_count": fak_payables_count - app_payables_count,
             "receivables_count": fak_receivables_count - app_receivables_count,
         },
         "has_discrepancy": fakturownia_ok and (
-            abs(payables_diff) > 1.0 or abs(receivables_diff) > 1.0
+            abs(payables_diff_netto) > 1.0 or abs(receivables_diff_netto) > 1.0
         ),
     }
 
