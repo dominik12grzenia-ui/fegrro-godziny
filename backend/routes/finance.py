@@ -1647,6 +1647,18 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         auto_kod_id = "PZS" if is_income else None
         auto_kod_category = "PZS" if is_income else None
 
+        # Status platnosci - Fakturownia zwraca:
+        #   status: "paid" / "new" / "sent" / "partial" / "overdue" / "cancelled"
+        #   paid_date: "YYYY-MM-DD" (gdy oplacona); czasem brak pola
+        #   paid_at: timestamp
+        # Wczesniej blednie szukalismy "payment_date" - takiego pola Fakturownia nie zwraca,
+        # przez co WSZYSTKIE faktury mialy paid=False.
+        status_val = (inv.get("status") or "").lower()
+        paid_date_val = inv.get("paid_date") or inv.get("payment_date") or None
+        if not paid_date_val and inv.get("paid_at"):
+            paid_date_val = str(inv["paid_at"])[:10]
+        is_paid = status_val == "paid" or bool(paid_date_val)
+
         # ==== UPSERT naglowek faktury ====
         new_invoice_fids.add(inv_id)
         existing_inv = existing_inv_by_fid.get(inv_id)
@@ -1659,8 +1671,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "nr_faktury": nr_fakt,
                 "is_income": is_income,
                 "payment_to": inv.get("payment_to") or None,
-                "payment_date": inv.get("payment_date") or None,
-                "paid": bool(inv.get("payment_date")),
+                "payment_date": paid_date_val,
+                "paid": is_paid,
+                "fakturownia_status": status_val or None,
                 "updated_at": datetime.now().isoformat(),
                 "updated_by": user_id,
             }
@@ -1687,8 +1700,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "nr_faktury": nr_fakt,
                 "is_income": is_income,
                 "payment_to": inv.get("payment_to") or None,
-                "payment_date": inv.get("payment_date") or None,
-                "paid": bool(inv.get("payment_date")),
+                "payment_date": paid_date_val,
+                "paid": is_paid,
+                "fakturownia_status": status_val or None,
                 "notes": "",
                 "source": "fakturownia",
                 "fakturownia_invoice_id": inv_id,

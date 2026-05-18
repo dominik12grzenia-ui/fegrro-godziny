@@ -754,3 +754,41 @@ Suma godzin w zakladce **Godziny** (HoursTable) rozniła sie od sumy godzin w za
 ### Formatowanie liczb (2026-05-16)
 - Helper `fmt(v)` w PayrollAdmin: `0.00→"0"`, `12.00→"12"`, `12.50→"12.5"`, `12.55→"12.55"`.
 - Zastosowane do kafelkow oraz tabeli (kolumny: stawka, kwota godzin, zaliczki, kary, wyplata).
+
+---
+
+## 2026-05-18 — Fakturownia: status ZAPŁACONA naprawiony
+
+### Root cause
+Backend `_do_fakturownia_sync` (routes/finance.py L1650-1700) ustawial:
+```python
+"paid": bool(inv.get("payment_date"))
+```
+ale **Fakturownia API nie zwraca pola `payment_date`**. Faktyczne pola to:
+- `status`: `"paid" / "new" / "sent" / "partial" / "overdue" / "cancelled"`
+- `paid_date`: `"YYYY-MM-DD"` (kiedy zaplacono)
+- `paid_at`: timestamp (alternatywa)
+- `payment_to`: termin platnosci ← to bylo OK
+
+Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` nigdy sie nie pojawial. Frontend dziala (badge `⚠ PRZETERMINOWANA` i `Do zapłaty: <date>` widoczne dla niezaplaconych).
+
+### Fix
+- Backend `routes/finance.py`: nowa logika derywacji `is_paid`:
+  ```python
+  status_val = (inv.get("status") or "").lower()
+  paid_date_val = inv.get("paid_date") or inv.get("payment_date") or None
+  if not paid_date_val and inv.get("paid_at"):
+      paid_date_val = str(inv["paid_at"])[:10]
+  is_paid = status_val == "paid" or bool(paid_date_val)
+  ```
+- Dodatkowo zapisujemy `fakturownia_status` (debug/audyt).
+- Zarowno w branch `existing_inv` (update), jak i `new invoice` (insert).
+
+### Testy
+- `/app/backend/tests/test_fakturownia_paid_mapping.py` — 6 przypadkow (status=paid / paid_date / paid_at fallback / unpaid / overdue / case-insensitive). Wszystkie PASS.
+
+### Wymagana akcja od uzytkownika
+1. **Redeploy backend na Render** (kod zmieniony w `routes/finance.py`).
+2. **Kliknac "Sync biezacy miesiac"** w zakladce Zapisy — istniejace 210 faktur zostanie zaktualizowanych z nowa logika (upsert update branch).
+3. Po sync badge `✓ ZAPŁACONA` pojawi sie obok faktur ktore w Fakturowni maja `status="paid"`.
+
