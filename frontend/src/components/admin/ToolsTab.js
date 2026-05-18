@@ -171,6 +171,22 @@ const EmployeeLinksCard = () => {
     toast.success('Skopiowano link do schowka');
   };
 
+  const toggleClothingBlock = async (emp) => {
+    const newBlocked = !emp.clothing_orders_blocked;
+    // Optymistyczny update + rollback przy bledzie
+    setEmployees((prev) => prev.map((e) => e.id === emp.id ? { ...e, clothing_orders_blocked: newBlocked } : e));
+    try {
+      await api.patch(`/employees/${emp.id}/clothing-block?blocked=${newBlocked}`);
+      toast.success(newBlocked
+        ? `${emp.full_name} - zablokowano zamawianie odzieży`
+        : `${emp.full_name} - odblokowano zamawianie odzieży`);
+    } catch (e) {
+      // Rollback
+      setEmployees((prev) => prev.map((x) => x.id === emp.id ? { ...x, clothing_orders_blocked: !newBlocked } : x));
+      toast.error(e.response?.data?.detail || 'Błąd');
+    }
+  };
+
   const filtered = showOnlyWithToken ? employees.filter(e => e.public_token) : employees;
   const withTokenCount = employees.filter(e => e.public_token).length;
 
@@ -208,6 +224,7 @@ const EmployeeLinksCard = () => {
             <tr>
               <th className="p-2 text-left">Pracownik</th>
               <th className="p-2 text-center">Status linku</th>
+              <th className="p-2 text-center">Odzież</th>
               <th className="p-2 text-right">Akcje</th>
             </tr>
           </thead>
@@ -221,6 +238,20 @@ const EmployeeLinksCard = () => {
                   ) : (
                     <span className="text-[#94A3B8] text-xs">○ Brak</span>
                   )}
+                </td>
+                <td className="p-2 text-center">
+                  <label className="inline-flex items-center gap-2 cursor-pointer" title={emp.clothing_orders_blocked ? 'Pracownik NIE może zamawiać odzieży' : 'Pracownik może zamawiać odzież'}>
+                    <input
+                      type="checkbox"
+                      checked={!!emp.clothing_orders_blocked}
+                      onChange={() => toggleClothingBlock(emp)}
+                      className="accent-[#9B2C2C] h-4 w-4"
+                      data-testid={`emp-clothing-block-${emp.id}`}
+                    />
+                    <span className={`text-[10px] uppercase font-semibold ${emp.clothing_orders_blocked ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>
+                      {emp.clothing_orders_blocked ? 'Zablokowane' : 'Dozwolone'}
+                    </span>
+                  </label>
                 </td>
                 <td className="p-2 text-right">
                   <div className="flex gap-1 justify-end">

@@ -24,6 +24,7 @@ export const ClothingOrderPublic = ({ token }) => {
   const [savingProfile, setSavingProfile] = useState(false);
   const [lightbox, setLightbox] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [blocked, setBlocked] = useState(false);
 
   const fetchData = async () => {
     try {
@@ -42,6 +43,7 @@ export const ClothingOrderPublic = ({ token }) => {
         jacket_size: pRes.data.jacket_size || '',
         waist: pRes.data.waist || '',
       });
+      setBlocked(!!pRes.data.clothing_orders_blocked);
       setProfileDirty(false);
     } catch (e) {
       // silent
@@ -121,6 +123,16 @@ export const ClothingOrderPublic = ({ token }) => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          {blocked && (
+            <div className="p-3 bg-[#9B2C2C]/15 border border-[#9B2C2C]/50 rounded-lg text-center" data-testid="clothing-blocked-banner">
+              <p className="text-[#FCA5A5] text-sm font-semibold">
+                Zamawianie odzieży zostało wstrzymane
+              </p>
+              <p className="text-[#94A3B8] text-xs mt-1">
+                Skontaktuj się z biurem, aby dowiedzieć się więcej.
+              </p>
+            </div>
+          )}
           {/* Profile section (saved once per worker) */}
           <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
             <div className="flex items-center gap-2 mb-2">

@@ -383,3 +383,23 @@ async def cleanup_duplicate_employees(
         merged.append({"name": best["full_name"], "kept_id": best["id"][:12], "duplicates_removed": len(emps) - 1})
     
     return {"message": f"Usunieto {deleted} duplikatow", "deleted": deleted, "merged": merged}
+
+
+@router.patch("/employees/{employee_id}/clothing-block")
+async def toggle_clothing_orders_blocked(
+    employee_id: str,
+    blocked: bool,
+    _user: dict = Depends(get_current_admin),
+):
+    """Blokuje / odblokowuje mozliwosc zamawiania odziezy przez pracownika.
+    Uzywane przez admin w Narzedziach -> linki pracownikow."""
+    emp = await db.employees.find_one({"id": employee_id}, {"_id": 0, "id": 1})
+    if not emp:
+        raise HTTPException(404, "Pracownik nie znaleziony")
+    await db.employees.update_one(
+        {"id": employee_id},
+        {"$set": {"clothing_orders_blocked": bool(blocked),
+                   "updated_at": datetime.now().isoformat()}},
+    )
+    return {"ok": True, "employee_id": employee_id, "clothing_orders_blocked": bool(blocked)}
+

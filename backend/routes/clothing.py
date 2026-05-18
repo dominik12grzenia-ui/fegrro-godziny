@@ -648,6 +648,9 @@ async def public_list_types(token: str):
     employee = await db.employees.find_one({"public_token": token}, {"_id": 0})
     if not employee:
         raise HTTPException(status_code=404, detail="Invalid link")
+    if employee.get("clothing_orders_blocked"):
+        # Pracownik zablokowany - zwroc puste typy oraz flage do UI
+        return []
 
     types = await db.clothing_types.find(
         {"is_active": True}, {"_id": 0}
@@ -685,6 +688,7 @@ async def public_get_profile(token: str):
         "pants_size": profile.get("pants_size"),
         "jacket_size": profile.get("jacket_size"),
         "waist": profile.get("waist"),
+        "clothing_orders_blocked": bool(employee.get("clothing_orders_blocked")),
     }
 
 
@@ -724,6 +728,11 @@ async def public_place_order(token: str, payload: ClothingOrderCreate):
     employee = await db.employees.find_one({"public_token": token}, {"_id": 0})
     if not employee:
         raise HTTPException(status_code=404, detail="Invalid link")
+    if employee.get("clothing_orders_blocked"):
+        raise HTTPException(
+            status_code=403,
+            detail="Zamawianie odzieży zostało zablokowane. Skontaktuj się z biurem.",
+        )
 
     ct = await db.clothing_types.find_one({"id": payload.clothing_type_id}, {"_id": 0})
     if not ct:
