@@ -1687,7 +1687,10 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         # Kwota juz zaplacona (dla czesciowych platnosci). UWAGA: "paid" w API to AMOUNT,
         # nie boolean!
         paid_amount_val = float(inv.get("paid") or 0)
-        is_paid = status_val == "paid" or bool(paid_date_val)
+        # Status "paid" w Fakturowni = pelna zaplata. UWAGA: Fakturownia zwraca paid_date
+        # rowniez dla faktur CZESCIOWO oplaconych (z status="partial"), wiec opieranie sie
+        # na paid_date prowadziloby do bledu (faktura partial bylaby liczona jako oplacona).
+        is_paid = status_val == "paid"
 
         # ==== UPSERT naglowek faktury ====
         new_invoice_fids.add(inv_id)
@@ -1947,6 +1950,7 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
                     "payment_to": inv.get("payment_to") or None,
                     "payment_date": None,
                     "paid": False,
+                    "paid_amount": round(float(inv.get("paid") or 0), 2),
                     "fakturownia_status": status_val or None,
                     "updated_at": datetime.now().isoformat(),
                     "updated_by": user_id,
@@ -1971,6 +1975,7 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
                 "payment_to": inv.get("payment_to") or None,
                 "payment_date": None,
                 "paid": False,
+                "paid_amount": round(float(inv.get("paid") or 0), 2),
                 "fakturownia_status": status_val or None,
                 "notes": "",
                 "source": "fakturownia",
@@ -2013,7 +2018,17 @@ async def payment_discrepancy(
     pipe = [{"$match": app_match},
             {"$group": {"_id": "$is_income",
                          "brutto": {"$sum": {"$subtract": ["$brutto", {"$ifNull": ["$paid_amount", 0]}]}},
-                         "netto": {"$sum": "$netto"},
+                         "netto": {"$sum": {"$cond": [
+                             {"$gt": ["$brutto", 0]},
+                             {"$multiply": [
+                                 "$netto",
+                                 {"$divide": [
+                                     {"$subtract": ["$brutto", {"$ifNull": ["$paid_amount", 0]}]},
+                                     "$brutto",
+                                 ]},
+                             ]},
+                             "$netto",
+                         ]}},
                          "count": {"$sum": 1}}}]
     app_payables_brutto = 0.0
     app_payables_netto = 0.0

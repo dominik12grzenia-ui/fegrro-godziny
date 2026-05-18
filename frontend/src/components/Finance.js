@@ -289,8 +289,8 @@ const QuickAddZapis = ({ open, onClose }) => {
       api.get('/finance/kody').catch(() => ({ data: [] })),
       api.get('/finance/budowy').catch(() => ({ data: [] })),
     ]).then(([k, b]) => {
-      setKody(k.data || []);
-      setBudowy(b.data || []);
+      setKody(k.data?.rows || []);
+      setBudowy(b.data?.rows || []);
     });
     // Reset przy ponownym otwarciu
     setDate(todayIso);
