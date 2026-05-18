@@ -309,7 +309,7 @@ export const Finance = () => {
       {active === 'budowy' && <BudowyPanel />}
       {active === 'zapisy' && <ZapisyPanel year={year} />}
       {active === 'rw' && <RachunekWynikowPanel year={year} />}
-      {active === 'sprzedaż' && <SprzedazPanel year={year} />}
+      {active === 'sprzedaz' && <SprzedazPanel year={year} />}
     </div>
   );
 };
@@ -1385,7 +1385,7 @@ const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-[#94A3B8]">{r.nr}</td>
                 <td className="p-2 text-white font-medium">{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#94A3B8]">(arch)</span>}</td>
                 {showDetails && <>
-                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.sprzedaż)}</td>
+                  <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.sprzedaz)}</td>
                   <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.kp)}</td>
                   <td className="p-2 text-right text-xs text-[#94A3B8] bg-[#131C2F]/30">{fmtNum(r.details.kp_aloc)}</td>
                   <td className="p-2 text-right text-xs text-[#CBD5E1] bg-[#131C2F]/30">{fmtNum(r.details.kbb)}</td>
