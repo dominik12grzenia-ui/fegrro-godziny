@@ -414,7 +414,9 @@ const PaymentSummaryPanel = () => {
 
   const r = data.receivables;
   const p = data.payables;
-  const overdueAny = r.overdue_count + p.overdue_count;
+  // "Przeterminowane" liczymy WYLACZNIE z faktur kosztowych (payables).
+  // Faktury sprzedazowe sa pokazywane osobno w kafelku "Kontrahenci mi do zaplaty".
+  const overdueAny = p.overdue_count;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4" data-testid="payment-summary-panel">
@@ -434,19 +436,19 @@ const PaymentSummaryPanel = () => {
         <div className="text-2xl font-bold text-[#D4AF37] tabular-nums">{fmtNum(p.total)}<span className="text-xs ml-1">zł</span></div>
         <div className="text-xs text-[#94A3B8] mt-1">{p.count} faktur</div>
       </div>
-      {/* Przeterminowane */}
+      {/* Przeterminowane - TYLKO kosztowe (faktury i zapisy ktore my musimy zaplacic) */}
       <div className={`rounded-lg p-4 border-2 ${overdueAny > 0 ? 'bg-[#9B2C2C]/15 border-[#9B2C2C]/60' : 'bg-[#131C2F] border-[#2A3B59]'}`} data-testid="overdue-tile">
         <div className="flex items-center justify-between mb-1">
-          <span className={`text-xs uppercase tracking-wide ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>Przeterminowane</span>
+          <span className={`text-xs uppercase tracking-wide ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>Przeterminowane (koszty)</span>
           {overdueAny > 0 && <AlertTriangle className="h-4 w-4 text-[#FCA5A5]" />}
         </div>
         <div className={`text-2xl font-bold tabular-nums ${overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>
-          {fmtNum(r.overdue_total + p.overdue_total)}<span className="text-xs ml-1">zł</span>
+          {fmtNum(p.overdue_total)}<span className="text-xs ml-1">zł</span>
         </div>
         <div className="text-xs text-[#94A3B8] mt-1">
           {overdueAny > 0
-            ? `${r.overdue_count} sprzedażowych + ${p.overdue_count} kosztowych`
-            : 'Brak przeterminowanych'}
+            ? `${p.overdue_count} ${p.overdue_count === 1 ? 'faktura kosztowa' : 'faktur kosztowych'}`
+            : 'Brak przeterminowanych kosztow'}
         </div>
       </div>
     </div>

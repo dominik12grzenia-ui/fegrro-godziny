@@ -65,11 +65,14 @@ const QuickAddZapisModal = ({ open, onClose }) => {
   useEffect(() => {
     if (!open) return;
     Promise.all([
-      api.get('/finance/kody').catch(() => ({ data: [] })),
-      api.get('/finance/budowy').catch(() => ({ data: [] })),
+      api.get('/finance/kody').catch(() => ({ data: { rows: [] } })),
+      api.get('/finance/budowy').catch(() => ({ data: { rows: [] } })),
     ]).then(([k, b]) => {
-      setKody(k.data || []);
-      setBudowy(b.data || []);
+      // Backend zwraca {rows:[...]}, ale na wszelki wypadek wspieramy tez raw array.
+      const kodyArr = Array.isArray(k.data) ? k.data : (k.data?.rows || []);
+      const budowyArr = Array.isArray(b.data) ? b.data : (b.data?.rows || []);
+      setKody(kodyArr);
+      setBudowy(budowyArr);
     });
     setDate(todayIso); setKontrahent(''); setNotes(''); setNetto(''); setKodId(''); setBudowaId('');
   }, [open, todayIso]);
@@ -126,8 +129,8 @@ const QuickAddZapisModal = ({ open, onClose }) => {
               className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
               data-testid="dash-quickadd-kod">
               <option value="">— wybierz —</option>
-              {kody.filter((k) => k.cat !== 'PZS' && k.cat !== 'PZSV').map((k) => (
-                <option key={k.id} value={k.id}>{k.cat} – {k.name}</option>
+              {kody.filter((k) => k.category !== 'PZS' && k.category !== 'PZSV').map((k) => (
+                <option key={k.id} value={k.id}>{k.category} – {k.name}</option>
               ))}
             </select>
           </div>
