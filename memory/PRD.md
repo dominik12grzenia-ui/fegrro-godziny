@@ -1014,3 +1014,51 @@ Pelnoprawne planowanie i kontrola realizacji budowy. Inspirowany "Protokol nowy 
 ### Lint
 - Lint czysty FE+BE, brak regresji.
 
+
+---
+
+## 2026-05-19 (5) — Protokol jako PRZEROB MIESIECZNY + walidacja + modal danych umowy
+
+### Zmiana koncepcji (BREAKING)
+Wczesniej `budget_progress.progress_pct` byl traktowany jako "narastajaco do tego miesiaca". Po feedbacku uzytkownika zmienione na **przerob miesieczny** (% wykonane w danym miesiacu).
+
+**Nowy schemat danych:**
+- `budget_progress.progress_pct` = przerob TEGO miesiaca (0-100)
+- Suma `progress_pct` per pozycja po wszystkich miesiacach NIE moze przekroczyc 100%
+- Narastajaco = SUMA przerobow do biezacego miesiaca wlacznie
+
+### Backend zmiany (`routes/budget.py`)
+1. **`set_progress`** — walidacja: SUM(inne miesiace) + nowa wartosc <= 100%. Przy przekroczeniu HTTP 400 z komunikatem "Pozostalo do rozdysponowania: X%".
+2. **`_fetch_protokol_data`** — `progress_prev[lid]` to teraz SUMA wszystkich przerobow PRZED biezacym miesiacem (a nie ostatnia wartosc).
+3. **Logika protokolu xlsx + PDF**:
+   - `miesiac_pct = progress_curr` (przerob biezacego)
+   - `prev_pct = progress_prev` (suma narast. do poprzedniego)
+   - `narast_pct = min(100, prev_pct + miesiac_pct)`
+4. **Numeracja protokolu** — count unikalnych (year, month) gdzie `progress_pct > 0` przed biezacym + 1.
+5. **Nowe endpointy:**
+   - `GET /budget/{id}/protokol-check` — zwraca `{ready, missing, budowa}` (sprawdza czy umowa_nr + zamawiajacy sa wypelnione)
+   - `PATCH /budget/{id}/contract` — szybka aktualizacja umowa_nr/umowa_data/zamawiajacy/wykonawca
+
+### Frontend zmiany (`Budget.js`)
+1. **`ProtokolDownloader`**:
+   - Przed pobraniem wywoluje `protokol-check`. Gdy `ready=false` → otwiera **`<ContractDataModal>`** zamiast od razu generowac.
+   - Po zapisaniu modal → automatycznie kontynuuje download w wybranym formacie.
+2. **`<ContractDataModal>`** — nowy komponent. 4 pola (umowa_nr*, umowa_data, zamawiajacy*, wykonawca), zapisuje przez PATCH `/budget/{id}/contract`.
+3. **`ProgressPanel`**:
+   - Nowa kolumna **Σ %** (suma realizacji per pozycja) z kolorami: szary <80%, zloty 80-99%, oliwka 100%.
+   - Komunikat "Wpisz **przerob miesieczny** w % - suma wszystkich miesiecy nie moze przekroczyc 100%".
+   - Klient-side walidacja w `setCell` — toast z pozostalym limitem gdy przekroczenie.
+   - Backend nadal jest source-of-truth (HTTP 400 jest takze pokazywany).
+
+### E2E weryfikacja
+- Maj=100% + proba dodania 30% w czerwcu → **HTTP 400 "Pozostalo do rozdysponowania: 0.0%"** ✓
+- Reset maj=60% + czerwiec=30% → protokol czerwca pokazuje:
+  - NR 2 (auto, bo maj jest poprzedzajacym miesiacem z przerobem) ✓
+  - Narast. 90% = 36 720 zl ✓
+  - Poprzedni 60% = 24 480 zl ✓
+  - Miesiac rozlicz. 30% = 12 240 zl ✓
+  - DO ZAFAKTUROWANIA: 12 240 zl NETTO ✓
+- UI Σ % pokazuje 90.0% (kolor zloty) ✓
+
+### Lint czysty FE+BE
+

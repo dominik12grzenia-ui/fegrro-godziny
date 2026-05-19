@@ -254,10 +254,33 @@ async def get_progress(budowa_id: str, year: Optional[int] = Query(None),
 @router.post("/budget/lines/{line_id}/progress")
 async def set_progress(line_id: str, payload: BudgetProgressSet,
                        current_user: dict = Depends(get_current_admin)):
-    """Ustawia/aktualizuje zaawansowanie dla linii budzetowej w danym miesiacu."""
+    """Ustawia przerob miesieczny dla linii budzetowej.
+
+    UWAGA: progress_pct to PRZEROB DANEGO MIESIACA (nie narastajaco!).
+    Walidacja: suma wszystkich przerobow per pozycja nie moze przekroczyc 100%.
+    """
     line = await db.budget_lines.find_one({"id": line_id}, {"_id": 0})
     if not line:
         raise HTTPException(404, "Pozycja nie istnieje")
+
+    # Walidacja sumy - SUM(inne miesiace) + nowa <= 100
+    existing_sum = 0.0
+    async for p in db.budget_progress.find(
+        {"budget_line_id": line_id,
+         "$or": [{"year": {"$ne": payload.year}},
+                 {"year": payload.year, "month": {"$ne": payload.month}}]},
+        {"_id": 0, "progress_pct": 1},
+    ):
+        existing_sum += float(p.get("progress_pct") or 0)
+    total_after = existing_sum + payload.progress_pct
+    if total_after > 100.01:
+        raise HTTPException(
+            400,
+            f"Przekroczono 100% realizacji pozycji. "
+            f"Suma innych miesiecy: {existing_sum:.1f}%, "
+            f"pozostalo do rozdysponowania: {max(0, 100 - existing_sum):.1f}%"
+        )
+
     plan = _compute_plan(line)
     value_netto = round(plan * (payload.progress_pct / 100.0), 2)
     key = {"budget_line_id": line_id, "year": payload.year, "month": payload.month}
@@ -355,6 +378,13 @@ def _month_range(year: int, month: int):
 
 async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     """Pobiera dane potrzebne do wygenerowania protokolu (xlsx lub pdf).
+
+    Nowa konwencja:
+      - budget_progress.progress_pct = PRZEROB DANEGO MIESIACA (nie narastajaco)
+      - progress_curr[line_id] = przerob biezacego miesiaca
+      - progress_prev[line_id] = SUMA przerobow PRZED biezacym miesiacem (narastajaco do poprzedniego mies. wlacznie)
+      - Narastajaco = progress_prev + progress_curr
+
     Zwraca tuple: (budowa, lines, progress_curr, progress_prev, nr_protokolu).
     """
     if month < 1 or month > 12:
@@ -370,27 +400,29 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     progress_curr = {}
     progress_prev = {}
     if line_ids:
+        # Przerob biezacego miesiaca
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
             {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
         ):
             progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
-        prev_month = month - 1 if month > 1 else 12
+        # Suma przerobow ze WSZYSTKICH miesiecy poprzedzajacych biezacy
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids},
              "$or": [
                  {"year": {"$lt": year}},
-                 {"year": year, "month": {"$lte": prev_month}},
+                 {"year": year, "month": {"$lt": month}},
              ]},
-            {"_id": 0, "budget_line_id": 1, "progress_pct": 1, "year": 1, "month": 1},
-        ).sort([("year", -1), ("month", -1)]):
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+        ):
             lid = p["budget_line_id"]
-            if lid not in progress_prev:
-                progress_prev[lid] = float(p["progress_pct"])
+            progress_prev[lid] = progress_prev.get(lid, 0.0) + float(p["progress_pct"])
 
+    # Numer protokolu = liczba miesiecy z dowolnym przerobem przed biezacym + 1
     distinct_months = set()
     async for p in db.budget_progress.find(
         {"budget_line_id": {"$in": line_ids},
+         "progress_pct": {"$gt": 0},
          "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]},
         {"_id": 0, "year": 1, "month": 1},
     ):
@@ -527,9 +559,9 @@ async def generate_protokol_pdf(
             data.append(row)
             last_cat = cat
         plan = _compute_plan(ln)
-        narast_pct = progress_curr.get(ln["id"], progress_prev.get(ln["id"], 0.0))
+        miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)
-        miesiac_pct = max(0.0, narast_pct - prev_pct)
+        narast_pct = min(100.0, prev_pct + miesiac_pct)
         narast_val = round(plan * narast_pct / 100, 2)
         prev_val = round(plan * prev_pct / 100, 2)
         miesiac_val = round(plan * miesiac_pct / 100, 2)
@@ -646,6 +678,56 @@ async def generate_protokol_pdf(
             "Content-Disposition": f'attachment; filename="protokol.pdf"; filename*=UTF-8\'\'{quote(filename)}'
         },
     )
+
+
+class BudowaContractData(BaseModel):
+    umowa_nr: Optional[str] = None
+    umowa_data: Optional[str] = None
+    zamawiajacy: Optional[str] = None
+    wykonawca: Optional[str] = None
+
+
+@router.patch("/budget/{budowa_id}/contract")
+async def update_contract_data(
+    budowa_id: str, payload: BudowaContractData,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Aktualizuje pola umowy/zamawiajacego/wykonawcy w finance_budowy.
+    Wywolywane z modulu Budzetowanie gdy uzytkownik uzupelnia brakujace dane przed protokolem."""
+    existing = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Budowa nie istnieje")
+    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    updates["updated_at"] = datetime.now().isoformat()
+    updates["updated_by"] = current_user["sub"]
+    await db.finance_budowy.update_one({"id": budowa_id}, {"$set": updates})
+    return {"ok": True}
+
+
+@router.get("/budget/{budowa_id}/protokol-check")
+async def protokol_check(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    """Sprawdza czy budowa ma kompletne dane do generowania protokolu.
+    Zwraca {ready: bool, missing: [...], budowa: {...wybrane pola...}}"""
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not budowa:
+        raise HTTPException(404, "Budowa nie istnieje")
+    missing = []
+    if not (budowa.get("umowa_nr") or "").strip():
+        missing.append("umowa_nr")
+    if not (budowa.get("zamawiajacy") or "").strip():
+        missing.append("zamawiajacy")
+    return {
+        "ready": len(missing) == 0,
+        "missing": missing,
+        "budowa": {
+            "id": budowa["id"],
+            "name": budowa.get("name", ""),
+            "umowa_nr": budowa.get("umowa_nr", ""),
+            "umowa_data": budowa.get("umowa_data", ""),
+            "zamawiajacy": budowa.get("zamawiajacy", ""),
+            "wykonawca": budowa.get("wykonawca", ""),
+        },
+    }
 
 
 @router.get("/budget/{budowa_id}/protokol/{year}/{month}")
@@ -820,9 +902,10 @@ async def generate_protokol_xlsx(
             last_cat = cat
 
         plan = _compute_plan(ln)
-        narast_pct = progress_curr.get(ln["id"], progress_prev.get(ln["id"], 0.0))
+        # Nowa konwencja: progress_curr to przerob miesiaca, progress_prev to suma narast. do poprz.
+        miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)
-        miesiac_pct = max(0.0, narast_pct - prev_pct)
+        narast_pct = min(100.0, prev_pct + miesiac_pct)
         narast_val = round(plan * narast_pct / 100, 2)
         prev_val = round(plan * prev_pct / 100, 2)
         miesiac_val = round(plan * miesiac_pct / 100, 2)
