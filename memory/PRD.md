@@ -1,3 +1,23 @@
+## Iteration 56 (2026-05-19) — Excel view zwężony do jednej strony (bez horizontal scroll)
+
+### User feedback
+„pomniejszysz to by mieściło się na jednej stronie bez przesuwania zwęzić"
+
+### Zmiany
+- **Font 10px → 9px**, padding `p-1` → `px-0.5 py-0.5`
+- **Krótsze nagłówki**: CENA MATERIAŁU → CENA MAT., BUDŻET ZW. → B.ZW., CENA B. JD. → C.B.JD., PRZEROBY M → PRZER.M, KOSZT ZAKUPU → K.ZAK., CENA ZAKUPU → C.ZAK., KAUCJA GIR → K.GIR, KAUCJA DW → K.DW, % ZAAW. → %
+- **Format komórek**: usunięte sufiksy ` zł` (są w kontekście kolumny BUDŻET), 0 miejsc po przecinku dla kwot (zamiast 2) — wartości są w PLN, czytelniejsze
+- **Stałe szerokości kolumn** w `%` (NAZWA 10%, KOD 2%, JD. 2%, ILOŚĆ 3%, kwoty 4-5%) — `table-fixed w-full` zamiast `min-width 1900px`
+- **Truncate nazw pozycji** z `maxWidth: 0` + tooltip `title={name}` (pełna nazwa po najechaniu)
+- Legenda zaktualizowana z nowymi krótszymi nazwami kolumn
+
+### Co dostaje user
+- Cała tabela 21-kolumnowa widoczna na 1920px ekranie bez horizontal scroll
+- Tooltip na najechaniu pokazuje pełną nazwę pozycji
+- Zero kompromisów: branding strony zachowany w 100%
+
+
+
 ## Iteration 55 (2026-05-19) — Excel-style w jednym wierszu (połączony Materiały + Robocizna)
 
 ### User feedback

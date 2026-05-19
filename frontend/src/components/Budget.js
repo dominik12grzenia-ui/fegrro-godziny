@@ -121,8 +121,8 @@ const Tile = ({ label, value, testId, highlight }) => (
 );
 
 // =================== TABELA EXCEL-STYLE (Materiały + Robocizna obok siebie) ===================
-const fmtCell = (v) => (v == null || v === 0) ? '— zł' : `${Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`;
-const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+const fmtCell = (v) => (v == null || v === 0) ? '—' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 const BudgetExcelView = ({ lines, onProgressChange }) => {
   // Filtruj wedlug typu
@@ -143,29 +143,52 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
         <CardTitle className="text-white text-base flex items-center gap-2">
           <span style={{ color: '#D4AF37' }}>▦</span> Widok zestawienia kosztorysowego
         </CardTitle>
-        <p className="text-xs text-[#94A3B8] mt-1">
-          Pełna tabela 1:1 z arkuszem wykonawczym. Kolumny <span style={{ color: '#5F7552' }}>zielone</span> = kaucje (z Finansów). Kolumny <span style={{ color: '#D4AF37' }}>złote</span> = przeroby (wykonanie z Finansów). Wiersz <span className="font-bold" style={{ color: SEPARATOR }}>|</span> = separator bloków.
+        <p className="text-[10px] text-[#94A3B8] mt-1">
+          Pełna tabela 1:1 z arkuszem wykonawczym. Kolumny <span style={{ color: '#5F7552' }}>zielone</span> = kaucje (K.GIR / K.DW). Kolumny <span style={{ color: '#D4AF37' }}>złote</span> = przeroby. Wartości w PLN. Najedź na nazwę pozycji, by zobaczyć pełną treść.
         </p>
       </CardHeader>
-      <CardContent className="overflow-x-auto p-0">
-        <table className="text-[10px] border-collapse" style={{ minWidth: '1900px' }} data-testid="excel-combined-table">
+      <CardContent className="p-2">
+        <table className="text-[9px] border-collapse w-full table-fixed" data-testid="excel-combined-table">
           <thead>
             {/* Wiersz 1: 2 grupowe naglowki */}
             <tr>
-              <th colSpan={13} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
+              <th colSpan={13} className="px-1 py-1 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
                 MATERIAŁY ({materials.length})
               </th>
-              <th colSpan={8} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>
+              <th colSpan={8} className="px-1 py-1 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>
                 ROBOCIZNA ({labor.length})
               </th>
             </tr>
-            {/* Wiersz 2: nazwy kolumn */}
+            {/* Wiersz 2: nazwy kolumn — krotsze etykiety */}
             <tr style={{ backgroundColor: HEADER_BG }}>
-              {['KOD', 'NAZWA', 'JD.', 'ILOŚĆ', 'CENA MATERIAŁU', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'CENA B. JD.', 'PRZEROBY M', 'KOSZT ZAKUPU', 'CENA ZAKUPU'].map((h, i) => (
-                <th key={`m-${i}`} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{h}</th>
+              {[
+                { l: 'KOD', w: '2%' },
+                { l: 'NAZWA', w: '10%' },
+                { l: 'JD.', w: '2%' },
+                { l: 'ILOŚĆ', w: '3%' },
+                { l: 'CENA MAT.', w: '4%' },
+                { l: 'BUDŻET', w: '5%' },
+                { l: 'K.GIR', w: '4%' },
+                { l: 'K.DW', w: '4%' },
+                { l: 'B.ZW.', w: '5%' },
+                { l: 'C.B.JD.', w: '4%' },
+                { l: 'PRZER.M', w: '5%' },
+                { l: 'K.ZAK.', w: '5%' },
+                { l: 'C.ZAK.', w: '4%' },
+              ].map((c, i) => (
+                <th key={`m-${i}`} className="px-0.5 py-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, width: c.w }}>{c.l}</th>
               ))}
-              {['KOD', 'NAZWA', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'PRZEROBY R', '% ZAAW.'].map((h, i) => (
-                <th key={`r-${i}`} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, ...(i === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>{h}</th>
+              {[
+                { l: 'KOD', w: '2%' },
+                { l: 'NAZWA', w: '10%' },
+                { l: 'BUDŻET', w: '5%' },
+                { l: 'K.GIR', w: '4%' },
+                { l: 'K.DW', w: '4%' },
+                { l: 'B.ZW.', w: '5%' },
+                { l: 'PRZER.R', w: '5%' },
+                { l: '%', w: '3%' },
+              ].map((c, i) => (
+                <th key={`r-${i}`} className="px-0.5 py-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, width: c.w, ...(i === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>{c.l}</th>
               ))}
             </tr>
           </thead>
@@ -190,24 +213,24 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     const cenaZakupu = ilosc > 0 ? przerob / ilosc : 0;
                     return (
                       <>
-                        <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{i + 1}</td>
-                        <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{m.name}</td>
-                        <td className="p-1 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{m.unit || '—'}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
-                        <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
-                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaBjd)}</td>
-                        <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
-                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(przerob)}</td>
-                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaZakupu)}</td>
+                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{i + 1}</td>
+                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={m.name}>{m.name}</td>
+                        <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{m.unit || '—'}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaBjd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(przerob)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaZakupu)}</td>
                       </>
                     );
                   })() : (
                     <>{Array.from({ length: 13 }, (_, j) => (
-                      <td key={`em-${j}`} className="p-1 border bg-[#0B1120]/30" style={{ borderColor: BORDER }}>&nbsp;</td>
+                      <td key={`em-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER }}>&nbsp;</td>
                     ))}</>
                   )}
                   {/* ROBOCIZNA (8 kolumn) */}
@@ -220,19 +243,19 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     const pct = r.progress_pct || 0;
                     return (
                       <>
-                        <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{14 + i}</td>
-                        <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{r.name}</td>
-                        <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
-                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
-                        <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
-                        <td className={`p-1 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={{ borderColor: BORDER }}>{Math.round(pct)}%</td>
+                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{14 + i}</td>
+                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={r.name}>{r.name}</td>
+                        <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
+                        <td className={`px-0.5 py-0.5 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={{ borderColor: BORDER }}>{Math.round(pct)}%</td>
                       </>
                     );
                   })() : (
                     <>{Array.from({ length: 8 }, (_, j) => (
-                      <td key={`er-${j}`} className="p-1 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
+                      <td key={`er-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
                     ))}</>
                   )}
                 </tr>
