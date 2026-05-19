@@ -712,21 +712,15 @@ async def generate_protokol_xlsx(
         except Exception:
             pass
 
-    # Tytul + nr (kolumna F-J w gornej czesci)
-    ws["F2"] = "PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR"
+    # Tytul + nr (kolumna F-K w gornej czesci)
+    ws.merge_cells("F2:K2")
+    ws["F2"] = f"PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR  {nr}"
     ws["F2"].font = bold_big
-    ws["F2"].alignment = left
-    ws.merge_cells("F2:J2")
-    ws["K2"] = nr
-    ws["K2"].font = bold_big
-    ws["K2"].alignment = center
-    ws["F3"] = "DO UMOWY"
+    ws["F2"].alignment = center
+    ws.merge_cells("F3:K3")
+    ws["F3"] = f"DO UMOWY  {budowa.get('umowa_nr', '')}"
     ws["F3"].font = bold
-    ws["F3"].alignment = left
-    ws.merge_cells("F3:J3")
-    ws["K3"] = budowa.get("umowa_nr", "")
-    ws["K3"].font = bold
-    ws["K3"].alignment = left
+    ws["F3"].alignment = center
 
     # === POLA OKRES / ZAMAWIAJACY / WYKONAWCA ===
     from calendar import monthrange
@@ -734,23 +728,32 @@ async def generate_protokol_xlsx(
     d_from = f"{year:04d}-{month:02d}-01"
     d_to = f"{last_day:02d}.{month:02d}.{year:04d}"
 
+    ws.merge_cells("B9:E9")
     ws["B9"] = "OKRES ROZLICZENIOWY:"
     ws["B9"].font = bold
+    ws["B9"].alignment = left
     ws["F9"] = d_from
+    ws["F9"].alignment = left
     ws["G9"] = "DO"
     ws["G9"].font = bold
+    ws["G9"].alignment = center
     ws["H9"] = d_to
+    ws["H9"].alignment = left
 
+    ws.merge_cells("B11:E12")
     ws["B11"] = "ZAMAWIAJĄCY:"
     ws["B11"].font = bold
+    ws["B11"].alignment = Alignment(horizontal="left", vertical="top")
     ws["F11"] = budowa.get("zamawiajacy", "")
     ws["F11"].alignment = left
     ws.merge_cells("F11:K12")
     ws.row_dimensions[11].height = 18
     ws.row_dimensions[12].height = 18
 
+    ws.merge_cells("B14:E14")
     ws["B14"] = "WYKONAWCA:"
     ws["B14"].font = bold
+    ws["B14"].alignment = left
     ws["F14"] = budowa.get("wykonawca", "FEGRRO SP. Z O.O.  NIP: 589-206-61-74")
     ws.merge_cells("F14:K14")
 
@@ -884,7 +887,8 @@ async def generate_protokol_xlsx(
             cell.alignment = center
 
     # === SZEROKOSCI KOLUMN ===
-    widths = [5, 50, 6, 8, 10, 13, 13, 8, 13, 8, 13, 8]
+    # B = nazwa pozycji (Robocizna), powinno byc dosc szerokie ale nie ekstremalne
+    widths = [5, 38, 7, 10, 12, 14, 14, 8, 14, 8, 14, 8]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
