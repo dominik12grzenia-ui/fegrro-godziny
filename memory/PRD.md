@@ -1,3 +1,37 @@
+## Iteration 54 (2026-05-19) — Excel-style zestawienie Materiały + Robocizna na dole
+
+### User request
+„posłuchaj te pozycje budżetowe wyglądają super ale na dole musi być taka tabela jak ci wysyłam dokładnie taka sama ale z brendingem naszej strony"
+
+User chciał zachować nową ładną hierarchiczną tabelę (Iter 53), ale DODAĆ pod nią osobne zestawienie Excel-style — dwa bloki obok siebie (Materiały + Robocizna) z wszystkimi szczegółowymi kolumnami z oryginalnego arkusza, ale w brandingu naszej strony zamiast standardowego białego Excela.
+
+### Frontend (`Budget.js`)
+- Nowy komponent **`BudgetExcelView`** renderowany pod `BudgetLinesPanel` jako osobny Card.
+- Layout: `grid xl:grid-cols-2` — dwa bloki side-by-side (na małym ekranie stack).
+- **Lewy blok — MATERIAŁY** (13 kolumn): KOD, NAZWA, JD., ILOŚĆ, CENA MATERIAŁU, BUDŻET, KAUCJA GIR, KAUCJA DW, BUDŻET ZW. (= plan − kaucje), CENA B. JD. (= plan / ilość), PRZEROBY M, KOSZT ZAKUPU (= execution_netto), CENA ZAKUPU (= execution_netto / ilość)
+- **Prawy blok — ROBOCIZNA** (8 kolumn): KOD (od 14), NAZWA, BUDŻET, KAUCJA GIR, KAUCJA DW, BUDŻET ZW., PRZEROBY R, % ZAAWANSOWANIA
+- **Branding strony zamiast Excelu**:
+  - tło tabeli: `#131C2F` (dark navy)
+  - header bloku: olive `#3F5235` z białą czcionką
+  - header kolumn: olive `#4F6343`
+  - kolumny KAUCJA GIR/DW: subtelne podświetlenie olive `rgba(79,99,67,0.25)` (zamiast zielonego z Excela)
+  - kolumny PRZEROBY: subtelne podświetlenie złote `rgba(212,175,55,0.18)` (zamiast różowego z Excela)
+  - obramowania `#2A3B59`, font 10px, padding 1.5
+  - puste wartości jako `— zł` zamiast `0,00 zł` (czytelniej)
+
+### Co dostaje user
+- Cały arkusz kosztorysowy widoczny od razu — bez przewijania zakładek.
+- Pełne dane: ile zaplanowano, ile kaucje, ile pozostało po kaucji, jaka jednostkowa cena planowana vs faktyczna, ile już wykonano.
+- Naturalny przepływ wzrokowo: kafelki podsumowania → hierarchiczna tabela → Excel-style zestawienie (od podsumowania do szczegółu).
+- Pełna spójność wizualna z resztą panelu admina.
+
+### Testy
+- Frontend live screenshot: oba bloki widoczne pod tabelą hierarchiczną, branding zachowany ✓
+- Filtruje pozycje: pokazuje tylko `type=materials` w lewym bloku i `type=labor` w prawym ✓
+- Sprzęt (type=equipment) nie pojawia się w zestawieniu — jest tylko w kafelkach + hierarchii (zgodnie z arkuszem klienta, który miał tylko M+R)
+
+
+
 ## Iteration 53 (2026-05-19) — 3 typy budżetu: Materiały / Robocizna / Sprzęt
 
 ### Analiza arkusza klienta
