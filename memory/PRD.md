@@ -874,3 +874,26 @@ Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` n
 
 ### Brak regresji
 - Lint czysty, backend startuje czysto, helpery push bezpieczne gdy brak VAPID/subskrypcji (`return {"sent": 0, "skipped": "no_vapid"}`).
+
+
+---
+
+## 2026-05-19 (2) — Pelnoekranowa bramka push (wymuszone wlaczenie)
+
+### Co dodano
+- **`PushPermissionGate`** — komponent owijajacy zalogowanych userow (admin + foreman).
+- **`PublicPushGate`** — analogiczny dla widokow publicznych `/hours/:token` (pracownik bez konta).
+- Wstawione w `App.js`:
+  - `ProtectedAdminRoute` i `ProtectedWorkerRoute` → opakowane w `PushPermissionGate`
+  - Route `/hours/:token` → opakowany w nowy `PublicHoursWithPushGate`
+
+### Logika
+1. Sprawdza `Notification.permission` + subskrypcje w `pushManager`.
+2. Jezeli juz subscribed → renderuje children normalnie.
+3. Jezeli brak → pelnoekranowy modal z bg-black/85 backdrop-blur, zawartosc strony zablokowana (`pointer-events-none opacity-30`).
+4. Modal: tytul + opis kontekstowy, czerwone ostrzezenie gdy denied (instrukcja odblokowania), zolte ostrzezenie iOS gdy nie zainstalowana jako PWA, zloty przycisk "Wlacz powiadomienia" + opcja "Przypomnij mi jutro" (snooze 24h w localStorage).
+5. Po sukcesie → znika.
+
+### Test IDs
+`push-permission-gate`, `push-gate-enable-btn`, `push-gate-dismiss-btn`,
+`public-push-permission-gate`, `public-push-gate-enable-btn`, `public-push-gate-dismiss-btn`.

@@ -15,6 +15,8 @@ import WarehouseLogin from './components/WarehouseLogin';
 import WarehouseDashboard from './components/WarehouseDashboard';
 import WarehouseTokenEntry from './components/WarehouseTokenEntry';
 import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { PushPermissionGate } from './components/PushPermissionGate';
+import { PublicPushGate } from './components/PublicPushGate';
 import { Toaster } from './components/ui/sonner';
 import '@/App.css';
 
@@ -37,7 +39,7 @@ const ProtectedAdminRoute = ({ children }) => {
     return <Navigate to="/login" />;
   }
   
-  return children;
+  return <PushPermissionGate>{children}</PushPermissionGate>;
 };
 
 const ProtectedWorkerRoute = ({ children }) => {
@@ -55,7 +57,7 @@ const ProtectedWorkerRoute = ({ children }) => {
     return <Navigate to="/worker-entry" />;
   }
   
-  return children;
+  return <PushPermissionGate>{children}</PushPermissionGate>;
 };
 
 const Home = () => <Navigate to="/foreman" replace />;
@@ -69,6 +71,20 @@ function LegacyHoursRedirect() {
   const { token } = useParams();
   if (!token) return <Navigate to="/" replace />;
   return <Navigate to={`/hours/${token}`} replace />;
+}
+
+/**
+ * Public hours view (`/hours/:token`) opakowane w bramke push - pracownik
+ * musi zaakceptowac powiadomienia zeby otrzymywac informacje o statusie
+ * zamowien (BHP/odziez/sprzet).
+ */
+function PublicHoursWithPushGate() {
+  const { token } = useParams();
+  return (
+    <PublicPushGate token={token}>
+      <PublicHours />
+    </PublicPushGate>
+  );
 }
 
 /**
@@ -105,7 +121,7 @@ function AppRoutes() {
         <Route path="/magazynier" element={<WarehouseLogin />} />
         <Route path="/magazynier/dashboard" element={<WarehouseDashboard />} />
         <Route path="/magazynier/:token" element={<WarehouseTokenEntry />} />
-        <Route path="/hours/:token" element={<PublicHours />} />
+        <Route path="/hours/:token" element={<PublicHoursWithPushGate />} />
 
         {/* Legacy redirects: jezeli pracownicy maja juz wyslane linki typu
             /worker/{token} albo /foreman/{token} (starsze nazewnictwo), przekieruj
