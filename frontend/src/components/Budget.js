@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, Building2, Calendar, CheckSquare } from 'lucide-react';
+import { Plus, Trash2, Pencil, Building2, Calendar, CheckSquare, FileDown } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -385,6 +385,56 @@ const BudgetLineModal = ({ budowaId, editLine, onClose, onSaved }) => {
   );
 };
 
+// =================== PROTOKOL DOWNLOADER ===================
+const ProtokolDownloader = ({ budowaId, year }) => {
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [busy, setBusy] = useState(false);
+
+  const download = async () => {
+    setBusy(true);
+    try {
+      const res = await api.get(`/budget/${budowaId}/protokol/${year}/${month}`, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Protokol_${year}-${String(month).padStart(2, '0')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Protokół wygenerowany');
+    } catch (e) {
+      toast.error('Błąd generowania: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2" data-testid="protokol-downloader">
+      <select
+        value={month}
+        onChange={(e) => setMonth(parseInt(e.target.value, 10))}
+        className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+        data-testid="protokol-month-select"
+      >
+        {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+      </select>
+      <Button
+        size="sm"
+        onClick={download}
+        disabled={busy}
+        className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
+        data-testid="protokol-download-btn"
+      >
+        <FileDown className="h-4 w-4 mr-1" />
+        {busy ? 'Generuję...' : 'Pobierz protokół xlsx'}
+      </Button>
+    </div>
+  );
+};
+
 // =================== PROTOKOL (ZAAWANSOWANIE) ===================
 const ProgressPanel = ({ budowaId, year }) => {
   const [lines, setLines] = useState([]);
@@ -439,8 +489,13 @@ const ProgressPanel = ({ budowaId, year }) => {
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]">
       <CardHeader className="pb-2">
-        <CardTitle className="text-white text-base">Protokół zaawansowania — {year}</CardTitle>
-        <p className="text-xs text-[#94A3B8]">Wpisz % wykonanej pracy w każdym miesiącu (0–100). Wartości narastająco — każdy miesiąc to stan na koniec tego miesiąca.</p>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-white text-base">Protokół zaawansowania — {year}</CardTitle>
+            <p className="text-xs text-[#94A3B8] mt-1">Wpisz % wykonanej pracy w każdym miesiącu (0–100). Wartości narastająco.</p>
+          </div>
+          <ProtokolDownloader budowaId={budowaId} year={year} />
+        </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         <table className="w-full text-xs" data-testid="progress-table">

@@ -97,6 +97,11 @@ class BudowaCreate(BaseModel):
     is_dw: bool = False
     kaucja_dw_pct: Optional[float] = 2.0
     notes: Optional[str] = None
+    # Dane do generowania protokolu miesiecznego
+    zamawiajacy: Optional[str] = None
+    umowa_nr: Optional[str] = None
+    umowa_data: Optional[str] = None  # YYYY-MM-DD lub free text "15.09.2025 + ANEKS NR 1"
+    wykonawca: Optional[str] = "FEGRRO SP. Z O.O. NIP: 589-206-61-74"
 
 
 class BudowaUpdate(BaseModel):
@@ -108,6 +113,10 @@ class BudowaUpdate(BaseModel):
     is_dw: Optional[bool] = None
     kaucja_dw_pct: Optional[float] = None
     notes: Optional[str] = None
+    zamawiajacy: Optional[str] = None
+    umowa_nr: Optional[str] = None
+    umowa_data: Optional[str] = None
+    wykonawca: Optional[str] = None
 
 
 class ZapisCreate(BaseModel):
@@ -307,6 +316,10 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "is_dw": bool(payload.is_dw),
         "kaucja_dw_pct": float(payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0),
         "notes": payload.notes or "",
+        "zamawiajacy": payload.zamawiajacy or "",
+        "umowa_nr": payload.umowa_nr or "",
+        "umowa_data": payload.umowa_data or "",
+        "wykonawca": payload.wykonawca or "FEGRRO SP. Z O.O. NIP: 589-206-61-74",
         "is_archived": False,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],

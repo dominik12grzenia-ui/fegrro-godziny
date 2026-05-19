@@ -972,3 +972,45 @@ Pelnoprawne planowanie i kontrola realizacji budowy. Inspirowany "Protokol nowy 
 2. **Redeploy frontend** (nowa zakladka "Budzetowanie" + dropdown budget_line_id w modal Zapisy).
 3. Po deploy: dla kazdej budowy stworz pozycje budzetu, ustaw zadania w harmonogramie, na koncu miesiaca wpisuj % zaawansowania w Protokole.
 
+
+---
+
+## 2026-05-19 (4) — Generator protokolu miesiecznego xlsx
+
+### Co dodano
+1. **Pola na finance_budowy** (do naglowka protokolu):
+   - `zamawiajacy` (string)
+   - `umowa_nr` (string)
+   - `umowa_data` (string, free-form np. "15.09.2025 + ANEKS NR 1")
+   - `wykonawca` (string, default "FEGRRO SP. Z O.O. NIP: 589-206-61-74")
+   - Modyfikacja `BudowaCreate`/`BudowaUpdate` + doc construct + frontend modalu edycji budowy w Finanse → Budowy (nowa sekcja "DANE DO PROTOKOLU MIESIECZNEGO" z 4 polami)
+
+2. **Endpoint** `GET /api/budget/{budowa_id}/protokol/{year}/{month}`:
+   - Zwraca StreamingResponse z `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+   - Naglowek: numer protokolu (auto-policzony jako count unikalnych miesiecy z progresem +1), okres rozliczeniowy (1-ostatni dnia miesiaca), nazwa budowy, umowa, zamawiajacy, wykonawca
+   - Tabela 15 kolumn: LP / Kategoria / Pozycja / Jedn. / Ilosc / Cena j. / Budzet / Kaucja GIR / Kaucja DW / Budzet zw. / Narastajaco % / Narastajaco zl / Poprz. m-c % / M-c rozlicz. % / M-c rozlicz. zl
+   - **Kaucje GIR/DW**: pierwszenstwo ma `kaucja_*_pct` z `budget_lines`, fallback do `kaucja_*_pct` z `finance_budowy`
+   - **Miesiac rozliczeniowy %** = narastajaco % - poprzedni miesiac %
+   - **Miesiac rozliczeniowy zl** = (budzet - kaucje) × miesiac %
+   - Wiersz RAZEM z sumami kolumn finansowych
+   - Stopka: scalonewiersze "ZAMAWIAJACY" / "WYKONAWCA" + linie podpisow
+   - Naglowek zlotym tlem `#D4AF37`, kolumny szare `#E5E7EB`, cienkie borderki
+
+3. **Frontend** (`Budget.js`):
+   - Nowy komponent `<ProtokolDownloader>` (dropdown miesiac + zloty przycisk "Pobierz protokol xlsx")
+   - Umieszczony w naglowku panelu Protokol (zakladka % Protokol)
+   - Pobieranie przez `responseType: 'blob'` + automatyczny download z nazwa `Protokol_{nazwa}_{YYYY-MM}.xlsx`
+
+### Weryfikacja E2E (preview)
+- Budowa LEBA z ustawionym zamawiajacym ALLCON, umowa 051/FEGRRO/PLICHTA, kaucje GIR 5% + DW 3%
+- Pozycja Beton C8/10 120 m³ × 340 zl = 40 800 zl
+- Maj 2026 progres 75% → wygenerowany xlsx ma:
+  - PROTOKOL STANU ZAAWANSOWANIA ROBOT NR 1
+  - OKRES: 2026-05-01 ÷ 2026-05-31
+  - Budzet 40 800 / GIR 2 040 / DW 1 224 / Budzet zw. 37 536 / Narastajaco 75% = 28 152 zl / M-c rozlicz. 75% = 28 152 zl ✓
+  - RAZEM + miejsce na podpisy ✓
+- Plik 4.9 KB, HTTP 200, otwarty w openpyxl - poprawny.
+
+### Lint
+- Lint czysty FE+BE, brak regresji.
+

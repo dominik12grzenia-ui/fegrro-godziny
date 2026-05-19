@@ -620,7 +620,7 @@ const BudowyPanel = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);  // budowa or null
-  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0 });
+  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -648,7 +648,7 @@ const BudowyPanel = () => {
         toast.success('Dodano');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0 });
+      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -663,6 +663,10 @@ const BudowyPanel = () => {
       kaucja_gir_pct: b.kaucja_gir_pct != null ? b.kaucja_gir_pct : 2.0,
       is_dw: !!b.is_dw,
       kaucja_dw_pct: b.kaucja_dw_pct != null ? b.kaucja_dw_pct : 2.0,
+      zamawiajacy: b.zamawiajacy || '',
+      umowa_nr: b.umowa_nr || '',
+      umowa_data: b.umowa_data || '',
+      wykonawca: b.wykonawca || '',
     });
     setShowAdd(true);
   };
@@ -692,7 +696,7 @@ const BudowyPanel = () => {
               className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
-          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0 }); setShowAdd(true); }}
+          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
             className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
@@ -782,6 +786,36 @@ const BudowyPanel = () => {
                 className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
                 data-testid="finance-budowa-dw-pct" />
               <span className="text-[#94A3B8]">% z przychodu</span>
+            </div>
+          </div>
+          {/* Dane do generowania protokolu miesiecznego */}
+          <div className="space-y-2 pt-3 border-t border-[#2A3B59]">
+            <div className="text-xs text-[#D4AF37] font-semibold uppercase tracking-wide">Dane do protokołu miesięcznego</div>
+            <div>
+              <label className="text-xs text-[#94A3B8] block mb-1">Zamawiający (nazwa, adres, NIP)</label>
+              <textarea value={form.zamawiajacy} onChange={(e) => setForm({...form, zamawiajacy: e.target.value})}
+                rows={2}
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
+                data-testid="finance-budowa-zamawiajacy" />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-[#94A3B8] block mb-1">Nr umowy</label>
+                <Input value={form.umowa_nr} onChange={(e) => setForm({...form, umowa_nr: e.target.value})}
+                  className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-umowa-nr" />
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] block mb-1">Data umowy</label>
+                <Input value={form.umowa_data} onChange={(e) => setForm({...form, umowa_data: e.target.value})}
+                  placeholder="np. 15.09.2025 + ANEKS 1"
+                  className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-umowa-data" />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs text-[#94A3B8] block mb-1">Wykonawca (puste = domyślnie FEGRRO)</label>
+              <Input value={form.wykonawca} onChange={(e) => setForm({...form, wykonawca: e.target.value})}
+                placeholder="FEGRRO SP. Z O.O. NIP: 589-206-61-74"
+                className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-wykonawca" />
             </div>
           </div>
           <DialogFooter>

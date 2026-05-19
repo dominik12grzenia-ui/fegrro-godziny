@@ -12,11 +12,14 @@ Integracja z modulem finansowym:
     zapisow z dopasowanym budget_line_id.
 """
 from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi.responses import StreamingResponse
 from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel, Field
+from io import BytesIO
 import uuid
 import logging
+from urllib.parse import quote
 
 from database import db
 from auth import get_current_admin
@@ -335,3 +338,208 @@ async def delete_task(task_id: str, _user: dict = Depends(get_current_admin)):
     if res.deleted_count == 0:
         raise HTTPException(404, "Zadanie nie istnieje")
     return {"ok": True}
+
+
+# ============== PROTOKOL XLSX GENERATOR ==============
+
+MONTH_NAMES_PL = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec",
+                  "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"]
+
+
+def _month_range(year: int, month: int):
+    """Zwraca (data_od, data_do) w formacie YYYY-MM-DD dla danego miesiaca."""
+    from calendar import monthrange
+    last_day = monthrange(year, month)[1]
+    return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{last_day:02d}"
+
+
+@router.get("/budget/{budowa_id}/protokol/{year}/{month}")
+async def generate_protokol_xlsx(
+    budowa_id: str,
+    year: int,
+    month: int,
+    _user: dict = Depends(get_current_admin),
+):
+    """Generuje xlsx z protokolem miesiecznym dla danej budowy."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+    from openpyxl.utils import get_column_letter
+
+    if month < 1 or month > 12:
+        raise HTTPException(400, "Nieprawidlowy miesiac (1-12)")
+
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not budowa:
+        raise HTTPException(404, "Budowa nie istnieje")
+
+    lines = await db.budget_lines.find(
+        {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
+    ).sort([("order", 1), ("created_at", 1)]).to_list(length=2000)
+
+    line_ids = [ln["id"] for ln in lines]
+    progress_curr = {}
+    progress_prev = {}
+    if line_ids:
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+        ):
+            progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
+        prev_month = month - 1 if month > 1 else 12
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": line_ids},
+             "$or": [
+                 {"year": {"$lt": year}},
+                 {"year": year, "month": {"$lte": prev_month}},
+             ]},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1, "year": 1, "month": 1},
+        ).sort([("year", -1), ("month", -1)]):
+            lid = p["budget_line_id"]
+            if lid not in progress_prev:
+                progress_prev[lid] = float(p["progress_pct"])
+
+    # Numer protokolu = liczba poprzednich miesiecy z progresem + 1
+    distinct_months = set()
+    async for p in db.budget_progress.find(
+        {"budget_line_id": {"$in": line_ids},
+         "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]},
+        {"_id": 0, "year": 1, "month": 1},
+    ):
+        distinct_months.add((p["year"], p["month"]))
+    nr = len(distinct_months) + 1
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = f"Protokol {month:02d}-{year}"
+
+    bold = Font(bold=True, size=10)
+    title_fill = PatternFill("solid", fgColor="D4AF37")
+    header_fill = PatternFill("solid", fgColor="E5E7EB")
+    thin = Side(border_style="thin", color="888888")
+    box = Border(left=thin, right=thin, top=thin, bottom=thin)
+    center = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    left = Alignment(horizontal="left", vertical="center", wrap_text=True)
+    right = Alignment(horizontal="right", vertical="center")
+
+    ws.merge_cells("A1:O1")
+    c = ws["A1"]
+    c.value = f"PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR {nr}"
+    c.font = Font(bold=True, size=16, color="0B1120")
+    c.fill = title_fill
+    c.alignment = center
+    ws.row_dimensions[1].height = 30
+
+    d_from, d_to = _month_range(year, month)
+    info_rows = [
+        ("OKRES ROZLICZENIOWY:", f"{d_from}  ÷  {d_to}"),
+        ("NAZWA BUDOWY:", budowa.get("name", "")),
+        ("UMOWA:", f'{budowa.get("umowa_nr", "")}  Z DNIA {budowa.get("umowa_data", "")}'.strip()),
+        ("ZAMAWIAJĄCY:", budowa.get("zamawiajacy", "")),
+        ("WYKONAWCA:", budowa.get("wykonawca", "FEGRRO SP. Z O.O. NIP: 589-206-61-74")),
+    ]
+    for i, (lbl, val) in enumerate(info_rows, start=3):
+        ws.cell(row=i, column=1, value=lbl).font = bold
+        ws.cell(row=i, column=2, value=val)
+        ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=10)
+
+    headers = ["LP", "Kategoria", "Pozycja", "Jedn.", "Ilość", "Cena j.",
+               "Budżet", "Kaucja GIR", "Kaucja DW", "Budżet zw.",
+               "Narastająco %", "Narastająco zł",
+               "Poprz. m-c %", "M-c rozlicz. %", "M-c rozlicz. zł"]
+    row_h = 10
+    for i, h in enumerate(headers, start=1):
+        cell = ws.cell(row=row_h, column=i, value=h)
+        cell.font = bold
+        cell.fill = header_fill
+        cell.alignment = center
+        cell.border = box
+    ws.row_dimensions[row_h].height = 32
+
+    budowa_gir_pct = float(budowa.get("kaucja_gir_pct") or 0)
+    budowa_dw_pct = float(budowa.get("kaucja_dw_pct") or 0)
+    sum_budzet = sum_gir = sum_dw = sum_zw = sum_narast = sum_miesiac = 0.0
+
+    r = row_h + 1
+    for idx, ln in enumerate(lines, start=1):
+        plan = _compute_plan(ln)
+        gir_pct = float(ln.get("kaucja_gir_pct") or 0) or budowa_gir_pct
+        dw_pct = float(ln.get("kaucja_dw_pct") or 0) or budowa_dw_pct
+        gir = round(plan * gir_pct / 100, 2)
+        dw = round(plan * dw_pct / 100, 2)
+        budzet_zw = round(plan - gir - dw, 2)
+        narast_pct = progress_curr.get(ln["id"], progress_prev.get(ln["id"], 0.0))
+        narast_val = round(budzet_zw * narast_pct / 100, 2)
+        prev_pct = progress_prev.get(ln["id"], 0.0)
+        miesiac_pct = max(0.0, narast_pct - prev_pct)
+        miesiac_val = round(budzet_zw * miesiac_pct / 100, 2)
+
+        row_data = [
+            idx, ln.get("category", ""), ln.get("name", ""),
+            ln.get("unit") or "", ln.get("quantity", 0) or 0,
+            ln.get("unit_price_netto", 0) or 0,
+            plan, gir, dw, budzet_zw,
+            f"{narast_pct:.1f}%", narast_val,
+            f"{prev_pct:.1f}%", f"{miesiac_pct:.1f}%", miesiac_val,
+        ]
+        for i, v in enumerate(row_data, start=1):
+            cell = ws.cell(row=r, column=i, value=v)
+            cell.border = box
+            if i == 1:
+                cell.alignment = center
+            elif i in (2, 3, 4):
+                cell.alignment = left
+            else:
+                cell.alignment = right
+            if i >= 5 and isinstance(v, (int, float)):
+                cell.number_format = "#,##0.00"
+
+        sum_budzet += plan
+        sum_gir += gir
+        sum_dw += dw
+        sum_zw += budzet_zw
+        sum_narast += narast_val
+        sum_miesiac += miesiac_val
+        r += 1
+
+    sum_row = ["", "", "RAZEM", "", "", "", sum_budzet, sum_gir, sum_dw, sum_zw,
+               "", sum_narast, "", "", sum_miesiac]
+    for i, v in enumerate(sum_row, start=1):
+        cell = ws.cell(row=r, column=i, value=v)
+        cell.font = bold
+        cell.fill = header_fill
+        cell.border = box
+        if isinstance(v, (int, float)):
+            cell.alignment = right
+            cell.number_format = "#,##0.00"
+        else:
+            cell.alignment = center
+
+    widths = [5, 18, 28, 8, 9, 11, 12, 12, 12, 12, 11, 13, 11, 12, 13]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    foot = r + 4
+    ws.merge_cells(start_row=foot, start_column=1, end_row=foot, end_column=5)
+    ws.cell(row=foot, column=1, value="ZAMAWIAJĄCY").font = bold
+    ws.cell(row=foot, column=1).alignment = center
+    ws.merge_cells(start_row=foot, start_column=9, end_row=foot, end_column=15)
+    ws.cell(row=foot, column=9, value="WYKONAWCA").font = bold
+    ws.cell(row=foot, column=9).alignment = center
+    ws.row_dimensions[foot + 2].height = 50
+    ws.cell(row=foot + 3, column=1, value="..................................").alignment = center
+    ws.cell(row=foot + 3, column=9, value="..................................").alignment = center
+
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    safe_name = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in (budowa.get("name", "budowa")))
+    filename = f"Protokol_{safe_name}_{year}-{month:02d}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="protokol.xlsx"; filename*=UTF-8\'\'{quote(filename)}'
+        },
+    )
+
