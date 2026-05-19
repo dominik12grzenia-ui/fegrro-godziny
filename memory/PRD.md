@@ -1,3 +1,40 @@
+## Iteration 49 (2026-05-19) — Kategorie + Etapy + Auto-Kaucja + Branding FEGRRO
+
+### Backend (`routes/budget.py`)
+- **`GET /api/budget/{budowa_id}/budowa-info`** — zwraca defaulty z `finance_budowy`: `kaucja_gir_pct`, `kaucja_dw_pct`, `umowa_nr`, `umowa_data`, `zamawiajacy`. Używane jako podpowiedzi w modalu pozycji.
+- **Wykonawca utrwalony jako stała** `FEGRRO_WYKONAWCA = "FEGRRO SP. Z O.O.\nNIP: 589-206-61-74"`. Generatory PDF i XLSX zawsze wstawiają tę wartość — pole z budowy ignorowane. `protokol-check` zwraca ją jako `budowa.wykonawca`.
+- XLSX `F14` ma wrap_text + wyższy wiersz (32px) dla dwóch linii (nazwa firmy + NIP).
+
+### Frontend (`Budget.js`)
+
+#### Kategorie + Etapy (Etapy)
+- **`CategoryStageManager`** — uniwersalny modal (`mode="categories"` lub `"stages"`) do dodawania/usuwania. Etapy mogą mieć dodatkowo daty start/koniec.
+- W panelu Budżet dwa przyciski w headerze: **`Etapy (N)`** i **`Kategorie (N)`** otwierają odpowiedni manager.
+- **Tabela budżetu pogrupowana hierarchicznie**: `Etap > Kategoria > Pozycja`. Etapy wyróżnione olive-green background (`#4F6343/30`) z nazwą + datami (jeśli ustawione) + sumami plan/wykonanie. Kategorie jako podgrupy ze złotym/zielonym tekstem.
+
+#### Modal pozycji
+- **Kategoria**: dropdown z istniejących kategorii + przycisk `+` do dodania nowej inline (od razu wybierana po dodaniu).
+- **Etap budowy**: dropdown z listy etapów + opcja "— bez etapu —".
+- **Auto-calc Plan netto**: live podgląd `Ilość × Cena` w wyróżnionym kafelku (`bg-[#0B1120]`, złote `D4AF37`), z opcjonalnym `<details>` "Nadpisz wartość ręcznie" dla edge-case'ów.
+- **Kaucja GIR / Kaucja DW**: domyślnie wartość z `finance_budowy` (etykieta `domyślnie 5%`), placeholder = default, podgląd kwoty pod inputem (`= {plan × pct} zł`).
+- **Info box "Umowa / Zamawiający"** (read-only) — pokazuje aktualne dane z Finansów; ostrzega na czerwono jeśli brakuje (`uzupełnij przed protokołem`).
+
+#### Modal "Dane umowy"
+- **Usunięte pole Wykonawca** (zawsze FeGrro). W jego miejsce statyczny info-box z brandingiem firmy (`FEGRRO SP. Z O.O.` / `NIP: 589-206-61-74`).
+
+### Co dostaje user
+- Tworzy Kategorię / Etap raz (z poziomu zakładki Budżet), używa wszędzie.
+- Nie wpisuje już ręcznie kaucji — domyślne wartości zaciągane z Finansów per budowa.
+- Plan netto liczy się sam (Ilość × Cena), z opcją nadpisania dla nietypowych przypadków.
+- Tabela budżetu pogrupowana jak na placu: Etap (np. „Stan zerowy") > Kategoria (np. „Beton") > Pozycje.
+- Protokół zawsze ma poprawnego Wykonawcę FeGrro z NIPem — bez pomyłek z innymi danymi.
+
+### Testy
+- Backend: `/api/budget/{id}/budowa-info` zwraca pełne defaulty (kaucja 5/2%, umowa, zamawiający) ✓
+- Backend: PDF zawiera `WYKONAWCA: FEGRRO SP. Z O.O.\nNIP: 589-206-61-74` (zweryfikowane przez pypdf) ✓
+- Frontend live screenshot: dropdowny + auto-Kaucja + auto-Plan + info-box widoczne i działające ✓
+
+
 ## Iteration 48 (2026-05-19) — Protokoł w stylu Excel (widok 1:1 jak arkusz klienta)
 
 ### Problem

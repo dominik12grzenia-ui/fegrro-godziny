@@ -158,6 +158,31 @@ async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
     return {"rows": result}
 
 
+# ============== BUDOWA INFO (defaulty dla modali) ==============
+
+FEGRRO_WYKONAWCA = "FEGRRO SP. Z O.O.\nNIP: 589-206-61-74"
+
+
+@router.get("/budget/{budowa_id}/budowa-info")
+async def get_budowa_info(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    """Zwraca pelne defaultowe dane budowy z finance_budowy:
+    nazwa, kaucje, nr umowy, kontrahent. Uzywane jako defaulty w modalach Budzetu.
+    Wykonawca jest stalą firmową (FeGrro Sp. z o.o.) i NIE jest tu zwracany - generatorzy uzywaja FEGRRO_WYKONAWCA."""
+    b = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not b:
+        raise HTTPException(404, "Budowa nie istnieje")
+    return {
+        "id": b["id"],
+        "name": b.get("name", ""),
+        "code": b.get("code", ""),
+        "kaucja_gir_pct": float(b.get("kaucja_gir_pct") or 0),
+        "kaucja_dw_pct": float(b.get("kaucja_dw_pct") or 0),
+        "umowa_nr": b.get("umowa_nr", "") or "",
+        "umowa_data": b.get("umowa_data", "") or "",
+        "zamawiajacy": b.get("zamawiajacy", "") or "",
+    }
+
+
 @router.get("/budget/{budowa_id}/lines")
 async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
     """Pozycje budzetowe danej budowy + wyliczone wykonanie.
@@ -712,7 +737,7 @@ async def generate_protokol_pdf(
          Paragraph(budowa.get("zamawiajacy", "") or "", val_style),
          "", ""],
         [Paragraph("<b>WYKONAWCA:</b>", label_style),
-         Paragraph(budowa.get("wykonawca", "FEGRRO SP. Z O.O.  NIP: 589-206-61-74"), val_style),
+         Paragraph(FEGRRO_WYKONAWCA.replace("\n", "<br/>"), val_style),
          "", ""],
     ]
     info_table = Table(info_data, colWidths=[50 * mm, 90 * mm, 15 * mm, 120 * mm])
@@ -917,7 +942,7 @@ async def protokol_check(budowa_id: str, _user: dict = Depends(get_current_admin
             "umowa_nr": budowa.get("umowa_nr", ""),
             "umowa_data": budowa.get("umowa_data", ""),
             "zamawiajacy": budowa.get("zamawiajacy", ""),
-            "wykonawca": budowa.get("wykonawca", ""),
+            "wykonawca": FEGRRO_WYKONAWCA,
         },
     }
 
@@ -1028,8 +1053,10 @@ async def generate_protokol_xlsx(
     ws["B14"] = "WYKONAWCA:"
     ws["B14"].font = bold
     ws["B14"].alignment = left
-    ws["F14"] = budowa.get("wykonawca", "FEGRRO SP. Z O.O.  NIP: 589-206-61-74")
+    ws["F14"] = FEGRRO_WYKONAWCA
+    ws["F14"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
     ws.merge_cells("F14:K14")
+    ws.row_dimensions[14].height = 32
 
     # === TABELA - PODWOJNE NAGLOWKI ===
     HEAD_TOP = 17  # wiersz z grupami NARASTAJACO / POPRZEDNI / MIESIAC ROZLICZ.

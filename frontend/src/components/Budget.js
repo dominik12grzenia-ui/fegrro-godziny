@@ -123,43 +123,69 @@ const Tile = ({ label, value, testId, highlight }) => (
 // =================== BUDZET (POZYCJE) ===================
 const BudgetLinesPanel = ({ budowaId, onChange }) => {
   const [lines, setLines] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [stages, setStages] = useState([]);
+  const [budowaInfo, setBudowaInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [editLine, setEditLine] = useState(null);
+  const [managerOpen, setManagerOpen] = useState(null); // null | 'categories' | 'stages'
 
-  const fetchLines = useCallback(() => {
+  const fetchAll = useCallback(() => {
     if (!budowaId) return;
     setLoading(true);
-    api.get(`/budget/${budowaId}/lines`)
-      .then((r) => setLines(r.data?.rows || []))
-      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+    Promise.all([
+      api.get(`/budget/${budowaId}/lines`),
+      api.get(`/budget/${budowaId}/categories`),
+      api.get(`/budget/${budowaId}/stages`),
+      api.get(`/budget/${budowaId}/budowa-info`),
+    ]).then(([l, c, s, b]) => {
+      setLines(l.data?.rows || []);
+      setCategories(c.data?.rows || []);
+      setStages(s.data?.rows || []);
+      setBudowaInfo(b.data || null);
+    }).catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
   }, [budowaId]);
 
-  useEffect(() => { fetchLines(); }, [fetchLines]);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const remove = async (id) => {
     if (!window.confirm('Usunąć pozycję? Spowoduje to wyczyszczenie powiązań z zapisami.')) return;
     try {
       await api.delete(`/budget/lines/${id}`);
       toast.success('Pozycja usunięta');
-      fetchLines();
+      fetchAll();
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  // Grupowanie po kategorii
+  // Grupowanie: Etap > Kategoria > Pozycje
   const grouped = useMemo(() => {
-    const g = {};
+    const tree = {}; // stage_id (lub '__none__') -> { stage, categories: { cat_name -> { plan, exec, lines, is_income } } }
+    const stageMap = Object.fromEntries(stages.map((s) => [s.id, s]));
     lines.forEach((ln) => {
+      const stageKey = ln.stage_id || '__none__';
+      if (!tree[stageKey]) {
+        tree[stageKey] = {
+          stage: stageMap[ln.stage_id] || null,
+          categories: {},
+          plan: 0,
+          exec: 0,
+        };
+      }
       const cat = ln.category || '— bez kategorii —';
-      if (!g[cat]) g[cat] = { lines: [], plan: 0, exec: 0, is_income: ln.is_income };
-      g[cat].lines.push(ln);
-      g[cat].plan += ln.plan_netto_computed || 0;
-      g[cat].exec += ln.execution_netto || 0;
+      if (!tree[stageKey].categories[cat]) {
+        tree[stageKey].categories[cat] = { lines: [], plan: 0, exec: 0, is_income: ln.is_income };
+      }
+      tree[stageKey].categories[cat].lines.push(ln);
+      tree[stageKey].categories[cat].plan += ln.plan_netto_computed || 0;
+      tree[stageKey].categories[cat].exec += ln.execution_netto || 0;
+      tree[stageKey].plan += ln.plan_netto_computed || 0;
+      tree[stageKey].exec += ln.execution_netto || 0;
     });
-    return g;
-  }, [lines]);
+    return tree;
+  }, [lines, stages]);
 
   const totalPlan = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
   const totalExec = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
@@ -168,16 +194,26 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
 
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]">
-      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base">Pozycje budżetu</CardTitle>
-        <Button
-          size="sm"
-          onClick={() => { setEditLine(null); setModalOpen(true); }}
-          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
-          data-testid="budget-add-line-btn"
-        >
-          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
-        </Button>
+        <div className="flex gap-2 flex-wrap">
+          <Button size="sm" variant="outline"
+            onClick={() => setManagerOpen('stages')}
+            className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-stages-btn">
+            Etapy ({stages.length})
+          </Button>
+          <Button size="sm" variant="outline"
+            onClick={() => setManagerOpen('categories')}
+            className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-categories-btn">
+            Kategorie ({categories.length})
+          </Button>
+          <Button size="sm"
+            onClick={() => { setEditLine(null); setModalOpen(true); }}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
+            data-testid="budget-add-line-btn">
+            <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {loading ? (
@@ -190,7 +226,7 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
           <table className="w-full text-xs" data-testid="budget-lines-table">
             <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
               <tr>
-                <th className="text-left p-2">Kategoria / Pozycja</th>
+                <th className="text-left p-2">Etap / Kategoria / Pozycja</th>
                 <th className="text-right p-2">Ilość</th>
                 <th className="text-right p-2">Jedn.</th>
                 <th className="text-right p-2">Cena j.</th>
@@ -204,39 +240,56 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
               </tr>
             </thead>
             <tbody>
-              {Object.entries(grouped).map(([cat, g]) => (
-                <React.Fragment key={cat}>
-                  <tr className="bg-[#0B1120]">
-                    <td colSpan={11} className={`p-2 font-bold ${g.is_income ? 'text-[#5F7552]' : 'text-[#D4AF37]'}`}>
-                      {g.is_income ? '+ ' : '− '}{cat}
-                      <span className="text-[#94A3B8] font-normal ml-2">
-                        ({fmtNum(g.exec)} / {fmtNum(g.plan)} zł — {g.plan > 0 ? Math.round((g.exec / g.plan) * 100) : 0}%)
+              {Object.entries(grouped).map(([stageKey, sg]) => (
+                <React.Fragment key={stageKey}>
+                  <tr className="bg-[#4F6343]/30">
+                    <td colSpan={11} className="p-2 font-bold text-white text-sm">
+                      ▣ {sg.stage ? sg.stage.name : 'Bez etapu'}
+                      {sg.stage && (sg.stage.start_date || sg.stage.end_date) && (
+                        <span className="text-[#94A3B8] font-normal text-xs ml-2">
+                          ({sg.stage.start_date || '?'} → {sg.stage.end_date || '?'})
+                        </span>
+                      )}
+                      <span className="text-[#94A3B8] font-normal ml-2 text-xs">
+                        — Plan: {fmtNum(sg.plan)} zł, Wyk: {fmtNum(sg.exec)} zł
                       </span>
                     </td>
                   </tr>
-                  {g.lines.map((ln) => (
-                    <tr key={ln.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40" data-testid={`budget-line-${ln.id}`}>
-                      <td className="p-2 text-white">{ln.name}</td>
-                      <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.quantity ? fmtNum(ln.quantity) : '—'}</td>
-                      <td className="p-2 text-right text-[#94A3B8]">{ln.unit || '—'}</td>
-                      <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.unit_price_netto ? fmtNum(ln.unit_price_netto) : '—'}</td>
-                      <td className="p-2 text-right text-white font-semibold tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
-                      <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.kaucja_gir_pct ? `${ln.kaucja_gir_pct}% (${fmtNum(ln.kaucja_gir_amount)})` : '—'}</td>
-                      <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.kaucja_dw_pct ? `${ln.kaucja_dw_pct}% (${fmtNum(ln.kaucja_dw_amount)})` : '—'}</td>
-                      <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(ln.execution_netto)}</td>
-                      <td className={`p-2 text-right tabular-nums font-semibold ${ln.progress_pct >= 100 ? 'text-[#9B2C2C]' : ln.progress_pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
-                        {ln.progress_pct}%
-                      </td>
-                      <td className={`p-2 text-right tabular-nums ${ln.remaining_netto < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(ln.remaining_netto)}</td>
-                      <td className="p-2 text-right whitespace-nowrap">
-                        <button onClick={() => { setEditLine(ln); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`budget-edit-${ln.id}`}>
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <button onClick={() => remove(ln.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`budget-del-${ln.id}`}>
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </td>
-                    </tr>
+                  {Object.entries(sg.categories).map(([cat, g]) => (
+                    <React.Fragment key={`${stageKey}-${cat}`}>
+                      <tr className="bg-[#0B1120]">
+                        <td colSpan={11} className={`p-2 pl-6 font-semibold text-xs ${g.is_income ? 'text-[#5F7552]' : 'text-[#D4AF37]'}`}>
+                          {g.is_income ? '+ ' : '− '}{cat}
+                          <span className="text-[#94A3B8] font-normal ml-2">
+                            ({fmtNum(g.exec)} / {fmtNum(g.plan)} zł — {g.plan > 0 ? Math.round((g.exec / g.plan) * 100) : 0}%)
+                          </span>
+                        </td>
+                      </tr>
+                      {g.lines.map((ln) => (
+                        <tr key={ln.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40" data-testid={`budget-line-${ln.id}`}>
+                          <td className="p-2 pl-10 text-white">{ln.name}</td>
+                          <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.quantity ? fmtNum(ln.quantity) : '—'}</td>
+                          <td className="p-2 text-right text-[#94A3B8]">{ln.unit || '—'}</td>
+                          <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.unit_price_netto ? fmtNum(ln.unit_price_netto) : '—'}</td>
+                          <td className="p-2 text-right text-white font-semibold tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
+                          <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_gir_pct ? `${ln.effective_kaucja_gir_pct}% (${fmtNum(ln.kaucja_gir_amount)})` : '—'}</td>
+                          <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_dw_pct ? `${ln.effective_kaucja_dw_pct}% (${fmtNum(ln.kaucja_dw_amount)})` : '—'}</td>
+                          <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(ln.execution_netto)}</td>
+                          <td className={`p-2 text-right tabular-nums font-semibold ${ln.progress_pct >= 100 ? 'text-[#9B2C2C]' : ln.progress_pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
+                            {ln.progress_pct}%
+                          </td>
+                          <td className={`p-2 text-right tabular-nums ${ln.remaining_netto < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(ln.remaining_netto)}</td>
+                          <td className="p-2 text-right whitespace-nowrap">
+                            <button onClick={() => { setEditLine(ln); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`budget-edit-${ln.id}`}>
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button onClick={() => remove(ln.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`budget-del-${ln.id}`}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </React.Fragment>
                   ))}
                 </React.Fragment>
               ))}
@@ -269,43 +322,191 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         <BudgetLineModal
           budowaId={budowaId}
           editLine={editLine}
+          categories={categories}
+          stages={stages}
+          budowaInfo={budowaInfo}
+          onCategoriesChanged={fetchAll}
           onClose={() => setModalOpen(false)}
-          onSaved={() => { setModalOpen(false); fetchLines(); onChange && onChange(); }}
+          onSaved={() => { setModalOpen(false); fetchAll(); onChange && onChange(); }}
+        />
+      )}
+      {managerOpen === 'categories' && (
+        <CategoryStageManager
+          mode="categories"
+          budowaId={budowaId}
+          items={categories}
+          onClose={() => setManagerOpen(null)}
+          onChanged={fetchAll}
+        />
+      )}
+      {managerOpen === 'stages' && (
+        <CategoryStageManager
+          mode="stages"
+          budowaId={budowaId}
+          items={stages}
+          onClose={() => setManagerOpen(null)}
+          onChanged={fetchAll}
         />
       )}
     </Card>
   );
 };
 
+// =================== MANAGER KATEGORII / ETAPÓW ===================
+const CategoryStageManager = ({ mode, budowaId, items, onClose, onChanged }) => {
+  const [name, setName] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [busy, setBusy] = useState(false);
+  const isStages = mode === 'stages';
+  const label = isStages ? 'Etapy budowy' : 'Kategorie kosztowe';
+
+  const add = async () => {
+    if (!name.trim()) { toast.error('Podaj nazwę'); return; }
+    setBusy(true);
+    try {
+      const url = isStages ? '/budget/stages' : '/budget/categories';
+      const payload = { budowa_id: budowaId, name: name.trim() };
+      if (isStages) {
+        payload.start_date = startDate || null;
+        payload.end_date = endDate || null;
+      }
+      await api.post(url, payload);
+      toast.success('Dodano');
+      setName(''); setStartDate(''); setEndDate('');
+      onChanged();
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm(`Usunąć ${isStages ? 'etap' : 'kategorię'}? Pozycje pozostaną, ale stracą przypisanie.`)) return;
+    try {
+      const url = isStages ? `/budget/stages/${id}` : `/budget/categories/${id}`;
+      await api.delete(url);
+      toast.success('Usunięto');
+      onChanged();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid={`manager-${mode}-modal`}>
+        <DialogHeader>
+          <DialogTitle>{label}</DialogTitle>
+          <p className="text-xs text-[#94A3B8] mt-1">
+            {isStages
+              ? 'Etapy grupują wizualnie pozycje budżetu (np. „Stan zerowy", „Konstrukcja", „Wykończenia").'
+              : 'Kategorie kosztowe to predefiniowane grupy używane w pozycjach budżetu (np. „Beton", „Stal", „Robocizna").'}
+          </p>
+        </DialogHeader>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {items.length === 0 ? (
+            <div className="text-xs text-[#94A3B8] py-2 text-center">Brak — dodaj pierwszy poniżej</div>
+          ) : items.map((it) => (
+            <div key={it.id} className="flex items-center justify-between bg-[#0B1120] rounded px-3 py-1.5 text-sm" data-testid={`manager-item-${it.id}`}>
+              <div>
+                <span className="text-white">{it.name}</span>
+                {isStages && (it.start_date || it.end_date) && (
+                  <span className="text-[#94A3B8] text-xs ml-2">({it.start_date || '?'} → {it.end_date || '?'})</span>
+                )}
+                {it.lines_count !== undefined && (
+                  <span className="text-[#94A3B8] text-xs ml-2">[{it.lines_count} poz.]</span>
+                )}
+              </div>
+              <button onClick={() => remove(it.id)} className="text-[#FCA5A5] hover:text-[#F87171]" data-testid={`manager-del-${it.id}`}>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-[#2A3B59] pt-3 space-y-2">
+          <Input value={name} onChange={(e) => setName(e.target.value)}
+            placeholder={isStages ? 'Nazwa etapu, np. Stan surowy' : 'Nazwa kategorii, np. Beton'}
+            className="bg-[#0B1120] border-[#2A3B59]" data-testid={`manager-new-name-${mode}`} />
+          {isStages && (
+            <div className="grid grid-cols-2 gap-2">
+              <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                placeholder="Start" className="bg-[#0B1120] border-[#2A3B59]" data-testid="manager-stage-start" />
+              <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                placeholder="Koniec" className="bg-[#0B1120] border-[#2A3B59]" data-testid="manager-stage-end" />
+            </div>
+          )}
+          <Button onClick={add} disabled={busy} className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid={`manager-add-${mode}`}>
+            <Plus className="h-4 w-4 mr-1" /> Dodaj
+          </Button>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Zamknij</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 // =================== MODAL POZYCJA ===================
-const BudgetLineModal = ({ budowaId, editLine, onClose, onSaved }) => {
+const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, onCategoriesChanged, onClose, onSaved }) => {
+  // Defaulty Kaucja z Finansów (effective_kaucja_*) gdy nowa pozycja
+  const defaultGir = budowaInfo?.kaucja_gir_pct ?? 0;
+  const defaultDw = budowaInfo?.kaucja_dw_pct ?? 0;
   const [form, setForm] = useState({
-    category: editLine?.category || '',
+    category: editLine?.category || (categories[0]?.name || ''),
+    stage_id: editLine?.stage_id || '',
     name: editLine?.name || '',
     unit: editLine?.unit || '',
-    quantity: editLine?.quantity || 0,
-    unit_price_netto: editLine?.unit_price_netto || 0,
-    plan_netto: editLine?.plan_netto ?? '',
-    kaucja_gir_pct: editLine?.kaucja_gir_pct || 0,
-    kaucja_dw_pct: editLine?.kaucja_dw_pct || 0,
+    quantity: editLine?.quantity ?? 0,
+    unit_price_netto: editLine?.unit_price_netto ?? 0,
+    plan_netto_override: editLine?.plan_netto != null ? String(editLine.plan_netto) : '',  // pusty = auto
+    // Override kaucji: pusty = uzyj defaultu z Finansow
+    kaucja_gir_pct: editLine?.kaucja_gir_pct != null ? String(editLine.kaucja_gir_pct) : '',
+    kaucja_dw_pct: editLine?.kaucja_dw_pct != null ? String(editLine.kaucja_dw_pct) : '',
     is_income: editLine?.is_income || false,
     notes: editLine?.notes || '',
   });
+  const [newCatMode, setNewCatMode] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
   const [saving, setSaving] = useState(false);
 
+  // Live auto-calc plan netto = ilosc x cena (chyba ze override)
+  const autoPlan = (parseFloat(form.quantity) || 0) * (parseFloat(form.unit_price_netto) || 0);
+  const finalPlan = form.plan_netto_override !== ''
+    ? (parseFloat(form.plan_netto_override) || 0)
+    : autoPlan;
+
+  // Efektywne kaucje (do podgladu kwot)
+  const effGir = form.kaucja_gir_pct !== '' ? (parseFloat(form.kaucja_gir_pct) || 0) : defaultGir;
+  const effDw = form.kaucja_dw_pct !== '' ? (parseFloat(form.kaucja_dw_pct) || 0) : defaultDw;
+
+  const addCategory = async () => {
+    if (!newCatName.trim()) { toast.error('Podaj nazwę'); return; }
+    try {
+      const r = await api.post('/budget/categories', { budowa_id: budowaId, name: newCatName.trim() });
+      toast.success('Dodano kategorię');
+      setForm({ ...form, category: r.data.name });
+      setNewCatName(''); setNewCatMode(false);
+      onCategoriesChanged && onCategoriesChanged();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
   const save = async () => {
-    if (!form.category.trim()) { toast.error('Podaj kategorię'); return; }
+    if (!form.category.trim()) { toast.error('Wybierz kategorię'); return; }
     if (!form.name.trim()) { toast.error('Podaj nazwę pozycji'); return; }
     setSaving(true);
     try {
       const payload = {
-        ...form,
         budowa_id: budowaId,
+        category: form.category,
+        stage_id: form.stage_id || null,
+        name: form.name,
+        unit: form.unit,
         quantity: parseFloat(form.quantity) || 0,
         unit_price_netto: parseFloat(form.unit_price_netto) || 0,
-        plan_netto: form.plan_netto === '' || form.plan_netto === null ? null : parseFloat(form.plan_netto),
-        kaucja_gir_pct: parseFloat(form.kaucja_gir_pct) || 0,
-        kaucja_dw_pct: parseFloat(form.kaucja_dw_pct) || 0,
+        plan_netto: form.plan_netto_override === '' ? null : parseFloat(form.plan_netto_override),
+        kaucja_gir_pct: form.kaucja_gir_pct === '' ? null : parseFloat(form.kaucja_gir_pct),
+        kaucja_dw_pct: form.kaucja_dw_pct === '' ? null : parseFloat(form.kaucja_dw_pct),
+        is_income: form.is_income,
+        notes: form.notes,
       };
       if (editLine) {
         delete payload.budowa_id;
@@ -322,56 +523,134 @@ const BudgetLineModal = ({ budowaId, editLine, onClose, onSaved }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-lg">
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{editLine ? 'Edytuj pozycję' : 'Nowa pozycja budżetu'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.is_income} onChange={(e) => setForm({ ...form, is_income: e.target.checked })} data-testid="budget-line-is-income" />
-            <span className="text-[#5F7552]">Pozycja przychodowa (zaznacz dla pozycji wpływu, np. wynagrodzenie wykonawcy)</span>
+            <span className="text-[#5F7552]">Pozycja przychodowa</span>
           </label>
+
+          {/* Kategoria + Etap dropdowny */}
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs text-[#94A3B8]">Kategoria *</label>
-              <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} placeholder="np. Beton, Stal, Robocizna" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-category" />
+              {!newCatMode ? (
+                <div className="flex gap-1">
+                  <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
+                    className="flex-1 bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+                    data-testid="budget-line-category-select">
+                    <option value="">— wybierz —</option>
+                    {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                  <button onClick={() => setNewCatMode(true)} className="text-[#D4AF37] hover:text-[#B8941F] px-2"
+                    title="Dodaj nową kategorię" data-testid="budget-line-new-cat-btn">
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-1">
+                  <Input value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
+                    placeholder="Nowa kategoria" className="bg-[#0B1120] border-[#2A3B59] text-sm h-8"
+                    data-testid="budget-line-new-cat-name" autoFocus
+                    onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
+                  <button onClick={addCategory} className="text-[#5F7552] hover:text-[#7CA169] px-2" data-testid="budget-line-new-cat-save">✓</button>
+                  <button onClick={() => { setNewCatMode(false); setNewCatName(''); }} className="text-[#94A3B8] hover:text-white px-2">✕</button>
+                </div>
+              )}
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Nazwa pozycji *</label>
-              <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="np. Beton C8/10 chudziaki" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-name" />
+              <label className="text-xs text-[#94A3B8]">Etap budowy</label>
+              <select value={form.stage_id} onChange={(e) => setForm({ ...form, stage_id: e.target.value })}
+                className="w-full bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+                data-testid="budget-line-stage-select">
+                <option value="">— bez etapu —</option>
+                {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
             </div>
           </div>
+
+          <div>
+            <label className="text-xs text-[#94A3B8]">Nazwa pozycji *</label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="np. Beton C8/10 chudziaki" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-name" />
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             <div>
               <label className="text-xs text-[#94A3B8]">Ilość</label>
-              <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-quantity" />
+              <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-quantity" />
             </div>
             <div>
               <label className="text-xs text-[#94A3B8]">Jednostka</label>
-              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="m3, t, mb" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-unit" />
+              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                placeholder="m3, t, mb" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-unit" />
             </div>
             <div>
               <label className="text-xs text-[#94A3B8]">Cena j. netto</label>
-              <Input type="number" step="0.01" value={form.unit_price_netto} onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-price" />
+              <Input type="number" step="0.01" value={form.unit_price_netto} onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })}
+                className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-price" />
             </div>
           </div>
-          <div>
-            <label className="text-xs text-[#94A3B8]">Plan netto (opcjonalnie — domyślnie ilość × cena)</label>
-            <Input type="number" step="0.01" value={form.plan_netto} onChange={(e) => setForm({ ...form, plan_netto: e.target.value })} placeholder="auto" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-plan" />
+
+          {/* Auto-calc Plan netto */}
+          <div className="bg-[#0B1120] rounded p-2 border border-[#2A3B59]">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-[#94A3B8]">Plan netto = Ilość × Cena =</span>
+              <span className="text-[#D4AF37] font-bold tabular-nums text-sm" data-testid="budget-line-plan-auto">
+                {fmtNum(autoPlan)} zł
+              </span>
+            </div>
+            <details className="mt-1">
+              <summary className="text-xs text-[#94A3B8] cursor-pointer hover:text-white">Nadpisz wartość ręcznie</summary>
+              <Input type="number" step="0.01" value={form.plan_netto_override}
+                onChange={(e) => setForm({ ...form, plan_netto_override: e.target.value })}
+                placeholder="puste = auto" className="bg-[#131C2F] border-[#2A3B59] mt-1 h-8 text-xs"
+                data-testid="budget-line-plan-override" />
+            </details>
           </div>
+
+          {/* Kaucje z defaultem z Finansów */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8]">Kaucja GIR (%)</label>
-              <Input type="number" step="0.1" value={form.kaucja_gir_pct} onChange={(e) => setForm({ ...form, kaucja_gir_pct: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-gir" />
+              <label className="text-xs text-[#94A3B8]">
+                Kaucja GIR (%) <span className="text-[#5F7552]">domyślnie {defaultGir}%</span>
+              </label>
+              <Input type="number" step="0.1" value={form.kaucja_gir_pct}
+                onChange={(e) => setForm({ ...form, kaucja_gir_pct: e.target.value })}
+                placeholder={`${defaultGir}`} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-gir" />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5 tabular-nums">
+                = {fmtNum(finalPlan * effGir / 100)} zł
+              </div>
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Kaucja DW (%)</label>
-              <Input type="number" step="0.1" value={form.kaucja_dw_pct} onChange={(e) => setForm({ ...form, kaucja_dw_pct: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-dw" />
+              <label className="text-xs text-[#94A3B8]">
+                Kaucja DW (%) <span className="text-[#5F7552]">domyślnie {defaultDw}%</span>
+              </label>
+              <Input type="number" step="0.1" value={form.kaucja_dw_pct}
+                onChange={(e) => setForm({ ...form, kaucja_dw_pct: e.target.value })}
+                placeholder={`${defaultDw}`} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-dw" />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5 tabular-nums">
+                = {fmtNum(finalPlan * effDw / 100)} zł
+              </div>
             </div>
           </div>
+
+          {/* Info: dane umowy/zamawiajacy (z Finansow) */}
+          {budowaInfo && (
+            <div className="bg-[#0B1120]/60 border border-[#2A3B59] rounded p-2 text-[10px] text-[#94A3B8]">
+              <div><span className="text-[#5F7552]">Umowa:</span> {budowaInfo.umowa_nr || <em className="text-[#FCA5A5]">brak — uzupełnij przed protokołem</em>}</div>
+              <div><span className="text-[#5F7552]">Zamawiający:</span> {budowaInfo.zamawiajacy ? budowaInfo.zamawiajacy.substring(0, 80) + (budowaInfo.zamawiajacy.length > 80 ? '...' : '') : <em className="text-[#FCA5A5]">brak — uzupełnij przed protokołem</em>}</div>
+            </div>
+          )}
+
           <div>
             <label className="text-xs text-[#94A3B8]">Notatki</label>
-            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-notes" />
+            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
+              className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-notes" />
           </div>
         </div>
         <DialogFooter>
@@ -391,7 +670,6 @@ const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
     umowa_nr: initial?.umowa_nr || '',
     umowa_data: initial?.umowa_data || '',
     zamawiajacy: initial?.zamawiajacy || '',
-    wykonawca: initial?.wykonawca || '',
   });
   const [saving, setSaving] = useState(false);
 
@@ -440,11 +718,10 @@ const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
               className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
               data-testid="contract-zamawiajacy" />
           </div>
-          <div>
-            <label className="text-xs text-[#94A3B8] block mb-1">Wykonawca (puste = FEGRRO SP. Z O.O.)</label>
-            <Input value={form.wykonawca} onChange={(e) => setForm({...form, wykonawca: e.target.value})}
-              placeholder="FEGRRO SP. Z O.O. NIP: 589-206-61-74"
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="contract-wykonawca" />
+          <div className="bg-[#0B1120] border border-[#4F6343]/40 rounded p-2 text-xs">
+            <div className="text-[#94A3B8] mb-1">Wykonawca (stały):</div>
+            <div className="text-[#5F7552] font-semibold">FEGRRO SP. Z O.O.</div>
+            <div className="text-[#CBD5E1]">NIP: 589-206-61-74</div>
           </div>
         </div>
         <DialogFooter>
