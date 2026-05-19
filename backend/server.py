@@ -38,6 +38,7 @@ from routes.warehouse import router as warehouse_router
 from routes.push import router as push_router
 from routes.payroll import router as payroll_router
 from routes.finance import router as finance_router, cron_fakturownia_sync, cron_payroll_sync
+from routes.budget import router as budget_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -72,6 +73,7 @@ api_router.include_router(warehouse_router)
 api_router.include_router(push_router)
 api_router.include_router(payroll_router)
 api_router.include_router(finance_router)
+api_router.include_router(budget_router)
 
 
 # Health check

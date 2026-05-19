@@ -813,8 +813,18 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   const [syncingPayroll, setSyncingPayroll] = useState(false);
   const [form, setForm] = useState({
     date: new Date().toISOString().slice(0, 10),
-    kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
+    kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
   });
+  // Pozycje budzetu dla aktualnie wybranej budowy (modal)
+  const [budgetLines, setBudgetLines] = useState([]);
+
+  // Auto-fetch budget lines gdy uzytkownik wybierze budowe w modalu
+  useEffect(() => {
+    if (!form.budowa_id) { setBudgetLines([]); return; }
+    api.get(`/budget/${form.budowa_id}/lines`)
+      .then((r) => setBudgetLines(r.data?.rows || []))
+      .catch(() => setBudgetLines([]));
+  }, [form.budowa_id]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -889,6 +899,7 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
         netto: parseFloat(form.netto),
         kod_id: form.kod_id,
         budowa_id: form.budowa_id || null,
+        budget_line_id: form.budget_line_id || null,
         nr_faktury: form.nr_faktury,
         pozycja_nazwa: form.pozycja_nazwa,
         notes: form.notes,
@@ -901,7 +912,7 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
         toast.success('Dodano zapis');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
+      setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -913,6 +924,7 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     setForm({
       date: z.date, kontrahent: z.kontrahent || '', netto: String(z.netto),
       kod_id: z.kod_id || 'PZS', budowa_id: z.budowa_id || '',
+      budget_line_id: z.budget_line_id || '',
       nr_faktury: z.nr_faktury || '', pozycja_nazwa: z.pozycja_nazwa || '', notes: z.notes || '',
     });
     setShowAdd(true);
@@ -1384,13 +1396,28 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
             </div>
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Budowa (opcjonalnie)</label>
-              <select value={form.budowa_id} onChange={(e) => setForm({...form, budowa_id: e.target.value})}
+              <select value={form.budowa_id} onChange={(e) => setForm({...form, budowa_id: e.target.value, budget_line_id: ''})}
                 className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                 data-testid="finance-zapis-budowa">
                 <option value="">— bez budowy —</option>
                 {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
               </select>
             </div>
+            {form.budowa_id && budgetLines.length > 0 && (
+              <div>
+                <label className="text-sm text-[#94A3B8] block mb-1">Pozycja budżetu (opcjonalnie)</label>
+                <select value={form.budget_line_id} onChange={(e) => setForm({...form, budget_line_id: e.target.value})}
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
+                  data-testid="finance-zapis-budget-line">
+                  <option value="">— bez przypisania —</option>
+                  {budgetLines.map(ln => (
+                    <option key={ln.id} value={ln.id}>
+                      {ln.category} → {ln.name} (plan: {ln.plan_netto_computed?.toLocaleString('pl-PL') || 0} zł)
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label className="text-sm text-[#94A3B8] block mb-1">Netto (zł)</label>
               <Input type="number" step="0.01" value={form.netto} onChange={(e) => setForm({...form, netto: e.target.value})}

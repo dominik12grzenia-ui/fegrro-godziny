@@ -897,3 +897,78 @@ Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` n
 ### Test IDs
 `push-permission-gate`, `push-gate-enable-btn`, `push-gate-dismiss-btn`,
 `public-push-permission-gate`, `public-push-gate-enable-btn`, `public-push-gate-dismiss-btn`.
+
+---
+
+## 2026-05-19 (3) — Modul Budzetowanie budow (NOWA ZAKLADKA)
+
+### Cel
+Pelnoprawne planowanie i kontrola realizacji budowy. Inspirowany "Protokol nowy 2026.xlsx" — plan wartosci, kaucje GIR/DW, wykonanie liczone z Zapisow, % zaawansowania per miesiac, harmonogram z osia czasu.
+
+### Backend (`routes/budget.py` - nowy plik 295 lini)
+**Kolekcje:**
+- `budget_lines` — pozycje budzetu per budowa (kategoria, nazwa, jednostka, ilosc, cena_jedn, plan_netto, kaucja_gir_pct, kaucja_dw_pct, is_income)
+- `budget_progress` — % zaawansowania per pozycja per miesiac (year, month, progress_pct, value_netto)
+- `budget_tasks` — zadania harmonogramu (name, start_date, end_date, progress_pct, color, dependencies)
+- `finance_zapisy.budget_line_id` — nowy opcjonalny field linkujacy zapis do konkretnej pozycji budzetu
+
+**Endpointy (wszystkie wymagaja admin):**
+- `GET /budget/budowy` — lista budow z podsumowaniem (lines_count, tasks_count, plan_costs_netto, execution_netto)
+- `GET /budget/{budowa_id}/lines` — pozycje + agregowane wykonanie z finance_zapisy (per linia: execution_netto, progress_pct, remaining_netto, kaucja_*_amount)
+- `POST /budget/lines` — nowa pozycja
+- `PATCH /budget/lines/{id}` — edycja
+- `DELETE /budget/lines/{id}` — usuniecie + cleanup progressu + odlinkowanie zapisow (nie usuwa zapisow!)
+- `GET /budget/{budowa_id}/progress?year=YYYY` — macierz zaawansowania
+- `POST /budget/lines/{id}/progress` — upsert % zaawansowania (year, month, pct)
+- `GET /budget/{budowa_id}/tasks` — zadania harmonogramu
+- `POST /budget/tasks` — nowe zadanie
+- `PATCH /budget/tasks/{id}` — edycja
+- `DELETE /budget/tasks/{id}` — usuniecie + cleanup zaleznosci
+
+### Frontend (`components/Budget.js` - nowy plik ~570 lini)
+**Glowny komponent `<Budget>`:**
+- Dropdown wyboru budowy (pokazuje plan / wyk od razu)
+- Input roku (default biezacy)
+- Cztery kafelki podsumowania
+- 3 sub-tab'y: Budzet / % Protokol / Harmonogram
+
+**Tab Budzet — `<BudgetLinesPanel>`:**
+- Tabela grupowana po kategorii (Beton, Stal, Robocizna...)
+- Kolumny: Kategoria/Nazwa, Ilosc, Jedn., Cena j., Plan netto, Kaucja GIR (% + zl), Kaucja DW, Wykonanie, %, Pozostalo
+- Wiersze sumy: RAZEM PRZYCHODY / RAZEM KOSZTY / MARZA
+- Modal `<BudgetLineModal>` — dodawanie/edycja pozycji (checkbox is_income, opcjonalny jawny plan_netto)
+- Kolory % wykonania: zielony <80%, zloty 80-100%, czerwony >100%
+
+**Tab % Protokol — `<ProgressPanel>`:**
+- Macierz: wiersze=pozycje, kolumny=12 miesiecy
+- Inline edytowalne pola % (0-100), zapis na blur
+- Plan netto widoczny obok nazwy
+
+**Tab Harmonogram — `<SchedulePanel>` + `<GanttView>`:**
+- Toggle Lista <-> Gantt
+- Lista: tabela z Nazwa / Start / Koniec / Dni / % / akcje
+- **Gantt** (wlasny, prosty SVG-free implementacja): pasek per zadanie na osi czasu, dynamiczna szerokosc = liczba dni × 24px, kolor + overlay 30% bg-black na niewykonanej czesci
+- Header z markerami miesiecznymi (Sty 2026, Lut 2026...)
+- Modal `<ScheduleTaskModal>` — start/koniec dat, % wykonania, kolor (color picker), notatki
+
+### Integracja Finanse → Zapisy
+- Modal dodawania/edycji Zapisu: gdy wybrano budowe, pojawia sie dodatkowy dropdown **"Pozycja budzetu (opcjonalnie)"** z lista pozycji tej budowy (kategoria → nazwa + plan)
+- Backend `ZapisCreate` i `ZapisUpdate` przyjmuja `budget_line_id`
+- `_compute_plan` agregat: wykonanie = SUM(finance_zapisy.netto WHERE budget_line_id IN line_ids)
+- Walidacja przy create — sprawdzane czy pozycja istnieje
+
+### Testy (`tests/test_budget_logic.py`)
+5 unit testow logiki `_compute_plan` i obliczen kaucji. Razem z istniejacymi 6 testami Fakturowni: 11/11 PASS.
+
+### E2E weryfikacja (preview)
+- Utworzona pozycja Beton C8/10: 120 m³ × 340 zł = **40 800 zl plan**, GIR 5% = 2 040 zl
+- Wpis progresu maj=75% → value_netto auto-liczone 30 600 zl
+- Zadanie "Wylewki fundamentowe" 01.05-15.05 50% → pasek Gantt renderowany prawidlowo
+- Zapis 15 000 zl z budget_line_id → execution wzrosl do **15 000 zl, progres 36,8%, pozostalo 25 800 zl** ✓
+- Lint czysty FE+BE, brak regresji
+
+### Wymagana akcja uzytkownika
+1. **Redeploy backend** (nowy router /api/budget + zmiany w finance.py).
+2. **Redeploy frontend** (nowa zakladka "Budzetowanie" + dropdown budget_line_id w modal Zapisy).
+3. Po deploy: dla kazdej budowy stworz pozycje budzetu, ustaw zadania w harmonogramie, na koncu miesiaca wpisuj % zaawansowania w Protokole.
+

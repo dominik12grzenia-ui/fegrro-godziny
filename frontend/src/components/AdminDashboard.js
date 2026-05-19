@@ -31,6 +31,7 @@ const requestsTabImport = () => import('./admin/RequestsTab').then((m) => ({ def
 const toolsTabImport = () => import('./admin/ToolsTab').then((m) => ({ default: m.ToolsTab }));
 const payrollAdminImport = () => import('./PayrollAdmin').then((m) => ({ default: m.PayrollAdmin }));
 const financeImport = () => import('./Finance').then((m) => ({ default: m.Finance }));
+const budgetImport = () => import('./Budget').then((m) => ({ default: m.Budget }));
 
 const EquipmentAdmin = lazy(equipmentAdminImport);
 const ClothingAdmin = lazy(clothingAdminImport);
@@ -42,6 +43,7 @@ const RequestsTab = lazy(requestsTabImport);
 const ToolsTab = lazy(toolsTabImport);
 const PayrollAdmin = lazy(payrollAdminImport);
 const Finance = lazy(financeImport);
+const Budget = lazy(budgetImport);
 
 const TabSpinner = () => (
   <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
@@ -628,6 +630,7 @@ export const AdminDashboard = () => {
               <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">BHP</TabsTrigger>
               <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Wypłaty</TabsTrigger>
               <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Finanse</TabsTrigger>
+              <TabsTrigger value="budget" data-testid="budget-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Budżetowanie</TabsTrigger>
               <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Narzędzia</TabsTrigger>
             </TabsList>
           </div>
@@ -724,6 +727,12 @@ export const AdminDashboard = () => {
           <TabsContent value="finance" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <Finance />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="budget" className="space-y-4 m-0">
+            <Suspense fallback={<TabSpinner />}>
+              <Budget />
             </Suspense>
           </TabsContent>
 

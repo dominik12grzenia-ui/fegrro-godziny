@@ -117,6 +117,7 @@ class ZapisCreate(BaseModel):
     brutto: Optional[float] = None
     kod_id: str  # z finance_kody (np. KBB_BETON, PZS, KP_WYNAGRODZENIA)
     budowa_id: Optional[str] = None  # finance_budowy.id - jezeli koszt budowy
+    budget_line_id: Optional[str] = None  # przypisanie do konkretnej pozycji budzetu
     nr_faktury: Optional[str] = None
     pozycja_nazwa: Optional[str] = None
     notes: Optional[str] = None
@@ -129,6 +130,7 @@ class ZapisUpdate(BaseModel):
     brutto: Optional[float] = None
     kod_id: Optional[str] = None
     budowa_id: Optional[str] = None
+    budget_line_id: Optional[str] = None
     nr_faktury: Optional[str] = None
     pozycja_nazwa: Optional[str] = None
     notes: Optional[str] = None
@@ -455,6 +457,11 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
         bud = await db.finance_budowy.find_one({"id": payload.budowa_id}, {"_id": 0, "id": 1})
         if not bud:
             raise HTTPException(status_code=400, detail="Nieznana budowa")
+    # Walidacja budget_line_id (opcjonalna)
+    if payload.budget_line_id:
+        bl = await db.budget_lines.find_one({"id": payload.budget_line_id}, {"_id": 0, "budowa_id": 1})
+        if not bl:
+            raise HTTPException(status_code=400, detail="Nieznana pozycja budzetu")
     zid = str(uuid.uuid4())
     doc = {
         "id": zid,
@@ -467,6 +474,7 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
         "kod_id": payload.kod_id,
         "kod_category": kod["category"],
         "budowa_id": payload.budowa_id,
+        "budget_line_id": payload.budget_line_id,
         "nr_faktury": (payload.nr_faktury or "").strip(),
         "pozycja_nazwa": (payload.pozycja_nazwa or "").strip(),
         "notes": (payload.notes or "").strip(),
