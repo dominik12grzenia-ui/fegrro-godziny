@@ -1,3 +1,28 @@
+## Iteration 55 (2026-05-19) — Excel-style w jednym wierszu (połączony Materiały + Robocizna)
+
+### User feedback
+„chciałbym by widok zestawienia wyglądał dokładnie w taki sposób w jednym wierszu ale z naszym brandingiem" — user pokazał blurry screenshot Excela, z którego wynika że chce JEDNĄ szeroką tabelę (zamiast dwóch obok siebie), gdzie każdy wiersz zawiera dane Materiału i odpowiadającej pozycji Robocizny obok siebie.
+
+### Frontend (`Budget.js`)
+- **`BudgetExcelView` przepisany na jedną tabelę**:
+  - dwurzędowy nagłówek: `MATERIAŁY (n)` (colSpan 13) + `ROBOCIZNA (n)` (colSpan 8) jako pierwszy rząd
+  - drugi rząd: 21 nazw kolumn obok siebie (KOD, NAZWA, JD., ILOŚĆ, CENA MATERIAŁU, BUDŻET, KAUCJA GIR, KAUCJA DW, BUDŻET ZW., CENA B. JD., PRZEROBY M, KOSZT ZAKUPU, CENA ZAKUPU, KOD, NAZWA, BUDŻET, KAUCJA GIR, KAUCJA DW, BUDŻET ZW., PRZEROBY R, % ZAAW.)
+  - data rows: każdy wiersz pairuje `materials[i]` z `labor[i]` (zip-style); maxRows = max długości obu list; brakujące komórki = pusta szara komórka `bg-[#0B1120]/30`
+- **Złoty pionowy separator** `border-left: 2px solid #D4AF37` między ostatnią kolumną Materiałów (CENA ZAKUPU) a pierwszą kolumną Robocizny (KOD) — wizualne odgraniczenie bloków
+- **`min-width: 1900px`** + `overflow-x-auto` w `CardContent` (na 1920px ekran mieści się; w węższych viewport poziomy scroll)
+- Numeracja: Materiały od 1, Robocizna od 14 (jak w arkuszu klienta)
+- Branding zachowany: dark navy `#131C2F`, header olive `#4F6343`/`#3F5235`, Kaucja olive 25%, Przeroby gold 18%, obramowania `#2A3B59`
+
+### Co dostaje user
+- Widok w 100% odpowiadający arkuszowi (Materiały po lewej + Robocizna po prawej, w tym samym wierszu)
+- Wszystko w jednej tabeli — łatwiej porównać Beton C8/10 (materiał) z odpowiadającą mu Robocizną Beton C8/10
+- Pełna spójność wizualna z resztą panelu admina
+
+### Testy
+- Frontend live screenshot: jedna szeroka tabela, dwa zielone nagłówki rozdzielone złotym separatorem, dane obok siebie w jednym wierszu ✓
+
+
+
 ## Iteration 54 (2026-05-19) — Excel-style zestawienie Materiały + Robocizna na dole
 
 ### User request

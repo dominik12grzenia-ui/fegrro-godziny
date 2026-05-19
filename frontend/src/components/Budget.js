@@ -128,118 +128,118 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
   // Filtruj wedlug typu
   const materials = useMemo(() => lines.filter(l => !l.is_income && (l.type || 'materials') === 'materials'), [lines]);
   const labor = useMemo(() => lines.filter(l => !l.is_income && l.type === 'labor'), [lines]);
+  const maxRows = Math.max(materials.length, labor.length, 1);
 
-  const KAUCJA_BG = 'rgba(79, 99, 67, 0.25)';   // olive 25%
-  const PRZEROB_BG = 'rgba(212, 175, 55, 0.18)'; // gold 18%
+  const KAUCJA_BG = 'rgba(79, 99, 67, 0.25)';
+  const PRZEROB_BG = 'rgba(212, 175, 55, 0.18)';
   const HEADER_BG = '#4F6343';
   const HEADER_DARK = '#3F5235';
   const BORDER = '#2A3B59';
-
-  // === RENDER LEWY BLOK (Materiały) ===
-  const renderMaterials = () => (
-    <table className="text-[10px] border-collapse w-full" data-testid="excel-materials-table">
-      <thead>
-        <tr>
-          <th colSpan={13} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
-            MATERIAŁY ({materials.length})
-          </th>
-        </tr>
-        <tr style={{ backgroundColor: HEADER_BG }}>
-          {['KOD', 'NAZWA', 'JD.', 'ILOŚĆ', 'CENA MATERIAŁU', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'CENA B. JD.', 'PRZEROBY M', 'KOSZT ZAKUPU', 'CENA ZAKUPU'].map((h, i) => (
-            <th key={i} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {materials.length === 0 ? (
-          <tr><td colSpan={13} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji materiałowych</td></tr>
-        ) : materials.map((ln, i) => {
-          const plan = ln.plan_netto_computed || 0;
-          const ilosc = ln.quantity || 0;
-          const cena = ln.unit_price_netto || 0;
-          const kg = ln.kaucja_gir_amount || 0;
-          const kd = ln.kaucja_dw_amount || 0;
-          const bzw = plan - kg - kd;
-          const cenaBjd = ilosc > 0 ? plan / ilosc : 0;
-          const przerob = ln.execution_netto || 0;
-          const cenaZakupu = ilosc > 0 ? przerob / ilosc : 0;
-          return (
-            <tr key={ln.id} className="hover:bg-[#0B1120]/40">
-              <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{i + 1}</td>
-              <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{ln.name}</td>
-              <td className="p-1 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{ln.unit || '—'}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
-              <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
-              <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaBjd)}</td>
-              <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
-              <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(przerob)}</td>
-              <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaZakupu)}</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
-
-  // === RENDER PRAWY BLOK (Robocizna) ===
-  const renderLabor = () => (
-    <table className="text-[10px] border-collapse w-full" data-testid="excel-labor-table">
-      <thead>
-        <tr>
-          <th colSpan={8} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
-            ROBOCIZNA ({labor.length})
-          </th>
-        </tr>
-        <tr style={{ backgroundColor: HEADER_BG }}>
-          {['KOD', 'NAZWA', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'PRZEROBY R', '% ZAAWANSOWANIA'].map((h, i) => (
-            <th key={i} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {labor.length === 0 ? (
-          <tr><td colSpan={8} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji robocizny</td></tr>
-        ) : labor.map((ln, i) => {
-          const plan = ln.plan_netto_computed || 0;
-          const kg = ln.kaucja_gir_amount || 0;
-          const kd = ln.kaucja_dw_amount || 0;
-          const bzw = plan - kg - kd;
-          const przerob = ln.execution_netto || 0;
-          const pct = ln.progress_pct || 0;
-          return (
-            <tr key={ln.id} className="hover:bg-[#0B1120]/40">
-              <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{14 + i}</td>
-              <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{ln.name}</td>
-              <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
-              <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
-              <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
-              <td className={`p-1 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={{ borderColor: BORDER }}>{Math.round(pct)}%</td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+  const SEPARATOR = '#D4AF37'; // złoty pionowy separator między blokami
 
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-view">
       <CardHeader className="pb-2">
         <CardTitle className="text-white text-base flex items-center gap-2">
-          <span style={{ color: '#D4AF37' }}>▦</span> Widok zestawienia (Materiały + Robocizna)
+          <span style={{ color: '#D4AF37' }}>▦</span> Widok zestawienia kosztorysowego
         </CardTitle>
-        <p className="text-xs text-[#94A3B8] mt-1">Pełna tabela kosztorysowa w stylu arkusza wykonawczego. Kolumny <span style={{ color: '#5F7552' }}>zielone</span> = kaucje (5%/3% z Finansów). Kolumny <span style={{ color: '#D4AF37' }}>złote</span> = przeroby (wykonanie z Finansów).</p>
+        <p className="text-xs text-[#94A3B8] mt-1">
+          Pełna tabela 1:1 z arkuszem wykonawczym. Kolumny <span style={{ color: '#5F7552' }}>zielone</span> = kaucje (z Finansów). Kolumny <span style={{ color: '#D4AF37' }}>złote</span> = przeroby (wykonanie z Finansów). Wiersz <span className="font-bold" style={{ color: SEPARATOR }}>|</span> = separator bloków.
+        </p>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 overflow-x-auto">
-          <div className="overflow-x-auto">{renderMaterials()}</div>
-          <div className="overflow-x-auto">{renderLabor()}</div>
-        </div>
+      <CardContent className="overflow-x-auto p-0">
+        <table className="text-[10px] border-collapse" style={{ minWidth: '1900px' }} data-testid="excel-combined-table">
+          <thead>
+            {/* Wiersz 1: 2 grupowe naglowki */}
+            <tr>
+              <th colSpan={13} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
+                MATERIAŁY ({materials.length})
+              </th>
+              <th colSpan={8} className="p-1.5 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>
+                ROBOCIZNA ({labor.length})
+              </th>
+            </tr>
+            {/* Wiersz 2: nazwy kolumn */}
+            <tr style={{ backgroundColor: HEADER_BG }}>
+              {['KOD', 'NAZWA', 'JD.', 'ILOŚĆ', 'CENA MATERIAŁU', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'CENA B. JD.', 'PRZEROBY M', 'KOSZT ZAKUPU', 'CENA ZAKUPU'].map((h, i) => (
+                <th key={`m-${i}`} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{h}</th>
+              ))}
+              {['KOD', 'NAZWA', 'BUDŻET', 'KAUCJA GIR', 'KAUCJA DW', 'BUDŻET ZW.', 'PRZEROBY R', '% ZAAW.'].map((h, i) => (
+                <th key={`r-${i}`} className="p-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, ...(i === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(materials.length === 0 && labor.length === 0) ? (
+              <tr><td colSpan={21} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji. Dodaj najpierw pozycje budżetu.</td></tr>
+            ) : Array.from({ length: maxRows }, (_, i) => {
+              const m = materials[i];
+              const r = labor[i];
+              return (
+                <tr key={i} className="hover:bg-[#0B1120]/40">
+                  {/* MATERIAŁY (13 kolumn) */}
+                  {m ? (() => {
+                    const plan = m.plan_netto_computed || 0;
+                    const ilosc = m.quantity || 0;
+                    const cena = m.unit_price_netto || 0;
+                    const kg = m.kaucja_gir_amount || 0;
+                    const kd = m.kaucja_dw_amount || 0;
+                    const bzw = plan - kg - kd;
+                    const cenaBjd = ilosc > 0 ? plan / ilosc : 0;
+                    const przerob = m.execution_netto || 0;
+                    const cenaZakupu = ilosc > 0 ? przerob / ilosc : 0;
+                    return (
+                      <>
+                        <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{i + 1}</td>
+                        <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{m.name}</td>
+                        <td className="p-1 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{m.unit || '—'}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
+                        <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
+                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaBjd)}</td>
+                        <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
+                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(przerob)}</td>
+                        <td className="p-1 text-right text-[#94A3B8] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cenaZakupu)}</td>
+                      </>
+                    );
+                  })() : (
+                    <>{Array.from({ length: 13 }, (_, j) => (
+                      <td key={`em-${j}`} className="p-1 border bg-[#0B1120]/30" style={{ borderColor: BORDER }}>&nbsp;</td>
+                    ))}</>
+                  )}
+                  {/* ROBOCIZNA (8 kolumn) */}
+                  {r ? (() => {
+                    const plan = r.plan_netto_computed || 0;
+                    const kg = r.kaucja_gir_amount || 0;
+                    const kd = r.kaucja_dw_amount || 0;
+                    const bzw = plan - kg - kd;
+                    const przerob = r.execution_netto || 0;
+                    const pct = r.progress_pct || 0;
+                    return (
+                      <>
+                        <td className="p-1 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{14 + i}</td>
+                        <td className="p-1 text-left text-white border whitespace-nowrap" style={{ borderColor: BORDER }}>{r.name}</td>
+                        <td className="p-1 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="p-1 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
+                        <td className="p-1 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
+                        <td className={`p-1 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={{ borderColor: BORDER }}>{Math.round(pct)}%</td>
+                      </>
+                    );
+                  })() : (
+                    <>{Array.from({ length: 8 }, (_, j) => (
+                      <td key={`er-${j}`} className="p-1 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
+                    ))}</>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </CardContent>
     </Card>
   );
