@@ -822,7 +822,8 @@ const ProgressPanel = ({ budowaId, year }) => {
 
   const t = data.totals;
   const olive = '#4F6343';
-  const oliveLight = '#9DBC85'; // jasniejszy zielony dla 3 grup naglowka
+  const oliveDark = '#3F5235';
+  const oliveStage = '#5F7552';
 
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]">
@@ -842,54 +843,56 @@ const ProgressPanel = ({ budowaId, year }) => {
       <CardContent className="overflow-x-auto p-0">
         <table className="w-full text-xs border-collapse" data-testid="progress-table">
           <thead>
-            {/* Naglowek - dwa rzedy */}
+            {/* Naglowek - dwa rzedy, olive green w brandingu strony */}
             <tr>
-              <th colSpan={6} className="bg-white"></th>
-              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>NARASTAJĄCO</th>
-              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>POPRZEDNI MIESIĄC</th>
-              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>MIESIĄC ROZLICZENIOWY</th>
+              <th colSpan={6} className="bg-[#0B1120]"></th>
+              <th colSpan={2} className="p-1.5 text-center font-bold text-white border border-[#2A3B59]" style={{ backgroundColor: olive }}>NARASTAJĄCO</th>
+              <th colSpan={2} className="p-1.5 text-center font-bold text-white border border-[#2A3B59]" style={{ backgroundColor: olive }}>POPRZEDNI MIESIĄC</th>
+              <th colSpan={2} className="p-1.5 text-center font-bold text-white border border-[#2A3B59]" style={{ backgroundColor: olive }}>MIESIĄC ROZLICZENIOWY</th>
             </tr>
-            <tr style={{ backgroundColor: oliveLight }}>
-              <th className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120] w-10">LP.</th>
-              <th className="p-1 text-left font-bold text-[#0B1120] border border-[#0B1120] min-w-[280px]">Robocizna</th>
-              <th className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120] w-14">Jd.</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">Ilość</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-20">Cena</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">Wartość</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
-              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
+            <tr style={{ backgroundColor: oliveDark }}>
+              <th className="p-1.5 text-center font-bold text-white border border-[#2A3B59] w-10">LP.</th>
+              <th className="p-1.5 text-left font-bold text-white border border-[#2A3B59] min-w-[280px]">Robocizna</th>
+              <th className="p-1.5 text-center font-bold text-white border border-[#2A3B59] w-14">Jd.</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-16">Ilość</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-20">Cena</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-24">Wartość</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-24">WARTOŚĆ</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-16">%</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-24">WARTOŚĆ</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-16">%</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-24">WARTOŚĆ</th>
+              <th className="p-1.5 text-right font-bold text-white border border-[#2A3B59] w-16">%</th>
             </tr>
           </thead>
-          <tbody className="bg-white">
+          <tbody className="bg-[#131C2F]">
             {data.rows.map((row, idx) => {
               if (row.type === 'section') {
                 return (
-                  <tr key={`s-${idx}`} className="bg-[#D9D9D9]">
-                    <td className="border border-[#0B1120] p-1"></td>
-                    <td colSpan={11} className="border border-[#0B1120] p-1 font-bold text-[#0B1120]">{row.category}</td>
+                  <tr key={`s-${idx}`} style={{ backgroundColor: oliveStage }}>
+                    <td className="border border-[#2A3B59] p-1.5"></td>
+                    <td colSpan={11} className="border border-[#2A3B59] p-1.5 font-bold text-white uppercase tracking-wide">
+                      ▣ {row.stage_name || row.category}
+                    </td>
                   </tr>
                 );
               }
               const editedVal = edits[row.id];
               const inputVal = editedVal !== undefined ? editedVal : (row.miesiac_pct || 0);
               return (
-                <tr key={row.id} data-testid={`progress-row-${row.id}`}>
-                  <td className="border border-[#0B1120] p-1 text-center text-[#0B1120] tabular-nums">{row.lp}</td>
-                  <td className="border border-[#0B1120] p-1 text-left text-[#0B1120]">{row.name}</td>
-                  <td className="border border-[#0B1120] p-1 text-center text-[#0B1120]">{row.unit || '—'}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtQty(row.quantity)}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPrice(row.unit_price_netto)}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums font-semibold">{fmtPLN(row.plan_netto)}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.narast_val)}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{(row.narast_pct || 0).toFixed(2)}%</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.prev_val)}</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{(row.prev_pct || 0).toFixed(2)}%</td>
-                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.miesiac_val)}</td>
-                  <td className="border border-[#0B1120] p-0 text-right">
+                <tr key={row.id} className="hover:bg-[#0B1120]/40" data-testid={`progress-row-${row.id}`}>
+                  <td className="border border-[#2A3B59] p-1.5 text-center text-[#CBD5E1] tabular-nums">{row.lp}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-left text-white">{row.name}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-center text-[#94A3B8]">{row.unit || '—'}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#CBD5E1] tabular-nums">{fmtQty(row.quantity)}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#CBD5E1] tabular-nums">{fmtPrice(row.unit_price_netto)}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums font-semibold">{fmtPLN(row.plan_netto)}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#5F7552] tabular-nums">{fmtPLN(row.narast_val)}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#5F7552] tabular-nums">{(row.narast_pct || 0).toFixed(2)}%</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#94A3B8] tabular-nums">{fmtPLN(row.prev_val)}</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#94A3B8] tabular-nums">{(row.prev_pct || 0).toFixed(2)}%</td>
+                  <td className="border border-[#2A3B59] p-1.5 text-right text-[#D4AF37] tabular-nums font-semibold">{fmtPLN(row.miesiac_val)}</td>
+                  <td className="border border-[#2A3B59] p-0 text-right" style={{ backgroundColor: '#1A2540' }}>
                     <input
                       type="number"
                       min="0"
@@ -905,7 +908,7 @@ const ProgressPanel = ({ budowaId, year }) => {
                           setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
                         }
                       }}
-                      className="w-full bg-[#FFF8DC] text-[#0B1120] text-right text-xs px-1 py-1 outline-none focus:bg-[#FFEB99]"
+                      className="w-full bg-transparent text-[#D4AF37] text-right text-xs font-bold px-1.5 py-1.5 outline-none focus:bg-[#0B1120] no-spinner"
                       data-testid={`progress-input-${row.id}`}
                     />
                   </td>
@@ -913,19 +916,19 @@ const ProgressPanel = ({ budowaId, year }) => {
               );
             })}
             {/* RAZEM */}
-            <tr className="font-bold" style={{ backgroundColor: oliveLight }}>
-              <td className="border border-[#0B1120] p-1"></td>
-              <td className="border border-[#0B1120] p-1 text-center text-[#0B1120]">RAZEM</td>
-              <td className="border border-[#0B1120] p-1"></td>
-              <td className="border border-[#0B1120] p-1"></td>
-              <td className="border border-[#0B1120] p-1"></td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.plan_netto)}</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.narast_val)}</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.narast_pct || 0)}%</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.prev_val)}</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.prev_pct || 0)}%</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums" data-testid="progress-total-miesiac-val">{fmtPLN(t.miesiac_val)}</td>
-              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.miesiac_pct || 0)}%</td>
+            <tr className="font-bold" style={{ backgroundColor: olive }}>
+              <td className="border border-[#2A3B59] p-1.5"></td>
+              <td className="border border-[#2A3B59] p-1.5 text-center text-white">RAZEM</td>
+              <td className="border border-[#2A3B59] p-1.5"></td>
+              <td className="border border-[#2A3B59] p-1.5"></td>
+              <td className="border border-[#2A3B59] p-1.5"></td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums">{fmtPLN(t.plan_netto)}</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums">{fmtPLN(t.narast_val)}</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums">{Math.round(t.narast_pct || 0)}%</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums">{fmtPLN(t.prev_val)}</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-white tabular-nums">{Math.round(t.prev_pct || 0)}%</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-[#D4AF37] tabular-nums font-bold" data-testid="progress-total-miesiac-val">{fmtPLN(t.miesiac_val)}</td>
+              <td className="border border-[#2A3B59] p-1.5 text-right text-[#D4AF37] tabular-nums font-bold">{Math.round(t.miesiac_pct || 0)}%</td>
             </tr>
           </tbody>
         </table>

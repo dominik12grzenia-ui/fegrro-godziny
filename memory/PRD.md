@@ -1,3 +1,39 @@
+## Iteration 50 (2026-05-19) — Etap = sekcja protokołu + dark branding widoku
+
+### User feedback
+- Sekcja w protokole pokazywała kategorię („BETON", „hej") zamiast etapu („Fundamenty"). Etapy są ważniejsze logicznie — pozycja należy do etapu, etap zawiera różne kategorie kosztów.
+- Widok zakładki Protokół miał białe tło z jasno-zielonym headerem (jak Excel) — niespójny z resztą panelu admina (dark navy + olive). User wymaga brandingu strony.
+
+### Backend
+- **`_fetch_protokol_data`** rozszerzony: ładuje `budget_stages`, buduje `stages_map`, sortuje pozycje wg `stage.order → line.order → created_at`. Zwraca dodatkowo `stages_map`.
+- **Generator JSON** (`protokol-view`): sekcja = stage_name (lub „Bez etapu"). Klucz w response: `row.stage_name`.
+- **Generator PDF**: section row = `stage_name.upper()` (np. „FUNDAMENTY") z szarym tłem.
+- **Generator XLSX**: identyczna logika — sekcja = etap, wielkie litery, szare tło.
+- Wszystkie trzy generatory są spójne (jeden helper).
+
+### Frontend (`Budget.js`)
+- **`ProgressPanel` w pełnym brandingu strony**:
+  - tło tabeli `#131C2F` (zamiast białego)
+  - nagłówki grup (NARASTAJĄCO / POPRZEDNI / MIESIĄC ROZLICZ.) — olive `#4F6343` z białym tekstem
+  - nagłówki kolumn (LP/Robocizna/...) — ciemniejszy olive `#3F5235`
+  - wiersze sekcji (etapu) — `#5F7552` z białym uppercase tekstem i ikoną `▣`
+  - wiersze pozycji — ciemne navy z białym/jasnym tekstem, **MIESIĄC ROZLICZENIOWY w złotym `#D4AF37`** (wartość) + złoty input (edytowalny)
+  - hover row: lekko jaśniejszy
+  - obramowania: `#2A3B59` (jednolite z całym panelem)
+  - RAZEM: olive z złotymi liczbami miesiąca rozliczeniowego (subtelne wyróżnienie tego co user wpisuje)
+- Input `MIESIĄC ROZLICZENIOWY %`: transparent background na tle navy, złoty tekst, focus = `#0B1120`, klasa `no-spinner` (bez strzałek).
+
+### Co dostaje user
+- W widoku Protokół sekcjami są etapy budowy („Fundamenty", „Konstrukcja", „Wykończenia"…), nie kategorie kosztowe.
+- Cały widok wygląda jak naturalne rozszerzenie panelu admina — żadnego „obcego" białego ekranu Excelowego w środku ciemnego UI.
+- Eksport PDF/XLSX nadal w jasnej kolorystyce (papier) — ale i tam sekcje to teraz etapy.
+
+### Testy
+- Backend: `/api/budget/{id}/protokol-view/2026/5` zwraca `SECTION: Bez etapu` jako stage_name ✓
+- Backend: PDF 200 OK 25kb, XLSX 200 OK 29kb ✓
+- Frontend live screenshot: dark theme z olive headerami i złotymi akcentami, ikona ▣ przy etapie ✓
+
+
 ## Iteration 49 (2026-05-19) — Kategorie + Etapy + Auto-Kaucja + Branding FEGRRO
 
 ### Backend (`routes/budget.py`)

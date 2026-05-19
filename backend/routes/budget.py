@@ -525,34 +525,48 @@ def _month_range(year: int, month: int):
 async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     """Pobiera dane potrzebne do wygenerowania protokolu (xlsx lub pdf).
 
-    Nowa konwencja:
+    Konwencja:
       - budget_progress.progress_pct = PRZEROB DANEGO MIESIACA (nie narastajaco)
       - progress_curr[line_id] = przerob biezacego miesiaca
-      - progress_prev[line_id] = SUMA przerobow PRZED biezacym miesiacem (narastajaco do poprzedniego mies. wlacznie)
+      - progress_prev[line_id] = SUMA przerobow PRZED biezacym miesiacem
       - Narastajaco = progress_prev + progress_curr
+      - lines sortowane wg etapu (stage.order) potem (line.order, created_at)
 
-    Zwraca tuple: (budowa, lines, progress_curr, progress_prev, nr_protokolu).
+    Zwraca tuple: (budowa, lines, progress_curr, progress_prev, nr_protokolu, stages_map).
+    stages_map: dict {stage_id: {id, name, order, start_date, end_date}}.
     """
     if month < 1 or month > 12:
         raise HTTPException(400, "Nieprawidlowy miesiac (1-12)")
     budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
     if not budowa:
         raise HTTPException(404, "Budowa nie istnieje")
+
+    # Etapy budowy + mapa
+    stages = await db.budget_stages.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1), ("start_date", 1)]).to_list(length=500)
+    stages_map = {s["id"]: s for s in stages}
+    # Stable kolejnosc etapow: po order/start_date z DB; "bez etapu" zawsze na koncu
+    stage_order = {s["id"]: i for i, s in enumerate(stages)}
+    stage_order[None] = len(stages) + 1  # bez etapu na koncu
+
     lines = await db.budget_lines.find(
         {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
-    ).sort([("order", 1), ("created_at", 1)]).to_list(length=5000)
+    ).to_list(length=5000)
+    # Sortuj lines: stage_order -> line.order -> created_at
+    lines.sort(key=lambda ln: (
+        stage_order.get(ln.get("stage_id"), 999),
+        ln.get("order") or 0,
+        ln.get("created_at") or "",
+    ))
 
     line_ids = [ln["id"] for ln in lines]
     progress_curr = {}
     progress_prev = {}
     if line_ids:
-        # Przerob biezacego miesiaca
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
             {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
         ):
             progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
-        # Suma przerobow ze WSZYSTKICH miesiecy poprzedzajacych biezacy
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids},
              "$or": [
@@ -564,7 +578,6 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
             lid = p["budget_line_id"]
             progress_prev[lid] = progress_prev.get(lid, 0.0) + float(p["progress_pct"])
 
-    # Numer protokolu = liczba miesiecy z dowolnym przerobem przed biezacym + 1
     distinct_months = set()
     async for p in db.budget_progress.find(
         {"budget_line_id": {"$in": line_ids},
@@ -574,7 +587,7 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     ):
         distinct_months.add((p["year"], p["month"]))
     nr = len(distinct_months) + 1
-    return budowa, lines, progress_curr, progress_prev, nr
+    return budowa, lines, progress_curr, progress_prev, nr, stages_map
 
 
 @router.get("/budget/{budowa_id}/protokol-view/{year}/{month}")
@@ -585,21 +598,23 @@ async def get_protokol_view(
     _user: dict = Depends(get_current_admin),
 ):
     """Dane do widoku Protokol w stylu Excel.
-    Zwraca wiersze: kategorie jako sekcje + pozycje z narastajaco / poprzedni / miesiac rozliczeniowy.
+    Zwraca wiersze: ETAPY jako sekcje + pozycje z narastajaco / poprzedni / miesiac rozliczeniowy.
     Format identyczny jak generator XLSX, ale jako JSON dla frontendu.
     """
-    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
+    budowa, lines, progress_curr, progress_prev, nr, stages_map = await _fetch_protokol_data(budowa_id, year, month)
 
     rows = []
-    last_cat = None
+    last_stage = "__init__"
     lp = 1
     sum_budzet = sum_narast = sum_prev = sum_miesiac = 0.0
 
     for ln in lines:
-        cat = ln.get("category") or ""
-        if cat and cat != last_cat:
-            rows.append({"type": "section", "category": cat})
-            last_cat = cat
+        sid = ln.get("stage_id")
+        if sid != last_stage:
+            stage = stages_map.get(sid)
+            stage_name = (stage.get("name") if stage else "Bez etapu") or "Bez etapu"
+            rows.append({"type": "section", "stage_id": sid, "stage_name": stage_name})
+            last_stage = sid
         plan = _compute_plan(ln)
         miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)
@@ -611,7 +626,7 @@ async def get_protokol_view(
             "type": "line",
             "id": ln["id"],
             "lp": lp,
-            "category": cat,
+            "category": ln.get("category") or "",
             "name": ln.get("name", ""),
             "unit": ln.get("unit") or "",
             "quantity": ln.get("quantity") or 0,
@@ -666,7 +681,7 @@ async def generate_protokol_pdf(
     from calendar import monthrange
     import os
 
-    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
+    budowa, lines, progress_curr, progress_prev, nr, stages_map = await _fetch_protokol_data(budowa_id, year, month)
 
     # Rejestruj font wspierajacy polskie znaki (DejaVuSans z systemu)
     try:
@@ -763,18 +778,20 @@ async def generate_protokol_pdf(
                 "WARTOŚĆ", "%", "WARTOŚĆ", "%", "WARTOŚĆ", "%"]
 
     data = [head_top, head_bot]
-    last_cat = None
+    last_stage = "__init__"
     lp = 1
     sum_budzet = sum_narast = sum_prev = sum_miesiac = 0.0
-    section_rows = []  # indeksy wierszy sekcji
+    section_rows = []  # indeksy wierszy sekcji (etapow)
 
     for ln in lines:
-        cat = ln.get("category") or ""
-        if cat and cat != last_cat:
+        sid = ln.get("stage_id")
+        if sid != last_stage:
+            stage = stages_map.get(sid)
+            stage_name = (stage.get("name") if stage else "Bez etapu") or "Bez etapu"
             section_rows.append(len(data))
-            row = ["", cat, "", "", "", "", "", "", "", "", "", ""]
+            row = ["", stage_name.upper(), "", "", "", "", "", "", "", "", "", ""]
             data.append(row)
-            last_cat = cat
+            last_stage = sid
         plan = _compute_plan(ln)
         miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)
@@ -980,7 +997,7 @@ async def generate_protokol_xlsx(
     from openpyxl.drawing.image import Image as XLImage
     import os
 
-    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
+    budowa, lines, progress_curr, progress_prev, nr, stages_map = await _fetch_protokol_data(budowa_id, year, month)
 
     # ===== WORKBOOK =====
     wb = Workbook()
@@ -1098,27 +1115,29 @@ async def generate_protokol_xlsx(
     ws.row_dimensions[HEAD_TOP].height = 22
     ws.row_dimensions[HEAD_BOT].height = 22
 
-    # === WIERSZE TABELI z grupowaniem po kategorii ===
+    # === WIERSZE TABELI z grupowaniem po ETAPIE ===
     r = HEAD_BOT + 1
     sum_budzet = 0.0
     sum_narast = 0.0
     sum_prev = 0.0
     sum_miesiac = 0.0
     lp = 1
-    last_cat = None
+    last_stage = "__init__"
 
     for ln in lines:
-        cat = ln.get("category") or ""
-        if cat and cat != last_cat:
-            # Wiersz sekcji - tylko nazwa kategorii, szare tlo
+        sid = ln.get("stage_id")
+        if sid != last_stage:
+            stage = stages_map.get(sid)
+            stage_name = (stage.get("name") if stage else "Bez etapu") or "Bez etapu"
+            # Wiersz sekcji - tylko nazwa etapu, szare tlo
             for ci in range(1, 13):
                 cell = ws.cell(row=r, column=ci, value="")
                 cell.fill = gray_fill
                 cell.border = box
-            ws.cell(row=r, column=2, value=cat).font = bold
+            ws.cell(row=r, column=2, value=stage_name.upper()).font = bold
             ws.cell(row=r, column=2).alignment = left
             r += 1
-            last_cat = cat
+            last_stage = sid
 
         plan = _compute_plan(ln)
         # Nowa konwencja: progress_curr to przerob miesiaca, progress_prev to suma narast. do poprz.
