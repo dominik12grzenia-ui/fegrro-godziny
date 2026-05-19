@@ -33,6 +33,48 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 
+# ===== GUS / White List Ministry of Finance =====
+
+@router.get("/finance/gus-lookup/{nip}")
+async def gus_lookup(nip: str, _user: dict = Depends(get_current_admin)):
+    """Pobiera dane podmiotu z bialej listy podatnikow VAT (Ministerstwo Finansow).
+    API: https://wl-api.mf.gov.pl/api/search/nip/{nip}?date=YYYY-MM-DD
+    Bez kluczy. Limit ~10 zapytan/min na IP."""
+    nip_clean = "".join(ch for ch in nip if ch.isdigit())
+    if len(nip_clean) != 10:
+        raise HTTPException(400, "Nieprawidlowy NIP - oczekiwano 10 cyfr")
+    today = datetime.now().strftime("%Y-%m-%d")
+    url = f"https://wl-api.mf.gov.pl/api/search/nip/{nip_clean}?date={today}"
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            r = await client.get(url)
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Blad polaczenia z biala lista: {e}")
+    if r.status_code == 400:
+        raise HTTPException(400, "Bialy List odrzucil zapytanie (sprawdz NIP)")
+    if r.status_code != 200:
+        raise HTTPException(r.status_code, f"Bialy List HTTP {r.status_code}")
+    data = r.json() or {}
+    subject = ((data.get("result") or {}).get("subject")) or None
+    if not subject:
+        raise HTTPException(404, f"NIP {nip_clean} nie istnieje w bialej liscie podatnikow")
+    name = subject.get("name", "")
+    address = subject.get("workingAddress") or subject.get("residenceAddress") or ""
+    full = name
+    if address:
+        full = f"{name}, {address}"
+    full = f"{full}, NIP: {nip_clean}".strip(", ")
+    return {
+        "nip": nip_clean,
+        "name": name,
+        "address": address,
+        "regon": subject.get("regon") or "",
+        "krs": subject.get("krs") or "",
+        "status": subject.get("statusVat") or "",
+        "formatted": full,  # gotowy tekst do wstawienia w pole `zamawiajacy`
+    }
+
+
 # ============= KODY (seed z Excela Kody!B2-B34) =============
 # Kazdy kod ma: id (skrot uzywany w UI), nazwa, kategoria (PZS/PPE/PV/G/KP/KBB/KSB/KSP)
 KODY_SEED = [

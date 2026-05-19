@@ -1,3 +1,33 @@
+## Iteration 51 (2026-05-19) — Integracja z GUS (Biała Lista MF) + Wykonawca stały w Finanse
+
+### Backend (`routes/finance.py`)
+- **`GET /api/finance/gus-lookup/{nip}`** — pobiera dane podmiotu z Białej Listy Podatników VAT Ministerstwa Finansów (`https://wl-api.mf.gov.pl/api/search/nip/{nip}?date=YYYY-MM-DD`):
+  - bez kluczy API, bez auth do MF (limit ~10 req/min/IP)
+  - walidacja: tylko 10 cyfr (odrzuca `\D`)
+  - parsowanie: `name`, `workingAddress` lub `residenceAddress`, `regon`, `krs`, `statusVat`
+  - zwraca też `formatted` — gotowy tekst do wstawienia w pole `zamawiajacy` (np. `"FEGRRO" SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ, NA RÓWNIKU 1, 83-314 SŁAWKI, NIP: 5892066174`)
+  - HTTP 400 dla nieprawidłowego NIPu, 404 dla nieistniejących, 502 dla błędu sieci
+
+### Frontend
+- **`NipLookup`** (Finance.js) i **`BudgetNipLookup`** (Budget.js) — kompaktowy komponent: input NIP + przycisk „Pobierz z GUS" (olive green) + obsługa Enter:
+  - po sukcesie: toast `Załadowano: {nazwa firmy}`, wartość wstawiana w textarea `zamawiajacy` przez prop `onResult`
+  - po błędzie: toast z komunikatem z backendu (lub HTTP)
+- **Wstawiony w 2 miejscach**:
+  1. `Finance.js` → modal Budowy (`finance-budowa-modal`) — nad polem Zamawiający
+  2. `Budget.js` → `ContractDataModal` — nad polem Zamawiający (otwierany gdy generujesz protokół a budowa nie ma uzupełnionych danych)
+- **Spójność z Wykonawcą stałym** — usunięte pole tekstowe „Wykonawca" w modal Finance > Budowy, zastąpione statycznym info-boxem `FEGRRO SP. Z O.O. / NIP: 589-206-61-74` (już wcześniej zrobione w Budget.js iter 49).
+
+### Co dostaje user
+- Wpisuje `5892066174` → klika „Pobierz z GUS" → pole zamawiającego wypełnia się: `"FEGRRO" SPÓŁKA Z O.O., NA RÓWNIKU 1, 83-314 SŁAWKI, NIP: 5892066174` (w 1 sekundę).
+- Walidacja statusu VAT (Czynny / Wykreślony) dostępna w response, ale na razie nie wyświetlana — można dodać jako badge w przyszłości.
+- Nie wpisuje już ręcznie 80+ znaków nazwy + adres + NIP — zero literówek, jeden klik.
+
+### Testy
+- Backend curl real: NIP FeGrro `5892066174` → 200 z poprawnymi danymi ✓
+- Backend curl invalid: NIP `0000000000` → 404 `nie istnieje w bialej liscie` ✓
+- Frontend screenshot: input NIP + button widoczne nad textarea, info-box Wykonawca na dole ✓
+
+
 ## Iteration 50 (2026-05-19) — Etap = sekcja protokołu + dark branding widoku
 
 ### User feedback

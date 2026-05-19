@@ -10,6 +10,46 @@ import { toast } from 'sonner';
 
 const PL_MONTHS_SHORT = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paz','Lis','Gru'];
 
+// ============= NIP LOOKUP (Biala Lista MF) =============
+const NipLookup = ({ onResult, compact = false }) => {
+  const [nip, setNip] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const fetchGus = async () => {
+    const cleaned = nip.replace(/\D/g, '');
+    if (cleaned.length !== 10) {
+      toast.error('NIP musi mieć 10 cyfr');
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await api.get(`/finance/gus-lookup/${cleaned}`);
+      onResult(r.data.formatted);
+      toast.success(`Załadowano: ${r.data.name}`);
+      setNip('');
+    } catch (e) {
+      toast.error('GUS: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={`flex gap-1 ${compact ? 'mb-1' : 'mb-1.5'}`}>
+      <Input value={nip} onChange={(e) => setNip(e.target.value)}
+        placeholder="NIP (10 cyfr)" maxLength={13}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fetchGus(); } }}
+        className="h-7 text-xs bg-[#131C2F] border-[#2A3B59] text-white no-spinner"
+        data-testid="nip-lookup-input" />
+      <Button type="button" size="sm" onClick={fetchGus} disabled={busy}
+        className="h-7 px-2 text-xs bg-[#4F6343] hover:bg-[#3F5235] text-white whitespace-nowrap"
+        data-testid="nip-lookup-btn">
+        {busy ? 'Pobieram...' : 'Pobierz z GUS'}
+      </Button>
+    </div>
+  );
+};
+
 // Numerical formatter - usuwa zera po kropce: 0.00→"0", 12.50→"12.5" (dla wskaznikow, godzin)
 const fmt = (v) => {
   const n = Number(v ?? 0);
@@ -793,6 +833,7 @@ const BudowyPanel = () => {
             <div className="text-xs text-[#D4AF37] font-semibold uppercase tracking-wide">Dane do protokołu miesięcznego</div>
             <div>
               <label className="text-xs text-[#94A3B8] block mb-1">Zamawiający (nazwa, adres, NIP)</label>
+              <NipLookup onResult={(text) => setForm({...form, zamawiajacy: text})} />
               <textarea value={form.zamawiajacy} onChange={(e) => setForm({...form, zamawiajacy: e.target.value})}
                 rows={2}
                 className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
@@ -811,11 +852,10 @@ const BudowyPanel = () => {
                   className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-umowa-data" />
               </div>
             </div>
-            <div>
-              <label className="text-xs text-[#94A3B8] block mb-1">Wykonawca (puste = domyślnie FEGRRO)</label>
-              <Input value={form.wykonawca} onChange={(e) => setForm({...form, wykonawca: e.target.value})}
-                placeholder="FEGRRO SP. Z O.O. NIP: 589-206-61-74"
-                className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-wykonawca" />
+            <div className="bg-[#131C2F]/60 border border-[#4F6343]/40 rounded p-2 text-xs">
+              <div className="text-[#94A3B8] mb-0.5">Wykonawca (stały):</div>
+              <div className="text-[#5F7552] font-semibold">FEGRRO SP. Z O.O.</div>
+              <div className="text-[#CBD5E1]">NIP: 589-206-61-74</div>
             </div>
           </div>
           <DialogFooter>

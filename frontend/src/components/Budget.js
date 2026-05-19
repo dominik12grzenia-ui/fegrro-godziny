@@ -664,6 +664,41 @@ const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, o
   );
 };
 
+// =================== NIP LOOKUP (Biala Lista MF) ===================
+const BudgetNipLookup = ({ onResult }) => {
+  const [nip, setNip] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const fetchGus = async () => {
+    const cleaned = nip.replace(/\D/g, '');
+    if (cleaned.length !== 10) { toast.error('NIP musi mieć 10 cyfr'); return; }
+    setBusy(true);
+    try {
+      const r = await api.get(`/finance/gus-lookup/${cleaned}`);
+      onResult(r.data.formatted);
+      toast.success(`Załadowano: ${r.data.name}`);
+      setNip('');
+    } catch (e) {
+      toast.error('GUS: ' + (e.response?.data?.detail || e.message));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex gap-1 mb-1.5">
+      <Input value={nip} onChange={(e) => setNip(e.target.value)}
+        placeholder="NIP (10 cyfr)" maxLength={13}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fetchGus(); } }}
+        className="h-7 text-xs bg-[#0B1120] border-[#2A3B59] text-white no-spinner"
+        data-testid="budget-nip-lookup-input" />
+      <Button type="button" size="sm" onClick={fetchGus} disabled={busy}
+        className="h-7 px-2 text-xs bg-[#4F6343] hover:bg-[#3F5235] text-white whitespace-nowrap"
+        data-testid="budget-nip-lookup-btn">
+        {busy ? 'Pobieram...' : 'Pobierz z GUS'}
+      </Button>
+    </div>
+  );
+};
+
 // =================== MODAL: UZUPELNIJ DANE DO UMOWY ===================
 const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
   const [form, setForm] = useState({
@@ -712,6 +747,7 @@ const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] block mb-1">Zamawiający (nazwa, adres, NIP) *</label>
+            <BudgetNipLookup onResult={(text) => setForm({...form, zamawiajacy: text})} />
             <textarea value={form.zamawiajacy} onChange={(e) => setForm({...form, zamawiajacy: e.target.value})}
               rows={3}
               placeholder="np. ALLCON BUDOWNICTWO Sp. z o.o., al. marsz. Piłsudskiego 11/2.1, 81-400 Gdynia, NIP 5862181834"
