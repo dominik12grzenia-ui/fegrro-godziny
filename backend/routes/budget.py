@@ -360,10 +360,31 @@ async def generate_protokol_xlsx(
     month: int,
     _user: dict = Depends(get_current_admin),
 ):
-    """Generuje xlsx z protokolem miesiecznym dla danej budowy."""
+    """Generuje xlsx z protokolem miesiecznym w stylu firmowym FEGRRO:
+
+    Naglowek (lewa strona - logo, prawa - tytul + nr umowy):
+      PROTOKOL STANU ZAAWANSOWANIA ROBOT NR X    DO UMOWY    {nr_umowy}
+
+    Pola:
+      OKRES ROZLICZENIOWY:  {data_od}   DO   {data_do}
+      ZAMAWIAJACY:          {dane_zamawiajacego}
+      WYKONAWCA:            {dane_wykonawcy}
+
+    Tabela 10 kolumn z 3 zielonymi naglowkami zlaczonymi:
+      LP | Robocizna | Jd. | Ilosc | Cena | Wartosc | NARASTAJACO [WARTOSC %] | POPRZEDNI MIESIAC [WARTOSC %] | MIESIAC ROZLICZENIOWY [WARTOSC %]
+
+    Sekcje (kategorie) jako szare wiersze grupowe bez wartosci.
+    Wiersz RAZEM zielony z sumami.
+
+    Stopka:
+      DATA I MIEJSCE SPORZADZENIA PROTOKOLU: ...   DO ZAFAKTUROWANIA: {suma_miesiaca} zl NETTO
+      Linie podpisow ZAMAWIAJACY / WYKONAWCA
+    """
     from openpyxl import Workbook
     from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
     from openpyxl.utils import get_column_letter
+    from openpyxl.drawing.image import Image as XLImage
+    import os
 
     if month < 1 or month > 12:
         raise HTTPException(400, "Nieprawidlowy miesiac (1-12)")
@@ -372,13 +393,14 @@ async def generate_protokol_xlsx(
     if not budowa:
         raise HTTPException(404, "Budowa nie istnieje")
 
+    # Pobierz pozycje (tylko koszty) z zachowaniem kolejnosci tak by zachowac grupowanie po kategorii
     lines = await db.budget_lines.find(
         {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
-    ).sort([("order", 1), ("created_at", 1)]).to_list(length=2000)
+    ).sort([("order", 1), ("created_at", 1)]).to_list(length=5000)
 
     line_ids = [ln["id"] for ln in lines]
-    progress_curr = {}
-    progress_prev = {}
+    progress_curr = {}  # line_id -> pct (biezacy mies.)
+    progress_prev = {}  # line_id -> pct (poprzedni mies.)
     if line_ids:
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
@@ -386,6 +408,7 @@ async def generate_protokol_xlsx(
         ):
             progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
         prev_month = month - 1 if month > 1 else 12
+        # Bierzemy najwyzszy progres do (prev_year, prev_month) wlacznie
         async for p in db.budget_progress.find(
             {"budget_line_id": {"$in": line_ids},
              "$or": [
@@ -398,7 +421,7 @@ async def generate_protokol_xlsx(
             if lid not in progress_prev:
                 progress_prev[lid] = float(p["progress_pct"])
 
-    # Numer protokolu = liczba poprzednich miesiecy z progresem + 1
+    # Numer protokolu = liczba unikalnych miesiecy z progresem poprzedzajacych biezacy + 1
     distinct_months = set()
     async for p in db.budget_progress.find(
         {"budget_line_id": {"$in": line_ids},
@@ -408,127 +431,243 @@ async def generate_protokol_xlsx(
         distinct_months.add((p["year"], p["month"]))
     nr = len(distinct_months) + 1
 
+    # ===== WORKBOOK =====
     wb = Workbook()
     ws = wb.active
     ws.title = f"Protokol {month:02d}-{year}"
 
-    bold = Font(bold=True, size=10)
-    title_fill = PatternFill("solid", fgColor="D4AF37")
-    header_fill = PatternFill("solid", fgColor="E5E7EB")
-    thin = Side(border_style="thin", color="888888")
+    # === Style ===
+    bold = Font(bold=True, size=10, name="Calibri")
+    bold_big = Font(bold=True, size=14, name="Calibri")
+    normal = Font(size=10, name="Calibri")
+    green_fill = PatternFill("solid", fgColor="92D050")  # zielony jak w wzorcu
+    gray_fill = PatternFill("solid", fgColor="D9D9D9")
+    thin = Side(border_style="thin", color="000000")
     box = Border(left=thin, right=thin, top=thin, bottom=thin)
     center = Alignment(horizontal="center", vertical="center", wrap_text=True)
     left = Alignment(horizontal="left", vertical="center", wrap_text=True)
     right = Alignment(horizontal="right", vertical="center")
 
-    ws.merge_cells("A1:O1")
-    c = ws["A1"]
-    c.value = f"PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR {nr}"
-    c.font = Font(bold=True, size=16, color="0B1120")
-    c.fill = title_fill
-    c.alignment = center
-    ws.row_dimensions[1].height = 30
+    # === LOGO + NAGLOWEK ===
+    logo_path = "/app/frontend/public/icon-512x512.png"
+    if os.path.exists(logo_path):
+        try:
+            img = XLImage(logo_path)
+            img.width = 110
+            img.height = 110
+            ws.add_image(img, "B2")
+        except Exception:
+            pass
 
-    d_from, d_to = _month_range(year, month)
-    info_rows = [
-        ("OKRES ROZLICZENIOWY:", f"{d_from}  ÷  {d_to}"),
-        ("NAZWA BUDOWY:", budowa.get("name", "")),
-        ("UMOWA:", f'{budowa.get("umowa_nr", "")}  Z DNIA {budowa.get("umowa_data", "")}'.strip()),
-        ("ZAMAWIAJĄCY:", budowa.get("zamawiajacy", "")),
-        ("WYKONAWCA:", budowa.get("wykonawca", "FEGRRO SP. Z O.O. NIP: 589-206-61-74")),
-    ]
-    for i, (lbl, val) in enumerate(info_rows, start=3):
-        ws.cell(row=i, column=1, value=lbl).font = bold
-        ws.cell(row=i, column=2, value=val)
-        ws.merge_cells(start_row=i, start_column=2, end_row=i, end_column=10)
+    # Tytul + nr (kolumna F-J w gornej czesci)
+    ws["F2"] = "PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR"
+    ws["F2"].font = bold_big
+    ws["F2"].alignment = left
+    ws.merge_cells("F2:J2")
+    ws["K2"] = nr
+    ws["K2"].font = bold_big
+    ws["K2"].alignment = center
+    ws["F3"] = "DO UMOWY"
+    ws["F3"].font = bold
+    ws["F3"].alignment = left
+    ws.merge_cells("F3:J3")
+    ws["K3"] = budowa.get("umowa_nr", "")
+    ws["K3"].font = bold
+    ws["K3"].alignment = left
 
-    headers = ["LP", "Kategoria", "Pozycja", "Jedn.", "Ilość", "Cena j.",
-               "Budżet", "Kaucja GIR", "Kaucja DW", "Budżet zw.",
-               "Narastająco %", "Narastająco zł",
-               "Poprz. m-c %", "M-c rozlicz. %", "M-c rozlicz. zł"]
-    row_h = 10
-    for i, h in enumerate(headers, start=1):
-        cell = ws.cell(row=row_h, column=i, value=h)
+    # === POLA OKRES / ZAMAWIAJACY / WYKONAWCA ===
+    from calendar import monthrange
+    last_day = monthrange(year, month)[1]
+    d_from = f"{year:04d}-{month:02d}-01"
+    d_to = f"{last_day:02d}.{month:02d}.{year:04d}"
+
+    ws["B9"] = "OKRES ROZLICZENIOWY:"
+    ws["B9"].font = bold
+    ws["F9"] = d_from
+    ws["G9"] = "DO"
+    ws["G9"].font = bold
+    ws["H9"] = d_to
+
+    ws["B11"] = "ZAMAWIAJĄCY:"
+    ws["B11"].font = bold
+    ws["F11"] = budowa.get("zamawiajacy", "")
+    ws["F11"].alignment = left
+    ws.merge_cells("F11:K12")
+    ws.row_dimensions[11].height = 18
+    ws.row_dimensions[12].height = 18
+
+    ws["B14"] = "WYKONAWCA:"
+    ws["B14"].font = bold
+    ws["F14"] = budowa.get("wykonawca", "FEGRRO SP. Z O.O.  NIP: 589-206-61-74")
+    ws.merge_cells("F14:K14")
+
+    # === TABELA - PODWOJNE NAGLOWKI ===
+    HEAD_TOP = 17  # wiersz z grupami NARASTAJACO / POPRZEDNI / MIESIAC ROZLICZ.
+    HEAD_BOT = 18  # wiersz z LP/Robocizna/Jd./Ilosc/Cena/Wartosc + WARTOSC/%
+
+    # Gorne komorki LP-Wartosc puste, dolne wypelnione
+    ws.cell(row=HEAD_TOP, column=1, value="").fill = green_fill
+    for c_idx in range(1, 7):
+        ws.cell(row=HEAD_TOP, column=c_idx).fill = green_fill
+        ws.cell(row=HEAD_TOP, column=c_idx).border = box
+    # Trzy grupy: kol 7-8, 9-10, 11-12
+    ws.merge_cells(start_row=HEAD_TOP, start_column=7, end_row=HEAD_TOP, end_column=8)
+    g1 = ws.cell(row=HEAD_TOP, column=7, value="NARASTAJĄCO")
+    g1.font = bold
+    g1.fill = green_fill
+    g1.alignment = center
+    g1.border = box
+    ws.merge_cells(start_row=HEAD_TOP, start_column=9, end_row=HEAD_TOP, end_column=10)
+    g2 = ws.cell(row=HEAD_TOP, column=9, value="POPRZEDNI MIESIĄC")
+    g2.font = bold
+    g2.fill = green_fill
+    g2.alignment = center
+    g2.border = box
+    ws.merge_cells(start_row=HEAD_TOP, start_column=11, end_row=HEAD_TOP, end_column=12)
+    g3 = ws.cell(row=HEAD_TOP, column=11, value="MIESIĄC ROZLICZENIOWY")
+    g3.font = bold
+    g3.fill = green_fill
+    g3.alignment = center
+    g3.border = box
+
+    headers_bot = ["LP", "Robocizna", "Jd.", "Ilość", "Cena", "Wartość",
+                   "WARTOŚĆ", "%", "WARTOŚĆ", "%", "WARTOŚĆ", "%"]
+    for i, h in enumerate(headers_bot, start=1):
+        cell = ws.cell(row=HEAD_BOT, column=i, value=h)
         cell.font = bold
-        cell.fill = header_fill
+        cell.fill = green_fill
         cell.alignment = center
         cell.border = box
-    ws.row_dimensions[row_h].height = 32
+    ws.row_dimensions[HEAD_TOP].height = 22
+    ws.row_dimensions[HEAD_BOT].height = 22
 
-    budowa_gir_pct = float(budowa.get("kaucja_gir_pct") or 0)
-    budowa_dw_pct = float(budowa.get("kaucja_dw_pct") or 0)
-    sum_budzet = sum_gir = sum_dw = sum_zw = sum_narast = sum_miesiac = 0.0
+    # === WIERSZE TABELI z grupowaniem po kategorii ===
+    r = HEAD_BOT + 1
+    sum_budzet = 0.0
+    sum_narast = 0.0
+    sum_prev = 0.0
+    sum_miesiac = 0.0
+    lp = 1
+    last_cat = None
 
-    r = row_h + 1
-    for idx, ln in enumerate(lines, start=1):
+    for ln in lines:
+        cat = ln.get("category") or ""
+        if cat and cat != last_cat:
+            # Wiersz sekcji - tylko nazwa kategorii, szare tlo
+            for ci in range(1, 13):
+                cell = ws.cell(row=r, column=ci, value="")
+                cell.fill = gray_fill
+                cell.border = box
+            ws.cell(row=r, column=2, value=cat).font = bold
+            ws.cell(row=r, column=2).alignment = left
+            r += 1
+            last_cat = cat
+
         plan = _compute_plan(ln)
-        gir_pct = float(ln.get("kaucja_gir_pct") or 0) or budowa_gir_pct
-        dw_pct = float(ln.get("kaucja_dw_pct") or 0) or budowa_dw_pct
-        gir = round(plan * gir_pct / 100, 2)
-        dw = round(plan * dw_pct / 100, 2)
-        budzet_zw = round(plan - gir - dw, 2)
         narast_pct = progress_curr.get(ln["id"], progress_prev.get(ln["id"], 0.0))
-        narast_val = round(budzet_zw * narast_pct / 100, 2)
         prev_pct = progress_prev.get(ln["id"], 0.0)
         miesiac_pct = max(0.0, narast_pct - prev_pct)
-        miesiac_val = round(budzet_zw * miesiac_pct / 100, 2)
+        narast_val = round(plan * narast_pct / 100, 2)
+        prev_val = round(plan * prev_pct / 100, 2)
+        miesiac_val = round(plan * miesiac_pct / 100, 2)
 
         row_data = [
-            idx, ln.get("category", ""), ln.get("name", ""),
-            ln.get("unit") or "", ln.get("quantity", 0) or 0,
+            lp, ln.get("name", ""), ln.get("unit") or "",
+            ln.get("quantity", 0) or 0,
             ln.get("unit_price_netto", 0) or 0,
-            plan, gir, dw, budzet_zw,
-            f"{narast_pct:.1f}%", narast_val,
-            f"{prev_pct:.1f}%", f"{miesiac_pct:.1f}%", miesiac_val,
+            plan,
+            narast_val, narast_pct / 100.0,
+            prev_val, prev_pct / 100.0,
+            miesiac_val, miesiac_pct / 100.0,
         ]
         for i, v in enumerate(row_data, start=1):
             cell = ws.cell(row=r, column=i, value=v)
             cell.border = box
+            cell.font = normal
             if i == 1:
                 cell.alignment = center
-            elif i in (2, 3, 4):
+            elif i == 2:
                 cell.alignment = left
+            elif i == 3:
+                cell.alignment = center
             else:
                 cell.alignment = right
-            if i >= 5 and isinstance(v, (int, float)):
-                cell.number_format = "#,##0.00"
+            # Formatowanie
+            if i in (4,):
+                cell.number_format = "#,##0.0"
+            elif i in (5, 6, 7, 9, 11):
+                cell.number_format = "#,##0.00 zł"
+            elif i in (8, 10, 12):
+                cell.number_format = "0.00%"
 
         sum_budzet += plan
-        sum_gir += gir
-        sum_dw += dw
-        sum_zw += budzet_zw
         sum_narast += narast_val
+        sum_prev += prev_val
         sum_miesiac += miesiac_val
         r += 1
+        lp += 1
 
-    sum_row = ["", "", "RAZEM", "", "", "", sum_budzet, sum_gir, sum_dw, sum_zw,
-               "", sum_narast, "", "", sum_miesiac]
-    for i, v in enumerate(sum_row, start=1):
+    # === WIERSZ RAZEM (zielony) ===
+    razem_data = [
+        "", "RAZEM", "", "", "", sum_budzet,
+        sum_narast, (sum_narast / sum_budzet) if sum_budzet else 0.0,
+        sum_prev, (sum_prev / sum_budzet) if sum_budzet else 0.0,
+        sum_miesiac, (sum_miesiac / sum_budzet) if sum_budzet else 0.0,
+    ]
+    for i, v in enumerate(razem_data, start=1):
         cell = ws.cell(row=r, column=i, value=v)
         cell.font = bold
-        cell.fill = header_fill
+        cell.fill = green_fill
         cell.border = box
-        if isinstance(v, (int, float)):
+        if i == 2:
+            cell.alignment = center
+        elif isinstance(v, (int, float)):
             cell.alignment = right
-            cell.number_format = "#,##0.00"
+            if i in (8, 10, 12):
+                cell.number_format = "0%"
+            else:
+                cell.number_format = "#,##0.00 zł"
         else:
             cell.alignment = center
 
-    widths = [5, 18, 28, 8, 9, 11, 12, 12, 12, 12, 11, 13, 11, 12, 13]
+    # === SZEROKOSCI KOLUMN ===
+    widths = [5, 50, 6, 8, 10, 13, 13, 8, 13, 8, 13, 8]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
-    foot = r + 4
-    ws.merge_cells(start_row=foot, start_column=1, end_row=foot, end_column=5)
-    ws.cell(row=foot, column=1, value="ZAMAWIAJĄCY").font = bold
-    ws.cell(row=foot, column=1).alignment = center
-    ws.merge_cells(start_row=foot, start_column=9, end_row=foot, end_column=15)
-    ws.cell(row=foot, column=9, value="WYKONAWCA").font = bold
-    ws.cell(row=foot, column=9).alignment = center
-    ws.row_dimensions[foot + 2].height = 50
-    ws.cell(row=foot + 3, column=1, value="..................................").alignment = center
-    ws.cell(row=foot + 3, column=9, value="..................................").alignment = center
+    # === STOPKA ===
+    foot = r + 3
+    ws.cell(row=foot, column=2, value="DATA I MIEJSCE SPORZĄDZENIA PROTOKOŁU:").font = bold
+    ws.cell(row=foot, column=2).alignment = left
+    today = datetime.now().strftime("%d.%m.%Y")
+    ws.cell(row=foot, column=6, value=today).alignment = left
 
+    ws.cell(row=foot, column=10, value="DO ZAFAKTUROWANIA:").font = bold
+    ws.cell(row=foot, column=10).alignment = right
+    cell = ws.cell(row=foot, column=11, value=sum_miesiac)
+    cell.font = bold
+    cell.number_format = "#,##0.00 zł"
+    cell.alignment = right
+    ws.cell(row=foot, column=12, value="NETTO").font = bold
+    ws.cell(row=foot, column=12).alignment = left
+
+    # Linie podpisow
+    sig = foot + 4
+    ws.cell(row=sig, column=6, value="..................................").alignment = center
+    ws.cell(row=sig, column=11, value="..................................").alignment = center
+    ws.cell(row=sig + 1, column=6, value="Zamawiający\n(podpis i pieczęć)").alignment = Alignment(horizontal="center", wrap_text=True)
+    ws.cell(row=sig + 1, column=11, value="Wykonawca\n(podpis i pieczęć)").alignment = Alignment(horizontal="center", wrap_text=True)
+    ws.cell(row=sig + 1, column=6).font = bold
+    ws.cell(row=sig + 1, column=11).font = bold
+    ws.row_dimensions[sig + 1].height = 32
+
+    # Wysokosci wierszy header
+    ws.row_dimensions[2].height = 22
+    ws.row_dimensions[3].height = 22
+    for rh in (5, 6, 7, 8):
+        ws.row_dimensions[rh].height = 14  # spacer pod logo
+
+    # === EXPORT ===
     buf = BytesIO()
     wb.save(buf)
     buf.seek(0)
