@@ -1,3 +1,38 @@
+## Iteration 48 (2026-05-19) — Protokoł w stylu Excel (widok 1:1 jak arkusz klienta)
+
+### Problem
+Zakładka „% Protokół" w Budżetowaniu pokazywała siatkę pozycja × miesiąc (Sty–Gru z polami % w każdym miesiącu). User chciał, żeby UI wyglądał DOKŁADNIE jak jego arkusz Excel: kolumny **LP / Robocizna / Jd. / Ilość / Cena / Wartość + NARASTAJĄCO (val+%) + POPRZEDNI MIESIĄC (val+%) + MIESIĄC ROZLICZENIOWY (val+%)** + wiersz RAZEM. Edytowalna tylko jedna kolumna procentowa.
+
+### Backend
+- **Nowy endpoint `GET /budget/{budowa_id}/protokol-view/{year}/{month}`** w `routes/budget.py` — zwraca dane w formacie identycznym z generatorem XLSX:
+  - `rows`: lista wierszy typu `section` (nagłówek kategorii) i `line` (pozycja z wyliczonymi narastająco/poprzedni/miesiąc rozliczeniowy)
+  - `totals`: zsumowane plan_netto, narast_val, prev_val, miesiac_val + % każdego względem planu
+  - `nr`: automatyczny numer protokołu (liczba poprzednich miesięcy z przerobem + 1)
+- Wykorzystuje istniejący helper `_fetch_protokol_data` (ta sama logika co XLSX/PDF — gwarantuje spójność widoku z eksportem).
+
+### Frontend (`Budget.js`)
+- **`ProgressPanel` całkowicie przepisany** — usunięta siatka 12 miesięcy, w jej miejsce tabela 12-kolumnowa w stylu firmowym Excel:
+  - jasnozielony header `#9DBC85` z czarnymi obramowaniami + grupowane nagłówki (NARASTAJĄCO/POPRZEDNI/ROZLICZ.)
+  - białe tło wierszy, szare wiersze sekcji kategorii (`#D9D9D9`)
+  - kolumny `Wartość` (plan) i `NARASTAJĄCO/POPRZEDNI` read-only — wyliczane przez backend
+  - kolumna `MIESIĄC ROZLICZENIOWY %` jako edytowalny `input` (tło `#FFF8DC` — żółtawe, podświetlenie przy focus)
+  - wiersz `RAZEM` z sumami (zielone tło)
+- **Selektor miesiąca rozliczeniowego** w headerze panelu (Sty–Gru) — zmiana miesiąca przeładowuje dane.
+- **Inline auto-save** — onBlur na pole `%` wywołuje `POST /budget/lines/{id}/progress` + optymistyczna aktualizacja totali (bez refetcha).
+- **Walidacja lokalna** — `prev_pct + nowa_wartosc > 100` blokowane z toastem.
+- Przyciski XLSX/PDF (`ProtokolDownloaderInline`) obok selektora miesiąca — dziedziczą wybór miesiąca z głównego stanu.
+
+### Co dostaje user
+- Wpisuje % w jednej kolumnie → widzi natychmiast wartość zł, RAZEM przelicza się automatycznie.
+- Plan netto, ilość, cena, wartość pozycji = read-only podgląd (zmiana w zakładce „Budżet").
+- Możliwość zmiany miesiąca rozliczeniowego bez wychodzenia z widoku → szybkie wprowadzanie protokołów historycznych.
+- Wyjątkowo wierne odwzorowanie arkusza referencyjnego klienta (`a2x11a0p_image.png`).
+
+### Testy
+- Backend smoke: `GET /api/budget/{bid}/protokol-view/2026/2` zwraca `rows`+`totals` z poprawnym numerem protokołu.
+- Frontend live screenshot: widok 1:1 jak Excel ✓ — header, kolumny, sekcja kategorii, edytowalny input, RAZEM.
+
+
 ## Iteration 47 (2026-05-17) — Auto-resync + UX poprawy w Finansach
 
 ### Auto-resync zapobiegawczy

@@ -385,102 +385,6 @@ const BudgetLineModal = ({ budowaId, editLine, onClose, onSaved }) => {
   );
 };
 
-// =================== PROTOKOL DOWNLOADER ===================
-const ProtokolDownloader = ({ budowaId, year }) => {
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [busy, setBusy] = useState(null); // null | 'xlsx' | 'pdf'
-  const [contractModal, setContractModal] = useState(null); // null | { format, data }
-
-  const doDownload = async (fmt) => {
-    setBusy(fmt);
-    try {
-      const url = fmt === 'pdf'
-        ? `/budget/${budowaId}/protokol/${year}/${month}/pdf`
-        : `/budget/${budowaId}/protokol/${year}/${month}`;
-      const mime = fmt === 'pdf'
-        ? 'application/pdf'
-        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-      const res = await api.get(url, { responseType: 'blob' });
-      const blob = new Blob([res.data], { type: mime });
-      const link = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = link;
-      a.download = `Protokol_${year}-${String(month).padStart(2, '0')}.${fmt}`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(link);
-      toast.success(`Protokół ${fmt.toUpperCase()} wygenerowany`);
-    } catch (e) {
-      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
-    } finally {
-      setBusy(null);
-    }
-  };
-
-  const download = async (fmt) => {
-    setBusy(fmt);
-    try {
-      // Sprawdz czy budowa ma komplet danych do umowy
-      const check = await api.get(`/budget/${budowaId}/protokol-check`);
-      if (!check.data.ready) {
-        setBusy(null);
-        setContractModal({ format: fmt, data: check.data.budowa });
-        return;
-      }
-      await doDownload(fmt);
-    } catch (e) {
-      setBusy(null);
-      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
-    }
-  };
-
-  return (
-    <div className="flex items-center gap-2 flex-wrap" data-testid="protokol-downloader">
-      <select
-        value={month}
-        onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-        className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
-        data-testid="protokol-month-select"
-      >
-        {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-      </select>
-      <Button
-        size="sm"
-        onClick={() => download('xlsx')}
-        disabled={busy !== null}
-        className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-8"
-        data-testid="protokol-download-xlsx-btn"
-      >
-        <FileDown className="h-4 w-4 mr-1" />
-        {busy === 'xlsx' ? 'Generuję...' : 'XLSX'}
-      </Button>
-      <Button
-        size="sm"
-        onClick={() => download('pdf')}
-        disabled={busy !== null}
-        className="bg-[#9B2C2C] hover:bg-[#7F2424] text-white h-8"
-        data-testid="protokol-download-pdf-btn"
-      >
-        <FileDown className="h-4 w-4 mr-1" />
-        {busy === 'pdf' ? 'Generuję...' : 'PDF'}
-      </Button>
-      {contractModal && (
-        <ContractDataModal
-          budowaId={budowaId}
-          initial={contractModal.data}
-          onClose={() => setContractModal(null)}
-          onSaved={async () => {
-            const fmt = contractModal.format;
-            setContractModal(null);
-            await doDownload(fmt);
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
 // =================== MODAL: UZUPELNIJ DANE DO UMOWY ===================
 const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
   const [form, setForm] = useState({
@@ -554,65 +458,84 @@ const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
   );
 };
 
-// =================== PROTOKOL (ZAAWANSOWANIE) ===================
+// =================== PROTOKOL (ZAAWANSOWANIE) — widok Excel ===================
+const fmtPLN = (v) => `${Number(v || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} zł`;
+const fmtQty = (v) => Number(v || 0).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const fmtPrice = (v) => `${Math.round(Number(v || 0)).toLocaleString('pl-PL')} zł`;
+
 const ProgressPanel = ({ budowaId, year }) => {
-  const [lines, setLines] = useState([]);
-  const [progress, setProgress] = useState([]);  // [{budget_line_id, year, month, progress_pct}]
+  const [month, setMonth] = useState(new Date().getMonth() + 1);
+  const [data, setData] = useState(null); // { nr, rows, totals }
   const [loading, setLoading] = useState(true);
+  // Stan lokalny dla edytowanych % miesiaca rozliczeniowego (line_id -> string)
+  const [edits, setEdits] = useState({});
 
   const fetchData = useCallback(() => {
     if (!budowaId) return;
     setLoading(true);
-    Promise.all([
-      api.get(`/budget/${budowaId}/lines`),
-      api.get(`/budget/${budowaId}/progress?year=${year}`),
-    ]).then(([l, p]) => {
-      setLines(l.data?.rows || []);
-      setProgress(p.data?.rows || []);
-    }).catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+    api.get(`/budget/${budowaId}/protokol-view/${year}/${month}`)
+      .then((r) => { setData(r.data); setEdits({}); })
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
-  }, [budowaId, year]);
+  }, [budowaId, year, month]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const setCell = async (lineId, month, value) => {
+  const saveCell = async (lineId, currentMiesiacPct, prevPct, plan, value) => {
     const pct = Math.max(0, Math.min(100, parseFloat(value) || 0));
-    // Lokalna walidacja: suma innych miesiecy + nowa wartosc <= 100
-    const sumOthers = progress
-      .filter((p) => p.budget_line_id === lineId && p.month !== month)
-      .reduce((s, p) => s + (p.progress_pct || 0), 0);
-    if (sumOthers + pct > 100.01) {
-      const max = Math.max(0, 100 - sumOthers);
-      toast.error(`Pozostało do rozdysponowania: ${max.toFixed(1)}% (suma innych miesięcy: ${sumOthers.toFixed(1)}%)`);
-      // Reset input do poprzedniej wartosci
-      const prev = progress.find((p) => p.budget_line_id === lineId && p.month === month);
-      return prev?.progress_pct || 0;
+    if (prevPct + pct > 100.01) {
+      const max = Math.max(0, 100 - prevPct);
+      toast.error(`Pozostało do rozdysponowania: ${max.toFixed(1)}% (poprzednie miesiące: ${prevPct.toFixed(1)}%)`);
+      return null;
     }
+    if (Math.abs(pct - currentMiesiacPct) < 0.001) return pct;
     try {
       await api.post(`/budget/lines/${lineId}/progress`, { year, month, progress_pct: pct });
-      setProgress((prev) => {
-        const others = prev.filter((p) => !(p.budget_line_id === lineId && p.month === month));
-        return [...others, { budget_line_id: lineId, year, month, progress_pct: pct, value_netto: 0 }];
+      // Optymistyczna aktualizacja danych
+      setData((d) => {
+        if (!d) return d;
+        const newRows = d.rows.map((row) => {
+          if (row.type === 'line' && row.id === lineId) {
+            const miesiac_val = Math.round(plan * pct / 100 * 100) / 100;
+            const narast_pct = Math.min(100, prevPct + pct);
+            const narast_val = Math.round(plan * narast_pct / 100 * 100) / 100;
+            return { ...row, miesiac_pct: pct, miesiac_val, narast_pct, narast_val };
+          }
+          return row;
+        });
+        // Przelicz totale
+        const lineRows = newRows.filter(r => r.type === 'line');
+        const sum_budzet = lineRows.reduce((s, r) => s + (r.plan_netto || 0), 0);
+        const sum_narast = lineRows.reduce((s, r) => s + (r.narast_val || 0), 0);
+        const sum_prev = lineRows.reduce((s, r) => s + (r.prev_val || 0), 0);
+        const sum_miesiac = lineRows.reduce((s, r) => s + (r.miesiac_val || 0), 0);
+        return {
+          ...d, rows: newRows,
+          totals: {
+            plan_netto: sum_budzet, narast_val: sum_narast, prev_val: sum_prev, miesiac_val: sum_miesiac,
+            narast_pct: sum_budzet ? sum_narast / sum_budzet * 100 : 0,
+            prev_pct: sum_budzet ? sum_prev / sum_budzet * 100 : 0,
+            miesiac_pct: sum_budzet ? sum_miesiac / sum_budzet * 100 : 0,
+          },
+        };
       });
+      return pct;
     } catch (e) {
       toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+      return null;
     }
-    return pct;
   };
 
-  // Suma % per pozycja
-  const sumByLine = useMemo(() => {
-    const m = {};
-    progress.forEach((p) => {
-      m[p.budget_line_id] = (m[p.budget_line_id] || 0) + (p.progress_pct || 0);
-    });
-    return m;
-  }, [progress]);
-
   if (loading) return <div className="text-[#94A3B8] text-sm">Ładuję...</div>;
-  if (lines.length === 0) {
+  if (!data || data.rows.length === 0) {
     return (
       <Card className="bg-[#131C2F] border-[#2A3B59]">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-white text-base">Protokół zaawansowania robót</CardTitle>
+            <ProtokolControls month={month} setMonth={setMonth} budowaId={budowaId} year={year} />
+          </div>
+        </CardHeader>
         <CardContent className="pt-6 text-[#94A3B8] text-sm text-center">
           Brak pozycji budżetowych. Dodaj najpierw pozycje w zakładce „Budżet".
         </CardContent>
@@ -620,73 +543,208 @@ const ProgressPanel = ({ budowaId, year }) => {
     );
   }
 
+  const t = data.totals;
+  const olive = '#4F6343';
+  const oliveLight = '#9DBC85'; // jasniejszy zielony dla 3 grup naglowka
+
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <CardTitle className="text-white text-base">Protokół zaawansowania — {year}</CardTitle>
-            <p className="text-xs text-[#94A3B8] mt-1">Wpisz <strong>przerób miesięczny</strong> w % (0–100) dla każdej pozycji. Suma wszystkich miesięcy nie może przekroczyć 100% realizacji.</p>
+            <CardTitle className="text-white text-base">
+              PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR {data.nr} — {MONTHS_PL[month - 1]} {year}
+            </CardTitle>
+            <p className="text-xs text-[#94A3B8] mt-1">
+              Wpisz <strong>% wykonania w bieżącym miesiącu</strong> w kolumnie „MIESIĄC ROZLICZENIOWY". Pozostałe wartości wyliczają się automatycznie.
+            </p>
           </div>
-          <ProtokolDownloader budowaId={budowaId} year={year} />
+          <ProtokolControls month={month} setMonth={setMonth} budowaId={budowaId} year={year} />
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
-        <table className="w-full text-xs" data-testid="progress-table">
-          <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
+      <CardContent className="overflow-x-auto p-0">
+        <table className="w-full text-xs border-collapse" data-testid="progress-table">
+          <thead>
+            {/* Naglowek - dwa rzedy */}
             <tr>
-              <th className="text-left p-2 sticky left-0 bg-[#131C2F] min-w-[180px]">Pozycja</th>
-              <th className="text-right p-2">Plan</th>
-              <th className="text-center p-2">Σ %</th>
-              {MONTHS_PL.map((m, i) => (
-                <th key={i} className="text-center p-1 min-w-[55px]">{m}</th>
-              ))}
+              <th colSpan={6} className="bg-white"></th>
+              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>NARASTAJĄCO</th>
+              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>POPRZEDNI MIESIĄC</th>
+              <th colSpan={2} className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120]" style={{ backgroundColor: oliveLight }}>MIESIĄC ROZLICZENIOWY</th>
+            </tr>
+            <tr style={{ backgroundColor: oliveLight }}>
+              <th className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120] w-10">LP.</th>
+              <th className="p-1 text-left font-bold text-[#0B1120] border border-[#0B1120] min-w-[280px]">Robocizna</th>
+              <th className="p-1 text-center font-bold text-[#0B1120] border border-[#0B1120] w-14">Jd.</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">Ilość</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-20">Cena</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">Wartość</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-24">WARTOŚĆ</th>
+              <th className="p-1 text-right font-bold text-[#0B1120] border border-[#0B1120] w-16">%</th>
             </tr>
           </thead>
-          <tbody>
-            {lines.map((ln) => {
-              const totalPct = sumByLine[ln.id] || 0;
+          <tbody className="bg-white">
+            {data.rows.map((row, idx) => {
+              if (row.type === 'section') {
+                return (
+                  <tr key={`s-${idx}`} className="bg-[#D9D9D9]">
+                    <td className="border border-[#0B1120] p-1"></td>
+                    <td colSpan={11} className="border border-[#0B1120] p-1 font-bold text-[#0B1120]">{row.category}</td>
+                  </tr>
+                );
+              }
+              const editedVal = edits[row.id];
+              const inputVal = editedVal !== undefined ? editedVal : (row.miesiac_pct || 0);
               return (
-              <tr key={ln.id} className="border-b border-[#2A3B59]/40">
-                <td className="p-2 text-white sticky left-0 bg-[#131C2F]">
-                  <span className={`text-[10px] ${ln.is_income ? 'text-[#5F7552]' : 'text-[#D4AF37]'}`}>{ln.category}</span>
-                  <div>{ln.name}</div>
-                </td>
-                <td className="p-2 text-right text-[#94A3B8] tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
-                <td className={`p-2 text-center tabular-nums font-semibold ${totalPct >= 100 ? 'text-[#5F7552]' : totalPct >= 80 ? 'text-[#D4AF37]' : 'text-[#94A3B8]'}`}>
-                  {totalPct.toFixed(1)}%
-                </td>
-                {MONTHS_PL.map((_, i) => {
-                  const month = i + 1;
-                  const val = progress.find(p => p.budget_line_id === ln.id && p.month === month)?.progress_pct;
-                  return (
-                    <td key={i} className="p-0.5 text-center">
-                      <input
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="1"
-                        defaultValue={val === undefined ? '' : val}
-                        onBlur={async (e) => {
-                          if (e.target.value === '' && val === undefined) return;
-                          if (parseFloat(e.target.value) !== val) {
-                            const newVal = await setCell(ln.id, month, e.target.value);
-                            e.target.value = newVal === 0 ? '' : newVal;
-                          }
-                        }}
-                        className="w-12 bg-[#0B1120] border border-[#2A3B59] text-white text-center text-xs px-1 py-1 rounded"
-                        data-testid={`progress-${ln.id}-${month}`}
-                      />
-                    </td>
-                  );
-                })}
-              </tr>
+                <tr key={row.id} data-testid={`progress-row-${row.id}`}>
+                  <td className="border border-[#0B1120] p-1 text-center text-[#0B1120] tabular-nums">{row.lp}</td>
+                  <td className="border border-[#0B1120] p-1 text-left text-[#0B1120]">{row.name}</td>
+                  <td className="border border-[#0B1120] p-1 text-center text-[#0B1120]">{row.unit || '—'}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtQty(row.quantity)}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPrice(row.unit_price_netto)}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums font-semibold">{fmtPLN(row.plan_netto)}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.narast_val)}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{(row.narast_pct || 0).toFixed(2)}%</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.prev_val)}</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{(row.prev_pct || 0).toFixed(2)}%</td>
+                  <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(row.miesiac_val)}</td>
+                  <td className="border border-[#0B1120] p-0 text-right">
+                    <input
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.01"
+                      value={inputVal}
+                      onChange={(e) => setEdits((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                      onBlur={async (e) => {
+                        const result = await saveCell(row.id, row.miesiac_pct || 0, row.prev_pct || 0, row.plan_netto, e.target.value);
+                        if (result === null) {
+                          setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
+                        } else {
+                          setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
+                        }
+                      }}
+                      className="w-full bg-[#FFF8DC] text-[#0B1120] text-right text-xs px-1 py-1 outline-none focus:bg-[#FFEB99]"
+                      data-testid={`progress-input-${row.id}`}
+                    />
+                  </td>
+                </tr>
               );
             })}
+            {/* RAZEM */}
+            <tr className="font-bold" style={{ backgroundColor: oliveLight }}>
+              <td className="border border-[#0B1120] p-1"></td>
+              <td className="border border-[#0B1120] p-1 text-center text-[#0B1120]">RAZEM</td>
+              <td className="border border-[#0B1120] p-1"></td>
+              <td className="border border-[#0B1120] p-1"></td>
+              <td className="border border-[#0B1120] p-1"></td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.plan_netto)}</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.narast_val)}</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.narast_pct || 0)}%</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{fmtPLN(t.prev_val)}</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.prev_pct || 0)}%</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums" data-testid="progress-total-miesiac-val">{fmtPLN(t.miesiac_val)}</td>
+              <td className="border border-[#0B1120] p-1 text-right text-[#0B1120] tabular-nums">{Math.round(t.miesiac_pct || 0)}%</td>
+            </tr>
           </tbody>
         </table>
       </CardContent>
     </Card>
+  );
+};
+
+// =================== KONTROLKI MIESIAC + DOWNLOAD ===================
+const ProtokolControls = ({ month, setMonth, budowaId, year }) => (
+  <div className="flex items-center gap-2 flex-wrap">
+    <label className="text-xs text-[#94A3B8]">Miesiąc rozliczeniowy:</label>
+    <select
+      value={month}
+      onChange={(e) => setMonth(parseInt(e.target.value, 10))}
+      className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+      data-testid="progress-month-select"
+    >
+      {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+    </select>
+    <ProtokolDownloaderInline budowaId={budowaId} year={year} month={month} />
+  </div>
+);
+
+const ProtokolDownloaderInline = ({ budowaId, year, month }) => {
+  const [busy, setBusy] = useState(null);
+  const [contractModal, setContractModal] = useState(null);
+
+  const doDownload = async (fmt) => {
+    setBusy(fmt);
+    try {
+      const url = fmt === 'pdf'
+        ? `/budget/${budowaId}/protokol/${year}/${month}/pdf`
+        : `/budget/${budowaId}/protokol/${year}/${month}`;
+      const mime = fmt === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const res = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: mime });
+      const link = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = link;
+      a.download = `Protokol_${year}-${String(month).padStart(2, '0')}.${fmt}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(link);
+      toast.success(`Protokół ${fmt.toUpperCase()} wygenerowany`);
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const download = async (fmt) => {
+    setBusy(fmt);
+    try {
+      const check = await api.get(`/budget/${budowaId}/protokol-check`);
+      if (!check.data.ready) {
+        setBusy(null);
+        setContractModal({ format: fmt, data: check.data.budowa });
+        return;
+      }
+      await doDownload(fmt);
+    } catch (e) {
+      setBusy(null);
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+  return (
+    <>
+      <Button size="sm" onClick={() => download('xlsx')} disabled={busy !== null}
+        className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-8" data-testid="protokol-download-xlsx-btn">
+        <FileDown className="h-4 w-4 mr-1" />
+        {busy === 'xlsx' ? 'Generuję...' : 'XLSX'}
+      </Button>
+      <Button size="sm" onClick={() => download('pdf')} disabled={busy !== null}
+        className="bg-[#9B2C2C] hover:bg-[#7F2424] text-white h-8" data-testid="protokol-download-pdf-btn">
+        <FileDown className="h-4 w-4 mr-1" />
+        {busy === 'pdf' ? 'Generuję...' : 'PDF'}
+      </Button>
+      {contractModal && (
+        <ContractDataModal
+          budowaId={budowaId}
+          initial={contractModal.data}
+          onClose={() => setContractModal(null)}
+          onSaved={async () => {
+            const fmt = contractModal.format;
+            setContractModal(null);
+            await doDownload(fmt);
+          }}
+        />
+      )}
+    </>
   );
 };
 

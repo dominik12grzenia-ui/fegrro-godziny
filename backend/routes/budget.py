@@ -552,6 +552,77 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     return budowa, lines, progress_curr, progress_prev, nr
 
 
+@router.get("/budget/{budowa_id}/protokol-view/{year}/{month}")
+async def get_protokol_view(
+    budowa_id: str,
+    year: int,
+    month: int,
+    _user: dict = Depends(get_current_admin),
+):
+    """Dane do widoku Protokol w stylu Excel.
+    Zwraca wiersze: kategorie jako sekcje + pozycje z narastajaco / poprzedni / miesiac rozliczeniowy.
+    Format identyczny jak generator XLSX, ale jako JSON dla frontendu.
+    """
+    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
+
+    rows = []
+    last_cat = None
+    lp = 1
+    sum_budzet = sum_narast = sum_prev = sum_miesiac = 0.0
+
+    for ln in lines:
+        cat = ln.get("category") or ""
+        if cat and cat != last_cat:
+            rows.append({"type": "section", "category": cat})
+            last_cat = cat
+        plan = _compute_plan(ln)
+        miesiac_pct = progress_curr.get(ln["id"], 0.0)
+        prev_pct = progress_prev.get(ln["id"], 0.0)
+        narast_pct = min(100.0, prev_pct + miesiac_pct)
+        narast_val = round(plan * narast_pct / 100, 2)
+        prev_val = round(plan * prev_pct / 100, 2)
+        miesiac_val = round(plan * miesiac_pct / 100, 2)
+        rows.append({
+            "type": "line",
+            "id": ln["id"],
+            "lp": lp,
+            "category": cat,
+            "name": ln.get("name", ""),
+            "unit": ln.get("unit") or "",
+            "quantity": ln.get("quantity") or 0,
+            "unit_price_netto": ln.get("unit_price_netto") or 0,
+            "plan_netto": plan,
+            "narast_val": narast_val,
+            "narast_pct": narast_pct,
+            "prev_val": prev_val,
+            "prev_pct": prev_pct,
+            "miesiac_val": miesiac_val,
+            "miesiac_pct": miesiac_pct,
+        })
+        sum_budzet += plan
+        sum_narast += narast_val
+        sum_prev += prev_val
+        sum_miesiac += miesiac_val
+        lp += 1
+
+    return {
+        "nr": nr,
+        "year": year,
+        "month": month,
+        "budowa_name": budowa.get("name", ""),
+        "rows": rows,
+        "totals": {
+            "plan_netto": round(sum_budzet, 2),
+            "narast_val": round(sum_narast, 2),
+            "narast_pct": round((sum_narast / sum_budzet * 100) if sum_budzet else 0, 2),
+            "prev_val": round(sum_prev, 2),
+            "prev_pct": round((sum_prev / sum_budzet * 100) if sum_budzet else 0, 2),
+            "miesiac_val": round(sum_miesiac, 2),
+            "miesiac_pct": round((sum_miesiac / sum_budzet * 100) if sum_budzet else 0, 2),
+        },
+    }
+
+
 @router.get("/budget/{budowa_id}/protokol/{year}/{month}/pdf")
 async def generate_protokol_pdf(
     budowa_id: str,
