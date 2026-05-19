@@ -846,3 +846,31 @@ Efekt: wszystkie 210 faktur w bazie mialy `paid=False`, badge `✓ ZAPŁACONA` n
 - App `payables.netto` dla year=2026: **146 261,99 zl** (54 faktur)
 - Fakturownia raport `Wydatki netto Nieoplacona 2026-01-01..2026-05-31`: **146 261,99 zl**
 - `diff.payables_netto: 0.0`, `has_discrepancy: false` ✓
+
+
+---
+
+## 2026-05-19 — Push notifications dla zwrotow / przepisan sprzetu
+
+### Co dodano (wszystko w `routes/equipment.py`)
+| Endpoint | Kto dostaje push | Tresc |
+|---|---|---|
+| `POST /equipment/return` | **Admini** + magazynier (jesli ustawiony) | "Zwrocono sprzet do magazynu: {brygadzista}: {eq} xN" |
+| `POST /equipment/transfer` | **Admini** (dodane) + odbiorca (juz bylo) | "Przekazanie sprzetu: {A} → {B}: {eq} xN" |
+| `POST /equipment/transfers/{id}/accept` | **Nadawca** + **admini** | "Przekazanie zaakceptowane" |
+| `POST /equipment/transfers/{id}/reject` | **Nadawca** | "Przekazanie odrzucone" |
+| `POST /equipment/defect` | **Admini** | "Zgloszono usterke: {brygadzista}: {eq} xN" |
+
+### Co juz dzialalo (bez zmian)
+- `POST /equipment/assign` (admin → brygadzista) → push do brygadzisty "Sprzet gotowy do odbioru"
+- `POST /equipment/orders/{id}/issue` (admin wydaje zamowienie) → push do brygadzisty "Sprzet wydany"
+- `POST /equipment/orders` (brygadzista zamawia) → push do adminow "Nowe zamowienie"
+
+### Implementacja
+- Wszystkie wywolania owiniete w `try/except logger.warning` - blad push nie psuje glownej akcji.
+- Uzywaja istniejacych helperow `send_push_to_admins` i `send_push` z `routes/push.py`.
+- Tag dla deduplikacji: `return-{id}`, `transfer-{id}`, `transfer-acc-{id}`, `transfer-rej-{id}`, `defect-{id}`.
+- Dodany import `logging` + `logger` na poczatku pliku.
+
+### Brak regresji
+- Lint czysty, backend startuje czysto, helpery push bezpieczne gdy brak VAPID/subskrypcji (`return {"sent": 0, "skipped": "no_vapid"}`).

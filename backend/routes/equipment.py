@@ -9,11 +9,14 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime
 from typing import Optional, List
 import uuid
+import logging
 
 from database import db
 from auth import get_current_user, get_current_admin, get_current_admin_or_warehouse
 from image_utils import make_thumbnail
 from pydantic import BaseModel
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -459,7 +462,7 @@ async def request_transfer(payload: TransferCreate,
     )
     # Push: notify the receiving foreman
     try:
-        from routes.push import send_push
+        from routes.push import send_push, send_push_to_admins
         eq = await db.equipment.find_one({"id": payload.equipment_id}, {"_id": 0, "name": 1})
         eq_name = (eq or {}).get("name", "Sprzet")
         await send_push(
@@ -470,8 +473,15 @@ async def request_transfer(payload: TransferCreate,
             tag=f"transfer-{transfer_id}",
             require_interaction=True,
         )
-    except Exception:
-        pass
+        # Push do adminow: brygadzista przepisuje sprzet
+        await send_push_to_admins(
+            title="Przekazanie sprzetu",
+            body=f"{from_user['full_name']} → {to_user['full_name']}: {eq_name} x{payload.quantity}",
+            url="/admin/dashboard",
+            tag=f"transfer-{transfer_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (transfer) failed: {e}")
     return transfer
 
 
@@ -549,6 +559,28 @@ async def accept_transfer(transfer_id: str,
          "to_foreman_name": transfer.get("to_foreman_name"),
          "quantity": qty, "transfer_id": transfer_id}
     )
+
+    # Push: nadawca dostaje info ze przekazanie zaakceptowane + admini
+    try:
+        from routes.push import send_push, send_push_to_admins
+        eq_doc = await db.equipment.find_one({"id": eq_id}, {"_id": 0, "name": 1})
+        eq_name = (eq_doc or {}).get("name", "Sprzet")
+        await send_push(
+            user_id=transfer["from_foreman_id"],
+            title="Przekazanie zaakceptowane",
+            body=f"{transfer.get('to_foreman_name','?')}: {eq_name} x{qty}",
+            url="/worker/dashboard",
+            tag=f"transfer-acc-{transfer_id}",
+        )
+        await send_push_to_admins(
+            title="Przekazanie zaakceptowane",
+            body=f"{transfer.get('from_foreman_name','?')} → {transfer.get('to_foreman_name','?')}: {eq_name} x{qty}",
+            url="/admin/dashboard",
+            tag=f"transfer-acc-{transfer_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (transfer accept) failed: {e}")
+
     return {"message": "Przekazanie zaakceptowane"}
 
 
@@ -574,6 +606,22 @@ async def reject_transfer(transfer_id: str,
         {"from_foreman_name": transfer.get("from_foreman_name"),
          "quantity": transfer["quantity"], "transfer_id": transfer_id}
     )
+
+    # Push: nadawca dostaje info ze przekazanie odrzucone
+    try:
+        from routes.push import send_push
+        eq_doc = await db.equipment.find_one({"id": transfer["equipment_id"]}, {"_id": 0, "name": 1})
+        eq_name = (eq_doc or {}).get("name", "Sprzet")
+        await send_push(
+            user_id=transfer["from_foreman_id"],
+            title="Przekazanie odrzucone",
+            body=f"{transfer.get('to_foreman_name','?')}: {eq_name} x{transfer['quantity']}",
+            url="/worker/dashboard",
+            tag=f"transfer-rej-{transfer_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (transfer reject) failed: {e}")
+
     return {"message": "Przekazanie odrzucone"}
 
 
@@ -632,6 +680,19 @@ async def report_defect(payload: DefectReport,
     doc.pop("_id", None)
     await _add_history(payload.equipment_id, "defect_reported", foreman_id, actor_name,
                         {"quantity": payload.quantity, "description": payload.description})
+
+    # Push do adminow: brygadzista zglosil usterke (de facto zwrot do naprawy)
+    try:
+        from routes.push import send_push_to_admins
+        await send_push_to_admins(
+            title="Zgloszono usterke sprzetu",
+            body=f"{actor_name}: {eq['name']} x{payload.quantity}",
+            url="/admin/dashboard",
+            tag=f"defect-{doc['id']}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (defect) failed: {e}")
+
     return doc
 
 
@@ -853,6 +914,27 @@ async def return_to_warehouse(payload: ReturnToWarehouse,
         payload.equipment_id, "returned_to_warehouse", foreman_id, actor_name,
         {"quantity": payload.quantity, "equipment_name": eq_name}
     )
+
+    # Push do adminow + magazyniera: ktos zwrocil sprzet
+    try:
+        from routes.push import send_push_to_admins, send_push
+        await send_push_to_admins(
+            title="Zwrocono sprzet do magazynu",
+            body=f"{actor_name}: {eq_name} x{payload.quantity}",
+            url="/admin/dashboard",
+            tag=f"return-{notif['id']}",
+        )
+        if keeper_id and keeper_id != foreman_id:
+            await send_push(
+                user_id=keeper_id,
+                title="Zwrocono sprzet do magazynu",
+                body=f"{actor_name}: {eq_name} x{payload.quantity}",
+                url="/worker/dashboard",
+                tag=f"return-{notif['id']}",
+            )
+    except Exception as e:
+        logger.warning(f"Push (return) failed: {e}")
+
     return {"message": "Sprzet zwrocony do magazynu", "quantity_returned": payload.quantity,
             "notification_id": notif["id"]}
 
