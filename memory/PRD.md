@@ -1,3 +1,27 @@
+## Iteration 52 (2026-05-19) — GUS lookup też dla Wykonawcy + per-budowa override
+
+### User feedback
+- „nie pobiera danych z gus" — błąd `GUS: Not Found` w produkcji oznacza, że backend na Render nie został jeszcze zredeployowany (endpoint `/api/finance/gus-lookup/{nip}` istnieje tylko w preview po iter 51). User musi kliknąć **Render → Manual Deploy → Clear build cache & deploy**, żeby wgrać nowy kod backendu.
+- „wykonawca niech tez jest zaciągany z gus po wprowadzeniu nipu" — przywrócone pole `wykonawca` w modal Finance > Budowy jako edytowalne textarea + NIP lookup. Zachowany jako stały fallback FeGrro gdy puste.
+
+### Backend (`routes/budget.py`)
+- Helper **`_resolve_wykonawca(budowa)`** — zwraca `budowa.wykonawca` jeśli uzupełniony, inaczej `FEGRRO_WYKONAWCA`. Używany w PDF, XLSX, i protokol_check.
+
+### Frontend (`Finance.js`)
+- Pole **Wykonawca** przywrócone jako textarea (rows 2) + `NipLookup` powyżej.
+- Hint: „Puste = domyślnie FEGRRO SP. Z O.O. (NIP: 589-206-61-74). Pobierz z GUS dla innego wykonawcy."
+
+### Wymagana akcja od użytkownika
+1. **Save to GitHub** w Emergent.
+2. **Render**: Manual Deploy → Clear build cache & deploy.
+3. Po deployu endpoint GUS będzie działał w produkcji.
+
+### Testy
+- Preview: NIP `5892066174` → 200 + dane FeGrro ✓
+- Live screenshot: pole Wykonawca uzupełnione, toast sukcesu ✓
+
+
+
 ## Iteration 51 (2026-05-19) — Integracja z GUS (Biała Lista MF) + Wykonawca stały w Finanse
 
 ### Backend (`routes/finance.py`)

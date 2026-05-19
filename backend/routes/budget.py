@@ -163,6 +163,12 @@ async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
 FEGRRO_WYKONAWCA = "FEGRRO SP. Z O.O.\nNIP: 589-206-61-74"
 
 
+def _resolve_wykonawca(budowa: dict) -> str:
+    """Zwraca tekst wykonawcy: ten wpisany na budowie (jeśli jest) albo domyślny FEGRRO."""
+    w = (budowa.get("wykonawca") or "").strip()
+    return w if w else FEGRRO_WYKONAWCA
+
+
 @router.get("/budget/{budowa_id}/budowa-info")
 async def get_budowa_info(budowa_id: str, _user: dict = Depends(get_current_admin)):
     """Zwraca pelne defaultowe dane budowy z finance_budowy:
@@ -752,7 +758,7 @@ async def generate_protokol_pdf(
          Paragraph(budowa.get("zamawiajacy", "") or "", val_style),
          "", ""],
         [Paragraph("<b>WYKONAWCA:</b>", label_style),
-         Paragraph(FEGRRO_WYKONAWCA.replace("\n", "<br/>"), val_style),
+         Paragraph(_resolve_wykonawca(budowa).replace("\n", "<br/>"), val_style),
          "", ""],
     ]
     info_table = Table(info_data, colWidths=[50 * mm, 90 * mm, 15 * mm, 120 * mm])
@@ -959,7 +965,7 @@ async def protokol_check(budowa_id: str, _user: dict = Depends(get_current_admin
             "umowa_nr": budowa.get("umowa_nr", ""),
             "umowa_data": budowa.get("umowa_data", ""),
             "zamawiajacy": budowa.get("zamawiajacy", ""),
-            "wykonawca": FEGRRO_WYKONAWCA,
+            "wykonawca": _resolve_wykonawca(budowa),
         },
     }
 
@@ -1070,7 +1076,7 @@ async def generate_protokol_xlsx(
     ws["B14"] = "WYKONAWCA:"
     ws["B14"].font = bold
     ws["B14"].alignment = left
-    ws["F14"] = FEGRRO_WYKONAWCA
+    ws["F14"] = _resolve_wykonawca(budowa)
     ws["F14"].alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
     ws.merge_cells("F14:K14")
     ws.row_dimensions[14].height = 32

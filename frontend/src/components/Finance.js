@@ -852,10 +852,17 @@ const BudowyPanel = () => {
                   className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-budowa-umowa-data" />
               </div>
             </div>
-            <div className="bg-[#131C2F]/60 border border-[#4F6343]/40 rounded p-2 text-xs">
-              <div className="text-[#94A3B8] mb-0.5">Wykonawca (stały):</div>
-              <div className="text-[#5F7552] font-semibold">FEGRRO SP. Z O.O.</div>
-              <div className="text-[#CBD5E1]">NIP: 589-206-61-74</div>
+            <div>
+              <label className="text-xs text-[#94A3B8] block mb-1">Wykonawca (nazwa, adres, NIP)</label>
+              <NipLookup onResult={(text) => setForm({...form, wykonawca: text})} />
+              <textarea value={form.wykonawca} onChange={(e) => setForm({...form, wykonawca: e.target.value})}
+                rows={2}
+                placeholder="FEGRRO SP. Z O.O., NA RÓWNIKU 1, 83-314 SŁAWKI, NIP: 5892066174"
+                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
+                data-testid="finance-budowa-wykonawca" />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                Puste = domyślnie FEGRRO SP. Z O.O. (NIP: 589-206-61-74). Pobierz z GUS dla innego wykonawcy.
+              </div>
             </div>
           </div>
           <DialogFooter>
