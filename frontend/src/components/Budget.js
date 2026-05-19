@@ -388,31 +388,37 @@ const BudgetLineModal = ({ budowaId, editLine, onClose, onSaved }) => {
 // =================== PROTOKOL DOWNLOADER ===================
 const ProtokolDownloader = ({ budowaId, year }) => {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState(null); // null | 'xlsx' | 'pdf'
 
-  const download = async () => {
-    setBusy(true);
+  const download = async (fmt) => {
+    setBusy(fmt);
     try {
-      const res = await api.get(`/budget/${budowaId}/protokol/${year}/${month}`, { responseType: 'blob' });
-      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
+      const url = fmt === 'pdf'
+        ? `/budget/${budowaId}/protokol/${year}/${month}/pdf`
+        : `/budget/${budowaId}/protokol/${year}/${month}`;
+      const mime = fmt === 'pdf'
+        ? 'application/pdf'
+        : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      const res = await api.get(url, { responseType: 'blob' });
+      const blob = new Blob([res.data], { type: mime });
+      const link = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = `Protokol_${year}-${String(month).padStart(2, '0')}.xlsx`;
+      a.href = link;
+      a.download = `Protokol_${year}-${String(month).padStart(2, '0')}.${fmt}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success('Protokół wygenerowany');
+      window.URL.revokeObjectURL(link);
+      toast.success(`Protokół ${fmt.toUpperCase()} wygenerowany`);
     } catch (e) {
-      toast.error('Błąd generowania: ' + (e.response?.data?.detail || e.message));
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   };
 
   return (
-    <div className="flex items-center gap-2" data-testid="protokol-downloader">
+    <div className="flex items-center gap-2 flex-wrap" data-testid="protokol-downloader">
       <select
         value={month}
         onChange={(e) => setMonth(parseInt(e.target.value, 10))}
@@ -423,13 +429,23 @@ const ProtokolDownloader = ({ budowaId, year }) => {
       </select>
       <Button
         size="sm"
-        onClick={download}
-        disabled={busy}
-        className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
-        data-testid="protokol-download-btn"
+        onClick={() => download('xlsx')}
+        disabled={busy !== null}
+        className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-8"
+        data-testid="protokol-download-xlsx-btn"
       >
         <FileDown className="h-4 w-4 mr-1" />
-        {busy ? 'Generuję...' : 'Pobierz protokół xlsx'}
+        {busy === 'xlsx' ? 'Generuję...' : 'XLSX'}
+      </Button>
+      <Button
+        size="sm"
+        onClick={() => download('pdf')}
+        disabled={busy !== null}
+        className="bg-[#9B2C2C] hover:bg-[#7F2424] text-white h-8"
+        data-testid="protokol-download-pdf-btn"
+      >
+        <FileDown className="h-4 w-4 mr-1" />
+        {busy === 'pdf' ? 'Generuję...' : 'PDF'}
       </Button>
     </div>
   );

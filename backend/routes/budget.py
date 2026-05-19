@@ -353,6 +353,301 @@ def _month_range(year: int, month: int):
     return f"{year:04d}-{month:02d}-01", f"{year:04d}-{month:02d}-{last_day:02d}"
 
 
+async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
+    """Pobiera dane potrzebne do wygenerowania protokolu (xlsx lub pdf).
+    Zwraca tuple: (budowa, lines, progress_curr, progress_prev, nr_protokolu).
+    """
+    if month < 1 or month > 12:
+        raise HTTPException(400, "Nieprawidlowy miesiac (1-12)")
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    if not budowa:
+        raise HTTPException(404, "Budowa nie istnieje")
+    lines = await db.budget_lines.find(
+        {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
+    ).sort([("order", 1), ("created_at", 1)]).to_list(length=5000)
+
+    line_ids = [ln["id"] for ln in lines]
+    progress_curr = {}
+    progress_prev = {}
+    if line_ids:
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+        ):
+            progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
+        prev_month = month - 1 if month > 1 else 12
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": line_ids},
+             "$or": [
+                 {"year": {"$lt": year}},
+                 {"year": year, "month": {"$lte": prev_month}},
+             ]},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1, "year": 1, "month": 1},
+        ).sort([("year", -1), ("month", -1)]):
+            lid = p["budget_line_id"]
+            if lid not in progress_prev:
+                progress_prev[lid] = float(p["progress_pct"])
+
+    distinct_months = set()
+    async for p in db.budget_progress.find(
+        {"budget_line_id": {"$in": line_ids},
+         "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]},
+        {"_id": 0, "year": 1, "month": 1},
+    ):
+        distinct_months.add((p["year"], p["month"]))
+    nr = len(distinct_months) + 1
+    return budowa, lines, progress_curr, progress_prev, nr
+
+
+@router.get("/budget/{budowa_id}/protokol/{year}/{month}/pdf")
+async def generate_protokol_pdf(
+    budowa_id: str,
+    year: int,
+    month: int,
+    _user: dict = Depends(get_current_admin),
+):
+    """Generuje PDF z protokolem miesiecznym (uzywa reportlab)."""
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image as RLImage
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    from calendar import monthrange
+    import os
+
+    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
+
+    # Rejestruj font wspierajacy polskie znaki (DejaVuSans z systemu)
+    try:
+        font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+        font_bold = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+        if os.path.exists(font_path):
+            pdfmetrics.registerFont(TTFont("PL", font_path))
+            pdfmetrics.registerFont(TTFont("PL-Bold", font_bold))
+            base_font = "PL"
+            bold_font = "PL-Bold"
+        else:
+            base_font = "Helvetica"
+            bold_font = "Helvetica-Bold"
+    except Exception:
+        base_font = "Helvetica"
+        bold_font = "Helvetica-Bold"
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4),
+                            leftMargin=10 * mm, rightMargin=10 * mm,
+                            topMargin=10 * mm, bottomMargin=10 * mm)
+
+    olive = colors.HexColor("#4F6343")
+    gray_light = colors.HexColor("#D9D9D9")
+    white = colors.white
+
+    elements = []
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle("title", parent=styles["Heading1"], fontName=bold_font,
+                                  fontSize=13, leading=15, textColor=colors.black,
+                                  alignment=0, spaceAfter=2)
+    label_style = ParagraphStyle("label", fontName=bold_font, fontSize=9, textColor=colors.black, leading=11)
+    val_style = ParagraphStyle("val", fontName=base_font, fontSize=9, textColor=colors.black, leading=11)
+
+    # === HEADER (logo + tytul) ===
+    logo_path = "/app/frontend/public/icon-512x512.png"
+    header_cell_logo = ""
+    if os.path.exists(logo_path):
+        try:
+            header_cell_logo = RLImage(logo_path, width=28 * mm, height=28 * mm)
+        except Exception:
+            pass
+
+    header_data = [
+        [header_cell_logo,
+         Paragraph(f"<b>PROTOKÓŁ STANU ZAAWANSOWANIA ROBÓT NR &nbsp;&nbsp;&nbsp;{nr}</b>", title_style)],
+        ["",
+         Paragraph(f"<b>DO UMOWY</b> &nbsp;&nbsp; {budowa.get('umowa_nr', '')}", val_style)],
+    ]
+    header_table = Table(header_data, colWidths=[35 * mm, 240 * mm])
+    header_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("SPAN", (0, 0), (0, 1)),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 6 * mm))
+
+    # === POLA ===
+    last_day = monthrange(year, month)[1]
+    d_from = f"{year:04d}-{month:02d}-01"
+    d_to = f"{last_day:02d}.{month:02d}.{year:04d}"
+    info_data = [
+        [Paragraph("<b>OKRES ROZLICZENIOWY:</b>", label_style),
+         Paragraph(d_from, val_style),
+         Paragraph("<b>DO</b>", label_style),
+         Paragraph(d_to, val_style)],
+        [Paragraph("<b>ZAMAWIAJĄCY:</b>", label_style),
+         Paragraph(budowa.get("zamawiajacy", "") or "", val_style),
+         "", ""],
+        [Paragraph("<b>WYKONAWCA:</b>", label_style),
+         Paragraph(budowa.get("wykonawca", "FEGRRO SP. Z O.O.  NIP: 589-206-61-74"), val_style),
+         "", ""],
+    ]
+    info_table = Table(info_data, colWidths=[50 * mm, 90 * mm, 15 * mm, 120 * mm])
+    info_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("SPAN", (1, 1), (3, 1)),
+        ("SPAN", (1, 2), (3, 2)),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 5 * mm))
+
+    # === TABELA ===
+    def fmt_pl(v):
+        return f"{v:,.2f}".replace(",", " ").replace(".", ",") if v else "0,00"
+
+    # Dwa rzedy naglowka
+    head_top = ["", "", "", "", "", "",
+                "NARASTAJĄCO", "",
+                "POPRZEDNI MIESIĄC", "",
+                "MIESIĄC ROZLICZENIOWY", ""]
+    head_bot = ["LP", "Robocizna", "Jd.", "Ilość", "Cena", "Wartość",
+                "WARTOŚĆ", "%", "WARTOŚĆ", "%", "WARTOŚĆ", "%"]
+
+    data = [head_top, head_bot]
+    last_cat = None
+    lp = 1
+    sum_budzet = sum_narast = sum_prev = sum_miesiac = 0.0
+    section_rows = []  # indeksy wierszy sekcji
+
+    for ln in lines:
+        cat = ln.get("category") or ""
+        if cat and cat != last_cat:
+            section_rows.append(len(data))
+            row = ["", cat, "", "", "", "", "", "", "", "", "", ""]
+            data.append(row)
+            last_cat = cat
+        plan = _compute_plan(ln)
+        narast_pct = progress_curr.get(ln["id"], progress_prev.get(ln["id"], 0.0))
+        prev_pct = progress_prev.get(ln["id"], 0.0)
+        miesiac_pct = max(0.0, narast_pct - prev_pct)
+        narast_val = round(plan * narast_pct / 100, 2)
+        prev_val = round(plan * prev_pct / 100, 2)
+        miesiac_val = round(plan * miesiac_pct / 100, 2)
+        data.append([
+            str(lp),
+            ln.get("name", ""),
+            ln.get("unit") or "",
+            fmt_pl(ln.get("quantity") or 0),
+            fmt_pl(ln.get("unit_price_netto") or 0),
+            fmt_pl(plan),
+            fmt_pl(narast_val),
+            f"{narast_pct:.1f}%",
+            fmt_pl(prev_val),
+            f"{prev_pct:.1f}%",
+            fmt_pl(miesiac_val),
+            f"{miesiac_pct:.1f}%",
+        ])
+        sum_budzet += plan
+        sum_narast += narast_val
+        sum_prev += prev_val
+        sum_miesiac += miesiac_val
+        lp += 1
+
+    # Wiersz RAZEM
+    razem_idx = len(data)
+    data.append([
+        "", "RAZEM", "", "", "", fmt_pl(sum_budzet),
+        fmt_pl(sum_narast), f"{(sum_narast/sum_budzet*100 if sum_budzet else 0):.0f}%",
+        fmt_pl(sum_prev), f"{(sum_prev/sum_budzet*100 if sum_budzet else 0):.0f}%",
+        fmt_pl(sum_miesiac), f"{(sum_miesiac/sum_budzet*100 if sum_budzet else 0):.0f}%",
+    ])
+
+    col_widths = [10 * mm, 80 * mm, 12 * mm, 18 * mm, 18 * mm, 22 * mm,
+                  22 * mm, 12 * mm, 22 * mm, 12 * mm, 22 * mm, 12 * mm]
+    table = Table(data, colWidths=col_widths, repeatRows=2)
+    table_style = [
+        ("FONTNAME", (0, 0), (-1, -1), base_font),
+        ("FONTSIZE", (0, 0), (-1, -1), 7),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.black),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        # Naglowek
+        ("BACKGROUND", (0, 0), (-1, 1), olive),
+        ("TEXTCOLOR", (0, 0), (-1, 1), white),
+        ("FONTNAME", (0, 0), (-1, 1), bold_font),
+        ("FONTSIZE", (0, 0), (-1, 1), 7.5),
+        ("ALIGN", (0, 0), (-1, 1), "CENTER"),
+        # Span grup
+        ("SPAN", (6, 0), (7, 0)),
+        ("SPAN", (8, 0), (9, 0)),
+        ("SPAN", (10, 0), (11, 0)),
+        # Pierwsze 6 kolumn naglowka top puste, bez wypelnienia
+        ("BACKGROUND", (0, 0), (5, 0), white),
+        # Wiersz RAZEM
+        ("BACKGROUND", (0, razem_idx), (-1, razem_idx), olive),
+        ("TEXTCOLOR", (0, razem_idx), (-1, razem_idx), white),
+        ("FONTNAME", (0, razem_idx), (-1, razem_idx), bold_font),
+        # Wyrownania w body
+        ("ALIGN", (0, 2), (0, -1), "CENTER"),  # LP
+        ("ALIGN", (1, 2), (1, -1), "LEFT"),    # Robocizna
+        ("ALIGN", (2, 2), (2, -1), "CENTER"),  # Jd
+        ("ALIGN", (3, 2), (-1, -1), "RIGHT"),  # liczby
+        ("LEFTPADDING", (0, 0), (-1, -1), 2),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    # Sekcje - szare tlo + tylko nazwa kategorii
+    for sr in section_rows:
+        table_style.append(("BACKGROUND", (0, sr), (-1, sr), gray_light))
+        table_style.append(("FONTNAME", (0, sr), (-1, sr), bold_font))
+        table_style.append(("SPAN", (1, sr), (11, sr)))
+        table_style.append(("ALIGN", (1, sr), (1, sr), "LEFT"))
+
+    table.setStyle(TableStyle(table_style))
+    elements.append(table)
+    elements.append(Spacer(1, 6 * mm))
+
+    # === STOPKA ===
+    today = datetime.now().strftime("%d.%m.%Y")
+    foot_data = [[
+        Paragraph(f"<b>DATA I MIEJSCE SPORZĄDZENIA PROTOKOŁU:</b> &nbsp;&nbsp; {today}", val_style),
+        Paragraph(f"<b>DO ZAFAKTUROWANIA:</b> &nbsp;&nbsp; {fmt_pl(sum_miesiac)} zł &nbsp;&nbsp; <b>NETTO</b>", val_style),
+    ]]
+    foot_table = Table(foot_data, colWidths=[150 * mm, 125 * mm])
+    foot_table.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+    ]))
+    elements.append(foot_table)
+    elements.append(Spacer(1, 18 * mm))
+
+    sig_data = [
+        ["..................................", "", "..................................."],
+        [Paragraph("<b>Zamawiający</b><br/>(podpis i pieczęć)", val_style),
+         "",
+         Paragraph("<b>Wykonawca</b><br/>(podpis i pieczęć)", val_style)],
+    ]
+    sig_table = Table(sig_data, colWidths=[100 * mm, 75 * mm, 100 * mm])
+    sig_table.setStyle(TableStyle([
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+    ]))
+    elements.append(sig_table)
+
+    doc.build(elements)
+    buf.seek(0)
+
+    safe_name = "".join(ch if ch.isalnum() or ch in "-_" else "_" for ch in (budowa.get("name", "budowa")))
+    filename = f"Protokol_{safe_name}_{year}-{month:02d}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="protokol.pdf"; filename*=UTF-8\'\'{quote(filename)}'
+        },
+    )
+
+
 @router.get("/budget/{budowa_id}/protokol/{year}/{month}")
 async def generate_protokol_xlsx(
     budowa_id: str,
@@ -386,50 +681,7 @@ async def generate_protokol_xlsx(
     from openpyxl.drawing.image import Image as XLImage
     import os
 
-    if month < 1 or month > 12:
-        raise HTTPException(400, "Nieprawidlowy miesiac (1-12)")
-
-    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
-    if not budowa:
-        raise HTTPException(404, "Budowa nie istnieje")
-
-    # Pobierz pozycje (tylko koszty) z zachowaniem kolejnosci tak by zachowac grupowanie po kategorii
-    lines = await db.budget_lines.find(
-        {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
-    ).sort([("order", 1), ("created_at", 1)]).to_list(length=5000)
-
-    line_ids = [ln["id"] for ln in lines]
-    progress_curr = {}  # line_id -> pct (biezacy mies.)
-    progress_prev = {}  # line_id -> pct (poprzedni mies.)
-    if line_ids:
-        async for p in db.budget_progress.find(
-            {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
-            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
-        ):
-            progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
-        prev_month = month - 1 if month > 1 else 12
-        # Bierzemy najwyzszy progres do (prev_year, prev_month) wlacznie
-        async for p in db.budget_progress.find(
-            {"budget_line_id": {"$in": line_ids},
-             "$or": [
-                 {"year": {"$lt": year}},
-                 {"year": year, "month": {"$lte": prev_month}},
-             ]},
-            {"_id": 0, "budget_line_id": 1, "progress_pct": 1, "year": 1, "month": 1},
-        ).sort([("year", -1), ("month", -1)]):
-            lid = p["budget_line_id"]
-            if lid not in progress_prev:
-                progress_prev[lid] = float(p["progress_pct"])
-
-    # Numer protokolu = liczba unikalnych miesiecy z progresem poprzedzajacych biezacy + 1
-    distinct_months = set()
-    async for p in db.budget_progress.find(
-        {"budget_line_id": {"$in": line_ids},
-         "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]},
-        {"_id": 0, "year": 1, "month": 1},
-    ):
-        distinct_months.add((p["year"], p["month"]))
-    nr = len(distinct_months) + 1
+    budowa, lines, progress_curr, progress_prev, nr = await _fetch_protokol_data(budowa_id, year, month)
 
     # ===== WORKBOOK =====
     wb = Workbook()
@@ -440,7 +692,8 @@ async def generate_protokol_xlsx(
     bold = Font(bold=True, size=10, name="Calibri")
     bold_big = Font(bold=True, size=14, name="Calibri")
     normal = Font(size=10, name="Calibri")
-    green_fill = PatternFill("solid", fgColor="92D050")  # zielony jak w wzorcu
+    green_fill = PatternFill("solid", fgColor="4F6343")  # Olive Green jak w aplikacji
+    green_font = Font(bold=True, size=10, color="FFFFFF", name="Calibri")  # bialy tekst na olive
     gray_fill = PatternFill("solid", fgColor="D9D9D9")
     thin = Side(border_style="thin", color="000000")
     box = Border(left=thin, right=thin, top=thin, bottom=thin)
@@ -513,19 +766,19 @@ async def generate_protokol_xlsx(
     # Trzy grupy: kol 7-8, 9-10, 11-12
     ws.merge_cells(start_row=HEAD_TOP, start_column=7, end_row=HEAD_TOP, end_column=8)
     g1 = ws.cell(row=HEAD_TOP, column=7, value="NARASTAJĄCO")
-    g1.font = bold
+    g1.font = green_font
     g1.fill = green_fill
     g1.alignment = center
     g1.border = box
     ws.merge_cells(start_row=HEAD_TOP, start_column=9, end_row=HEAD_TOP, end_column=10)
     g2 = ws.cell(row=HEAD_TOP, column=9, value="POPRZEDNI MIESIĄC")
-    g2.font = bold
+    g2.font = green_font
     g2.fill = green_fill
     g2.alignment = center
     g2.border = box
     ws.merge_cells(start_row=HEAD_TOP, start_column=11, end_row=HEAD_TOP, end_column=12)
     g3 = ws.cell(row=HEAD_TOP, column=11, value="MIESIĄC ROZLICZENIOWY")
-    g3.font = bold
+    g3.font = green_font
     g3.fill = green_fill
     g3.alignment = center
     g3.border = box
@@ -534,7 +787,7 @@ async def generate_protokol_xlsx(
                    "WARTOŚĆ", "%", "WARTOŚĆ", "%", "WARTOŚĆ", "%"]
     for i, h in enumerate(headers_bot, start=1):
         cell = ws.cell(row=HEAD_BOT, column=i, value=h)
-        cell.font = bold
+        cell.font = green_font
         cell.fill = green_fill
         cell.alignment = center
         cell.border = box
@@ -616,7 +869,7 @@ async def generate_protokol_xlsx(
     ]
     for i, v in enumerate(razem_data, start=1):
         cell = ws.cell(row=r, column=i, value=v)
-        cell.font = bold
+        cell.font = green_font
         cell.fill = green_fill
         cell.border = box
         if i == 2:
