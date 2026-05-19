@@ -1,3 +1,58 @@
+## Iteration 53 (2026-05-19) — 3 typy budżetu: Materiały / Robocizna / Sprzęt
+
+### Analiza arkusza klienta
+User pokazał Excel z dwoma blokami obok siebie: lewy = Materiały (13 wierszy: Beton C8/10, Beton Ławy, Beton Pasy, Beton Stropy, Murowane nośne/działówki, Stal, Izolacje termiczne/przeciwwodne, Szalunki, Inne); prawy = Robocizna (10 wierszy). Każdy ma osobne kolumny: Ilość, Cena, Budżet, Kaucja GIR/DW, Budżet ZW, Przerób M/R, % Zaawansowania. Klient chce, żeby ten podział był widoczny w panelu.
+
+**Wnioski (od najważniejszych)**:
+1. **Brakuje podziału M/R/S** — to kluczowy podział kosztowy (najbardziej różnicuje przerób i marżę)
+2. Plan = Ilość × Cena (✅ już mamy)
+3. Kaucja GIR/DW (✅ już mamy)
+4. Przerób M / Przerób R (wymaga dodania `type` per linia, potem przerób wyliczany per typ)
+5. ZYSK M / ZYSK R / ZYSK BIEŻĄCY = sumy
+6. Koszt zakupu / Cena zakupu = faktyczne ceny (✅ częściowo mamy przez `execution_netto`)
+
+### Backend (`routes/budget.py`)
+- Pole **`type`** w `BudgetLineCreate` / `BudgetLineUpdate` (`materials` | `labor` | `equipment`), default = `materials`.
+- Migracja in-flight w `get_lines`: stare pozycje bez `type` dostają `materials`.
+- Endpoint zwraca `type` w response (już automatycznie z document).
+
+### Frontend (`Budget.js`)
+- **Stała `BUDGET_TYPES`**: konfiguracja kolorów, etykiet i ikon dla 3 typów:
+  - Materiały — złote `#D4AF37`, badge `M` na ciemnym tle
+  - Robocizna — olive `#5F7552`, badge `R` na białym tekście
+  - Sprzęt — szare `#94A3B8/#64748B`, badge `S` na białym tekście
+- **3 kafelki podsumowania** (`grid-cols-1 md:grid-cols-3`) nad tabelą — każdy z:
+  - kolorową ikoną typu (M/R/S)
+  - % postępu w prawym górnym rogu (kolor = kolor typu)
+  - 3 linie: Plan / Wykonanie / Pozostało
+  - tło `{color}10` (transparent), border = kolor typu
+- **Tabela** — hierarchia `Etap > Typ > Pozycje`:
+  - Etap (olive 30%): nazwa + daty + sumy
+  - Typ (czarne tło): ikona M/R/S + nazwa + suma per typ
+  - Pozycje: nazwa + `[kategoria]` jako small label (kategoria z grupującej już straciła charakter sekcji, jest tylko etykietą)
+- **Footer**: 3 sumy końcowe — Razem Przychody (zielone), Razem Koszty (złote), ZYSK BIEŻĄCY (zielony jeśli >0, czerwony jeśli <0).
+
+### Modal pozycji
+- **Nowe pole „Typ budżetu"** — 3 toggle buttony (grid-cols-3) z ikoną M/R/S i etykietą. Wybrany typ ma wzmocniony border + tinted background w kolorze typu.
+
+### Co dostaje user
+- Jednym rzutem oka widzi rozkład kosztów: Materiały vs Robocizna vs Sprzęt — kluczowe dla wyceny budowy.
+- 3 kafelki na górze dają natychmiastowy podgląd „gdzie jestem z każdym z 3 kotłów".
+- Każda pozycja w tabeli ma kolorowy badge typu — szybka identyfikacja wzrokowa.
+- ZYSK BIEŻĄCY = faktyczny realny zarobek (przychody zaksięgowane − koszty zaksięgowane).
+
+### Co jeszcze można dodać (po feedback'u usera)
+- Przerób M / Przerób R osobno (obecnie `progress_pct` jest jeden per pozycja — wystarcza, bo każda pozycja ma swój typ)
+- Kolumna `Cena zakupu` w widoku (z `execution_netto / quantity`)
+- Eksport budżetu (nie tylko protokołu) do XLSX
+
+### Testy
+- Backend: dodano pozycję typu `labor` i `equipment` — zwrócone z `type` poprawnie ✓
+- `get_lines` zwraca wszystkie 3 typy ✓
+- Frontend live screenshot: 3 kafelki + tabela hierarchiczna + wszystkie 3 typy widoczne ✓
+
+
+
 ## Iteration 52 (2026-05-19) — GUS lookup też dla Wykonawcy + per-budowa override
 
 ### User feedback

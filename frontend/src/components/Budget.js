@@ -120,6 +120,13 @@ const Tile = ({ label, value, testId, highlight }) => (
   </div>
 );
 
+// =================== TYPY BUDŻETU ===================
+const BUDGET_TYPES = {
+  materials: { label: 'Materiały', short: 'M', color: '#D4AF37', bg: '#D4AF37', textOnBg: '#0B1120' },
+  labor:     { label: 'Robocizna', short: 'R', color: '#5F7552', bg: '#5F7552', textOnBg: '#FFFFFF' },
+  equipment: { label: 'Sprzęt',    short: 'S', color: '#94A3B8', bg: '#64748B', textOnBg: '#FFFFFF' },
+};
+
 // =================== BUDZET (POZYCJE) ===================
 const BudgetLinesPanel = ({ budowaId, onChange }) => {
   const [lines, setLines] = useState([]);
@@ -160,37 +167,46 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  // Grupowanie: Etap > Kategoria > Pozycje
+  // Grupowanie: Etap > Typ (M/R/S) > Pozycje
   const grouped = useMemo(() => {
-    const tree = {}; // stage_id (lub '__none__') -> { stage, categories: { cat_name -> { plan, exec, lines, is_income } } }
+    const tree = {}; // stage_id (lub '__none__') -> { stage, types: { type -> { lines, plan, exec } }, plan, exec }
     const stageMap = Object.fromEntries(stages.map((s) => [s.id, s]));
     lines.forEach((ln) => {
+      if (ln.is_income) return; // przychody pokazujemy osobno
       const stageKey = ln.stage_id || '__none__';
       if (!tree[stageKey]) {
-        tree[stageKey] = {
-          stage: stageMap[ln.stage_id] || null,
-          categories: {},
-          plan: 0,
-          exec: 0,
-        };
+        tree[stageKey] = { stage: stageMap[ln.stage_id] || null, types: {}, plan: 0, exec: 0 };
       }
-      const cat = ln.category || '— bez kategorii —';
-      if (!tree[stageKey].categories[cat]) {
-        tree[stageKey].categories[cat] = { lines: [], plan: 0, exec: 0, is_income: ln.is_income };
+      const type = ln.type || 'materials';
+      if (!tree[stageKey].types[type]) {
+        tree[stageKey].types[type] = { lines: [], plan: 0, exec: 0 };
       }
-      tree[stageKey].categories[cat].lines.push(ln);
-      tree[stageKey].categories[cat].plan += ln.plan_netto_computed || 0;
-      tree[stageKey].categories[cat].exec += ln.execution_netto || 0;
+      tree[stageKey].types[type].lines.push(ln);
+      tree[stageKey].types[type].plan += ln.plan_netto_computed || 0;
+      tree[stageKey].types[type].exec += ln.execution_netto || 0;
       tree[stageKey].plan += ln.plan_netto_computed || 0;
       tree[stageKey].exec += ln.execution_netto || 0;
     });
     return tree;
   }, [lines, stages]);
 
+  // Sumy per typ (do kafelkow podsumowania)
+  const totalsByType = useMemo(() => {
+    const t = { materials: { plan: 0, exec: 0 }, labor: { plan: 0, exec: 0 }, equipment: { plan: 0, exec: 0 } };
+    lines.filter(l => !l.is_income).forEach((ln) => {
+      const type = ln.type || 'materials';
+      if (!t[type]) t[type] = { plan: 0, exec: 0 };
+      t[type].plan += ln.plan_netto_computed || 0;
+      t[type].exec += ln.execution_netto || 0;
+    });
+    return t;
+  }, [lines]);
+
   const totalPlan = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
   const totalExec = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
   const totalIncomePlan = lines.filter(l => l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
   const totalIncomeExec = lines.filter(l => l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
+  const zyskBiezacy = totalIncomeExec - totalExec;
 
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]">
@@ -215,7 +231,33 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="overflow-x-auto">
+      <CardContent className="overflow-x-auto space-y-3">
+        {/* === 3 kafelki podsumowania per Typ === */}
+        {!loading && lines.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2" data-testid="budget-type-cards">
+            {Object.entries(BUDGET_TYPES).map(([key, cfg]) => {
+              const t = totalsByType[key] || { plan: 0, exec: 0 };
+              const pct = t.plan > 0 ? Math.round((t.exec / t.plan) * 100) : 0;
+              return (
+                <div key={key} className="rounded p-3 border" style={{ borderColor: cfg.color, backgroundColor: `${cfg.color}10` }} data-testid={`type-card-${key}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded flex items-center justify-center font-bold text-sm" style={{ backgroundColor: cfg.bg, color: cfg.textOnBg }}>
+                        {cfg.short}
+                      </div>
+                      <div className="font-semibold text-white text-sm">{cfg.label}</div>
+                    </div>
+                    <div className="text-xs tabular-nums font-bold" style={{ color: cfg.color }}>{pct}%</div>
+                  </div>
+                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Plan</span><span className="text-white tabular-nums">{fmtNum(t.plan)} zł</span></div>
+                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Wykonanie</span><span className="tabular-nums" style={{ color: cfg.color }}>{fmtNum(t.exec)} zł</span></div>
+                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Pozostało</span><span className={`tabular-nums ${(t.plan - t.exec) < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(t.plan - t.exec)} zł</span></div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {loading ? (
           <div className="text-[#94A3B8] text-sm">Ładuję...</div>
         ) : lines.length === 0 ? (
@@ -226,11 +268,11 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
           <table className="w-full text-xs" data-testid="budget-lines-table">
             <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
               <tr>
-                <th className="text-left p-2">Etap / Kategoria / Pozycja</th>
+                <th className="text-left p-2">Etap / Typ / Pozycja</th>
                 <th className="text-right p-2">Ilość</th>
                 <th className="text-right p-2">Jedn.</th>
                 <th className="text-right p-2">Cena j.</th>
-                <th className="text-right p-2">Plan netto</th>
+                <th className="text-right p-2">Budżet</th>
                 <th className="text-right p-2">Kaucja GIR</th>
                 <th className="text-right p-2">Kaucja DW</th>
                 <th className="text-right p-2">Wykonanie</th>
@@ -255,42 +297,57 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
                       </span>
                     </td>
                   </tr>
-                  {Object.entries(sg.categories).map(([cat, g]) => (
-                    <React.Fragment key={`${stageKey}-${cat}`}>
-                      <tr className="bg-[#0B1120]">
-                        <td colSpan={11} className={`p-2 pl-6 font-semibold text-xs ${g.is_income ? 'text-[#5F7552]' : 'text-[#D4AF37]'}`}>
-                          {g.is_income ? '+ ' : '− '}{cat}
-                          <span className="text-[#94A3B8] font-normal ml-2">
-                            ({fmtNum(g.exec)} / {fmtNum(g.plan)} zł — {g.plan > 0 ? Math.round((g.exec / g.plan) * 100) : 0}%)
-                          </span>
-                        </td>
-                      </tr>
-                      {g.lines.map((ln) => (
-                        <tr key={ln.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40" data-testid={`budget-line-${ln.id}`}>
-                          <td className="p-2 pl-10 text-white">{ln.name}</td>
-                          <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.quantity ? fmtNum(ln.quantity) : '—'}</td>
-                          <td className="p-2 text-right text-[#94A3B8]">{ln.unit || '—'}</td>
-                          <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.unit_price_netto ? fmtNum(ln.unit_price_netto) : '—'}</td>
-                          <td className="p-2 text-right text-white font-semibold tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
-                          <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_gir_pct ? `${ln.effective_kaucja_gir_pct}% (${fmtNum(ln.kaucja_gir_amount)})` : '—'}</td>
-                          <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_dw_pct ? `${ln.effective_kaucja_dw_pct}% (${fmtNum(ln.kaucja_dw_amount)})` : '—'}</td>
-                          <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(ln.execution_netto)}</td>
-                          <td className={`p-2 text-right tabular-nums font-semibold ${ln.progress_pct >= 100 ? 'text-[#9B2C2C]' : ln.progress_pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
-                            {ln.progress_pct}%
-                          </td>
-                          <td className={`p-2 text-right tabular-nums ${ln.remaining_netto < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(ln.remaining_netto)}</td>
-                          <td className="p-2 text-right whitespace-nowrap">
-                            <button onClick={() => { setEditLine(ln); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`budget-edit-${ln.id}`}>
-                              <Pencil className="h-3.5 w-3.5" />
-                            </button>
-                            <button onClick={() => remove(ln.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`budget-del-${ln.id}`}>
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                  {/* Per typ - kolejnosc M/R/S */}
+                  {['materials', 'labor', 'equipment'].map((typeKey) => {
+                    const g = sg.types[typeKey];
+                    if (!g) return null;
+                    const cfg = BUDGET_TYPES[typeKey];
+                    const tpct = g.plan > 0 ? Math.round((g.exec / g.plan) * 100) : 0;
+                    return (
+                      <React.Fragment key={`${stageKey}-${typeKey}`}>
+                        <tr className="bg-[#0B1120]">
+                          <td colSpan={11} className="p-2 pl-6">
+                            <div className="flex items-center gap-2">
+                              <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]" style={{ backgroundColor: cfg.bg, color: cfg.textOnBg }}>
+                                {cfg.short}
+                              </div>
+                              <span className="font-semibold text-xs" style={{ color: cfg.color }}>{cfg.label}</span>
+                              <span className="text-[#94A3B8] font-normal text-xs">
+                                ({fmtNum(g.exec)} / {fmtNum(g.plan)} zł — {tpct}%)
+                              </span>
+                            </div>
                           </td>
                         </tr>
-                      ))}
-                    </React.Fragment>
-                  ))}
+                        {g.lines.map((ln) => (
+                          <tr key={ln.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40" data-testid={`budget-line-${ln.id}`}>
+                            <td className="p-2 pl-12 text-white">
+                              {ln.name}
+                              {ln.category && <span className="ml-2 text-[10px] text-[#94A3B8]">[{ln.category}]</span>}
+                            </td>
+                            <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.quantity ? fmtNum(ln.quantity) : '—'}</td>
+                            <td className="p-2 text-right text-[#94A3B8]">{ln.unit || '—'}</td>
+                            <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.unit_price_netto ? fmtNum(ln.unit_price_netto) : '—'}</td>
+                            <td className="p-2 text-right text-white font-semibold tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
+                            <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_gir_pct ? `${ln.effective_kaucja_gir_pct}% (${fmtNum(ln.kaucja_gir_amount)})` : '—'}</td>
+                            <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_dw_pct ? `${ln.effective_kaucja_dw_pct}% (${fmtNum(ln.kaucja_dw_amount)})` : '—'}</td>
+                            <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(ln.execution_netto)}</td>
+                            <td className={`p-2 text-right tabular-nums font-semibold ${ln.progress_pct >= 100 ? 'text-[#9B2C2C]' : ln.progress_pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
+                              {ln.progress_pct}%
+                            </td>
+                            <td className={`p-2 text-right tabular-nums ${ln.remaining_netto < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(ln.remaining_netto)}</td>
+                            <td className="p-2 text-right whitespace-nowrap">
+                              <button onClick={() => { setEditLine(ln); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`budget-edit-${ln.id}`}>
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button onClick={() => remove(ln.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`budget-del-${ln.id}`}>
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
                 </React.Fragment>
               ))}
               <tr className="bg-[#0B1120] font-bold border-t-2 border-[#D4AF37]">
@@ -308,10 +365,9 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
                 <td colSpan={3}></td>
               </tr>
               <tr className="bg-[#0B1120] font-bold">
-                <td className="p-2 text-white" colSpan={4}>MARŻA (Przychody − Koszty)</td>
-                <td className="p-2 text-right text-white tabular-nums">{fmtNum(totalIncomePlan - totalPlan)}</td>
-                <td colSpan={2}></td>
-                <td className="p-2 text-right text-white tabular-nums">{fmtNum(totalIncomeExec - totalExec)}</td>
+                <td className="p-2 text-white" colSpan={4}>ZYSK BIEŻĄCY (Przychody Wyk − Koszty Wyk)</td>
+                <td colSpan={3}></td>
+                <td className={`p-2 text-right tabular-nums ${zyskBiezacy >= 0 ? 'text-[#5F7552]' : 'text-[#FCA5A5]'}`}>{fmtNum(zyskBiezacy)}</td>
                 <td colSpan={3}></td>
               </tr>
             </tbody>
@@ -453,6 +509,7 @@ const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, o
   const [form, setForm] = useState({
     category: editLine?.category || (categories[0]?.name || ''),
     stage_id: editLine?.stage_id || '',
+    type: editLine?.type || 'materials',
     name: editLine?.name || '',
     unit: editLine?.unit || '',
     quantity: editLine?.quantity ?? 0,
@@ -498,6 +555,7 @@ const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, o
         budowa_id: budowaId,
         category: form.category,
         stage_id: form.stage_id || null,
+        type: form.type || 'materials',
         name: form.name,
         unit: form.unit,
         quantity: parseFloat(form.quantity) || 0,
@@ -569,6 +627,32 @@ const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, o
                 <option value="">— bez etapu —</option>
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
+            </div>
+          </div>
+
+          {/* Typ budżetu - radio buttons */}
+          <div>
+            <label className="text-xs text-[#94A3B8] block mb-1">Typ budżetu *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {Object.entries(BUDGET_TYPES).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setForm({ ...form, type: key })}
+                  className={`px-3 py-2 rounded text-xs font-semibold border transition flex items-center justify-center gap-2 ${
+                    form.type === key
+                      ? 'border-2'
+                      : 'border-[#2A3B59] text-[#94A3B8] hover:text-white'
+                  }`}
+                  style={form.type === key ? { borderColor: cfg.color, backgroundColor: `${cfg.color}20`, color: cfg.color } : {}}
+                  data-testid={`budget-line-type-${key}`}
+                >
+                  <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]" style={{ backgroundColor: cfg.bg, color: cfg.textOnBg }}>
+                    {cfg.short}
+                  </div>
+                  {cfg.label}
+                </button>
+              ))}
             </div>
           </div>
 

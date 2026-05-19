@@ -48,6 +48,7 @@ class BudgetLineCreate(BaseModel):
     budowa_id: str
     category: str = Field(..., description="Kategoria np. 'Beton', 'Stal', 'Robocizna'")
     name: str = Field(..., description="Konkretna pozycja np. 'Beton C8/10 chudziaki'")
+    type: str = Field("materials", description="materials | labor | equipment")
     unit: Optional[str] = Field(None, description="Jednostka np. m3, t, mb")
     quantity: float = 0.0
     unit_price_netto: float = 0.0
@@ -63,6 +64,7 @@ class BudgetLineCreate(BaseModel):
 class BudgetLineUpdate(BaseModel):
     category: Optional[str] = None
     name: Optional[str] = None
+    type: Optional[str] = None
     unit: Optional[str] = None
     quantity: Optional[float] = None
     unit_price_netto: Optional[float] = None
@@ -221,6 +223,9 @@ async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
             }
 
     for ln in lines:
+        # Migracja: stare pozycje bez 'type' = materials
+        if not ln.get("type"):
+            ln["type"] = "materials"
         plan = _compute_plan(ln)
         ln["plan_netto_computed"] = round(plan, 2)
         ex = exec_map.get(ln["id"], {"netto": 0.0, "brutto": 0.0, "count": 0})
@@ -341,6 +346,7 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
         "budowa_id": payload.budowa_id,
         "category": payload.category,
         "name": payload.name,
+        "type": payload.type or "materials",
         "unit": payload.unit,
         "quantity": payload.quantity,
         "unit_price_netto": payload.unit_price_netto,
