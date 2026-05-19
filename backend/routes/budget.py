@@ -30,6 +30,20 @@ router = APIRouter()
 
 # ============== MODELS ==============
 
+class BudgetCategoryCreate(BaseModel):
+    budowa_id: str
+    name: str
+    order: int = 0
+
+
+class BudgetStageCreate(BaseModel):
+    budowa_id: str
+    name: str
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    order: int = 0
+
+
 class BudgetLineCreate(BaseModel):
     budowa_id: str
     category: str = Field(..., description="Kategoria np. 'Beton', 'Stal', 'Robocizna'")
@@ -38,8 +52,9 @@ class BudgetLineCreate(BaseModel):
     quantity: float = 0.0
     unit_price_netto: float = 0.0
     plan_netto: Optional[float] = None  # jezeli puste, liczymy quantity * unit_price_netto
-    kaucja_gir_pct: float = 0.0  # % kaucji GIR (np. 5%)
-    kaucja_dw_pct: float = 0.0  # % kaucji DW
+    kaucja_gir_pct: Optional[float] = None  # gdy None - dziedziczy z finance_budowy
+    kaucja_dw_pct: Optional[float] = None
+    stage_id: Optional[str] = None  # FK do budget_stages
     is_income: bool = False  # True dla pozycji przychodowych
     notes: Optional[str] = None
     order: int = 0
@@ -54,6 +69,7 @@ class BudgetLineUpdate(BaseModel):
     plan_netto: Optional[float] = None
     kaucja_gir_pct: Optional[float] = None
     kaucja_dw_pct: Optional[float] = None
+    stage_id: Optional[str] = None
     is_income: Optional[bool] = None
     notes: Optional[str] = None
     order: Optional[int] = None
@@ -144,7 +160,13 @@ async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
 
 @router.get("/budget/{budowa_id}/lines")
 async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
-    """Pozycje budzetowe danej budowy + wyliczone wykonanie."""
+    """Pozycje budzetowe danej budowy + wyliczone wykonanie.
+    Kaucje GIR/DW: pierwszenstwo ma wartosc z linii (override), fallback z finance_budowy.
+    """
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0, "kaucja_gir_pct": 1, "kaucja_dw_pct": 1}) or {}
+    budowa_gir = float(budowa.get("kaucja_gir_pct") or 0)
+    budowa_dw = float(budowa.get("kaucja_dw_pct") or 0)
+
     lines = await db.budget_lines.find(
         {"budowa_id": budowa_id}, {"_id": 0}
     ).sort([("order", 1), ("created_at", 1)]).to_list(length=2000)
@@ -176,10 +198,108 @@ async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
         ln["execution_count"] = ex["count"]
         ln["remaining_netto"] = round(plan - ex["netto"], 2)
         ln["progress_pct"] = round((ex["netto"] / plan) * 100, 1) if plan > 0 else 0.0
-        ln["kaucja_gir_amount"] = round(plan * (float(ln.get("kaucja_gir_pct") or 0) / 100), 2)
-        ln["kaucja_dw_amount"] = round(plan * (float(ln.get("kaucja_dw_pct") or 0) / 100), 2)
+        # Efektywne kaucje: line override → fallback budowa
+        eff_gir = ln.get("kaucja_gir_pct")
+        eff_dw = ln.get("kaucja_dw_pct")
+        eff_gir = float(eff_gir) if eff_gir is not None else budowa_gir
+        eff_dw = float(eff_dw) if eff_dw is not None else budowa_dw
+        ln["effective_kaucja_gir_pct"] = eff_gir
+        ln["effective_kaucja_dw_pct"] = eff_dw
+        ln["kaucja_gir_amount"] = round(plan * eff_gir / 100, 2)
+        ln["kaucja_dw_amount"] = round(plan * eff_dw / 100, 2)
 
     return {"rows": lines}
+
+
+# ============== CATEGORIES ==============
+
+@router.get("/budget/{budowa_id}/categories")
+async def list_categories(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    rows = await db.budget_categories.find(
+        {"budowa_id": budowa_id}, {"_id": 0}
+    ).sort([("order", 1), ("name", 1)]).to_list(length=500)
+    return {"rows": rows}
+
+
+@router.post("/budget/categories")
+async def create_category(payload: BudgetCategoryCreate, current_user: dict = Depends(get_current_admin)):
+    if not payload.name.strip():
+        raise HTTPException(400, "Nazwa kategorii jest wymagana")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "budowa_id": payload.budowa_id,
+        "name": payload.name.strip(),
+        "order": payload.order,
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.budget_categories.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.delete("/budget/categories/{category_id}")
+async def delete_category(category_id: str, _user: dict = Depends(get_current_admin)):
+    res = await db.budget_categories.delete_one({"id": category_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Kategoria nie istnieje")
+    return {"ok": True}
+
+
+# ============== STAGES (Etapy budowy) ==============
+
+@router.get("/budget/{budowa_id}/stages")
+async def list_stages(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    rows = await db.budget_stages.find(
+        {"budowa_id": budowa_id}, {"_id": 0}
+    ).sort([("order", 1), ("start_date", 1), ("name", 1)]).to_list(length=500)
+    # Dolicz liczbe pozycji per etap
+    for s in rows:
+        s["lines_count"] = await db.budget_lines.count_documents({"stage_id": s["id"]})
+    return {"rows": rows}
+
+
+@router.post("/budget/stages")
+async def create_stage(payload: BudgetStageCreate, current_user: dict = Depends(get_current_admin)):
+    if not payload.name.strip():
+        raise HTTPException(400, "Nazwa etapu jest wymagana")
+    doc = {
+        "id": str(uuid.uuid4()),
+        "budowa_id": payload.budowa_id,
+        "name": payload.name.strip(),
+        "start_date": payload.start_date,
+        "end_date": payload.end_date,
+        "order": payload.order,
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.budget_stages.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
+@router.patch("/budget/stages/{stage_id}")
+async def update_stage(stage_id: str, payload: BudgetStageCreate,
+                        current_user: dict = Depends(get_current_admin)):
+    existing = await db.budget_stages.find_one({"id": stage_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Etap nie istnieje")
+    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None and k != "budowa_id"}
+    updates["updated_at"] = datetime.now().isoformat()
+    updates["updated_by"] = current_user["sub"]
+    await db.budget_stages.update_one({"id": stage_id}, {"$set": updates})
+    new_doc = await db.budget_stages.find_one({"id": stage_id}, {"_id": 0})
+    return new_doc
+
+
+@router.delete("/budget/stages/{stage_id}")
+async def delete_stage(stage_id: str, _user: dict = Depends(get_current_admin)):
+    # Odlinkowanie pozycji od etapu (nie usuwa pozycji!)
+    await db.budget_lines.update_many({"stage_id": stage_id}, {"$unset": {"stage_id": ""}})
+    res = await db.budget_stages.delete_one({"id": stage_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Etap nie istnieje")
+    return {"ok": True}
 
 
 @router.post("/budget/lines")
@@ -194,8 +314,9 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
         "quantity": payload.quantity,
         "unit_price_netto": payload.unit_price_netto,
         "plan_netto": payload.plan_netto,
-        "kaucja_gir_pct": payload.kaucja_gir_pct,
+        "kaucja_gir_pct": payload.kaucja_gir_pct,  # None = dziedziczenie z budowy
         "kaucja_dw_pct": payload.kaucja_dw_pct,
+        "stage_id": payload.stage_id,
         "is_income": payload.is_income,
         "notes": payload.notes,
         "order": payload.order,
