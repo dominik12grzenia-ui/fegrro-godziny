@@ -5,7 +5,7 @@ import { Button } from './ui/button';
 import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check, ClipboardCheck } from 'lucide-react';
+import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check, ClipboardCheck, Send, Hammer } from 'lucide-react';
 import { toast } from 'sonner';
 import { EquipmentOrdersAdmin } from './EquipmentOrdersAdmin';
 import { AddEquipmentModal, EditEquipmentModal, HistoryModal, ResolveDefectModal } from './equipment/EquipmentModals';
@@ -43,6 +43,10 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
   const [activeInventory, setActiveInventory] = useState([]); // active checks for THIS category
   const [startingInventory, setStartingInventory] = useState(false);
   const [shortages, setShortages] = useState([]); // open shortages
+  // Transfer-from-warehouse modal state
+  const [transferModal, setTransferModal] = useState(null); // { equipment, prefilledForemanId? }
+  const [transferForemanId, setTransferForemanId] = useState('');
+  const [transferQty, setTransferQty] = useState('');
 
   const fetchAll = useCallback(async () => {
     try {
@@ -200,12 +204,17 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
-      await api.put(`/equipment/${editingEq.id}`, {
+      const totalQty = editingEq.total_quantity;
+      const payload = {
         name: editingEq.name,
         brand: editingEq.brand,
         photo: editingEq.photo,
         variants: variantsArr.length > 0 ? variantsArr : [],
-      });
+      };
+      if (totalQty !== '' && totalQty !== null && totalQty !== undefined && !Number.isNaN(parseInt(totalQty, 10))) {
+        payload.total_quantity = parseInt(totalQty, 10);
+      }
+      await api.put(`/equipment/${editingEq.id}`, payload);
       toast.success('Zaktualizowano');
       setEditingEq(null);
       refreshAll();
@@ -275,6 +284,73 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
     } catch (err) {
       setPendingReturns(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
+    }
+  };
+
+  const handleRouteToRepair = async (notifId, eqName, qty) => {
+    if (!window.confirm(`Przekierować zwrot „${eqName}" x${qty} DO NAPRAWY?\n\nSprzęt zostanie oznaczony jako w naprawie (broken_quantity), zamiast wrócić do magazynu dostępnego.`)) {
+      throw new Error('cancelled');
+    }
+    const backup = pendingReturns;
+    setPendingReturns((prev) => (prev || []).filter((r) => r.id !== notifId));
+    try {
+      await api.post(`/equipment/returns/${notifId}/to-repair`);
+      toast.success(`„${eqName}" przekierowano do naprawy`);
+      refreshAll();
+    } catch (err) {
+      setPendingReturns(backup);
+      toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
+    }
+  };
+
+  const openTransferModal = (eq, prefilledForemanId = '') => {
+    if (!eq) return;
+    const available = eq.available_quantity || 0;
+    if (available <= 0) {
+      toast.error('Brak dostępnych sztuk w magazynie. Sprzęt w naprawie/przypisany.');
+      return;
+    }
+    setTransferModal(eq);
+    setTransferForemanId(prefilledForemanId);
+    setTransferQty('1');
+  };
+
+  const closeTransferModal = () => {
+    setTransferModal(null);
+    setTransferForemanId('');
+    setTransferQty('');
+  };
+
+  const handleTransferSubmit = async () => {
+    if (!transferModal) return;
+    if (!transferForemanId) {
+      toast.error('Wybierz brygadzistę');
+      throw new Error('no_foreman');
+    }
+    const qty = parseInt(transferQty || '0', 10);
+    if (Number.isNaN(qty) || qty <= 0) {
+      toast.error('Ilość musi być dodatnia');
+      throw new Error('bad_qty');
+    }
+    const available = transferModal.available_quantity || 0;
+    if (qty > available) {
+      toast.error(`Maks. dostępne: ${available}`);
+      throw new Error('over');
+    }
+    try {
+      await api.post('/equipment/transfer-from-warehouse', {
+        equipment_id: transferModal.id,
+        to_foreman_id: transferForemanId,
+        quantity: qty,
+      });
+      const foremanName = foremen.find((f) => f.id === transferForemanId)?.full_name || 'brygadzistę';
+      toast.success(`Przekazano ${qty} szt. „${transferModal.name}" do ${foremanName}. Czeka na akceptację.`);
+      closeTransferModal();
+      refreshAll();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Błąd przekazania');
       throw err;
     }
   };
@@ -446,7 +522,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 <thead className="sticky top-0 z-30 bg-[#19243C]">
                   {/* Top totals row: per-foreman totals */}
                   <tr>
-                    <th className="border border-[#2A3B59] p-2 bg-[#131C2F]" colSpan={7}></th>
+                    <th className="border border-[#2A3B59] p-2 bg-[#131C2F]" colSpan={8}></th>
                     {visibleForemen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
@@ -461,6 +537,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                   <tr className="bg-[#131C2F]">
                     <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[120px]">
                       Historia przekazania
+                    </th>
+                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[110px]">
+                      Przekaż
                     </th>
                     <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[160px]">
                       Nazwa sprzętu
@@ -516,6 +595,18 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                           data-testid={`history-btn-${eq.id}`}
                         >
                           <History className="h-3 w-3 mr-1" /> Historia
+                        </Button>
+                      </td>
+                      <td className="border border-[#2A3B59] p-1 text-center">
+                        <Button
+                          size="sm"
+                          onClick={() => openTransferModal(eq)}
+                          disabled={(eq.available_quantity || 0) <= 0}
+                          className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-7 disabled:opacity-40"
+                          data-testid={`transfer-btn-${eq.id}`}
+                          title={(eq.available_quantity || 0) <= 0 ? 'Brak dostępnych sztuk (przypisane / w naprawie)' : 'Przekaż sprzęt brygadziście'}
+                        >
+                          <Send className="h-3 w-3 mr-1" /> Przekaż
                         </Button>
                       </td>
                       <td className="border border-[#2A3B59] p-2">
@@ -594,38 +685,23 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       </td>
                       {visibleForemen.map((f) => {
                         const current = getAssigned(eq.id, f.id);
-                        const maxVal = maxAssignableFor(eq, f.id);
                         const initials = (f.full_name || '')
                           .split(/\s+/).filter(Boolean).slice(0, 2)
                           .map((p) => p[0]).join('').toUpperCase();
+                        const canTransfer = (eq.available_quantity || 0) > 0;
                         return (
                           <td key={f.id} className="border border-[#2A3B59] p-1 text-center">
                             <div className="text-[8px] text-[#94A3B8] leading-none mb-0.5 font-semibold">{initials}</div>
-                            <input
-                              key={`asg-${eq.id}-${f.id}-${current}-${maxVal}`}
-                              type="number"
-                              min="0"
-                              max={maxVal}
-                              defaultValue={current}
-                              onBlur={(e) => {
-                                let v = parseInt(e.target.value || '0', 10);
-                                if (Number.isNaN(v) || v < 0) v = 0;
-                                if (v > maxVal) {
-                                  toast.error(`Max dla tego sprzętu: ${maxVal}`);
-                                  v = maxVal;
-                                  e.target.value = String(maxVal);
-                                }
-                                if (v !== current) handleAssignChange(eq.id, f.id, v);
-                              }}
-                              onChange={(e) => {
-                                const v = parseInt(e.target.value || '0', 10);
-                                if (v > maxVal) {
-                                  e.target.value = String(maxVal);
-                                }
-                              }}
-                              className="w-12 bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-1 py-1 text-center text-xs"
-                              data-testid={`assign-input-${eq.id}-${f.id}`}
-                            />
+                            <button
+                              type="button"
+                              onClick={() => openTransferModal(eq, f.id)}
+                              disabled={!canTransfer}
+                              className={`w-12 rounded px-1 py-1 text-center text-xs font-semibold ${current > 0 ? 'bg-[#3F5235]/40 text-[#9DBC85] border border-[#5F7552]' : 'bg-[#131C2F] text-[#64748B] border border-[#2A3B59]'} ${canTransfer ? 'hover:bg-[#4F6343]/30 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                              data-testid={`assign-cell-${eq.id}-${f.id}`}
+                              title={canTransfer ? `Kliknij aby przekazać ${f.full_name}` : 'Brak dostępnych sztuk'}
+                            >
+                              {current}
+                            </button>
                           </td>
                         );
                       })}
@@ -636,7 +712,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
             </div>
           )}
           <p className="text-xs text-[#94A3B8] mt-3">
-            Klikaj w nazwe sprzętu, aby edytować. Wpisz ilość - inputy maja ograniczenie do dostepnej liczby. Liczby na samej gorze = suma sprzętu u danego brygadzisty.
+            Klikaj w nazwę sprzętu, aby edytować (w tym ilość całkowitą). Kliknij <b className="text-[#9DBC85]">„Przekaż"</b> lub komórkę brygadzisty, aby utworzyć przekazanie - brygadzista musi je zaakceptować. Liczby na samej górze = suma sprzętu przypisanego u danego brygadzisty.
           </p>
         </CardContent>
       </Card>
@@ -843,7 +919,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <ActionButton
                       size="sm"
                       onAction={() => handleRejectReturn(r.id, r.equipment_name, r.from_foreman_name)}
@@ -854,6 +930,17 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       data-testid={`reject-return-${r.id}`}
                     >
                       Odrzuć
+                    </ActionButton>
+                    <ActionButton
+                      size="sm"
+                      onAction={() => handleRouteToRepair(r.id, r.equipment_name, r.quantity)}
+                      loadingText="Kieruję..."
+                      successText="✓ Do naprawy"
+                      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-semibold"
+                      data-testid={`route-to-repair-${r.id}`}
+                      title="Sprzęt trafi do naprawy zamiast do magazynu dostępnego"
+                    >
+                      <Hammer className="h-3 w-3 mr-1" /> Przekieruj do naprawy
                     </ActionButton>
                     <ActionButton
                       size="sm"
@@ -1085,6 +1172,83 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
         foremen={foremen}
         fetchAll={refreshAll}
       />
+
+      {/* Transfer from warehouse modal */}
+      {transferModal && (
+        <div
+          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+          data-testid="transfer-from-warehouse-modal"
+        >
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+                <Send className="h-5 w-5 text-[#4F6343]" />
+                Przekaż sprzęt z magazynu
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={closeTransferModal} data-testid="close-transfer-modal">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="p-2 bg-[#131C2F] rounded border border-[#2A3B59] text-sm">
+                <div className="text-[#CBD5E1] font-semibold">{transferModal.name}</div>
+                {transferModal.brand && (
+                  <div className="text-[#94A3B8] text-xs">{transferModal.brand}</div>
+                )}
+                <div className="text-xs text-[#94A3B8] mt-1">
+                  Dostępne w magazynie: <span className="text-[#9DBC85] font-bold">{transferModal.available_quantity || 0}</span> szt.
+                  {(transferModal.broken_quantity || 0) > 0 && (
+                    <span className="ml-2 text-[#DC4A3A]">(w naprawie: {transferModal.broken_quantity})</span>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Brygadzista</label>
+                <select
+                  value={transferForemanId}
+                  onChange={(e) => setTransferForemanId(e.target.value)}
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  data-testid="transfer-foreman-select"
+                >
+                  <option value="">-- wybierz --</option>
+                  {foremen.map((f) => (
+                    <option key={f.id} value={f.id}>{f.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Ilość</label>
+                <Input
+                  type="number"
+                  min="1"
+                  max={transferModal.available_quantity || 1}
+                  value={transferQty}
+                  onChange={(e) => setTransferQty(e.target.value)}
+                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  data-testid="transfer-qty-input"
+                />
+              </div>
+              <p className="text-[11px] text-[#94A3B8] bg-[#0B1120] p-2 rounded border border-[#2A3B59]">
+                Brygadzista musi zaakceptować przekazanie. Stan magazynu zmieni się dopiero po akceptacji.
+              </p>
+              <div className="flex gap-2 justify-end pt-1">
+                <Button variant="ghost" onClick={closeTransferModal} data-testid="transfer-cancel-btn">
+                  Anuluj
+                </Button>
+                <ActionButton
+                  onAction={handleTransferSubmit}
+                  loadingText="Wysyłam..."
+                  successText="✓ Wysłano"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                  data-testid="transfer-submit-btn"
+                >
+                  <Send className="h-4 w-4 mr-1" /> Wyślij przekazanie
+                </ActionButton>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* Photo lightbox */}
       {previewPhoto && (

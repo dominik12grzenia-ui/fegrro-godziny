@@ -131,6 +131,22 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
           </div>
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">
+              Ilość całkowita (stan w magazynie)
+            </label>
+            <Input
+              type="number"
+              min="0"
+              value={editingEq.total_quantity ?? 0}
+              onChange={(e) => setEditingEq({ ...editingEq, total_quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
+              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              data-testid="edit-total-quantity"
+            />
+            <p className="text-[10px] text-[#64748B] mt-1">
+              Aktualnie: przypisano {editingEq.assigned_quantity || 0}, w naprawie {editingEq.broken_quantity || 0}, zaginione {editingEq.lost_quantity || 0}, dostępne {editingEq.available_quantity || 0}
+            </p>
+          </div>
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">
               Warianty / rozmiary (oddziel przecinkami)
             </label>
             <Input

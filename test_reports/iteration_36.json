@@ -1,0 +1,36 @@
+{
+  "summary": "Iter36 (equipment transfer-from-warehouse + return-to-repair + admin total_quantity edit via name modal): 12/12 backend tests PASSED (test_iter36_equipment_transfer_repair.py). Frontend live-verified in Elektronarzedzia tab: (a) Przekaz column with 6 transfer-btn-{eqId} green buttons rendered, (b) 24 assign-cell-{eqId}-{foremanId} cells all tagName=BUTTON (read-only, not inputs), (c) clicking equipment-name-{id} opens edit modal containing edit-total-quantity input, (d) transfer-from-warehouse-modal opens, transfer-foreman-select (native SELECT) populated with foremen, transfer-qty-input=1 + transfer-submit-btn -> green success toast 'Przekazano 1 szt. ...Czeka na akceptacje.' and modal closes. Backend confirms transfer persisted with status=pending, from_foreman_id='warehouse'; foreman accept increases equipment_assignments by qty; POST /equipment/returns/{id}/to-repair increases broken_quantity by returned qty and updates notification status away from 'pending'. Overcommit (request > available stock incl. pending) rejected with 400. Double routing of the same return rejected with 400.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin > Sprzet > Elektronarzedzia matrix", "issues": ["Header label has typo: 'Ilość dostepnych sztuk' should be 'Ilość dostępnych sztuk' (missing diacritic). Minor i18n polish."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter36_equipment_transfer_repair.py",
+    "/app/test_reports/pytest/pytest_iter36.xml"
+  ],
+  "action_items": [
+    "Optional polish: 'Ilość dostepnych sztuk' header typo (dostepnych -> dostępnych) in EquipmentAdmin.js line ~551.",
+    "Verify with product: user's request 'Tak samo żeby nie można było edytować sprzętu do naprawy' was interpreted as 'add route-to-repair option for incoming returns' (implemented). The inline broken-input-{id} editable cell in the matrix is still present (preexisting). If user wanted broken_quantity to become read-only inline and only editable via the name modal, that input must be removed too. Currently kept for backward compat (Test 8 spec).",
+    "Older /app/backend/tests/test_equipment.py still hardcodes ADMIN password as 'admin123' (lowercase) - fails login; recommend migrate to 'Admin123!' to match /app/memory/test_credentials.md (foreman registration also uses non-existent /auth/worker/register endpoint; correct path is POST /api/foremen by admin)."
+  ],
+  "critical_code_review_comments": [
+    "/app/backend/routes/equipment.py:563 (return_to_repair): permission check uses notif.get('warehouse_keeper_id') but the notification object never stores warehouse_keeper_id on creation (POST /equipment/return doesn't set it). Only admins can route to repair in practice. If multi-warehouse support is planned, the keeper assignment needs to flow through equipment_return_notifications.",
+    "/app/backend/routes/equipment.py:488 (transfer_from_warehouse): availability formula = total - assigned - broken - lost - pending_warehouse_transfers. The lost_quantity field is summed but there's no symmetric subtract for pending NON-warehouse transfers (foreman->foreman). For warehouse source that is OK, but worth a comment.",
+    "/app/frontend/src/components/EquipmentAdmin.js: The Przekaz column adds a button per row but the assign-cell buttons ALSO call openTransferModal(eq, f.id). Duplication is fine UX-wise, but openTransferModal must guard against undefined available_quantity (currently uses '|| 0' fallback - good).",
+    "/app/frontend/src/components/EquipmentAdmin.js line ~648: total-input-{id} is still an editable inline input despite the user's stated requirement 'Admin może edytować ilość klikając w nazwe sprzętu'. Two edit paths now exist (matrix input + name modal). Pick one and remove the other for consistency with the iter36 user story.",
+    "EquipmentAdmin.js render block is monolithic (>1000 LOC). Consider extracting EquipmentMatrix, TransferFromWarehouseModal, PendingReturnsList into separate files for maintainability (currently exceeds the 700 LOC guideline)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter36_equipment_transfer_repair.py (new)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "100% (Tests 1,2,3,5 verified live; Tests 4,6,7 verified via pytest backend)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "Created TEST_iter36_Wiertarka equipment (total=10), TEST_iter36_F foreman, TEST_iter36_OTHER foreman, 2 warehouse transfers (1 accepted x3, 1 accepted x1 for OTHER), 1 return notification (qty=2) routed to repair (broken_quantity +=2). Equipment ended with total=15. Also leftover: TEST_iter36_Wiertarka_da437c with 11 broken qty seen in UI from previous iter run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Existing test_equipment.py is BROKEN (wrong admin password + wrong foreman-register endpoint). Use test_iter36_equipment_transfer_repair.py as the canonical equipment-transfer regression. Correct foreman creation: POST /api/foremen with admin token (body: {full_name, password}), then POST /api/foremen/{id}/sites for activation, then POST /api/auth/foreman/login (email field carries full_name) to get foreman token. Push notification permission modal blocks first render after login - dismiss with text 'Przypomnij mi jutro' before clicking nav. Test data prefix 'TEST_iter36_' accumulates - safe to delete equipment+foremen by name pattern between runs."
+}
