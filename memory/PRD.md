@@ -1,3 +1,42 @@
+## Iteration 57 (2026-05-21) — Szczegóły rozbieżności z Fakturownia (per faktura)
+
+### User feedback
+„Zobacz pojawia się informacja gdy klikam synchronizuj ona potem dalej zostaje. Chciałbym dokładnie wiedzieć z czego wynika rozbieżność i gdzie się znajduje by była taka informacja"
+
+Banner „Rozbieżność z Fakturownia: koszty -10 070,80 zł" pokazywał tylko sumę, ale user nie widział KTÓRE faktury powodują różnicę. Po kliknięciu „Synchronizuj teraz" banner zostawał (bo część faktur to nie był brak płatności, tylko brak samego dokumentu w lokalnej bazie — sync ich nie pobierał).
+
+### Backend (`routes/finance.py`)
+- **`GET /api/finance/discrepancy-details?year=YYYY`** — zwraca konkretne faktury powodujące rozbieżność:
+  - pobiera wszystkie faktury z Fakturowni (paginacja per 100, oba kierunki: income+expense)
+  - pobiera wszystkie faktury z App (`finance_invoices`, source=fakturownia)
+  - łączy po `number`, oblicza `diff_netto = fak_remaining - app_remaining`
+  - klasyfikuje przyczynę: `missing_app`, `missing_fak`, `fak_paid_app_unpaid`, `app_paid_fak_unpaid`, `partial_payment_diff`, `amount_diff`
+  - zwraca `items[]` posortowane od największej rozbieżności + linki do faktur w Fakturowni
+  - oddzielne sumy dla KOSZTÓW i PRZYCHODÓW
+
+### Frontend (`Finance.js`)
+- Banner rozbieżności rozbudowany o **drugi przycisk „Pokaż szczegóły"** (transparent outline, obok „Synchronizuj teraz")
+- **`DiscrepancyDetailsModal`** (max-w-6xl):
+  - 2 karty podsumowania na górze (KOSZTY / PRZYCHODY) z sumą diff i licznikiem
+  - kolorowa **legenda** 4 rodzajów rozbieżności
+  - tabela z grupowaniem KOSZTY / PRZYCHODY, kolumny: numer (klikalny → Fakturownia), kontrahent, data, pozostałoFak, pozostałoApp, różnica (czerwone gdy +), przyczyna
+  - sticky header tabeli, scroll wewnątrz modala
+
+### Co dostaje user
+- Po kliknięciu „Pokaż szczegóły" widzi **konkretną listę 51 rozbieżnych faktur** — z numerami, kontrahentami i przyczynami.
+- W tym przypadku 49 z 49 kosztów = `Brak w App (jest w Fakturownia)` → wie, że trzeba kliknąć Synchronizuj.
+- Klika numer faktury → otwiera ją w Fakturowni (link).
+- Wie, czy problem to braki sync, czy lokalne błędy w płatnościach, czy faktury wpisane manualnie.
+
+### Testy
+- Backend: `discrepancy-details?year=2026` zwraca 51 items z konkretnymi numerami i kwotami ✓
+- Frontend live screenshot: modal otwiera się, lista wszystkich 49 kosztów widoczna z linkami i przyczynami ✓
+
+### ⚠️ Wymagana akcja
+Backend ma nowy endpoint `discrepancy-details` — przed użyciem na produkcji wymagany **Save to GitHub + Render Manual Deploy**.
+
+
+
 ## Iteration 56 (2026-05-19) — Excel view zwężony do jednej strony (bez horizontal scroll)
 
 ### User feedback

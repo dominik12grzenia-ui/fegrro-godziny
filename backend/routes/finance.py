@@ -2214,6 +2214,156 @@ async def payment_discrepancy(
     }
 
 
+@router.get("/finance/discrepancy-details")
+async def discrepancy_details(
+    year: Optional[int] = Query(None),
+    _user: dict = Depends(get_current_admin),
+):
+    """Zwraca konkretne faktury powodujace rozbieznosc App vs Fakturownia.
+    Dla kazdej rozbieznej faktury: numer, kontrahent, kwota Fakturownia, kwota App, diff, link do faktury.
+    Typy rozbieznosci:
+      - 'only_fakturownia' - faktura jest niezaplacona w Fakturownia ale brakuje w App (lub jest paid w App)
+      - 'only_app' - faktura jest niezaplacona w App ale w Fakturownia jest paid lub nie istnieje
+      - 'amount_diff' - obie strony maja niezaplacone, ale rozne pozostale kwoty
+    """
+    settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
+    api_token = settings.get("fakturownia_api_key")
+    domain = settings.get("fakturownia_domain")
+    if not api_token or not domain:
+        raise HTTPException(400, "Brak konfiguracji Fakturownia (uzupelnij w Ustawieniach)")
+
+    # === Pobierz wszystkie faktury z Fakturowni ===
+    fak_by_num: dict = {}  # number -> dict
+    extra_params = {}
+    if year is not None:
+        extra_params["date_from"] = f"{year:04d}-01-01"
+        extra_params["date_to"] = f"{year:04d}-12-31"
+        extra_params["period"] = "more"
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as cli:
+            for income_mode, is_inc in (("no", False), ("yes", True)):
+                page = 1
+                while True:
+                    params = {"api_token": api_token, "income": income_mode,
+                              "page": str(page), "per_page": "100",
+                              "include_positions": "false", **extra_params}
+                    resp = await cli.get(f"https://{domain}.fakturownia.pl/invoices.json", params=params)
+                    if resp.status_code != 200:
+                        break
+                    invs = resp.json()
+                    invs = invs if isinstance(invs, list) else invs.get("invoices", [])
+                    if not invs:
+                        break
+                    for inv in invs:
+                        num = inv.get("number") or ""
+                        if not num:
+                            continue
+                        pg = float(inv.get("price_gross") or 0)
+                        pn = float(inv.get("price_net") or 0)
+                        paid_amt = float(inv.get("paid") or 0)
+                        st = (inv.get("status") or "").lower()
+                        is_paid = st == "paid" or bool(inv.get("paid_date"))
+                        fak_by_num[num] = {
+                            "number": num,
+                            "buyer_name": inv.get("buyer_name") or "",
+                            "seller_name": inv.get("seller_name") or "",
+                            "is_income": is_inc,
+                            "brutto_total": round(pg, 2),
+                            "netto_total": round(pn, 2),
+                            "paid_amount": round(paid_amt, 2),
+                            "remaining_brutto": round(pg - paid_amt, 2) if not is_paid else 0.0,
+                            "remaining_netto": round(pn * ((pg - paid_amt) / pg), 2) if pg and not is_paid else 0.0,
+                            "is_paid": is_paid,
+                            "sell_date": inv.get("sell_date") or "",
+                            "url": f"https://{domain}.fakturownia.pl/invoices/{inv.get('id')}",
+                        }
+                    if len(invs) < 100:
+                        break
+                    page += 1
+                    if page > 100:
+                        break
+    except Exception as e:
+        raise HTTPException(502, f"Blad polaczenia z Fakturownia: {e}")
+
+    # === Pobierz faktury z App ===
+    app_match = {"source": "fakturownia"}
+    if year is not None:
+        app_match["year"] = year
+    app_by_num: dict = {}
+    async for inv in db.finance_invoices.find(app_match, {"_id": 0}):
+        num = inv.get("number") or inv.get("invoice_number") or ""
+        if not num:
+            continue
+        brutto = float(inv.get("brutto") or 0)
+        netto = float(inv.get("netto") or 0)
+        paid_amount = float(inv.get("paid_amount") or 0)
+        is_paid = bool(inv.get("paid"))
+        rem_b = 0.0 if is_paid else round(brutto - paid_amount, 2)
+        rem_n = 0.0 if is_paid else (round(netto * ((brutto - paid_amount) / brutto), 2) if brutto else 0)
+        app_by_num[num] = {
+            "number": num,
+            "is_income": bool(inv.get("is_income")),
+            "remaining_brutto": rem_b,
+            "remaining_netto": rem_n,
+            "is_paid": is_paid,
+            "buyer_name": inv.get("buyer_name") or inv.get("kontrahent") or "",
+        }
+
+    # === Znajdz rozbieznosci ===
+    items = []
+    all_nums = set(fak_by_num.keys()) | set(app_by_num.keys())
+    for num in sorted(all_nums):
+        f = fak_by_num.get(num)
+        a = app_by_num.get(num)
+        f_rem = (f or {}).get("remaining_netto", 0)
+        a_rem = (a or {}).get("remaining_netto", 0)
+        diff = round(f_rem - a_rem, 2)
+        if abs(diff) < 0.01:
+            continue  # zgadza sie
+        # Klasyfikacja
+        if not a:
+            reason = "Brak w App (jest w Fakturownia)"
+            kind = "missing_app"
+        elif not f:
+            reason = "Brak w Fakturownia (jest w App)"
+            kind = "missing_fak"
+        elif f["is_paid"] and not a["is_paid"]:
+            reason = "Zapłacone w Fakturownia, w App nadal nieopłacone"
+            kind = "fak_paid_app_unpaid"
+        elif a["is_paid"] and not f["is_paid"]:
+            reason = "Zapłacone w App, w Fakturownia nadal nieopłacone"
+            kind = "app_paid_fak_unpaid"
+        elif f["remaining_netto"] != a["remaining_netto"]:
+            reason = f"Częściowa płatność różni się ({f.get('paid_amount', 0):,.2f} vs {a_rem:,.2f})"
+            kind = "partial_payment_diff"
+        else:
+            reason = "Inna rozbieżność kwotowa"
+            kind = "amount_diff"
+        items.append({
+            "number": num,
+            "buyer_name": (f or {}).get("buyer_name") or (a or {}).get("buyer_name") or "",
+            "is_income": (f or a or {}).get("is_income", False),
+            "fak_remaining_netto": f_rem,
+            "app_remaining_netto": a_rem,
+            "diff_netto": diff,
+            "reason": reason,
+            "kind": kind,
+            "url": (f or {}).get("url"),
+            "sell_date": (f or {}).get("sell_date", ""),
+        })
+
+    # Posortuj od najwiekszej rozbieznosci
+    items.sort(key=lambda x: abs(x["diff_netto"]), reverse=True)
+    return {
+        "year": year,
+        "total_diff_netto": round(sum(i["diff_netto"] for i in items if not i["is_income"]), 2),
+        "total_diff_netto_income": round(sum(i["diff_netto"] for i in items if i["is_income"]), 2),
+        "count": len(items),
+        "items": items,
+    }
+
+
 
 
 @router.post("/finance/sync-from-fakturownia")
