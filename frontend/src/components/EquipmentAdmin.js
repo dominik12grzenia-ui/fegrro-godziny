@@ -109,67 +109,8 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
   // For a given equipment+foreman, what's the max we can assign?
   // = total - broken - sum(other foremen)
-  const maxAssignableFor = (eq, foremanId) => {
-    const sumOthers = assignments
-      .filter((a) => a.equipment_id === eq.id && a.foreman_id !== foremanId)
-      .reduce((s, a) => s + (a.quantity || 0), 0);
-    return Math.max(0, eq.total_quantity - (eq.broken_quantity || 0) - (eq.lost_quantity || 0) - sumOthers);
-  };
-
-  const maxBrokenFor = (eq) => {
-    const totalAssigned = assignments
-      .filter((a) => a.equipment_id === eq.id)
-      .reduce((s, a) => s + (a.quantity || 0), 0);
-    return Math.max(0, eq.total_quantity - totalAssigned - (eq.lost_quantity || 0));
-  };
-
-  const handleAssignChange = async (eqId, foremanId, value) => {
-    const qty = parseInt(value, 10);
-    if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilość musi być liczba >= 0');
-      return;
-    }
-    try {
-      await api.post(`/equipment/assign?equipment_id=${eqId}`, {
-        foreman_id: foremanId,
-        quantity: qty,
-      });
-      refreshAll();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Błąd zapisu');
-      refreshAll();
-    }
-  };
-
-  const handleBrokenChange = async (eqId, value) => {
-    const qty = parseInt(value, 10);
-    if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilość musi być >= 0');
-      return;
-    }
-    try {
-      await api.put(`/equipment/${eqId}`, { broken_quantity: qty });
-      refreshAll();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Błąd zapisu');
-      refreshAll();
-    }
-  };
-
-  const handleTotalChange = async (eqId, value) => {
-    const qty = parseInt(value, 10);
-    if (Number.isNaN(qty) || qty < 0) {
-      toast.error('Ilość musi być >= 0');
-      return;
-    }
-    try {
-      await api.put(`/equipment/${eqId}`, { total_quantity: qty });
-      refreshAll();
-    } catch (err) {
-      toast.error(err.response?.data?.detail || 'Błąd zapisu');
-      refreshAll();
-    }
-  };
+  // (Kept for potential future use; transfers now use available_quantity from the
+  // equipment payload directly.)
 
   const handleAdd = async () => {
     if (!form.name.trim() || form.total_quantity === '') {
@@ -548,7 +489,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       Marka
                     </th>
                     <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[100px]">
-                      Ilość dostepnych sztuk
+                      Ilość dostępnych sztuk
                     </th>
                     <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[120px]">
                       Zdane do magazynu do naprawy
@@ -635,33 +576,22 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       </td>
                       <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
                       <td className="border border-[#2A3B59] p-1 text-center">
-                        <input
-                          key={`tot-${eq.id}-${eq.total_quantity}`}
-                          type="number"
-                          min="0"
-                          defaultValue={eq.total_quantity}
-                          onBlur={(e) => {
-                            const v = parseInt(e.target.value || '0', 10);
-                            if (v !== eq.total_quantity) handleTotalChange(eq.id, v);
-                          }}
-                          className="w-16 bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-2 py-1 text-center"
-                          data-testid={`total-input-${eq.id}`}
-                        />
+                        <span
+                          className="text-[#CBD5E1] font-semibold"
+                          data-testid={`total-display-${eq.id}`}
+                          title="Aby zmienić - kliknij w nazwę sprzętu"
+                        >
+                          {eq.total_quantity}
+                        </span>
                       </td>
                       <td className="border border-[#2A3B59] p-1 text-center">
-                        <input
-                          key={`brk-${eq.id}-${eq.broken_quantity}`}
-                          type="number"
-                          min="0"
-                          max={maxBrokenFor(eq) + (eq.broken_quantity || 0)}
-                          defaultValue={eq.broken_quantity || 0}
-                          onBlur={(e) => {
-                            const v = parseInt(e.target.value || '0', 10);
-                            if (v !== (eq.broken_quantity || 0)) handleBrokenChange(eq.id, v);
-                          }}
-                          className="w-16 bg-[#131C2F] border border-[#2A3B59] text-[#DC4A3A] rounded px-2 py-1 text-center"
-                          data-testid={`broken-input-${eq.id}`}
-                        />
+                        <span
+                          className={`font-semibold ${(eq.broken_quantity || 0) > 0 ? 'text-[#DC4A3A]' : 'text-[#64748B]'}`}
+                          data-testid={`broken-display-${eq.id}`}
+                          title="Wartość zmienia się przez zgłoszenie usterki lub przekierowanie zwrotu do naprawy"
+                        >
+                          {eq.broken_quantity || 0}
+                        </span>
                       </td>
                       <td className="border border-[#2A3B59] p-2 text-center">
                         <span

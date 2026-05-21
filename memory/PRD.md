@@ -1,4 +1,42 @@
-## Iteration 63 (2026-05-21) — Natychmiastowa aktualizacja ilości po wysłaniu transferu / zwrotu / usterki
+## Iteration 64 (2026-05-21) — Admin przekazuje sprzęt (z akceptacją) + przekierowanie zwrotu do naprawy + edycja ilości przez modal nazwy
+
+### User request
+„zrób tak by admin musiał przekazywać sprzęt a nie przypisywać. Admin może edytować ilość klikając w nazwę sprzętu. Tak samo żeby nie można było edytować sprzętu do naprawy. Przy przekazywaniu sprzętu do magazynu daj opcję adminowi oprócz przyjęcia i odrzucenia możliwość przekierowania sprzętu do naprawy."
+
+### Backend (już istniał z poprzedniej iteracji)
+- `POST /api/equipment/transfer-from-warehouse` — admin/magazynier tworzy transfer z magazynu do brygadzisty. Brygadzista musi zaakceptować (status `pending`).
+- `POST /api/equipment/returns/{notification_id}/to-repair` — admin kieruje zwrot do `broken_quantity` zamiast do magazynu dostępnego.
+- `accept_transfer` rozpoznaje `from_foreman_id == 'warehouse'` i pomija dekrementację brygadzisty.
+
+### Frontend — `EquipmentAdmin.js`
+- **Nowa kolumna „Przekaż"** z zielonym przyciskiem `transfer-btn-{id}` w każdym wierszu. Disabled gdy `available_quantity == 0`.
+- **Komórki brygadzistów** (`assign-cell-{eqId}-{foremanId}`) zamienione z editable `<input>` na **kliknialne `<button>`** — wyświetlają aktualną ilość przypisaną, klik otwiera modal transferu z preselected brygadzistą.
+- **Kolumny „Ilość całkowita" i „Zdane do naprawy"** są teraz **read-only spans** (`total-display-{id}`, `broken-display-{id}`). Total edytowalne tylko przez modal otwierany klikiem w nazwę. Broken zmienia się tylko przez zgłoszenie usterki lub akcję „Przekieruj do naprawy".
+- **`TransferFromWarehouseModal`** (`transfer-from-warehouse-modal`):
+  - pokazuje nazwę sprzętu, dostępność, ostrzega o sztukach w naprawie
+  - dropdown brygadzistów + input ilości (max = available_quantity)
+  - `<ActionButton>` „Wyślij przekazanie" z optimistic UI
+  - Info: „Brygadzista musi zaakceptować. Stan zmieni się dopiero po akceptacji."
+- **Sekcja „Zwroty do magazynu"**: dodany trzeci przycisk `<ActionButton>` „**Przekieruj do naprawy**" (`route-to-repair-{id}`) — złoty kolor `#D4AF37`, ikona Hammer. Po kliknięciu confirm + POST do `/equipment/returns/{id}/to-repair`.
+- **`EditEquipmentModal`** (`/equipment/EquipmentModals.js`): nowe pole `Ilość całkowita` (`edit-total-quantity`) z minihintem aktualnych statystyk (assigned/broken/lost/available).
+
+### Co dostaje user
+- **Admin nie przypisuje już sprzętu bezpośrednio** — wysyła transfer, który brygadzista musi zaakceptować.
+- **Klik w nazwę = jedyna edycja stanu magazynowego** (czytelny single source of truth).
+- **Sprzęt w naprawie jest nieedytowalny ręcznie** — wzrasta wyłącznie z usterek i przekierowań zwrotów.
+- **Magazynier ma 3 ścieżki** dla zwrotów: Odrzuć (wraca do brygadzisty), Przekieruj do naprawy (broken+=qty), Potwierdź przyjęcie (do dostępnego stanu).
+
+### Testy (iter36 test report)
+- Backend pytest: **12/12 PASS** (`/app/backend/tests/test_iter36_equipment_transfer_repair.py`).
+- Frontend live: Przekaż column, assign-cells jako buttony, edit modal z total_quantity, transfer modal action — wszystko zweryfikowane przez testing agent.
+- Overcommit ilości i podwójne route-to-repair: 400 (oczekiwane).
+
+### ⚠️ Wymagana akcja
+Backend już zdeployowany w iter 62/63. **Save to GitHub + Render Manual Deploy** dla frontend hot-reload na produkcji (nowy build z odświeżonym UI).
+
+
+
+
 
 ### User request
 „Podczas przekazywania sprzętu przez majstra po kliknięciu wyślij ilość danego sprzętu powinna się odrazu zaktualizować max 0,5 sekundy by brygadzista nie klikał znowu."
