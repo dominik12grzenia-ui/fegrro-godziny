@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { useCachedApi } from '../context/apiCache';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Wrench, Send, AlertTriangle, Bell, Check, X, Undo2, History as HistoryIcon, Warehouse } from 'lucide-react';
@@ -38,8 +39,6 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [defectPhoto, setDefectPhoto] = useState(null);
   const [returnModal, setReturnModal] = useState(null);
   const [returnQty, setReturnQty] = useState('');
-  const [returnSubmitting, setReturnSubmitting] = useState(false);
-  const [ackBusy, setAckBusy] = useState({}); // notifId -> bool blokuje wielokrotne kliki "Potwierdz przyjecie"
   const [historyModal, setHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState({ transfers: [], events: [] });
   const [pendingReturns, setPendingReturns] = useState([]);
@@ -138,45 +137,62 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     const qty = parseInt(transferQty, 10);
     if (!transferTo) {
       toast.error('Wybierz brygadziste');
-      return;
+      throw new Error('no_target');
     }
     if (Number.isNaN(qty) || qty <= 0 || qty > transferModal.quantity) {
       toast.error(t('eq.qty_range_x').replace('{n}', transferModal.quantity));
-      return;
+      throw new Error('bad_qty');
     }
+    // Optymistycznie zamknij modal
+    const snapshot = { ...transferModal };
+    setTransferModal(null);
+    setTransferTo('');
+    setTransferQty('');
     try {
       await api.post('/equipment/transfer', {
-        equipment_id: transferModal.id,
+        equipment_id: snapshot.id,
         to_foreman_id: transferTo,
         quantity: qty,
       });
-      toast.success('Przekazanie wyslane do akceptacji');
-      setTransferModal(null);
-      setTransferTo('');
-      setTransferQty('');
+      toast.success(`Przekazanie ${qty} szt. ${snapshot.name} wysłane`);
       fetchAll();
     } catch (err) {
+      // Re-otworz modal w razie bledu
+      setTransferModal(snapshot);
+      setTransferTo(transferTo);
+      setTransferQty(String(qty));
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
   const handleAccept = async (transferId) => {
+    // Optimistic: natychmiast usun z listy
+    const backup = pendingTransfers;
+    setPendingTransfers((prev) => prev.filter((t) => t.id !== transferId));
     try {
       await api.post(`/equipment/transfers/${transferId}/accept`);
       toast.success('Zaakceptowano przekazanie');
+      // Background refresh bez blokowania UI
       fetchAll();
     } catch (err) {
+      setPendingTransfers(backup); // przywroc
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
   const handleReject = async (transferId) => {
+    const backup = pendingTransfers;
+    setPendingTransfers((prev) => prev.filter((t) => t.id !== transferId));
     try {
       await api.post(`/equipment/transfers/${transferId}/reject`);
       toast.success('Odrzucono przekazanie');
       fetchAll();
     } catch (err) {
+      setPendingTransfers(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
@@ -184,67 +200,73 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     const qty = parseInt(defectQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > defectModal.quantity) {
       toast.error(t('eq.qty_range_x').replace('{n}', defectModal.quantity));
-      return;
+      throw new Error('bad_qty');
     }
+    const snapshot = { ...defectModal };
+    const desc = defectDesc;
+    const photo = defectPhoto;
+    setDefectModal(null);
+    setDefectQty('');
+    setDefectDesc('');
+    setDefectPhoto(null);
     try {
       await api.post('/equipment/defect', {
-        equipment_id: defectModal.id,
+        equipment_id: snapshot.id,
         quantity: qty,
-        description: defectDesc || null,
-        photo: defectPhoto,
+        description: desc || null,
+        photo,
       });
-      toast.success('Usterka zgloszona');
-      setDefectModal(null);
-      setDefectQty('');
-      setDefectDesc('');
-      setDefectPhoto(null);
+      toast.success(`Usterka ${snapshot.name} (${qty} szt.) zgłoszona`);
       fetchAll();
     } catch (err) {
+      // Re-otworz w razie bledu
+      setDefectModal(snapshot);
+      setDefectQty(String(qty));
+      setDefectDesc(desc);
+      setDefectPhoto(photo);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
   const handleReturn = async () => {
-    if (returnSubmitting) return; // blokada wielokrotnego klikniecia
     const qty = parseInt(returnQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > returnModal.quantity) {
       toast.error(t('eq.qty_range_x').replace('{n}', returnModal.quantity));
-      return;
+      throw new Error('bad_qty');
     }
-    setReturnSubmitting(true);
-    // Optymistycznie zamknij modal natychmiast (nie czekaj na backend) — tak by user nie kliknal ponownie
-    const eqName = returnModal.name;
+    // Optymistycznie zamknij modal natychmiast
+    const snapshot = { ...returnModal };
     setReturnModal(null);
     setReturnQty('');
     try {
       await api.post('/equipment/return', {
-        equipment_id: returnModal.id,
+        equipment_id: snapshot.id,
         quantity: qty,
       });
-      toast.success(`Zwrócono ${qty} szt. ${eqName} do magazynu`);
+      toast.success(`Zwrócono ${qty} szt. ${snapshot.name} do magazynu`);
       fetchAll();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Błąd');
-      // Re-otworz modal w razie bledu, by user mogl sprobowac ponownie
-      setReturnModal({ id: returnModal?.id, name: eqName, quantity: returnModal?.quantity });
+      setReturnModal(snapshot);
       setReturnQty(String(qty));
-    } finally {
-      setReturnSubmitting(false);
+      toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
   const handleAcknowledgeReturn = async (notifId) => {
-    if (ackBusy[notifId]) return;
-    setAckBusy((s) => ({ ...s, [notifId]: true }));
+    // Optymistycznie ukryj rekord natychmiast
+    const backup = pendingReturns;
+    setPendingReturns((prev) => prev.filter((r) => r.id !== notifId));
     try {
       await api.post(`/equipment/returns/${notifId}/acknowledge`);
       toast.success('Zwrot potwierdzony');
       fetchAll();
     } catch (err) {
+      setPendingReturns(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
-      setAckBusy((s) => { const n = { ...s }; delete n[notifId]; return n; });
+      throw err;
     }
-    // celowo: nie kasuje ackBusy w przypadku sukcesu - notif zniknie po fetchAll
   };
 
   const handleDefectPhotoUpload = async (e) => {
@@ -297,21 +319,23 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 Musisz zaakceptowac lub odrzucic przekazanie aby kontynuowac.
               </p>
               <div className="flex gap-2">
-                <Button
-                  onClick={() => handleReject(t.id)}
+                <ActionButton
+                  onAction={() => handleReject(t.id)}
+                  loadingText="Odrzucam..."
                   variant="ghost"
                   className="flex-1 text-[#FCA5A5] hover:bg-[#9B2C2C] border border-[#9B2C2C]"
                   data-testid={`reject-transfer-${t.id}`}
                 >
                   <X className="h-4 w-4 mr-2" /> Odrzuc
-                </Button>
-                <Button
-                  onClick={() => handleAccept(t.id)}
+                </ActionButton>
+                <ActionButton
+                  onAction={() => handleAccept(t.id)}
+                  loadingText="Akceptuję..."
                   className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid={`accept-transfer-${t.id}`}
                 >
                   <Check className="h-4 w-4 mr-2" /> Akceptuj
-                </Button>
+                </ActionButton>
               </div>
               {pendingTransfers.length > 1 && (
                 <p className="text-xs text-[#FCA5A5] text-center">
@@ -353,15 +377,16 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
-                  <Button
+                  <ActionButton
                     size="sm"
-                    onClick={() => handleAcknowledgeReturn(r.id)}
-                    disabled={!!ackBusy[r.id]}
-                    className={`${ackBusy[r.id] ? 'bg-[#3F5235]/50 text-[#9DBC85] cursor-not-allowed' : 'bg-[#4F6343] hover:bg-[#3F5235] text-white'}`}
+                    onAction={() => handleAcknowledgeReturn(r.id)}
+                    loadingText="Przyjmuję..."
+                    successText={`✓ Przyjęto x${r.quantity}`}
+                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                     data-testid={`keeper-acknowledge-return-${r.id}`}
                   >
-                    {ackBusy[r.id] ? '✓ Przyjęto x' + r.quantity : 'Potwierdź przyjecie'}
-                  </Button>
+                    Potwierdź przyjecie
+                  </ActionButton>
                 </div>
               ))}
             </div>
@@ -529,13 +554,15 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               </p>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setTransferModal(null)}>Anuluj</Button>
-                <Button
-                  onClick={handleTransfer}
+                <ActionButton
+                  onAction={handleTransfer}
+                  loadingText="Wysyłam..."
+                  successText="✓ Wysłano"
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="confirm-transfer-btn"
                 >
                   Wyslij
-                </Button>
+                </ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -570,14 +597,15 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setReturnModal(null)}>Anuluj</Button>
-                <Button
-                  onClick={handleReturn}
-                  disabled={returnSubmitting}
-                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                <ActionButton
+                  onAction={handleReturn}
+                  loadingText="Zwracam..."
+                  successText="✓ Zwrócono"
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="confirm-return-btn"
                 >
-                  {returnSubmitting ? 'Zwracam...' : 'Zwroc do magazynu'}
-                </Button>
+                  Zwroc do magazynu
+                </ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -631,13 +659,15 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setDefectModal(null)}>Anuluj</Button>
-                <Button
-                  onClick={handleDefect}
+                <ActionButton
+                  onAction={handleDefect}
+                  loadingText="Zgłaszam..."
+                  successText="✓ Zgłoszono"
                   className="bg-[#DC4A3A] hover:bg-[#C56A52] text-white"
                   data-testid="confirm-defect-btn"
                 >
                   Zglos
-                </Button>
+                </ActionButton>
               </div>
             </CardContent>
           </Card>

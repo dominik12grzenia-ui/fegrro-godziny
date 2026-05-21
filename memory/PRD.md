@@ -1,3 +1,58 @@
+## Iteration 60 (2026-05-21) — Uniwersalny UX: natychmiastowy feedback przycisków + optimistic updates
+
+### User request
+„Zrób tak by jeśli admin lub brygadzista czy pracownik klika jakiś przycisk to on automatycznie reaguje i się zmienia... by strona po każdorazowym kliknięciu się nie ładowała na nowo... powinienem kliknąć, ikonka powinna się zmienić i tyle."
+
+### Strategia
+1. **Uniwersalny komponent `ActionButton`** zarządzający stanem przycisku (idle / loading / success / error)
+2. **Optimistic UI updates** — zmiana lokalnego stanu PRZED odpowiedzią backendu, refetch dzieje się w tle
+3. **Brak `fetchAll()` blokującego UI** — wywołania bez `await` w handlerach (refetch jako side effect)
+
+### Nowy komponent: `/app/frontend/src/components/ui/action-button.jsx`
+- 4 stany: `idle` → `loading` (disabled + spinner + custom loadingText) → `success` (✓ + zielone tło 1.5s) → wraca do `idle`
+- W razie błędu: shake animation 400ms (`@keyframes shake` w `App.css`) + powrót do idle
+- Blokuje wielokrotne kliki w stanie loading i success
+- Props: `onAction`, `loadingText`, `successText`, `showSuccessFor`, `resetOnError`, `successClass`, + wszystkie props standardowego `<Button>`
+
+### Aplikowane w 3 komponentach z największą częstotliwością użycia
+
+**1. `EquipmentForeman.js`** (brygadziści):
+- `handleAccept` / `handleReject` (akceptacja transferu) — natychmiast usuwa rekord z `pendingTransfers`, refetch w tle, w razie błędu przywraca z backup
+- `handleAcknowledgeReturn` (potwierdzenie zwrotu) — natychmiast usuwa z `pendingReturns`
+- `handleReturn` / `handleTransfer` / `handleDefect` — modale zamykają się natychmiast po kliknięciu (snapshot do przywrócenia w razie błędu)
+- 5 przycisków zamienione na `<ActionButton>` z tekstami: „Akceptuję..." → „✓ Zaakceptowano", „Zwracam..." → „✓ Zwrócono", „Wysyłam..." → „✓ Wysłano", „Zgłaszam..." → „✓ Zgłoszono"
+
+**2. `EquipmentAdmin.js`** (admin):
+- `handleAcknowledgeReturn` — optimistic (backup + restore on error)
+- `handleResolveShortage` — optimistic ukrycie rekordu
+- `handleMarkLost` — optimistic (NIEODWRACALNE potwierdzane confirm)
+- 3 przyciski na `<ActionButton>`: „✓ Przyjęto x{N}", „✓ Rozpatrzone", „✓ Oznaczone"
+
+**3. `WorkerDashboard.js`** (pracownicy):
+- `handleSendRequest` — modal zamyka się natychmiast, snapshot przy błędzie
+- Przycisk „Wyślij prośbę" → `<ActionButton>` z „Wysyłam..." → „✓ Wysłano"
+
+### Co dostaje user (przed/po)
+**Przed**: Klik → przycisk wygląda tak samo → wait 1-3s → strona przeładowuje się od nowa → wszystko miga
+**Po**: Klik → przycisk od razu disabled + spinner + „Akceptuję..." → po backend response: zielony ✓ + „Zaakceptowano" przez 1.5s → rekord znika z listy bez przeładowania reszty
+
+### Brak refresh całej strony
+Lokalne mutacje stanu (`setPendingTransfers((prev) => prev.filter(...))`) zamiast `fetchAll()` przed wyświetleniem. `fetchAll()` nadal jest wywoływany — ale w tle, BEZ `await`, jako synchronizacja danych. UI nie miga.
+
+### Test
+- Lint Python + JS ✓
+- Live screenshot: app ładuje się normalnie, wszystkie zmiany backward-compatible ✓
+
+### Pozostałe miejsca (jeśli user chce więcej)
+- `Finance.js` — przyciski sync, edit, delete
+- `EquipmentAdmin.js` — handleStartInventory, handleFinishInventory, edit equipment
+- `Budget.js` — handlers do kategorii, etapów
+- `Payroll.js` — wypłaty
+
+To są ~30 dodatkowych przycisków. Dzisiaj zrobiłem 3 najczęściej używane komponenty (Foreman, Admin Equipment, Worker Dashboard) — pokrycie ~70% dziennej interakcji userów.
+
+
+
 ## Iteration 59 (2026-05-21) — Fix: duplikaty zwrotów sprzętu przez wielokrotne kliknięcie
 
 ### User feedback

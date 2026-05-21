@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { SkeletonBox, SkeletonCards, SkeletonList } from './ui/skeletons';
 import { Input } from './ui/input';
@@ -329,20 +330,24 @@ export const WorkerDashboard = () => {
     const hours = parseFloat(requestHours);
     if (!hours || hours < 1 || hours > 14) {
       toast.error('Podaj godziny (1-14)');
-      return;
+      throw new Error('bad_hours');
     }
+    // Optymistycznie zamknij modal natychmiast
+    const snapshot = { ...requestModal, hours, reason: requestReason };
+    setRequestModal(null);
     try {
       await api.post('/requests', {
-        employee_id: requestModal.employeeId,
-        site_id: requestModal.siteId,
-        work_date: requestModal.date,
-        hours_worked: hours,
-        reason: requestReason || 'Prosba brygadzisty o uzupelnienie godzin'
+        employee_id: snapshot.employeeId,
+        site_id: snapshot.siteId,
+        work_date: snapshot.date,
+        hours_worked: snapshot.hours,
+        reason: snapshot.reason || 'Prosba brygadzisty o uzupelnienie godzin'
       });
       toast.success('Prosba wyslana do administratora');
-      setRequestModal(null);
     } catch (error) {
+      setRequestModal(snapshot);
       toast.error('Nie udalo sie wyslac prosby');
+      throw error;
     }
   };
 
@@ -952,14 +957,16 @@ export const WorkerDashboard = () => {
                 />
               </div>
               <div className="flex gap-2">
-                <Button
-                  onClick={handleSendRequest}
+                <ActionButton
+                  onAction={handleSendRequest}
+                  loadingText="Wysyłam..."
+                  successText="✓ Wysłano"
                   className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="send-request-btn"
                 >
                   <Send className="h-4 w-4 mr-1" />
                   Wyslij prosbe
-                </Button>
+                </ActionButton>
                 <Button
                   onClick={() => setRequestModal(null)}
                   variant="outline"

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { prefetch, invalidateCachePrefix } from '../context/apiCache';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Wrench, Plus, Trash2, Edit, History, AlertTriangle, X, Undo2, UserCog, Check, ClipboardCheck } from 'lucide-react';
@@ -247,12 +248,17 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
   };
 
   const handleAcknowledgeReturn = async (notifId) => {
+    // Optymistycznie ukryj z listy
+    const backup = pendingReturns;
+    setPendingReturns((prev) => (prev || []).filter((r) => r.id !== notifId));
     try {
       await api.post(`/equipment/returns/${notifId}/acknowledge`);
       toast.success('Zwrot potwierdzony');
       refreshAll();
     } catch (err) {
+      setPendingReturns(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
@@ -290,12 +296,16 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
   const handleResolveShortage = async (shortageId) => {
     if (!window.confirm('Oznaczyc zgloszenie jako rozpatrzone? (sprzęt sie znalazl - bez zmian na stanie)')) return;
+    const backup = shortages;
+    setShortages((prev) => prev.filter((s) => s.id !== shortageId));
     try {
       await api.post(`/equipment/inventory/shortages/${shortageId}/resolve`);
       toast.success('Zgloszenie rozpatrzone');
       refreshAll();
     } catch (err) {
+      setShortages(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
@@ -316,19 +326,25 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
     const missing = shortage.missing_quantity || 0;
     if (missing <= 0) {
       toast.error('Brak ilości do oznaczenia jako zaginione');
-      return;
+      throw new Error('no_missing');
     }
     if (!window.confirm(
       `Oznaczyc ${missing} szt. "${shortage.equipment_name}" jako ZAGINIONE?\n\n` +
       `Ilość zostanie odjeta od stanu brygadzisty ${shortage.foreman_name} i dodana do kolumny "Zaginione".\n\n` +
       `Operacja NIEODWRACALNA.`
-    )) return;
+    )) {
+      throw new Error('cancelled');
+    }
+    const backup = shortages;
+    setShortages((prev) => prev.filter((s) => s.id !== shortage.id));
     try {
       await api.post(`/equipment/inventory/shortages/${shortage.id}/mark-lost`);
       toast.success('Oznaczono jako zaginione');
       refreshAll();
     } catch (err) {
+      setShortages(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
     }
   };
 
@@ -724,25 +740,29 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                     </a>
                   )}
                   <div className="flex flex-col gap-2 items-stretch">
-                    <Button
+                    <ActionButton
                       size="sm"
-                      onClick={() => handleMarkLost(s)}
+                      onAction={() => handleMarkLost(s)}
+                      loadingText="Zapisuję..."
+                      successText="✓ Oznaczone"
                       className="bg-[#9b3a2a] hover:bg-[#7a2d20] text-white"
                       data-testid={`mark-lost-${s.id}`}
                       title="Odejmij brakujace szt. od brygadzisty i zapisz jako zaginione"
                     >
                       <X className="h-4 w-4 mr-1" /> Oznacz zaginione
-                    </Button>
-                    <Button
+                    </ActionButton>
+                    <ActionButton
                       size="sm"
                       variant="outline"
-                      onClick={() => handleResolveShortage(s.id)}
+                      onAction={() => handleResolveShortage(s.id)}
+                      loadingText="Rozpatruję..."
+                      successText="✓ Rozpatrzone"
                       className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]"
                       data-testid={`resolve-shortage-${s.id}`}
                       title="Sprzęt sie znalazl - bez zmian na stanie"
                     >
                       <Check className="h-4 w-4 mr-1" /> Znalezione
-                    </Button>
+                    </ActionButton>
                   </div>
                 </div>
               ))}
@@ -807,14 +827,16 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
-                  <Button
+                  <ActionButton
                     size="sm"
-                    onClick={() => handleAcknowledgeReturn(r.id)}
+                    onAction={() => handleAcknowledgeReturn(r.id)}
+                    loadingText="Przyjmuję..."
+                    successText={`✓ Przyjęto x${r.quantity}`}
                     className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                     data-testid={`acknowledge-return-${r.id}`}
                   >
                     Potwierdź przyjecie
-                  </Button>
+                  </ActionButton>
                 </div>
               ))}
             </div>
