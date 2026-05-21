@@ -143,23 +143,29 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.error(t('eq.qty_range_x').replace('{n}', transferModal.quantity));
       throw new Error('bad_qty');
     }
-    // Optymistycznie zamknij modal
+    // Optymistycznie: zamknij modal + ZMNIEJSZ ilość na liście brygadzisty natychmiast
     const snapshot = { ...transferModal };
+    const targetId = transferTo;
+    const backup = myEquipment;
+    setMyEquipment((prev) => prev.map((e) =>
+      e.id === snapshot.id ? { ...e, quantity: Math.max(0, (e.quantity || 0) - qty) } : e
+    ).filter((e) => e.quantity > 0 || e.id !== snapshot.id || (snapshot.quantity - qty) > 0));
     setTransferModal(null);
     setTransferTo('');
     setTransferQty('');
     try {
       await api.post('/equipment/transfer', {
         equipment_id: snapshot.id,
-        to_foreman_id: transferTo,
+        to_foreman_id: targetId,
         quantity: qty,
       });
       toast.success(`Przekazanie ${qty} szt. ${snapshot.name} wysłane`);
       fetchAll();
     } catch (err) {
-      // Re-otworz modal w razie bledu
+      // Przywroc lokalny stan + re-otworz modal
+      setMyEquipment(backup);
       setTransferModal(snapshot);
-      setTransferTo(transferTo);
+      setTransferTo(targetId);
       setTransferQty(String(qty));
       toast.error(err.response?.data?.detail || 'Błąd');
       throw err;
@@ -205,6 +211,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     const snapshot = { ...defectModal };
     const desc = defectDesc;
     const photo = defectPhoto;
+    const backup = myEquipment;
+    // Optymistycznie zmniejsz ilość (usterka też zabiera szt. z assignment)
+    setMyEquipment((prev) => prev.map((e) =>
+      e.id === snapshot.id ? { ...e, quantity: Math.max(0, (e.quantity || 0) - qty) } : e
+    ));
     setDefectModal(null);
     setDefectQty('');
     setDefectDesc('');
@@ -219,7 +230,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.success(`Usterka ${snapshot.name} (${qty} szt.) zgłoszona`);
       fetchAll();
     } catch (err) {
-      // Re-otworz w razie bledu
+      setMyEquipment(backup);
       setDefectModal(snapshot);
       setDefectQty(String(qty));
       setDefectDesc(desc);
@@ -235,8 +246,12 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.error(t('eq.qty_range_x').replace('{n}', returnModal.quantity));
       throw new Error('bad_qty');
     }
-    // Optymistycznie zamknij modal natychmiast
+    // Optymistycznie: zamknij modal + zmniejsz ilość natychmiast
     const snapshot = { ...returnModal };
+    const backup = myEquipment;
+    setMyEquipment((prev) => prev.map((e) =>
+      e.id === snapshot.id ? { ...e, quantity: Math.max(0, (e.quantity || 0) - qty) } : e
+    ));
     setReturnModal(null);
     setReturnQty('');
     try {
@@ -247,6 +262,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       toast.success(`Zwrócono ${qty} szt. ${snapshot.name} do magazynu`);
       fetchAll();
     } catch (err) {
+      setMyEquipment(backup);
       setReturnModal(snapshot);
       setReturnQty(String(qty));
       toast.error(err.response?.data?.detail || 'Błąd');

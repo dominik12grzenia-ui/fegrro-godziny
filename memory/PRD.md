@@ -1,3 +1,49 @@
+## Iteration 63 (2026-05-21) — Natychmiastowa aktualizacja ilości po wysłaniu transferu / zwrotu / usterki
+
+### User request
+„Podczas przekazywania sprzętu przez majstra po kliknięciu wyślij ilość danego sprzętu powinna się odrazu zaktualizować max 0,5 sekundy by brygadzista nie klikał znowu."
+
+### Problem
+Po kliknięciu „Wyślij" w modalu transferu:
+- Modal się zamykał natychmiast ✓ (iter 60)
+- ALE lista `myEquipment` pokazywała starą ilość aż do końca `fetchAll()` (1-3 sekundy)
+- Brygadzista mógł kliknąć ponownie myśląc że nie zadziałało
+
+### Fix — optimistic UI dla 3 modali w `EquipmentForeman.js`
+
+**`handleTransfer`** (przekazanie do innego brygadzisty):
+- Po wysłaniu requestu → `setMyEquipment(prev => prev.map(...))` natychmiast zmniejsza ilość lokalnie o `qty`
+- W razie błędu → przywraca z `backup`
+- `fetchAll()` w tle synchronizuje docelowy stan
+
+**`handleReturn`** (zwrot do magazynu):
+- Tak samo: lokalnie zmniejszamy ilość natychmiast
+- Magazynier widzi nową notyfikację, brygadzista widzi mniejszą ilość natychmiast
+
+**`handleDefect`** (zgłoszenie usterki):
+- Tak samo: sprzęt z usterką znika z assignmentu, lokalnie odzwierciedlone natychmiast
+
+### Czas reakcji
+- **0ms**: kliknięcie → modal zamknięty + ilość zmniejszona + spinner na przycisku
+- **~500ms-2s**: backend response → toast + ✓ na przycisku
+- **~1-3s**: `fetchAll` w tle → synchronizacja z prawdziwym stanem
+
+Z punktu widzenia brygadzisty: **klik → ilość zmieniła się od razu → nie ma potrzeby klikać ponownie**.
+
+### Rollback na błąd
+Jeśli backend zwróci błąd:
+- Lokalna lista wraca do stanu sprzed kliknięcia (`backup`)
+- Modal otwiera się ponownie z poprzednimi danymi
+- Toast z komunikatem błędu
+- `ActionButton` animuje shake
+
+### Test
+- Lint JS ✓
+- Frontend supervisor RUNNING ✓
+- Backend curl health 200 ✓
+
+
+
 ## Iteration 62 (2026-05-21) — Odrzuć zwrot sprzętu (przycisk + powrót do brygadzisty)
 
 ### User request
