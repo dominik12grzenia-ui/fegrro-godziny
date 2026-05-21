@@ -6,7 +6,7 @@ Features:
 - Constraint: assigned + broken_in_warehouse <= total_quantity
 """
 from fastapi import APIRouter, HTTPException, Depends
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, List
 import uuid
 import logging
@@ -894,49 +894,73 @@ async def return_to_warehouse(payload: ReturnToWarehouse,
     # Create a return notification awaiting acknowledgment
     keeper_setting = await db.app_settings.find_one({"key": "warehouse_keeper"})
     keeper_id = (keeper_setting or {}).get("foreman_id")
-    notif = {
-        "id": str(uuid.uuid4()),
+
+    # DEDUPE: jezeli ten sam foreman zwraca ten sam sprzet w ciagu 30s i poprzedni notif jest pending,
+    # zwiekszamy quantity zamiast tworzyc duplikat (chroni przed wielokrotnym klikiem)
+    now = datetime.now()
+    thirty_sec_ago = (now - timedelta(seconds=30)).isoformat()
+    existing_pending = await db.equipment_return_notifications.find_one({
         "equipment_id": payload.equipment_id,
-        "equipment_name": eq_name,
         "from_foreman_id": foreman_id,
-        "from_foreman_name": actor_name,
-        "quantity": payload.quantity,
-        "warehouse_keeper_id": keeper_id,  # if set, this foreman should also see it
         "status": "pending",
-        "acknowledged_by": None,
-        "acknowledged_at": None,
-        "created_at": datetime.now().isoformat(),
-    }
-    await db.equipment_return_notifications.insert_one(notif)
-    notif.pop("_id", None)
+        "created_at": {"$gte": thirty_sec_ago},
+    }, sort=[("created_at", -1)])
+
+    if existing_pending:
+        new_qty = int(existing_pending.get("quantity", 0)) + int(payload.quantity)
+        await db.equipment_return_notifications.update_one(
+            {"id": existing_pending["id"]},
+            {"$set": {"quantity": new_qty, "updated_at": now.isoformat()}}
+        )
+        notif = {**existing_pending, "quantity": new_qty}
+        notif.pop("_id", None)
+        deduped = True
+    else:
+        notif = {
+            "id": str(uuid.uuid4()),
+            "equipment_id": payload.equipment_id,
+            "equipment_name": eq_name,
+            "from_foreman_id": foreman_id,
+            "from_foreman_name": actor_name,
+            "quantity": payload.quantity,
+            "warehouse_keeper_id": keeper_id,
+            "status": "pending",
+            "acknowledged_by": None,
+            "acknowledged_at": None,
+            "created_at": now.isoformat(),
+        }
+        await db.equipment_return_notifications.insert_one(notif)
+        notif.pop("_id", None)
+        deduped = False
 
     await _add_history(
         payload.equipment_id, "returned_to_warehouse", foreman_id, actor_name,
         {"quantity": payload.quantity, "equipment_name": eq_name}
     )
 
-    # Push do adminow + magazyniera: ktos zwrocil sprzet
-    try:
-        from routes.push import send_push_to_admins, send_push
-        await send_push_to_admins(
-            title="Zwrocono sprzet do magazynu",
-            body=f"{actor_name}: {eq_name} x{payload.quantity}",
-            url="/admin/dashboard",
-            tag=f"return-{notif['id']}",
-        )
-        if keeper_id and keeper_id != foreman_id:
-            await send_push(
-                user_id=keeper_id,
+    # Push do adminow + magazyniera: ktos zwrocil sprzet (pomijamy przy deduplicate by nie spamowac)
+    if not deduped:
+        try:
+            from routes.push import send_push_to_admins, send_push
+            await send_push_to_admins(
                 title="Zwrocono sprzet do magazynu",
                 body=f"{actor_name}: {eq_name} x{payload.quantity}",
-                url="/worker/dashboard",
+                url="/admin/dashboard",
                 tag=f"return-{notif['id']}",
             )
-    except Exception as e:
-        logger.warning(f"Push (return) failed: {e}")
+            if keeper_id and keeper_id != foreman_id:
+                await send_push(
+                    user_id=keeper_id,
+                    title="Zwrocono sprzet do magazynu",
+                    body=f"{actor_name}: {eq_name} x{payload.quantity}",
+                    url="/worker/dashboard",
+                    tag=f"return-{notif['id']}",
+                )
+        except Exception as e:
+            logger.warning(f"Push (return) failed: {e}")
 
     return {"message": "Sprzet zwrocony do magazynu", "quantity_returned": payload.quantity,
-            "notification_id": notif["id"]}
+            "notification_id": notif["id"], "deduped": deduped}
 
 
 # ============= My history (foreman) =============

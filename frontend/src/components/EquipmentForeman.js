@@ -38,6 +38,8 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [defectPhoto, setDefectPhoto] = useState(null);
   const [returnModal, setReturnModal] = useState(null);
   const [returnQty, setReturnQty] = useState('');
+  const [returnSubmitting, setReturnSubmitting] = useState(false);
+  const [ackBusy, setAckBusy] = useState({}); // notifId -> bool blokuje wielokrotne kliki "Potwierdz przyjecie"
   const [historyModal, setHistoryModal] = useState(false);
   const [historyData, setHistoryData] = useState({ transfers: [], events: [] });
   const [pendingReturns, setPendingReturns] = useState([]);
@@ -203,33 +205,46 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   };
 
   const handleReturn = async () => {
+    if (returnSubmitting) return; // blokada wielokrotnego klikniecia
     const qty = parseInt(returnQty, 10);
     if (Number.isNaN(qty) || qty <= 0 || qty > returnModal.quantity) {
       toast.error(t('eq.qty_range_x').replace('{n}', returnModal.quantity));
       return;
     }
+    setReturnSubmitting(true);
+    // Optymistycznie zamknij modal natychmiast (nie czekaj na backend) — tak by user nie kliknal ponownie
+    const eqName = returnModal.name;
+    setReturnModal(null);
+    setReturnQty('');
     try {
       await api.post('/equipment/return', {
         equipment_id: returnModal.id,
         quantity: qty,
       });
-      toast.success(`Zwrocono ${qty} szt. do magazynu`);
-      setReturnModal(null);
-      setReturnQty('');
+      toast.success(`Zwrócono ${qty} szt. ${eqName} do magazynu`);
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Błąd');
+      // Re-otworz modal w razie bledu, by user mogl sprobowac ponownie
+      setReturnModal({ id: returnModal?.id, name: eqName, quantity: returnModal?.quantity });
+      setReturnQty(String(qty));
+    } finally {
+      setReturnSubmitting(false);
     }
   };
 
   const handleAcknowledgeReturn = async (notifId) => {
+    if (ackBusy[notifId]) return;
+    setAckBusy((s) => ({ ...s, [notifId]: true }));
     try {
       await api.post(`/equipment/returns/${notifId}/acknowledge`);
       toast.success('Zwrot potwierdzony');
       fetchAll();
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Błąd');
+      setAckBusy((s) => { const n = { ...s }; delete n[notifId]; return n; });
     }
+    // celowo: nie kasuje ackBusy w przypadku sukcesu - notif zniknie po fetchAll
   };
 
   const handleDefectPhotoUpload = async (e) => {
@@ -341,10 +356,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                   <Button
                     size="sm"
                     onClick={() => handleAcknowledgeReturn(r.id)}
-                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                    disabled={!!ackBusy[r.id]}
+                    className={`${ackBusy[r.id] ? 'bg-[#3F5235]/50 text-[#9DBC85] cursor-not-allowed' : 'bg-[#4F6343] hover:bg-[#3F5235] text-white'}`}
                     data-testid={`keeper-acknowledge-return-${r.id}`}
                   >
-                    Potwierdź przyjecie
+                    {ackBusy[r.id] ? '✓ Przyjęto x' + r.quantity : 'Potwierdź przyjecie'}
                   </Button>
                 </div>
               ))}
@@ -556,10 +572,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <Button variant="ghost" onClick={() => setReturnModal(null)}>Anuluj</Button>
                 <Button
                   onClick={handleReturn}
-                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                  disabled={returnSubmitting}
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   data-testid="confirm-return-btn"
                 >
-                  Zwroc do magazynu
+                  {returnSubmitting ? 'Zwracam...' : 'Zwroc do magazynu'}
                 </Button>
               </div>
             </CardContent>

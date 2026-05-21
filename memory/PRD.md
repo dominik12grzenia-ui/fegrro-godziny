@@ -1,3 +1,45 @@
+## Iteration 59 (2026-05-21) — Fix: duplikaty zwrotów sprzętu przez wielokrotne kliknięcie
+
+### User feedback
+Screenshot pokazał 3 identyczne zwroty BUŁAWA DO WIBRATORA PLECAKOWEGO x1 od Volodymyr Shot, w odstępach 3 sekund (15:31:51, 15:34:51, 15:34:54). Pracownik klika „Zwróć do magazynu" → request leci wolno → user klika jeszcze raz → tworzy się duplikat.
+
+### Frontend (`EquipmentForeman.js`)
+- **Stan `returnSubmitting`** w `handleReturn`:
+  - na początku: `if (returnSubmitting) return;`
+  - przycisk: `disabled={returnSubmitting}` + tekst „Zwracam..." podczas requesta
+  - **Optymistyczne zamknięcie modalu natychmiast po kliknięciu** (zanim backend odpowie) — user nie ma fizycznej możliwości kliknąć ponownie
+  - w razie błędu: re-otwarcie modalu z poprzednią ilością, by user mógł spróbować ponownie
+  - toast pokazuje nazwę sprzętu: `Zwrócono 1 szt. BUŁAWA do magazynu`
+
+- **Stan `ackBusy`** w `handleAcknowledgeReturn` (magazynier potwierdza przyjęcie):
+  - `ackBusy[notifId]` blokuje wielokrotne kliki na tym samym rekordzie
+  - przycisk zmienia kolor i tekst: `✓ Przyjęto x{qty}` (jasnozielony, opacity 50%)
+  - po sukcesie nie kasuje stanu busy → rekord znika po `fetchAll`
+
+### Backend (`routes/equipment.py`) — dedupe na poziomie API
+- W `POST /equipment/return`: przed utworzeniem nowego `equipment_return_notifications` sprawdza, czy w **ciągu ostatnich 30 sekund** ten sam foreman zgłosił już zwrot tego samego sprzętu ze statusem `pending`.
+- Jeśli TAK → **łączymy** wpis: `quantity += payload.quantity`, brak duplikatu, brak duplikatu push notyfikacji.
+- Jeśli NIE → tworzy nowy notif jak dotychczas.
+- Response zawiera `deduped: bool` (dla logów/debug).
+
+### Dwie warstwy zabezpieczeń
+1. **Frontend** — natychmiastowa blokada UI (modal się zamyka, przycisk disabled) → niemożliwe wielokrotne kliki w jednej sesji
+2. **Backend** — dedupe ostatnich 30s → ratunek na wypadek slow network, retry, multiple devices albo gdy frontend nie zdąży się zaktualizować
+
+### Co dostaje user
+- Pracownik klika „Zwróć do magazynu" → modal znika → toast „Zwrócono 1 szt. ..." → nie da się kliknąć ponownie
+- Magazynier klika „Potwierdź przyjęcie" → przycisk zmienia się na „✓ Przyjęto x1" jasnozielony, disabled → rekord znika po sekundzie
+- Gdyby jednak ktoś kliknął wiele razy (slow net, retry) → backend scala w jeden notif
+
+### Test
+- Lint Python + JS ✓
+- Backend uruchomiony, hot-reload zastosowany ✓
+
+### ⚠️ Wymagana akcja
+Backend ma fix dedupe — **Save to GitHub + Render Manual Deploy** żeby zadziałał na produkcji. Frontend fix działa natychmiast po wgraniu nowej wersji PWA przez użytkownika.
+
+
+
 ## Iteration 58 (2026-05-21) — Diagnoza i naprawa root cause rozbieżności Fakturownia
 
 ### User pytania
