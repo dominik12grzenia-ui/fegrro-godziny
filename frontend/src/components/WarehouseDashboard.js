@@ -4,6 +4,7 @@ import { api } from '../context/AuthContext';
 import { prefetch } from '../context/apiCache';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Warehouse, LogOut, Wrench, Shirt, ShieldCheck, Box } from 'lucide-react';
 import { toast } from 'sonner';
@@ -101,15 +102,13 @@ export default function WarehouseDashboard() {
           </div>
           <div className="flex items-center gap-2">
             <PushNotificationButton compact />
-            <Button
-              onClick={handleLogout}
+            <ActionButton
+              onAction={handleLogout}
               variant="ghost"
               size="sm"
               className="text-[#CBD5E1] hover:bg-[#2A3B59]"
               data-testid="warehouse-logout-btn"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            ><LogOut className="h-4 w-4" /></ActionButton>
           </div>
         </div>
 

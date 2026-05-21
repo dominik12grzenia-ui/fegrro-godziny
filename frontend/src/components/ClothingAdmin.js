@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { Shirt, Plus, Trash2, Check, Edit, X, Download, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -750,9 +751,7 @@ export const ClothingAdmin = () => {
                 )}
               </div>
               <div className="flex gap-2 pt-3">
-                <Button onClick={submitForm} className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="save-clothing-type-btn">
-                  {editingType ? 'Zapisz' : 'Dodaj'}
-                </Button>
+                <ActionButton onAction={submitForm} className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="save-clothing-type-btn">{editingType ? 'Zapisz' : 'Dodaj'}</ActionButton>
                 <Button onClick={() => setShowAddType(false)} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]">Anuluj</Button>
               </div>
             </CardContent>

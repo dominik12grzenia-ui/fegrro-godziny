@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Link2, Copy, Wallet, AlertTriangle, Users } from 'lucide-react';
@@ -693,15 +694,13 @@ export const HoursTable = () => {
         {selectedSiteForAssignment && (
           <div className="mb-4 p-3 bg-[#0B1120] rounded-lg border-2 border-[#4F6343] flex flex-wrap items-center gap-2">
             <span className="text-sm text-[#94A3B8]">Zaznaczono: {pendingCount}</span>
-            <Button
-              onClick={handleBulkAssign}
+            <ActionButton
+              onAction={handleBulkAssign}
               disabled={pendingCount === 0}
               className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
               size="sm"
               data-testid="bulk-assign-btn"
-            >
-              Przypisz ({pendingCount})
-            </Button>
+            >Przypisz ({pendingCount})</ActionButton>
             <Button
               onClick={() => {
                 employees.forEach(emp => handleSelectFullMonth(emp.id));
@@ -775,14 +774,12 @@ export const HoursTable = () => {
                 })}
               </div>
               <div className="flex gap-2 pt-1">
-                <Button
-                  onClick={handleBulkSave}
+                <ActionButton
+                  onAction={handleBulkSave}
                   disabled={bulkSaving || !bulkHours || bulkSelected.size === 0}
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white gap-2"
                   data-testid="bulk-save-btn"
-                >
-                  {bulkSaving ? 'Zapisywanie...' : `Zapisz ${bulkHours || '?'}h dla ${bulkSelected.size} os.`}
-                </Button>
+                >{bulkSaving ? 'Zapisywanie...' : `Zapisz ${bulkHours || '?'}h dla ${bulkSelected.size} os.`}</ActionButton>
                 <Button
                   onClick={() => { setBulkMode(false); setBulkSelected(new Set()); setBulkHours(''); }}
                   variant="outline"
@@ -1295,13 +1292,11 @@ export const HoursTable = () => {
                     className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
                     data-testid="new-advance-note"
                   />
-                  <Button
-                    onClick={handleAddAdvance}
+                  <ActionButton
+                    onAction={handleAddAdvance}
                     className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
                     data-testid="add-advance-btn"
-                  >
-                    Dodaj
-                  </Button>
+                  >Dodaj</ActionButton>
                 </div>
               </div>
 
@@ -1409,13 +1404,11 @@ export const HoursTable = () => {
                     <img src={newPenaltyImage} alt="Preview" className="h-10 w-10 rounded object-cover border border-[#2A3B59]" />
                   )}
                 </div>
-                <Button
-                  onClick={handleAddPenalty}
+                <ActionButton
+                  onAction={handleAddPenalty}
                   className="w-full bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
                   data-testid="add-penalty-btn"
-                >
-                  Dodaj kare
-                </Button>
+                >Dodaj kare</ActionButton>
               </div>
 
               <Button

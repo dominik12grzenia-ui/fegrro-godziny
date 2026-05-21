@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { HardHat, Plus, Trash2, Edit, X, UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -404,13 +405,11 @@ export const BhpAdmin = () => {
                 <Button variant="ghost" onClick={() => setShowAddItem(false)} className="text-[#94A3B8]">
                   Anuluj
                 </Button>
-                <Button
-                  onClick={saveItem}
+                <ActionButton
+                  onAction={saveItem}
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-item-save-btn"
-                >
-                  Zapisz
-                </Button>
+                >Zapisz</ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -500,13 +499,11 @@ export const BhpAdmin = () => {
                 <Button variant="ghost" onClick={() => setShowIssue(false)} className="text-[#94A3B8]">
                   Anuluj
                 </Button>
-                <Button
-                  onClick={saveIssuance}
+                <ActionButton
+                  onAction={saveIssuance}
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="bhp-issue-save-btn"
-                >
-                  Wydaj
-                </Button>
+                >Wydaj</ActionButton>
               </div>
             </CardContent>
           </Card>

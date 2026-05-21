@@ -3,6 +3,7 @@ import { api } from '../context/AuthContext';
 import { useCachedApi, invalidateCachePrefix } from '../context/apiCache';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { Package, Plus, Minus, ShoppingCart, History, Send, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -223,12 +224,10 @@ export const WarehouseForeman = () => {
                     className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-9"
                     data-testid="foreman-cart-note" />
                 </div>
-                <Button onClick={submitOrder} disabled={submitting}
+                <ActionButton onAction={submitOrder} disabled={submitting}
                   className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="foreman-submit-order">
-                  <Send className="h-4 w-4 mr-2" />
-                  {submitting ? 'Wysyłam...' : 'Wyślij zamówienie do admina'}
-                </Button>
+                  data-testid="foreman-submit-order"><Send className="h-4 w-4 mr-2" />
+                  {submitting ? 'Wysyłam...' : 'Wyślij zamówienie do admina'}</ActionButton>
               </CardContent>
             </Card>
           )}

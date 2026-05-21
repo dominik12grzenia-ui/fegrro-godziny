@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import {
   Users, Upload, Download, Trash2, Edit, X, FileText,
@@ -572,11 +573,9 @@ export const BhpEmployees = () => {
                 <Button variant="ghost" onClick={() => setShowDownload(false)} className="text-[#94A3B8]">
                   Anuluj
                 </Button>
-                <Button onClick={doBulkDownload} disabled={downloading}
+                <ActionButton onAction={doBulkDownload} disabled={downloading}
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="bhp-dl-confirm-btn">
-                  {downloading ? 'Pobieram...' : 'Pobierz'}
-                </Button>
+                  data-testid="bhp-dl-confirm-btn">{downloading ? 'Pobieram...' : 'Pobierz'}</ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -727,10 +726,8 @@ export const BhpEmployees = () => {
                 </div>
               </div>
               <div className="flex justify-end">
-                <Button onClick={saveEdit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="bhp-edit-save-btn">
-                  Zapisz pola BHP
-                </Button>
+                <ActionButton onAction={saveEdit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                  data-testid="bhp-edit-save-btn">Zapisz pola BHP</ActionButton>
               </div>
 
               {/* Documents */}

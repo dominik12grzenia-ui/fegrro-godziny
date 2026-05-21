@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { api } from '../context/AuthContext';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { Package, Plus, Trash2, Edit, X, Boxes, History, Check, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -561,8 +562,8 @@ export const WarehouseAdmin = () => {
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <Button variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">Anuluj</Button>
-                <Button onClick={save} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="warehouse-form-save">Zapisz</Button>
+                <ActionButton onAction={save} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                  data-testid="warehouse-form-save">Zapisz</ActionButton>
               </div>
             </CardContent>
           </Card>
@@ -600,8 +601,8 @@ export const WarehouseAdmin = () => {
               </div>
               <div className="flex gap-2 justify-end">
                 <Button variant="ghost" onClick={() => setStockAdjust(null)} className="text-[#94A3B8]">Anuluj</Button>
-                <Button onClick={submitAdjust} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="warehouse-adjust-save">Zapisz</Button>
+                <ActionButton onAction={submitAdjust} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                  data-testid="warehouse-adjust-save">Zapisz</ActionButton>
               </div>
             </CardContent>
           </Card>

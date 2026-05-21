@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Label } from './ui/label';
@@ -375,14 +376,12 @@ export const AssignmentManager = () => {
 
               {/* Submit Button */}
               <div className="mt-6">
-                <Button
-                  onClick={handleSubmit}
+                <ActionButton
+                  onAction={handleSubmit}
                   disabled={!selectedEmployee || !selectedSite || selectedDates.length === 0 || submitting}
                   className="w-full btn-primary"
                   data-testid="submit-assignment-btn"
-                >
-                  {submitting ? 'Zapisywanie...' : `Zapisz przypisanie (${selectedDates.length} dni)`}
-                </Button>
+                >{submitting ? 'Zapisywanie...' : `Zapisz przypisanie (${selectedDates.length} dni)`}</ActionButton>
               </div>
             </CardContent>
           </Card>

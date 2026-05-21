@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
@@ -645,9 +646,7 @@ const CategoryStageManager = ({ mode, budowaId, items, onClose, onChanged }) => 
                 placeholder="Koniec" className="bg-[#0B1120] border-[#2A3B59]" data-testid="manager-stage-end" />
             </div>
           )}
-          <Button onClick={add} disabled={busy} className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid={`manager-add-${mode}`}>
-            <Plus className="h-4 w-4 mr-1" /> Dodaj
-          </Button>
+          <ActionButton onAction={add} disabled={busy} className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid={`manager-add-${mode}`}><Plus className="h-4 w-4 mr-1" /> Dodaj</ActionButton>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Zamknij</Button>
@@ -895,9 +894,7 @@ const BudgetLineModal = ({ budowaId, editLine, categories, stages, budowaInfo, o
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <Button onClick={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="budget-line-save">
-            {saving ? 'Zapisuję...' : 'Zapisz'}
-          </Button>
+          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="budget-line-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1002,9 +999,7 @@ const ContractDataModal = ({ budowaId, initial, onClose, onSaved }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <Button onClick={save} disabled={saving} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="contract-save">
-            {saving ? 'Zapisuję...' : 'Zapisz i pobierz protokół'}
-          </Button>
+          <ActionButton onAction={save} disabled={saving} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="contract-save">{saving ? 'Zapisuję...' : 'Zapisz i pobierz protokół'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -1554,9 +1549,7 @@ const ScheduleTaskModal = ({ budowaId, editTask, onClose, onSaved }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <Button onClick={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="task-save">
-            {saving ? 'Zapisuję...' : 'Zapisz'}
-          </Button>
+          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="task-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

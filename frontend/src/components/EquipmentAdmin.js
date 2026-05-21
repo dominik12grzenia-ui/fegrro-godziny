@@ -409,16 +409,15 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
             >
               <Plus className="h-4 w-4 mr-2" /> Dodaj sprzęt
             </Button>
-            <Button
-              onClick={handleStartInventory}
-              disabled={startingInventory || activeInventory.length > 0}
+            <ActionButton
+              onAction={handleStartInventory}
+              disabled={startingInventory || activeInventory.length >0}
               className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#131C2F] font-semibold disabled:opacity-50"
               data-testid="start-inventory-btn"
               title={activeInventory.length > 0 ? 'Inwentaryzacja juz aktywna' : 'Wymuś inwentaryzacje u brygadzistow'}
             >
               <ClipboardCheck className="h-4 w-4 mr-2" />
-              {startingInventory ? 'Uruchamianie...' : 'Inwentaryzacja'}
-            </Button>
+              {startingInventory ? 'Uruchamianie...' : 'Inwentaryzacja'}</ActionButton>
           </div>
         </CardHeader>
         <CardContent>

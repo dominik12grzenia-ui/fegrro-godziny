@@ -4,6 +4,7 @@ import { useAuth, api } from '../context/AuthContext';
 import { prefetch } from '../context/apiCache';
 import PushNotificationButton from './PushNotificationButton';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { SkeletonBox, SkeletonCards, SkeletonTable } from './ui/skeletons';
@@ -165,11 +166,9 @@ const QuickAddZapisModal = ({ open, onClose }) => {
           <Button variant="outline" onClick={onClose}
             className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]"
             data-testid="dash-quickadd-cancel">Anuluj</Button>
-          <Button onClick={handleSave} disabled={saving}
+          <ActionButton onAction={handleSave} disabled={saving}
             className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-            data-testid="dash-quickadd-save">
-            {saving ? 'Zapisywanie...' : 'Zapisz'}
-          </Button>
+            data-testid="dash-quickadd-save">{saving ? 'Zapisywanie...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -409,14 +408,12 @@ export const AdminDashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <PushNotificationButton compact />
-            <Button
-              onClick={handleLogout}
+            <ActionButton
+              onAction={handleLogout}
               variant="ghost"
               className="text-[#94A3B8] hover:text-white hover:bg-[#19243C] transition-colors"
               data-testid="admin-logout-btn"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
+            ><LogOut className="h-5 w-5" /></ActionButton>
           </div>
         </div>
       </div>

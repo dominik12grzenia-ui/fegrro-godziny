@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { useCachedApi, invalidateCachePrefix } from '../context/apiCache';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Package, ShoppingCart, Trash2, X, Check, Clock } from 'lucide-react';
@@ -404,15 +405,13 @@ export const EquipmentCatalog = ({ category = 'electronics' }) => {
               <Button onClick={() => setModalItem(null)} variant="ghost" className="text-[#94A3B8]" data-testid="order-cancel-btn">
                 Anuluj
               </Button>
-              <Button
-                onClick={submitOrder}
+              <ActionButton
+                onAction={submitOrder}
                 disabled={submitting}
                 className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                 data-testid="order-submit-btn"
-              >
-                <Check className="h-4 w-4 mr-1" />
-                {submitting ? 'Wysylanie...' : 'Złóż zamówienie'}
-              </Button>
+              ><Check className="h-4 w-4 mr-1" />
+                {submitting ? 'Wysylanie...' : 'Złóż zamówienie'}</ActionButton>
             </div>
           </div>
         </div>

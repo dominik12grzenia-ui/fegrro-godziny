@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
@@ -421,21 +422,17 @@ export const PayrollAdmin = () => {
               />
             </div>
             <div className="ml-auto flex gap-2 flex-wrap">
-              <Button onClick={handleLockToggle}
+              <ActionButton onAction={handleLockToggle}
                 className={isLocked
                   ? "bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
                   : "bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1]"}
                 data-testid="payroll-lock-toggle"
-              >
-                {isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiąc</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiąc</>}
-              </Button>
+              >{isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiąc</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiąc</>}</ActionButton>
               <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-employee">
                 <UserPlus className="h-4 w-4 mr-1" /> Dodaj pracownika
               </Button>
-              <Button onClick={downloadReport} disabled={downloading}
-                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white" data-testid="payroll-pdf-report">
-                <FileSpreadsheet className="h-4 w-4 mr-1" /> Raport PDF
-              </Button>
+              <ActionButton onAction={downloadReport} disabled={downloading}
+                className="bg-[#3B82F6] hover:bg-[#2563EB] text-white" data-testid="payroll-pdf-report"><FileSpreadsheet className="h-4 w-4 mr-1" /> Raport PDF</ActionButton>
               <Button onClick={() => downloadPdf(true)} disabled={downloading || selected.size === 0}
                 className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-pdf-selected">
                 <Download className="h-4 w-4 mr-1" /> Karteczki ({selected.size})
@@ -928,11 +925,9 @@ export const PayrollAdmin = () => {
               </Button>
             )}
             {diagnostics && diagnostics.mismatches.some(m => m.is_orphan) && (
-              <Button onClick={deleteOrphans} disabled={diagLoading}
+              <ActionButton onAction={deleteOrphans} disabled={diagLoading}
                 className="bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
-                data-testid="diagnostics-delete-orphans">
-                Usuń wpisy osieroconych
-              </Button>
+                data-testid="diagnostics-delete-orphans">Usuń wpisy osieroconych</ActionButton>
             )}
             <Button variant="outline" onClick={() => setDiagnostics(null)}
               className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white"
@@ -978,9 +973,7 @@ export const PayrollAdmin = () => {
             <Button variant="outline" onClick={() => setShowAdd(false)} className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">
               Anuluj
             </Button>
-            <Button onClick={handleAdd} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-submit">
-              <UserPlus className="h-4 w-4 mr-1" /> Dodaj
-            </Button>
+            <ActionButton onAction={handleAdd} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-submit"><UserPlus className="h-4 w-4 mr-1" /> Dodaj</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

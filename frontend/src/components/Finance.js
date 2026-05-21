@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
@@ -425,10 +426,8 @@ const QuickAddZapis = ({ open, onClose }) => {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]" data-testid="quickadd-cancel">Anuluj</Button>
-          <Button onClick={handleSave} disabled={saving}
-            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="quickadd-save">
-            {saving ? 'Zapisywanie...' : 'Zapisz'}
-          </Button>
+          <ActionButton onAction={handleSave} disabled={saving}
+            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="quickadd-save">{saving ? 'Zapisywanie...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -588,11 +587,9 @@ const PaymentSummaryPanel = ({ onTileClick, year }) => {
               data-testid="discrepancy-details-btn">
               Pokaż szczegóły
             </Button>
-            <Button size="sm" onClick={syncUnpaid} disabled={syncing}
+            <ActionButton size="sm" onAction={syncUnpaid} disabled={syncing}
               className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-semibold h-7 text-xs"
-              data-testid="discrepancy-sync-btn">
-              {syncing ? 'Synchronizuję...' : 'Synchronizuj teraz'}
-            </Button>
+              data-testid="discrepancy-sync-btn">{syncing ? 'Synchronizuję...' : 'Synchronizuj teraz'}</ActionButton>
           </div>
         </div>
       )}
@@ -998,9 +995,7 @@ const BudowyPanel = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
               className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
-            <Button onClick={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-budowa-submit">
-              {editing ? 'Zapisz' : 'Dodaj'}
-            </Button>
+            <ActionButton onAction={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-budowa-submit">{editing ? 'Zapisz' : 'Dodaj'}</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1382,11 +1377,9 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               Sprzedaż ({incomeCount})
             </button>
           </div>
-          <Button onClick={syncCurrent} variant="outline"
+          <ActionButton onAction={syncCurrent} variant="outline"
             className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
-            data-testid="finance-sync-current">
-            Sync bieżący miesiąc
-          </Button>
+            data-testid="finance-sync-current">Sync bieżący miesiąc</ActionButton>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
             className="bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-zapisy-month">
@@ -1644,9 +1637,7 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
               className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
-            <Button onClick={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">
-              {editing ? 'Zapisz' : 'Dodaj'}
-            </Button>
+            <ActionButton onAction={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">{editing ? 'Zapisz' : 'Dodaj'}</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1889,9 +1880,7 @@ const RachunekWynikowPanel = ({ year, onTileClick }) => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddKod(false)}
               className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
-            <Button onClick={submitNewKod} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-submit">
-              Dodaj
-            </Button>
+            <ActionButton onAction={submitNewKod} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-submit">Dodaj</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

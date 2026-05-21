@@ -462,9 +462,7 @@ export const WorkerDashboard = () => {
         <div className="bg-[#19243C] text-white p-4 shadow-lg flex items-center gap-3 justify-between">
           <h1 className="text-xl font-bold flex-1 min-w-0 truncate">{t('foreman.greeting', { name: user?.full_name })}</h1>
           <LanguageToggle />
-          <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn">
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
         </div>
         <div className="flex items-center justify-center p-8">
           <Card className="bg-[#19243C] border-[#2A3B59] max-w-md w-full">
@@ -522,9 +520,7 @@ export const WorkerDashboard = () => {
           <LanguageToggle />
           <LocationsButton />
           <PushNotificationButton compact />
-          <Button onClick={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn">
-            <LogOut className="h-5 w-5" />
-          </Button>
+          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
         </div>
       </div>
 
@@ -696,14 +692,12 @@ export const WorkerDashboard = () => {
                 })}
               </div>
               <div className="flex gap-2 pt-1">
-                <Button
-                  onClick={handleBulkSave}
+                <ActionButton
+                  onAction={handleBulkSave}
                   disabled={bulkSaving || !bulkHours || bulkSelected.size === 0}
                   className="bg-[#4F6343] hover:bg-[#3F5235] text-white gap-2"
                   data-testid="bulk-save-btn"
-                >
-                  {bulkSaving ? 'Zapisywanie...' : `Zapisz ${bulkHours || '?'}h dla ${bulkSelected.size} os.`}
-                </Button>
+                >{bulkSaving ? 'Zapisywanie...' : `Zapisz ${bulkHours || '?'}h dla ${bulkSelected.size} os.`}</ActionButton>
                 <Button
                   onClick={() => { setBulkMode(false); setBulkSelected(new Set()); setBulkHours(''); }}
                   variant="outline"

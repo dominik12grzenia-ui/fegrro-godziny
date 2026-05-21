@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
+import { ActionButton } from './ui/action-button';
 import { Input } from './ui/input';
 import { ClipboardCheck, AlertTriangle, AlertCircle, Camera, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -396,14 +397,12 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
               >
                 Anuluj
               </Button>
-              <Button
-                onClick={submitShortage}
+              <ActionButton
+                onAction={submitShortage}
                 disabled={shortageSubmitting}
                 className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#131C2F] font-semibold"
                 data-testid="shortage-submit-btn"
-              >
-                {shortageSubmitting ? 'Wysylanie...' : 'Wyslij zgloszenie'}
-              </Button>
+              >{shortageSubmitting ? 'Wysylanie...' : 'Wyslij zgloszenie'}</ActionButton>
             </div>
           </div>
         </div>
