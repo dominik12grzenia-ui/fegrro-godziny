@@ -485,6 +485,137 @@ async def request_transfer(payload: TransferCreate,
     return transfer
 
 
+@router.post("/equipment/transfer-from-warehouse")
+async def transfer_from_warehouse(payload: TransferCreate,
+                                   current_user: dict = Depends(get_current_admin_or_warehouse)):
+    """Admin/magazynier tworzy 'przekazanie' sprzetu z magazynu do brygadzisty.
+    Brygadzista musi zaakceptowac, dopiero wtedy stan sie zmieni.
+    """
+    if payload.quantity <= 0:
+        raise HTTPException(status_code=400, detail="Ilosc musi byc dodatnia")
+    eq = await db.equipment.find_one({"id": payload.equipment_id})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+    to_user = await db.users.find_one({"id": payload.to_foreman_id, "role": "foreman"})
+    if not to_user:
+        raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
+
+    # Sprawdz dostepnosc w magazynie
+    agg = await db.equipment_assignments.aggregate([
+        {"$match": {"equipment_id": payload.equipment_id}},
+        {"$group": {"_id": None, "total": {"$sum": "$quantity"}}}
+    ]).to_list(1)
+    assigned = agg[0]["total"] if agg else 0
+    broken = eq.get("broken_quantity", 0) or 0
+    lost = eq.get("lost_quantity", 0) or 0
+    # Tez odjac ilosci w pending_transfers z magazynu (zeby nie zarezerwowac 2x)
+    pending = await db.equipment_transfers.find({
+        "equipment_id": payload.equipment_id,
+        "from_foreman_id": "warehouse",
+        "status": "pending"
+    }).to_list(100)
+    pending_qty = sum(t.get("quantity", 0) for t in pending)
+    available = eq["total_quantity"] - assigned - broken - lost - pending_qty
+    if available < payload.quantity:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Brak ilosci w magazynie. Dostepne: {max(0, available)} szt."
+        )
+
+    transfer_id = str(uuid.uuid4())
+    actor_name = await _get_user_name(current_user["sub"])
+    transfer = {
+        "id": transfer_id,
+        "equipment_id": payload.equipment_id,
+        "equipment_name": eq["name"],
+        "from_foreman_id": "warehouse",
+        "from_foreman_name": f"Magazyn ({actor_name})",
+        "to_foreman_id": payload.to_foreman_id,
+        "to_foreman_name": to_user["full_name"],
+        "quantity": payload.quantity,
+        "status": "pending",
+        "created_at": datetime.now().isoformat(),
+        "created_by_admin": current_user["sub"],
+    }
+    await db.equipment_transfers.insert_one(transfer)
+    transfer.pop("_id", None)
+    await _add_history(
+        payload.equipment_id, "transfer_from_warehouse_requested", current_user["sub"],
+        actor_name,
+        {"to_foreman_name": to_user["full_name"], "quantity": payload.quantity,
+         "transfer_id": transfer_id}
+    )
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=payload.to_foreman_id,
+            title="Sprzet z magazynu do akceptacji",
+            body=f"{actor_name} przekazuje: {eq['name']} x{payload.quantity}",
+            url="/foreman/equipment",
+            tag=f"transfer-wh-{transfer_id}",
+            require_interaction=True,
+        )
+    except Exception as e:
+        logger.warning(f"Push (warehouse transfer) failed: {e}")
+    return transfer
+
+
+@router.post("/equipment/returns/{notification_id}/to-repair")
+async def return_to_repair(notification_id: str,
+                            current_user: dict = Depends(get_current_user)):
+    """Admin/magazynier przekierowuje zwrot do naprawy: sprzet juz nie wraca do magazynu
+    dostepnego, lecz do `broken_quantity` (oznacza ze idzie do serwisu)."""
+    notif = await db.equipment_return_notifications.find_one({"id": notification_id})
+    if not notif:
+        raise HTTPException(status_code=404, detail="Zwrot nie znaleziony")
+    if notif["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Zwrot juz rozpatrzony")
+    is_admin = current_user.get("role") == "admin"
+    is_keeper = current_user["sub"] == notif.get("warehouse_keeper_id")
+    if not (is_admin or is_keeper):
+        raise HTTPException(status_code=403, detail="Brak uprawnien")
+
+    eq_id = notif["equipment_id"]
+    qty = int(notif["quantity"])
+
+    # Sprzet w /equipment/return juz zostal odjety od brygadzisty.
+    # Zwiekszamy broken_quantity (idzie do naprawy zamiast magazynu dostepnego)
+    await db.equipment.update_one(
+        {"id": eq_id},
+        {"$inc": {"broken_quantity": qty}}
+    )
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.equipment_return_notifications.update_one(
+        {"id": notification_id},
+        {"$set": {
+            "status": "to_repair",
+            "routed_by": current_user["sub"],
+            "routed_by_name": actor_name,
+            "routed_at": datetime.now().isoformat(),
+        }}
+    )
+    await _add_history(
+        eq_id, "return_to_repair", current_user["sub"], actor_name,
+        {"quantity": qty, "from_foreman_name": notif["from_foreman_name"],
+         "equipment_name": notif["equipment_name"]}
+    )
+    # Push do brygadzisty
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=notif["from_foreman_id"],
+            title="Zwrot skierowany do naprawy",
+            body=f"{notif['equipment_name']} x{qty} - magazynier ocenil, ze wymaga naprawy",
+            url="/foreman/equipment",
+            tag=f"return-repair-{notification_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (to-repair) failed: {e}")
+
+    return {"message": "Sprzet skierowany do naprawy", "quantity": qty, "equipment_name": notif["equipment_name"]}
+
+
 @router.get("/equipment/transfers/pending")
 async def my_pending_transfers(current_user: dict = Depends(get_current_user)):
     """Pending transfers awaiting current foreman's acceptance."""
@@ -514,24 +645,42 @@ async def accept_transfer(transfer_id: str,
 
     eq_id = transfer["equipment_id"]
     qty = transfer["quantity"]
+    from_warehouse = transfer["from_foreman_id"] == "warehouse"
 
-    # Decrement source assignment
-    src = await db.equipment_assignments.find_one(
-        {"equipment_id": eq_id, "foreman_id": transfer["from_foreman_id"]}
-    )
-    if not src or src["quantity"] < qty:
-        raise HTTPException(status_code=400,
-                             detail="Brygadzista nie posiada juz wystarczajacej ilosci")
-    new_src_qty = src["quantity"] - qty
-    if new_src_qty == 0:
-        await db.equipment_assignments.delete_one(
+    if not from_warehouse:
+        # Decrement source assignment (od brygadzisty A)
+        src = await db.equipment_assignments.find_one(
             {"equipment_id": eq_id, "foreman_id": transfer["from_foreman_id"]}
         )
+        if not src or src["quantity"] < qty:
+            raise HTTPException(status_code=400,
+                                 detail="Brygadzista nie posiada juz wystarczajacej ilosci")
+        new_src_qty = src["quantity"] - qty
+        if new_src_qty == 0:
+            await db.equipment_assignments.delete_one(
+                {"equipment_id": eq_id, "foreman_id": transfer["from_foreman_id"]}
+            )
+        else:
+            await db.equipment_assignments.update_one(
+                {"equipment_id": eq_id, "foreman_id": transfer["from_foreman_id"]},
+                {"$set": {"quantity": new_src_qty}}
+            )
     else:
-        await db.equipment_assignments.update_one(
-            {"equipment_id": eq_id, "foreman_id": transfer["from_foreman_id"]},
-            {"$set": {"quantity": new_src_qty}}
-        )
+        # Z magazynu - sprawdz tylko czy jest dostepna ilosc w magazynie
+        eq_doc = await db.equipment.find_one({"id": eq_id})
+        if not eq_doc:
+            raise HTTPException(status_code=404, detail="Sprzet nie istnieje")
+        agg = await db.equipment_assignments.aggregate([
+            {"$match": {"equipment_id": eq_id}},
+            {"$group": {"_id": None, "total": {"$sum": "$quantity"}}}
+        ]).to_list(1)
+        assigned = agg[0]["total"] if agg else 0
+        broken = eq_doc.get("broken_quantity", 0) or 0
+        lost = eq_doc.get("lost_quantity", 0) or 0
+        available = eq_doc["total_quantity"] - assigned - broken - lost
+        if available < qty:
+            raise HTTPException(status_code=400,
+                                 detail=f"Brak ilosci w magazynie. Dostepne: {max(0, available)} szt.")
 
     # Increment destination assignment
     await db.equipment_assignments.update_one(
