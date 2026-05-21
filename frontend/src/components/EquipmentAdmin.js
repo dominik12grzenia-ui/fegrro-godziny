@@ -262,6 +262,23 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
     }
   };
 
+  const handleRejectReturn = async (notifId, eqName, fromName) => {
+    if (!window.confirm(`Odrzucić zwrot „${eqName}" od ${fromName}?\n\nSprzęt wróci do brygadzisty.`)) {
+      throw new Error('cancelled');
+    }
+    const backup = pendingReturns;
+    setPendingReturns((prev) => (prev || []).filter((r) => r.id !== notifId));
+    try {
+      const r = await api.post(`/equipment/returns/${notifId}/reject`);
+      toast.success(`Sprzęt wrócił do ${r.data.returned_to}`);
+      refreshAll();
+    } catch (err) {
+      setPendingReturns(backup);
+      toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
+    }
+  };
+
   const handleStartInventory = async () => {
     if (!window.confirm(
       `Rozpoczac inwentaryzacje dla "${title}"?\n\nWszyscy brygadziści posiadajacy sprzęt w tej kategorii zostana zablokowani na ekranie godzin do momentu potwierdzenia kazdej pozycji.`
@@ -826,16 +843,29 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
-                  <ActionButton
-                    size="sm"
-                    onAction={() => handleAcknowledgeReturn(r.id)}
-                    loadingText="Przyjmuję..."
-                    successText={`✓ Przyjęto x${r.quantity}`}
-                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                    data-testid={`acknowledge-return-${r.id}`}
-                  >
-                    Potwierdź przyjecie
-                  </ActionButton>
+                  <div className="flex gap-2">
+                    <ActionButton
+                      size="sm"
+                      onAction={() => handleRejectReturn(r.id, r.equipment_name, r.from_foreman_name)}
+                      loadingText="Odrzucam..."
+                      successText="✓ Odrzucono"
+                      variant="outline"
+                      className="border-[#9B2C2C] text-[#FCA5A5] hover:bg-[#9B2C2C]/20"
+                      data-testid={`reject-return-${r.id}`}
+                    >
+                      Odrzuć
+                    </ActionButton>
+                    <ActionButton
+                      size="sm"
+                      onAction={() => handleAcknowledgeReturn(r.id)}
+                      loadingText="Przyjmuję..."
+                      successText={`✓ Przyjęto x${r.quantity}`}
+                      className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                      data-testid={`acknowledge-return-${r.id}`}
+                    >
+                      Potwierdź przyjecie
+                    </ActionButton>
+                  </div>
                 </div>
               ))}
             </div>

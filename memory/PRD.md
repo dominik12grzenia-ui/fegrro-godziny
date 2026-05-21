@@ -1,3 +1,42 @@
+## Iteration 62 (2026-05-21) — Odrzuć zwrot sprzętu (przycisk + powrót do brygadzisty)
+
+### User request
+„Jeśli pracownik zda coś do magazynu lub innego brygadzisty, to musi być tam oprócz przycisku 'Przyjąłem' też 'Odrzuć' i wraca sprzęt z powrotem do brygadzisty."
+
+### Co już mieliśmy
+- **Transfer brygadzista → brygadzista**: już miał Accept + Reject (Reject działa, ilość wraca do nadawcy via `pending_transfers` — sprzęt nigdy nie opuszczał stanu nadawcy do momentu akceptacji).
+- **Zwrot do magazynu**: miał tylko „Potwierdź przyjęcie". Brakowało „Odrzuć" + powrót sprzętu do brygadzisty.
+
+### Backend (`routes/equipment.py`)
+- **Nowy endpoint**: `POST /api/equipment/returns/{notification_id}/reject`
+  - Sprawdza uprawnienia: tylko admin lub `warehouse_keeper` może odrzucić
+  - **Cofa stan**: dodaje sprzęt (`equipment_assignments`) z powrotem do brygadzisty (`from_foreman_id`)
+  - Oznacza notyfikację jako `status: "rejected"` z `rejected_by/at`
+  - Loguje w historii sprzętu (`return_rejected`)
+  - **Push do brygadzisty**: „Zwrot ODRZUCONY — {sprzęt} x{N} wrócił do Ciebie"
+  - Response: `{ message, returned_to: foreman_name, quantity }`
+
+### Frontend
+**`EquipmentForeman.js`** i **`EquipmentAdmin.js`** (oba widoki sekcji „Zwroty do magazynu"):
+- Dodany przycisk **`<ActionButton>`** „Odrzuć" obok „Potwierdź przyjęcie":
+  - kolor: outline z bordowym tekstem (`#9B2C2C`/`#FCA5A5`)
+  - `loadingText: "Odrzucam..."`, `successText: "✓ Odrzucono"`
+- Handler `handleRejectReturn(notifId, eqName, fromName)`:
+  - `window.confirm` z nazwą sprzętu i brygadzisty
+  - Optimistic: ukrywa rekord z `pendingReturns` natychmiast
+  - W razie błędu — przywraca z backupu
+  - Toast po sukcesie: `Sprzęt wrócił do {brygadzista}`
+
+### Test
+- Backend endpoint zarejestrowany: `POST .../reject` → 404 dla nieistniejącej notyfikacji (route exists) ✓
+- Lint Python + JS: ✓
+- Backend działa, frontend hot-reload zastosowany ✓
+
+### ⚠️ Wymagana akcja
+Backend ma nowy endpoint — **Save to GitHub + Render Manual Deploy** żeby zadziałał na produkcji.
+
+
+
 ## Iteration 61 (2026-05-21) — Masowa konwersja przycisków akcji na `ActionButton` w całej aplikacji
 
 ### User request

@@ -1061,6 +1061,78 @@ async def acknowledge_return(notification_id: str,
     return {"message": "Zwrot potwierdzony"}
 
 
+@router.post("/equipment/returns/{notification_id}/reject")
+async def reject_return(notification_id: str,
+                        current_user: dict = Depends(get_current_user)):
+    """Odrzucenie zwrotu - sprzet wraca z magazynu do brygadzisty.
+    Akcja przeznaczona dla admina lub magazyniera (np. uszkodzony sprzet, brak miejsca,
+    nieprawidlowy zwrot)."""
+    notif = await db.equipment_return_notifications.find_one({"id": notification_id})
+    if not notif:
+        raise HTTPException(status_code=404, detail="Zwrot nie znaleziony")
+    if notif["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Zwrot juz rozpatrzony")
+
+    is_admin = current_user.get("role") == "admin"
+    is_keeper = current_user["sub"] == notif.get("warehouse_keeper_id")
+    if not (is_admin or is_keeper):
+        raise HTTPException(status_code=403, detail="Nie masz uprawnien do odrzucenia")
+
+    # COFNIJ stan: dodaj sprzet z powrotem brygadziscie
+    foreman_id = notif["from_foreman_id"]
+    eq_id = notif["equipment_id"]
+    qty = int(notif["quantity"])
+    existing_assignment = await db.equipment_assignments.find_one(
+        {"equipment_id": eq_id, "foreman_id": foreman_id}
+    )
+    if existing_assignment:
+        await db.equipment_assignments.update_one(
+            {"equipment_id": eq_id, "foreman_id": foreman_id},
+            {"$inc": {"quantity": qty}}
+        )
+    else:
+        await db.equipment_assignments.insert_one({
+            "id": str(uuid.uuid4()),
+            "equipment_id": eq_id,
+            "foreman_id": foreman_id,
+            "quantity": qty,
+            "created_at": datetime.now().isoformat(),
+        })
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.equipment_return_notifications.update_one(
+        {"id": notification_id},
+        {"$set": {
+            "status": "rejected",
+            "rejected_by": current_user["sub"],
+            "rejected_by_name": actor_name,
+            "rejected_at": datetime.now().isoformat(),
+        }}
+    )
+    await _add_history(
+        eq_id, "return_rejected", current_user["sub"], actor_name,
+        {"quantity": qty, "from_foreman_name": notif["from_foreman_name"],
+         "equipment_name": notif["equipment_name"]}
+    )
+
+    # Push do brygadzisty: zwrot odrzucony, sprzet wrocil
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=foreman_id,
+            title="Zwrot ODRZUCONY",
+            body=f"{notif['equipment_name']} x{qty} wrocil do Ciebie. Powod: nie zostal przyjety przez magazyn.",
+            url="/foreman/equipment",
+            tag=f"return-rejected-{notification_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (return rejected) failed: {e}")
+
+    return {"message": "Zwrot odrzucony, sprzet wrocil do brygadzisty",
+            "returned_to": notif["from_foreman_name"],
+            "quantity": qty}
+
+
 # ============= Inventory checks =============
 class InventoryStart(BaseModel):
     category: str  # electronics | accessories | formwork

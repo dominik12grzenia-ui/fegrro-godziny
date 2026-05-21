@@ -269,6 +269,23 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     }
   };
 
+  const handleRejectReturn = async (notifId, eqName, fromName) => {
+    if (!window.confirm(`Odrzucić zwrot „${eqName}" od ${fromName}?\n\nSprzęt wróci do brygadzisty.`)) {
+      throw new Error('cancelled');
+    }
+    const backup = pendingReturns;
+    setPendingReturns((prev) => prev.filter((r) => r.id !== notifId));
+    try {
+      const r = await api.post(`/equipment/returns/${notifId}/reject`);
+      toast.success(`Sprzęt wrócił do ${r.data.returned_to}`);
+      fetchAll();
+    } catch (err) {
+      setPendingReturns(backup);
+      toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
+    }
+  };
+
   const handleDefectPhotoUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -377,16 +394,29 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
-                  <ActionButton
-                    size="sm"
-                    onAction={() => handleAcknowledgeReturn(r.id)}
-                    loadingText="Przyjmuję..."
-                    successText={`✓ Przyjęto x${r.quantity}`}
-                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                    data-testid={`keeper-acknowledge-return-${r.id}`}
-                  >
-                    Potwierdź przyjecie
-                  </ActionButton>
+                  <div className="flex gap-2">
+                    <ActionButton
+                      size="sm"
+                      onAction={() => handleRejectReturn(r.id, r.equipment_name, r.from_foreman_name)}
+                      loadingText="Odrzucam..."
+                      successText="✓ Odrzucono"
+                      variant="outline"
+                      className="border-[#9B2C2C] text-[#FCA5A5] hover:bg-[#9B2C2C]/20"
+                      data-testid={`keeper-reject-return-${r.id}`}
+                    >
+                      Odrzuć
+                    </ActionButton>
+                    <ActionButton
+                      size="sm"
+                      onAction={() => handleAcknowledgeReturn(r.id)}
+                      loadingText="Przyjmuję..."
+                      successText={`✓ Przyjęto x${r.quantity}`}
+                      className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                      data-testid={`keeper-acknowledge-return-${r.id}`}
+                    >
+                      Potwierdź przyjecie
+                    </ActionButton>
+                  </div>
                 </div>
               ))}
             </div>
