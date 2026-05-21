@@ -470,7 +470,8 @@ const PaymentSummaryPanel = ({ onTileClick, year }) => {
       const r = await api.post('/finance/sync-fakturownia-unpaid');
       const c = r.data.invoices_created;
       const u = r.data.invoices_updated;
-      toast.success(`Sync OK: ${c} nowych, ${u} zaktualizowanych`);
+      const mp = r.data.marked_paid || 0;
+      toast.success(`Sync OK: ${c} nowych, ${u} zaktualizowanych${mp > 0 ? `, ${mp} oznaczonych jako zapłacone` : ''}`);
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd sync');

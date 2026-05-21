@@ -1,3 +1,40 @@
+## Iteration 58 (2026-05-21) — Diagnoza i naprawa root cause rozbieżności Fakturownia
+
+### User pytania
+1. „Czemu ich nie ma w App?" — bo endpoint `discrepancy-details` używał złego klucza dopasowania (`number` zamiast `fakturownia_invoice_id`/`nr_faktury`)
+2. „Synchronizacja nic nie daje" — bo sync pobierał tylko niezapłacone faktury i NIGDY nie aktualizował statusu paid dla faktur, które po raz pierwszy zostały opłacone w Fakturowni
+3. „Skąd kwota -10 000?" — to suma 3 konkretnych faktur kosztowych (492/02/2026 = 9 467 zł + 290/02/2026 = 498 zł + 493/02/2026 = 106 zł = -10 071 zł)
+
+### Bug #1: discrepancy-details używał złego klucza dopasowania
+W bazie `finance_invoices` pole nazywa się `nr_faktury`, a endpoint szukał `number` → wszystkie 237 faktur pokazywały się jako "Brak w App", choć były w bazie.
+
+**Fix**: Dopasowanie po `fakturownia_invoice_id` (najbardziej niezawodny klucz — ID z Fakturowni jest stałe). Fallback po `nr_faktury`. Po fix-ie: ze 51 fałszywych rozbieżności pozostają 4 prawdziwe.
+
+### Bug #2: sync pobierał tylko niezapłacone faktury
+`_do_fakturownia_unpaid_sync_global` filtrował `if st == "paid" or inv.get("paid_date"): continue` przed dodaniem do `all_unpaid`. Faktury, które w Fakturowni zostały zapłacone od ostatniego sync, NIGDY nie były aktualizowane — pozostawały w bazie ze statusem `paid=False`.
+
+**Fix**:
+- Sync pobiera teraz WSZYSTKIE faktury z Fakturowni (paid + unpaid)
+- Aktualizuje `paid`, `paid_amount`, `payment_date` zgodnie z aktualnym statusem w Fakturowni
+- Dla `is_paid` jeśli Fakturownia nie zwróciła `paid` (puste pole) ale jest `paid_date`, używa brutto jako `paid_amount`
+- Nowe faktury, które już są zapłacone w Fakturowni, NIE są tworzone (nie potrzebujemy ich w bazie)
+- Zwraca nowy licznik: `marked_paid` (liczba faktur świeżo oznaczonych jako zapłacone)
+
+### Rezultat sync (live test)
+- **731 faktur pobrano** z Fakturowni (zamiast ~50 unpaid)
+- **187 faktur oznaczono jako zapłacone** ← to były właśnie te zaległe płatności powodujące banner "rozbieżność"
+- **1 nowa faktura utworzona** (`20/05/2026` na 100 000 zł — przychodowa, której wcześniej brakowało)
+- **245 faktur zaktualizowanych** (statusy)
+- **Diff końcowy: 0 zł** — wszystko zgodne ✓
+
+### Frontend
+- Toast po sync rozszerzony: `Sync OK: 1 nowych, 245 zaktualizowanych, 187 oznaczonych jako zapłacone`
+
+### ⚠️ Wymagana akcja
+Backend ma 2 fixy — **Save to GitHub → Render Manual Deploy** żeby działały na produkcji.
+
+
+
 ## Iteration 57 (2026-05-21) — Szczegóły rozbieżności z Fakturownia (per faktura)
 
 ### User feedback

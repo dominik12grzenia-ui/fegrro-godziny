@@ -1930,7 +1930,7 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
         )
 
     base_url = f"https://{domain}.fakturownia.pl/invoices.json"
-    all_unpaid: list = []
+    all_invoices: list = []  # zawiera ZAROWNO paid jak i unpaid
     try:
         async with httpx.AsyncClient(timeout=30.0) as cli:
             for income_mode in ("no", "yes"):
@@ -1953,11 +1953,8 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
                     if not invs:
                         break
                     for inv in invs:
-                        st = (inv.get("status") or "").lower()
-                        if st == "paid" or inv.get("paid_date"):
-                            continue
                         inv["_income_type"] = income_mode
-                        all_unpaid.append(inv)
+                        all_invoices.append(inv)
                     if len(invs) < 100:
                         break
                     page += 1
@@ -1975,6 +1972,7 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
 
     created = 0
     updated = 0
+    marked_paid = 0  # ilosc faktur, ktore istnialy w bazie jako unpaid, ale w Fakturowni byly paid -> teraz zaktualizowane na paid
 
     def _parse_date(s: Optional[str]) -> Optional[tuple]:
         """Probuje ISO YYYY-MM-DD oraz DD.MM.YYYY. Zwraca (iso_string, year, month) lub None."""
@@ -1988,9 +1986,11 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
                 continue
         return None
 
-    for inv in all_unpaid:
+    for inv in all_invoices:
         inv_id = inv.get("id")
         is_income = inv.get("_income_type") == "yes"
+        st = (inv.get("status") or "").lower()
+        is_paid_in_fak = st == "paid" or bool(inv.get("paid_date"))
         # Spróbuj kolejno: issue_date (czesto ISO), sell_date (czesto DD.MM.YYYY), transaction_date
         parsed = (_parse_date(inv.get("issue_date"))
                   or _parse_date(inv.get("sell_date"))
@@ -2004,23 +2004,37 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
         inv_netto = float(inv.get("price_net") or 0)
         inv_brutto = float(inv.get("price_gross") or 0)
         status_val = (inv.get("status") or "").lower()
+        paid_amt_raw = float(inv.get("paid") or 0)
+        # Jezeli faktura jest paid w Fakturowni, ale Fakturownia nie zwraca paid (np. paid przez paid_date) - uzyj brutto
+        paid_amt = inv_brutto if is_paid_in_fak and paid_amt_raw < 0.01 else paid_amt_raw
+        payment_date_iso = None
+        if is_paid_in_fak:
+            pd = _parse_date(inv.get("paid_date")) or parsed
+            payment_date_iso = pd[0] if pd else issue_date
 
         existing_inv = existing_by_fid.get(inv_id)
         if existing_inv:
+            update_doc = {
+                "payment_to": inv.get("payment_to") or None,
+                "paid": is_paid_in_fak,
+                "paid_amount": round(paid_amt, 2),
+                "payment_date": payment_date_iso,
+                "fakturownia_status": status_val or None,
+                "updated_at": datetime.now().isoformat(),
+                "updated_by": user_id,
+            }
             await db.finance_invoices.update_one(
                 {"id": existing_inv["id"]},
-                {"$set": {
-                    "payment_to": inv.get("payment_to") or None,
-                    "payment_date": None,
-                    "paid": False,
-                    "paid_amount": round(float(inv.get("paid") or 0), 2),
-                    "fakturownia_status": status_val or None,
-                    "updated_at": datetime.now().isoformat(),
-                    "updated_by": user_id,
-                }}
+                {"$set": update_doc}
             )
             updated += 1
+            if is_paid_in_fak:
+                marked_paid += 1
         else:
+            # Pomijamy tworzenie wpisow dla zaplaconych faktur ktore nigdy nie byly w App
+            # (chyba zeby unpaid - wtedy musimy je utworzyc by user wiedzial o dlugu)
+            if is_paid_in_fak:
+                continue
             auto_kod_id = "PZS" if is_income else None
             auto_kod_category = "PZS" if is_income else None
             doc = {
@@ -2038,7 +2052,7 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
                 "payment_to": inv.get("payment_to") or None,
                 "payment_date": None,
                 "paid": False,
-                "paid_amount": round(float(inv.get("paid") or 0), 2),
+                "paid_amount": round(paid_amt, 2),
                 "fakturownia_status": status_val or None,
                 "notes": "",
                 "source": "fakturownia",
@@ -2050,9 +2064,10 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
             created += 1
 
     return {
-        "fetched_unpaid": len(all_unpaid),
+        "fetched_total": len(all_invoices),
         "invoices_created": created,
         "invoices_updated": updated,
+        "marked_paid": marked_paid,
     }
 
 
@@ -2219,13 +2234,13 @@ async def discrepancy_details(
     year: Optional[int] = Query(None),
     _user: dict = Depends(get_current_admin),
 ):
-    """Zwraca konkretne faktury powodujace rozbieznosc App vs Fakturownia.
-    Dla kazdej rozbieznej faktury: numer, kontrahent, kwota Fakturownia, kwota App, diff, link do faktury.
-    Typy rozbieznosci:
-      - 'only_fakturownia' - faktura jest niezaplacona w Fakturownia ale brakuje w App (lub jest paid w App)
-      - 'only_app' - faktura jest niezaplacona w App ale w Fakturownia jest paid lub nie istnieje
-      - 'amount_diff' - obie strony maja niezaplacone, ale rozne pozostale kwoty
-    """
+    """Zwraca konkretne faktury powodujace rozbieznosc App vs Fakturownia."""
+    def fmt_pln(v):
+        try:
+            return f"{float(v):,.2f}".replace(",", " ").replace(".", ",") + " zł"
+        except (ValueError, TypeError):
+            return "0,00 zł"
+
     settings = await db.finance_settings.find_one({"id": "main"}, {"_id": 0}) or {}
     api_token = settings.get("fakturownia_api_key")
     domain = settings.get("fakturownia_domain")
@@ -2266,6 +2281,7 @@ async def discrepancy_details(
                         is_paid = st == "paid" or bool(inv.get("paid_date"))
                         fak_by_num[num] = {
                             "number": num,
+                            "fakturownia_invoice_id": inv.get("id"),
                             "buyer_name": inv.get("buyer_name") or "",
                             "seller_name": inv.get("seller_name") or "",
                             "is_income": is_inc,
@@ -2290,67 +2306,98 @@ async def discrepancy_details(
     app_match = {"source": "fakturownia"}
     if year is not None:
         app_match["year"] = year
-    app_by_num: dict = {}
+    app_by_fid: dict = {}  # fakturownia_invoice_id -> doc
+    app_by_num: dict = {}  # nr_faktury -> doc (fallback)
     async for inv in db.finance_invoices.find(app_match, {"_id": 0}):
-        num = inv.get("number") or inv.get("invoice_number") or ""
-        if not num:
-            continue
+        num = inv.get("nr_faktury") or inv.get("number") or inv.get("invoice_number") or ""
+        fid = inv.get("fakturownia_invoice_id")
         brutto = float(inv.get("brutto") or 0)
         netto = float(inv.get("netto") or 0)
         paid_amount = float(inv.get("paid_amount") or 0)
         is_paid = bool(inv.get("paid"))
         rem_b = 0.0 if is_paid else round(brutto - paid_amount, 2)
         rem_n = 0.0 if is_paid else (round(netto * ((brutto - paid_amount) / brutto), 2) if brutto else 0)
-        app_by_num[num] = {
+        rec = {
             "number": num,
+            "fakturownia_invoice_id": fid,
             "is_income": bool(inv.get("is_income")),
             "remaining_brutto": rem_b,
             "remaining_netto": rem_n,
             "is_paid": is_paid,
+            "paid_amount": paid_amount,
             "buyer_name": inv.get("buyer_name") or inv.get("kontrahent") or "",
         }
+        if fid:
+            app_by_fid[fid] = rec
+        if num:
+            app_by_num[num] = rec
 
-    # === Znajdz rozbieznosci ===
+    # === Znajdz rozbieznosci - lacz po fakturownia_invoice_id, fallback po numerze ===
     items = []
-    all_nums = set(fak_by_num.keys()) | set(app_by_num.keys())
-    for num in sorted(all_nums):
-        f = fak_by_num.get(num)
-        a = app_by_num.get(num)
-        f_rem = (f or {}).get("remaining_netto", 0)
+    matched_app_keys = set()
+    # Faktury z Fakturowni
+    for num, f in fak_by_num.items():
+        fid = f.get("fakturownia_invoice_id")
+        a = (app_by_fid.get(fid) if fid else None) or app_by_num.get(num)
+        if a:
+            matched_app_keys.add(a.get("fakturownia_invoice_id") or a.get("number"))
+        f_rem = f.get("remaining_netto", 0)
         a_rem = (a or {}).get("remaining_netto", 0)
         diff = round(f_rem - a_rem, 2)
         if abs(diff) < 0.01:
-            continue  # zgadza sie
+            continue
         # Klasyfikacja
         if not a:
             reason = "Brak w App (jest w Fakturownia)"
             kind = "missing_app"
-        elif not f:
-            reason = "Brak w Fakturownia (jest w App)"
-            kind = "missing_fak"
         elif f["is_paid"] and not a["is_paid"]:
-            reason = "Zapłacone w Fakturownia, w App nadal nieopłacone"
+            reason = f"Zapłacone w Fakturownia ({fmt_pln(f.get('paid_amount', 0))}), w App nadal nieopłacone"
             kind = "fak_paid_app_unpaid"
         elif a["is_paid"] and not f["is_paid"]:
             reason = "Zapłacone w App, w Fakturownia nadal nieopłacone"
             kind = "app_paid_fak_unpaid"
-        elif f["remaining_netto"] != a["remaining_netto"]:
-            reason = f"Częściowa płatność różni się ({f.get('paid_amount', 0):,.2f} vs {a_rem:,.2f})"
+        elif abs(f.get("paid_amount", 0) - a.get("paid_amount", 0)) > 0.01:
+            reason = f"Różna częściowa płatność (Fak: {fmt_pln(f.get('paid_amount', 0))}, App: {fmt_pln(a.get('paid_amount', 0))})"
             kind = "partial_payment_diff"
         else:
-            reason = "Inna rozbieżność kwotowa"
+            reason = "Inna rozbieżność kwotowa (różne netto/brutto)"
             kind = "amount_diff"
         items.append({
             "number": num,
-            "buyer_name": (f or {}).get("buyer_name") or (a or {}).get("buyer_name") or "",
-            "is_income": (f or a or {}).get("is_income", False),
+            "buyer_name": f.get("buyer_name") or (a or {}).get("buyer_name") or "",
+            "is_income": f.get("is_income", False),
             "fak_remaining_netto": f_rem,
             "app_remaining_netto": a_rem,
             "diff_netto": diff,
             "reason": reason,
             "kind": kind,
-            "url": (f or {}).get("url"),
-            "sell_date": (f or {}).get("sell_date", ""),
+            "url": f.get("url"),
+            "sell_date": f.get("sell_date", ""),
+        })
+    # Faktury w App, ktorych nie ma w Fakturowni
+    all_app_recs = list(app_by_fid.values()) + [v for k, v in app_by_num.items() if v.get("fakturownia_invoice_id") not in app_by_fid]
+    seen = set()
+    for a in all_app_recs:
+        key = a.get("fakturownia_invoice_id") or a.get("number")
+        if key in seen or key in matched_app_keys:
+            continue
+        seen.add(key)
+        if a["is_paid"]:
+            continue  # jesli zaplacone w App a nie ma w Fak - OK
+        a_rem = a.get("remaining_netto", 0)
+        if abs(a_rem) < 0.01:
+            continue
+        items.append({
+            "number": a.get("number", "?"),
+            "buyer_name": a.get("buyer_name", ""),
+            "is_income": a.get("is_income", False),
+            "fak_remaining_netto": 0,
+            "app_remaining_netto": a_rem,
+            "diff_netto": round(-a_rem, 2),
+            "reason": "Brak w Fakturownia (jest tylko w App)",
+            "kind": "missing_fak",
+            "url": None,
+            "sell_date": "",
         })
 
     # Posortuj od najwiekszej rozbieznosci
