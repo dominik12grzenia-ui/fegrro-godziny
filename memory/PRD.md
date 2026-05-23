@@ -1,4 +1,52 @@
-## Iteration 66 (2026-05-23) — Usunięcie redundantnej tabeli hierarchicznej Etap > Typ > Pozycje
+## Iteration 67 (2026-05-23) — Pozycje główne + składowe kosztowe (parent/child budget lines)
+
+### User request
+Stworzenie rozbudowanego widoku zestawienia kosztorysowego z możliwością dodawania głównych pozycji oraz **zagnieżdżonych podwierszy reprezentujących koszty składowe** danej pozycji.
+
+User wybory:
+- Tryb mieszany (jeśli pozycja ma składowe → suma; jeśli nie → wartości własne)
+- Pełne kolumny dla składowych (te same co dla głównych)
+- Wszystkie 3 typy (Materiały / Robocizna / Sprzęt)
+- Składowe domyślnie rozwinięte (zawsze widoczne pod rodzicem)
+- Sposób dodawania: mały przycisk Plus „+ Składowa" w wierszu pozycji głównej
+
+### Backend (`/app/backend/routes/budget.py`)
+- `BudgetLineCreate` / `BudgetLineUpdate`: nowe pole `parent_id: Optional[str] = None`.
+- `POST /budget/lines`: walidacja parent_id:
+  - parent musi istnieć (404)
+  - parent musi być w tej samej budowie (400)
+  - parent nie może już być sam składową — max 2 poziomy (400)
+  - typ składowej musi się zgadzać z typem rodzica (400)
+- `DELETE /budget/lines/{id}`: kaskadowe usuwanie — usuwa wszystkie dzieci (parent_id == id) wraz z ich progres-em i czyści budget_line_id w finance_zapisy. Response zawiera `deleted_children`.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **`BudgetLineModal`**: nowy prop `parentLine`. Gdy ustawiony:
+  - tytuł "Dodaj składową do: {parent.name}" + info o dziedziczeniu typu
+  - kategoria, stage, type, is_income są **pre-fillowane z rodzica** (i type jest „de facto" zablokowany na backendzie walidacją)
+  - payload zawiera `parent_id: parentLine.id`
+- **`BudgetLinesPanel`**: nowy state `parentLine`, przekazany do modala. „+ Składowa" w ExcelView wywołuje `setEditLine(null); setParentLine(ln); setModalOpen(true);`
+- **`BudgetExcelView`** — kluczowa przebudowa:
+  - Helper `buildDisplay(typeLines)` zwraca tablicę `{line, isChild, nrLabel, aggregated, hasChildren}` — najpierw parent, potem jego dzieci.
+  - **Numeracja**: rodzic → `1`, `2`, `3`…; składowe → `1.1`, `1.2`, `2.1`… (wciętość wizualna)
+  - **Agregacja dla rodzica z dziećmi**: plan/exec/kaucje/qty/przerób są sumą dzieci (tryb mieszany; rodzic bez dzieci używa własnych wartości).
+  - **Styl wiersza składowej**: ciemniejsze tło `rgba(15,23,42,0.6)`, prefix `↳` w kolorze złotym, nazwa kursywą + szara.
+  - **Akcje per wiersz** (helper `renderNameActions`):
+    - Pozycja główna: `[+]` Składowa → `[✎]` Edytuj → `[🗑]` Usuń (z dziećmi)
+    - Składowa: `[✎]` Edytuj → `[🗑]` Usuń (tylko siebie)
+  - data-testid: `excel-add-child-{id}`, `excel-edit-{id}`, `excel-del-{id}`.
+
+### Testy
+- Backend pytest (`/app/backend/tests/test_iter67_budget_parent_child.py`): **5/5 PASS**
+  - test_create_parent_then_child + cascade delete
+  - test_reject_nonexistent_parent (404)
+  - test_reject_grandchild (max 2 poziomy)
+  - test_reject_different_type
+  - test_lines_endpoint_returns_parent_id_field
+- Frontend live screenshot: 4 przyciski „+ Składowa" wykryte w DOM, składowa 2.1 widoczna w bloku Sprzęt z prefiksem ↳ i ciemniejszym tłem. ✓
+
+
+
+
 
 ### User request
 „Usuń to bo jest zbędne" — usuwa tabelę hierarchiczną Etap → Materiały/Robocizna → Pozycje wraz z wierszem RAZEM, ponieważ identyczne dane są już w:

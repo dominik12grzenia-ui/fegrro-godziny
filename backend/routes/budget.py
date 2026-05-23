@@ -56,6 +56,7 @@ class BudgetLineCreate(BaseModel):
     kaucja_gir_pct: Optional[float] = None  # gdy None - dziedziczy z finance_budowy
     kaucja_dw_pct: Optional[float] = None
     stage_id: Optional[str] = None  # FK do budget_stages
+    parent_id: Optional[str] = None  # FK do innej pozycji - jezeli ustawione, to skladowa kosztowa
     is_income: bool = False  # True dla pozycji przychodowych
     notes: Optional[str] = None
     order: int = 0
@@ -72,6 +73,7 @@ class BudgetLineUpdate(BaseModel):
     kaucja_gir_pct: Optional[float] = None
     kaucja_dw_pct: Optional[float] = None
     stage_id: Optional[str] = None
+    parent_id: Optional[str] = None
     is_income: Optional[bool] = None
     notes: Optional[str] = None
     order: Optional[int] = None
@@ -340,6 +342,17 @@ async def delete_stage(stage_id: str, _user: dict = Depends(get_current_admin)):
 
 @router.post("/budget/lines")
 async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(get_current_admin)):
+    # Walidacja parent_id: musi istniec, miec ta sama budowa+typ, nie moze sam byc skladowa (max 2 poziomy)
+    if payload.parent_id:
+        parent = await db.budget_lines.find_one({"id": payload.parent_id}, {"_id": 0})
+        if not parent:
+            raise HTTPException(404, "Pozycja nadrzedna nie istnieje")
+        if parent.get("budowa_id") != payload.budowa_id:
+            raise HTTPException(400, "Pozycja nadrzedna nalezy do innej budowy")
+        if parent.get("parent_id"):
+            raise HTTPException(400, "Skladowa nie moze byc dodana do innej skladowej (max 2 poziomy)")
+        if (parent.get("type") or "materials") != (payload.type or "materials"):
+            raise HTTPException(400, "Typ skladowej musi byc taki sam jak pozycji nadrzednej")
     line_id = str(uuid.uuid4())
     doc = {
         "id": line_id,
@@ -354,6 +367,7 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
         "kaucja_gir_pct": payload.kaucja_gir_pct,  # None = dziedziczenie z budowy
         "kaucja_dw_pct": payload.kaucja_dw_pct,
         "stage_id": payload.stage_id,
+        "parent_id": payload.parent_id,
         "is_income": payload.is_income,
         "notes": payload.notes,
         "order": payload.order,
@@ -380,14 +394,21 @@ async def update_line(line_id: str, payload: BudgetLineUpdate, current_user: dic
 
 @router.delete("/budget/lines/{line_id}")
 async def delete_line(line_id: str, _user: dict = Depends(get_current_admin)):
-    # Usun rowniez progres przypisany do tej linii
-    await db.budget_progress.delete_many({"budget_line_id": line_id})
+    # Znajdz dzieci (skladowe) - usun je rowniez wraz z ich powiazaniami
+    children = await db.budget_lines.find({"parent_id": line_id}, {"_id": 0, "id": 1}).to_list(length=500)
+    child_ids = [c["id"] for c in children]
+    all_ids = [line_id] + child_ids
+    # Usun progres przypisany do tej linii i dzieci
+    await db.budget_progress.delete_many({"budget_line_id": {"$in": all_ids}})
     # Wyczysc budget_line_id w zapisach (nie usuwaj zapisow!)
-    await db.finance_zapisy.update_many({"budget_line_id": line_id}, {"$unset": {"budget_line_id": ""}})
+    await db.finance_zapisy.update_many({"budget_line_id": {"$in": all_ids}}, {"$unset": {"budget_line_id": ""}})
+    # Usun dzieci + glowny rekord
+    if child_ids:
+        await db.budget_lines.delete_many({"id": {"$in": child_ids}})
     res = await db.budget_lines.delete_one({"id": line_id})
     if res.deleted_count == 0:
         raise HTTPException(404, "Pozycja nie istnieje")
-    return {"ok": True}
+    return {"ok": True, "deleted_children": len(child_ids)}
 
 
 # ============== ENDPOINTS: PROGRESS (PROTOKOL) ==============
