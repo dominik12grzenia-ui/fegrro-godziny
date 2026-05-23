@@ -1,4 +1,34 @@
-## Iteration 65 (2026-05-23) — Sprzęt jako trzeci blok w widoku zestawienia kosztorysowego
+## Iteration 66 (2026-05-23) — Usunięcie redundantnej tabeli hierarchicznej Etap > Typ > Pozycje
+
+### User request
+„Usuń to bo jest zbędne" — usuwa tabelę hierarchiczną Etap → Materiały/Robocizna → Pozycje wraz z wierszem RAZEM, ponieważ identyczne dane są już w:
+- 3 kafelkach podsumowania per typ (Materiały / Robocizna / Sprzęt — plan, wykonanie, pozostało, %)
+- BudgetExcelView (każda pozycja z pełnymi kolumnami Excel-style 1:1)
+
+### Frontend (`Budget.js`)
+- **Usunięty `<table data-testid="budget-lines-table">`** w `BudgetLinesPanel` (~110 linii) wraz z 3 wierszami footer (RAZEM PRZYCHODY/KOSZTY, ZYSK BIEŻĄCY).
+- **Usunięty memo `grouped`** (Etap > Typ > Pozycje) — nieużywany.
+- **Zastąpiony przez 3 kompaktowe karty „Razem"** (grid 3-kolumnowy):
+  - Razem Przychody (Plan / Wyk) — olive
+  - Razem Koszty (Plan / Wyk) — gold
+  - Zysk Bieżący — zielony jeśli >0, czerwony jeśli <0
+- **Akcje edycji/usuwania pozycji** przeniesione do `BudgetExcelView`:
+  - Małe ikony Pencil + Trash w kolumnie NAZWA każdego z 3 bloków (Materiały / Robocizna / Sprzęt)
+  - Nowe propsy: `onEdit(line)`, `onDelete(id)` — przekazane z `BudgetLinesPanel`
+  - data-testid: `excel-edit-{id}`, `excel-del-{id}`
+
+### Co dostaje user
+- Mniej duplikacji wizualnej — jeden widok danych zamiast trzech.
+- Mniej scrollowania — kafelki + ExcelView mieszczą się w pierwszych dwóch viewportach.
+- Edycja/usuwanie zachowane (kliknij ikony Pencil/Trash przy nazwie pozycji w ExcelView).
+
+### Test
+- Lint JS ✓
+- Live screenshot: brak hierarchicznej tabeli, są 3 kafelki + 3 mini-karty RAZEM + ExcelView z ikonami edycji/kosza obok nazwy ✓
+
+
+
+
 
 ### User request
 „Dodaj obok robocizny sprzęt" — w widoku zestawienia kosztorysowego (Excel-style) brakowało osobnego bloku dla pozycji typu `equipment`, mimo że są one już w systemie i mają osobne kafelki podsumowania.

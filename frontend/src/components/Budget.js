@@ -125,7 +125,7 @@ const Tile = ({ label, value, testId, highlight }) => (
 const fmtCell = (v) => (v == null || v === 0) ? '—' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
-const BudgetExcelView = ({ lines, onProgressChange }) => {
+const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete }) => {
   // Filtruj wedlug typu
   const materials = useMemo(() => lines.filter(l => !l.is_income && (l.type || 'materials') === 'materials'), [lines]);
   const labor = useMemo(() => lines.filter(l => !l.is_income && l.type === 'labor'), [lines]);
@@ -240,7 +240,21 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     return (
                       <>
                         <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{i + 1}</td>
-                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={m.name}>{m.name}</td>
+                        <td className="px-1 py-0.5 text-left text-white border" style={{ borderColor: BORDER, maxWidth: 0 }} title={m.name}>
+                          <div className="flex items-center gap-1">
+                            <span className="truncate flex-1">{m.name}</span>
+                            {onEdit && (
+                              <button onClick={() => onEdit(m)} className="text-[#94A3B8] hover:text-white shrink-0" data-testid={`excel-edit-${m.id}`} title="Edytuj">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(m.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] shrink-0" data-testid={`excel-del-${m.id}`} title="Usuń">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{m.unit || '—'}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
@@ -270,7 +284,21 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     return (
                       <>
                         <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{laborStartNr + i}</td>
-                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={r.name}>{r.name}</td>
+                        <td className="px-1 py-0.5 text-left text-white border" style={{ borderColor: BORDER, maxWidth: 0 }} title={r.name}>
+                          <div className="flex items-center gap-1">
+                            <span className="truncate flex-1">{r.name}</span>
+                            {onEdit && (
+                              <button onClick={() => onEdit(r)} className="text-[#94A3B8] hover:text-white shrink-0" data-testid={`excel-edit-${r.id}`} title="Edytuj">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(r.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] shrink-0" data-testid={`excel-del-${r.id}`} title="Usuń">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
@@ -297,7 +325,21 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     return (
                       <>
                         <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{equipStartNr + i}</td>
-                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={s.name}>{s.name}</td>
+                        <td className="px-1 py-0.5 text-left text-white border" style={{ borderColor: BORDER, maxWidth: 0 }} title={s.name}>
+                          <div className="flex items-center gap-1">
+                            <span className="truncate flex-1">{s.name}</span>
+                            {onEdit && (
+                              <button onClick={() => onEdit(s)} className="text-[#94A3B8] hover:text-white shrink-0" data-testid={`excel-edit-${s.id}`} title="Edytuj">
+                                <Pencil className="h-3 w-3" />
+                              </button>
+                            )}
+                            {onDelete && (
+                              <button onClick={() => onDelete(s.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] shrink-0" data-testid={`excel-del-${s.id}`} title="Usuń">
+                                <Trash2 className="h-3 w-3" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{s.unit || '—'}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
@@ -371,29 +413,6 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
-
-  // Grupowanie: Etap > Typ (M/R/S) > Pozycje
-  const grouped = useMemo(() => {
-    const tree = {}; // stage_id (lub '__none__') -> { stage, types: { type -> { lines, plan, exec } }, plan, exec }
-    const stageMap = Object.fromEntries(stages.map((s) => [s.id, s]));
-    lines.forEach((ln) => {
-      if (ln.is_income) return; // przychody pokazujemy osobno
-      const stageKey = ln.stage_id || '__none__';
-      if (!tree[stageKey]) {
-        tree[stageKey] = { stage: stageMap[ln.stage_id] || null, types: {}, plan: 0, exec: 0 };
-      }
-      const type = ln.type || 'materials';
-      if (!tree[stageKey].types[type]) {
-        tree[stageKey].types[type] = { lines: [], plan: 0, exec: 0 };
-      }
-      tree[stageKey].types[type].lines.push(ln);
-      tree[stageKey].types[type].plan += ln.plan_netto_computed || 0;
-      tree[stageKey].types[type].exec += ln.execution_netto || 0;
-      tree[stageKey].plan += ln.plan_netto_computed || 0;
-      tree[stageKey].exec += ln.execution_netto || 0;
-    });
-    return tree;
-  }, [lines, stages]);
 
   // Sumy per typ (do kafelkow podsumowania)
   const totalsByType = useMemo(() => {
@@ -471,113 +490,20 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             Brak pozycji. Kliknij „Dodaj pozycję" aby zacząć.
           </div>
         ) : (
-          <table className="w-full text-xs" data-testid="budget-lines-table">
-            <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
-              <tr>
-                <th className="text-left p-2">Etap / Typ / Pozycja</th>
-                <th className="text-right p-2">Ilość</th>
-                <th className="text-right p-2">Jedn.</th>
-                <th className="text-right p-2">Cena j.</th>
-                <th className="text-right p-2">Budżet</th>
-                <th className="text-right p-2">Kaucja GIR</th>
-                <th className="text-right p-2">Kaucja DW</th>
-                <th className="text-right p-2">Wykonanie</th>
-                <th className="text-right p-2">%</th>
-                <th className="text-right p-2">Pozostało</th>
-                <th className="p-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(grouped).map(([stageKey, sg]) => (
-                <React.Fragment key={stageKey}>
-                  <tr className="bg-[#4F6343]/30">
-                    <td colSpan={11} className="p-2 font-bold text-white text-sm">
-                      ▣ {sg.stage ? sg.stage.name : 'Bez etapu'}
-                      {sg.stage && (sg.stage.start_date || sg.stage.end_date) && (
-                        <span className="text-[#94A3B8] font-normal text-xs ml-2">
-                          ({sg.stage.start_date || '?'} → {sg.stage.end_date || '?'})
-                        </span>
-                      )}
-                      <span className="text-[#94A3B8] font-normal ml-2 text-xs">
-                        — Plan: {fmtNum(sg.plan)} zł, Wyk: {fmtNum(sg.exec)} zł
-                      </span>
-                    </td>
-                  </tr>
-                  {/* Per typ - kolejnosc M/R/S */}
-                  {['materials', 'labor', 'equipment'].map((typeKey) => {
-                    const g = sg.types[typeKey];
-                    if (!g) return null;
-                    const cfg = BUDGET_TYPES[typeKey];
-                    const tpct = g.plan > 0 ? Math.round((g.exec / g.plan) * 100) : 0;
-                    return (
-                      <React.Fragment key={`${stageKey}-${typeKey}`}>
-                        <tr className="bg-[#0B1120]">
-                          <td colSpan={11} className="p-2 pl-6">
-                            <div className="flex items-center gap-2">
-                              <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px]" style={{ backgroundColor: cfg.bg, color: cfg.textOnBg }}>
-                                {cfg.short}
-                              </div>
-                              <span className="font-semibold text-xs" style={{ color: cfg.color }}>{cfg.label}</span>
-                              <span className="text-[#94A3B8] font-normal text-xs">
-                                ({fmtNum(g.exec)} / {fmtNum(g.plan)} zł — {tpct}%)
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-                        {g.lines.map((ln) => (
-                          <tr key={ln.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40" data-testid={`budget-line-${ln.id}`}>
-                            <td className="p-2 pl-12 text-white">
-                              {ln.name}
-                              {ln.category && <span className="ml-2 text-[10px] text-[#94A3B8]">[{ln.category}]</span>}
-                            </td>
-                            <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.quantity ? fmtNum(ln.quantity) : '—'}</td>
-                            <td className="p-2 text-right text-[#94A3B8]">{ln.unit || '—'}</td>
-                            <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{ln.unit_price_netto ? fmtNum(ln.unit_price_netto) : '—'}</td>
-                            <td className="p-2 text-right text-white font-semibold tabular-nums">{fmtNum(ln.plan_netto_computed)}</td>
-                            <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_gir_pct ? `${ln.effective_kaucja_gir_pct}% (${fmtNum(ln.kaucja_gir_amount)})` : '—'}</td>
-                            <td className="p-2 text-right text-[#94A3B8] tabular-nums">{ln.effective_kaucja_dw_pct ? `${ln.effective_kaucja_dw_pct}% (${fmtNum(ln.kaucja_dw_amount)})` : '—'}</td>
-                            <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(ln.execution_netto)}</td>
-                            <td className={`p-2 text-right tabular-nums font-semibold ${ln.progress_pct >= 100 ? 'text-[#9B2C2C]' : ln.progress_pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
-                              {ln.progress_pct}%
-                            </td>
-                            <td className={`p-2 text-right tabular-nums ${ln.remaining_netto < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(ln.remaining_netto)}</td>
-                            <td className="p-2 text-right whitespace-nowrap">
-                              <button onClick={() => { setEditLine(ln); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`budget-edit-${ln.id}`}>
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button onClick={() => remove(ln.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`budget-del-${ln.id}`}>
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </React.Fragment>
-                    );
-                  })}
-                </React.Fragment>
-              ))}
-              <tr className="bg-[#0B1120] font-bold border-t-2 border-[#D4AF37]">
-                <td className="p-2 text-[#5F7552]" colSpan={4}>RAZEM PRZYCHODY (Plan / Wyk)</td>
-                <td className="p-2 text-right text-[#5F7552] tabular-nums">{fmtNum(totalIncomePlan)}</td>
-                <td colSpan={2}></td>
-                <td className="p-2 text-right text-[#5F7552] tabular-nums">{fmtNum(totalIncomeExec)}</td>
-                <td colSpan={3}></td>
-              </tr>
-              <tr className="bg-[#0B1120] font-bold">
-                <td className="p-2 text-[#D4AF37]" colSpan={4}>RAZEM KOSZTY (Plan / Wyk)</td>
-                <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(totalPlan)}</td>
-                <td colSpan={2}></td>
-                <td className="p-2 text-right text-[#D4AF37] tabular-nums">{fmtNum(totalExec)}</td>
-                <td colSpan={3}></td>
-              </tr>
-              <tr className="bg-[#0B1120] font-bold">
-                <td className="p-2 text-white" colSpan={4}>ZYSK BIEŻĄCY (Przychody Wyk − Koszty Wyk)</td>
-                <td colSpan={3}></td>
-                <td className={`p-2 text-right tabular-nums ${zyskBiezacy >= 0 ? 'text-[#5F7552]' : 'text-[#FCA5A5]'}`}>{fmtNum(zyskBiezacy)}</td>
-                <td colSpan={3}></td>
-              </tr>
-            </tbody>
-          </table>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t-2 border-[#D4AF37]" data-testid="budget-totals-footer">
+            <div className="rounded p-3 bg-[#0B1120] border border-[#5F7552]/40">
+              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem przychody (Plan / Wyk)</div>
+              <div className="text-sm text-[#5F7552] font-bold tabular-nums mt-1">{fmtNum(totalIncomePlan)} / {fmtNum(totalIncomeExec)} zł</div>
+            </div>
+            <div className="rounded p-3 bg-[#0B1120] border border-[#D4AF37]/40">
+              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem koszty (Plan / Wyk)</div>
+              <div className="text-sm text-[#D4AF37] font-bold tabular-nums mt-1">{fmtNum(totalPlan)} / {fmtNum(totalExec)} zł</div>
+            </div>
+            <div className={`rounded p-3 bg-[#0B1120] border ${zyskBiezacy >= 0 ? 'border-[#5F7552]/40' : 'border-[#FCA5A5]/40'}`}>
+              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Zysk bieżący (Przych. Wyk − Koszty Wyk)</div>
+              <div className={`text-sm font-bold tabular-nums mt-1 ${zyskBiezacy >= 0 ? 'text-[#5F7552]' : 'text-[#FCA5A5]'}`}>{fmtNum(zyskBiezacy)} zł</div>
+            </div>
+          </div>
         )}
       </CardContent>
       {modalOpen && (
@@ -614,7 +540,11 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
     {/* === Tabela Excel-style na dole === */}
     {!loading && lines.length > 0 && (
       <div className="mt-4">
-        <BudgetExcelView lines={lines} />
+        <BudgetExcelView
+          lines={lines}
+          onEdit={(ln) => { setEditLine(ln); setModalOpen(true); }}
+          onDelete={remove}
+        />
       </div>
     )}
     </>
