@@ -1,4 +1,23 @@
-## Iteration 64 (2026-05-21) — Admin przekazuje sprzęt (z akceptacją) + przekierowanie zwrotu do naprawy + edycja ilości przez modal nazwy
+## Iteration 65 (2026-05-23) — Sprzęt jako trzeci blok w widoku zestawienia kosztorysowego
+
+### User request
+„Dodaj obok robocizny sprzęt" — w widoku zestawienia kosztorysowego (Excel-style) brakowało osobnego bloku dla pozycji typu `equipment`, mimo że są one już w systemie i mają osobne kafelki podsumowania.
+
+### Frontend (`Budget.js` → `BudgetExcelView`)
+- Dodany trzeci blok **SPRZĘT (N)** obok MATERIAŁY i ROBOCIZNA, oddzielony złotym separatorem 2px.
+- **11 kolumn**: KOD | NAZWA | JD. | ILOŚĆ | CENA | KOSZT | K.GIR | K.DW | B.ZW. | PRZER.S | %
+- Numeracja: Materiały `1..N`, Robocizna `N+1..N+M`, Sprzęt `N+M+1..` (zgodnie z porządkiem arkusza).
+- Filtrowanie: `lines.filter(l => !l.is_income && l.type === 'equipment')`.
+- Branding zachowany: olive headery `#3F5235/#4F6343`, kaucje olive 25%, przeroby gold 18%, obramowania `#2A3B59`.
+- Tabela owinięta w `overflow-x-auto` + `min-width: 1400px` żeby zachować czytelność szerokiego widoku (32 kolumny łącznie).
+
+### Test
+- Lint JS ✓
+- Live screenshot: 3 bloki widoczne ze złotymi separatorami; pozycja „Wynajem pompy do betonu" (typ Sprzęt) wyświetlona z ilością 2,0, ceną 1500, kosztem 3000 w bloku SPRZĘT.
+
+
+
+
 
 ### User request
 „zrób tak by admin musiał przekazywać sprzęt a nie przypisywać. Admin może edytować ilość klikając w nazwę sprzętu. Tak samo żeby nie można było edytować sprzętu do naprawy. Przy przekazywaniu sprzętu do magazynu daj opcję adminowi oprócz przyjęcia i odrzucenia możliwość przekierowania sprzętu do naprawy."

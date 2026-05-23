@@ -129,7 +129,8 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
   // Filtruj wedlug typu
   const materials = useMemo(() => lines.filter(l => !l.is_income && (l.type || 'materials') === 'materials'), [lines]);
   const labor = useMemo(() => lines.filter(l => !l.is_income && l.type === 'labor'), [lines]);
-  const maxRows = Math.max(materials.length, labor.length, 1);
+  const equipment = useMemo(() => lines.filter(l => !l.is_income && l.type === 'equipment'), [lines]);
+  const maxRows = Math.max(materials.length, labor.length, equipment.length, 1);
 
   const KAUCJA_BG = 'rgba(79, 99, 67, 0.25)';
   const PRZEROB_BG = 'rgba(212, 175, 55, 0.18)';
@@ -137,6 +138,10 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
   const HEADER_DARK = '#3F5235';
   const BORDER = '#2A3B59';
   const SEPARATOR = '#D4AF37'; // złoty pionowy separator między blokami
+
+  // Numeracja: Materiały 1..N, Robocizna N+1..N+M, Sprzęt N+M+1..
+  const laborStartNr = materials.length + 1;
+  const equipStartNr = materials.length + labor.length + 1;
 
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-view">
@@ -149,9 +154,10 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
         </p>
       </CardHeader>
       <CardContent className="p-2">
-        <table className="text-[9px] border-collapse w-full table-fixed" data-testid="excel-combined-table">
+        <div className="overflow-x-auto">
+        <table className="text-[9px] border-collapse w-full table-fixed" style={{ minWidth: '1400px' }} data-testid="excel-combined-table">
           <thead>
-            {/* Wiersz 1: 2 grupowe naglowki */}
+            {/* Wiersz 1: 3 grupowe naglowki */}
             <tr>
               <th colSpan={13} className="px-1 py-1 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER }}>
                 MATERIAŁY ({materials.length})
@@ -159,46 +165,65 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
               <th colSpan={8} className="px-1 py-1 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>
                 ROBOCIZNA ({labor.length})
               </th>
+              <th colSpan={11} className="px-1 py-1 text-center font-bold text-white border" style={{ backgroundColor: HEADER_DARK, borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>
+                SPRZĘT ({equipment.length})
+              </th>
             </tr>
             {/* Wiersz 2: nazwy kolumn — krotsze etykiety */}
             <tr style={{ backgroundColor: HEADER_BG }}>
               {[
                 { l: 'KOD', w: '2%' },
-                { l: 'NAZWA', w: '10%' },
+                { l: 'NAZWA', w: '7%' },
                 { l: 'JD.', w: '2%' },
-                { l: 'ILOŚĆ', w: '3%' },
-                { l: 'CENA MAT.', w: '4%' },
-                { l: 'BUDŻET', w: '5%' },
-                { l: 'K.GIR', w: '4%' },
-                { l: 'K.DW', w: '4%' },
-                { l: 'B.ZW.', w: '5%' },
-                { l: 'C.B.JD.', w: '4%' },
-                { l: 'PRZER.M', w: '5%' },
-                { l: 'K.ZAK.', w: '5%' },
-                { l: 'C.ZAK.', w: '4%' },
+                { l: 'ILOŚĆ', w: '2%' },
+                { l: 'CENA MAT.', w: '3%' },
+                { l: 'BUDŻET', w: '4%' },
+                { l: 'K.GIR', w: '3%' },
+                { l: 'K.DW', w: '3%' },
+                { l: 'B.ZW.', w: '4%' },
+                { l: 'C.B.JD.', w: '3%' },
+                { l: 'PRZER.M', w: '4%' },
+                { l: 'K.ZAK.', w: '4%' },
+                { l: 'C.ZAK.', w: '3%' },
               ].map((c, i) => (
                 <th key={`m-${i}`} className="px-0.5 py-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, width: c.w }}>{c.l}</th>
               ))}
               {[
                 { l: 'KOD', w: '2%' },
-                { l: 'NAZWA', w: '10%' },
-                { l: 'BUDŻET', w: '5%' },
-                { l: 'K.GIR', w: '4%' },
-                { l: 'K.DW', w: '4%' },
-                { l: 'B.ZW.', w: '5%' },
-                { l: 'PRZER.R', w: '5%' },
-                { l: '%', w: '3%' },
+                { l: 'NAZWA', w: '7%' },
+                { l: 'BUDŻET', w: '4%' },
+                { l: 'K.GIR', w: '3%' },
+                { l: 'K.DW', w: '3%' },
+                { l: 'B.ZW.', w: '4%' },
+                { l: 'PRZER.R', w: '4%' },
+                { l: '%', w: '2%' },
               ].map((c, i) => (
                 <th key={`r-${i}`} className="px-0.5 py-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, width: c.w, ...(i === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>{c.l}</th>
+              ))}
+              {[
+                { l: 'KOD', w: '2%' },
+                { l: 'NAZWA', w: '7%' },
+                { l: 'JD.', w: '2%' },
+                { l: 'ILOŚĆ', w: '2%' },
+                { l: 'CENA', w: '3%' },
+                { l: 'KOSZT', w: '4%' },
+                { l: 'K.GIR', w: '3%' },
+                { l: 'K.DW', w: '3%' },
+                { l: 'B.ZW.', w: '4%' },
+                { l: 'PRZER.S', w: '4%' },
+                { l: '%', w: '2%' },
+              ].map((c, i) => (
+                <th key={`s-${i}`} className="px-0.5 py-1 text-center font-bold text-white border whitespace-nowrap" style={{ borderColor: BORDER, width: c.w, ...(i === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>{c.l}</th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {(materials.length === 0 && labor.length === 0) ? (
-              <tr><td colSpan={21} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji. Dodaj najpierw pozycje budżetu.</td></tr>
+            {(materials.length === 0 && labor.length === 0 && equipment.length === 0) ? (
+              <tr><td colSpan={32} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji. Dodaj najpierw pozycje budżetu.</td></tr>
             ) : Array.from({ length: maxRows }, (_, i) => {
               const m = materials[i];
               const r = labor[i];
+              const s = equipment[i];
               return (
                 <tr key={i} className="hover:bg-[#0B1120]/40">
                   {/* MATERIAŁY (13 kolumn) */}
@@ -244,7 +269,7 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                     const pct = r.progress_pct || 0;
                     return (
                       <>
-                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{14 + i}</td>
+                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{laborStartNr + i}</td>
                         <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={r.name}>{r.name}</td>
                         <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
@@ -259,11 +284,42 @@ const BudgetExcelView = ({ lines, onProgressChange }) => {
                       <td key={`er-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
                     ))}</>
                   )}
+                  {/* SPRZĘT (11 kolumn) */}
+                  {s ? (() => {
+                    const plan = s.plan_netto_computed || 0;
+                    const ilosc = s.quantity || 0;
+                    const cena = s.unit_price_netto || 0;
+                    const kg = s.kaucja_gir_amount || 0;
+                    const kd = s.kaucja_dw_amount || 0;
+                    const bzw = plan - kg - kd;
+                    const przerob = s.execution_netto || 0;
+                    const pct = s.progress_pct || 0;
+                    return (
+                      <>
+                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, borderLeft: `2px solid ${SEPARATOR}` }}>{equipStartNr + i}</td>
+                        <td className="px-1 py-0.5 text-left text-white border truncate" style={{ borderColor: BORDER, maxWidth: 0 }} title={s.name}>{s.name}</td>
+                        <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>{s.unit || '—'}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCellNum(ilosc)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(cena)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(plan)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ borderColor: BORDER }}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ borderColor: BORDER, backgroundColor: PRZEROB_BG }}>{fmtCell(przerob)}</td>
+                        <td className={`px-0.5 py-0.5 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={{ borderColor: BORDER }}>{Math.round(pct)}%</td>
+                      </>
+                    );
+                  })() : (
+                    <>{Array.from({ length: 11 }, (_, j) => (
+                      <td key={`es-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
+                    ))}</>
+                  )}
                 </tr>
               );
             })}
           </tbody>
         </table>
+        </div>
       </CardContent>
     </Card>
   );
