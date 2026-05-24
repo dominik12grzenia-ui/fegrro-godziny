@@ -1,3 +1,55 @@
+## Iteration 79 (2026-05-24) — Alokacja kosztów pośrednich (kolumny O/P/Q)
+
+### User request
+Implementacja kolumn O/P/Q w widoku kosztorysowym z dystrybucją kosztów pośrednich proporcjonalnie do % zaawansowania pozycji (z protokołów).
+
+**Wybrane reguły (z dopytanym przykładem liczbowym):**
+- **O** (Koszty budowy bez etapów, % protokół): `finance_zapisy` budowy bez `budget_line_id` (z wyłączeniem KP_WYNAGRODZENIA) podzielone wg % zaawansowania pozycji.
+- **P** (% wynagrodzeń budowy): KP_WYNAGRODZENIA budowy bez `budget_line_id` podzielone wg % zaawansowania.
+- **Q** (Koszty nieprzyp., % wynagr.): (firmowe `finance_zapisy` bez `budowa_id` w okresie) × (KP budowy / KP firma) podzielone wg % zaawansowania.
+- **Okres**: konfigurowalny (cały rok 2026 lub konkretny miesiąc).
+- **% protokół**: sumowanie `budget_progress.progress_pct` per pozycja w okresie.
+- **Gdy brak progresów**: banner ostrzegawczy + opcja „Rozłóż równo".
+
+### Backend (`/app/backend/routes/budget.py`)
+- **Nowy endpoint `GET /budget/{budowa_id}/allocations?year=Y&month=M&equal_distribution=B`**:
+  - Sumuje progres per pozycja z `budget_progress` (rok lub miesiąc).
+  - Liczy pule O/P/Q jak wyżej.
+  - Dystrybuuje per pozycja: `pool * (progress_i / Σ progress)`.
+  - Zwraca `position_allocations: { position_id: {O, P, Q, progress_pct, share} }`.
+  - Pole `distributed: bool` + `pools: {...}` z surowymi sumami i `wynagrodzenia_ratio` (KP_budowa / KP_firma).
+  - Tryb `equal_distribution=true`: gdy brak progresów, rozdziela pule równo na wszystkie pozycje budowy.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- `Budget` przekazuje `year` do `BudgetLinesPanel`.
+- `BudgetLinesPanel`:
+  - State `allocMonth` (0 = cały rok), `equalDistribution`.
+  - Fetch `/budget/{id}/allocations` przy zmianie `year/month/equalDistribution`.
+  - Przekazuje `allocations` + setery do `BudgetExcelTemplateView`.
+- `BudgetExcelTemplateView`:
+  - **Selektor okresu** w nagłówku: „Alokacja (O/P/Q): Cały rok / Sty / ... / Gru".
+  - **Banner ostrzegawczy** (gold) gdy `!distributed && pools.O+P+Q > 0`: pokazuje pule + przycisk **„Rozłóż równo"**.
+  - **Banner zielony** gdy aktywny tryb równej dystrybucji, z linkiem „wyłącz".
+  - `computePositionRow` używa `allocations.positions[positionId]?.O/P/Q` zamiast sumowania z slotów.
+  - R = N + O + P + Q (z pul backendu). Roll-up działa: pozycja agregat ma wartości.
+
+### Test (`/app/backend/tests/test_iter79_allocations.py`)
+- 3 testy pytest, wszystkie passed:
+  - `test_allocations_month` — przykład liczbowy: O=1400, P=1000, ratio=0.2, Q liczone na podstawie unassigned_company × ratio; podział wg progresu 80%/60% → share_p1=0.5714, share_p2=0.4286.
+  - `test_allocations_no_progress` — brak wpisów % w styczniu → `distributed=False`, `positions={}`.
+  - `test_allocations_year` — sumowanie progresu w skali roku.
+
+### Smoke test UI
+Live preview: nowy selektor okresu pojawia się w nagłówku, banner ostrzegawczy widoczny dla LEBA (130,47 zł nieprzypisanych), przycisk „Rozłóż równo" działa.
+
+### Pliki zmienione
+- `/app/backend/routes/budget.py` — endpoint `/budget/{id}/allocations`
+- `/app/frontend/src/components/Budget.js` — przekazywanie `year`, selektor okresu, fetch allocations, integracja z `computePositionRow`, bannery
+- `/app/backend/tests/test_iter79_allocations.py` — testy pytest
+
+---
+
+
 ## Iteration 78 (2026-05-24) — Inline przypisywanie kodów budżetowych w Zapisach
 
 ### User request

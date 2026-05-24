@@ -100,7 +100,7 @@ export const Budget = () => {
           </TabsList>
 
           <TabsContent value="budget" className="mt-3">
-            <BudgetLinesPanel budowaId={selectedBudowaId} onChange={fetchBudowy} />
+            <BudgetLinesPanel budowaId={selectedBudowaId} year={year} onChange={fetchBudowy} />
           </TabsContent>
           <TabsContent value="progress" className="mt-3">
             <ProgressPanel budowaId={selectedBudowaId} year={year} />
@@ -260,7 +260,7 @@ const ForecastCell = ({ line, computedL, isParent, computedQty, computedCena, co
 const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materials: 'Materiał' };
 const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w arkuszu user (Pompa, beton-robocizna, beton-material)
 
-const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
+const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, year, allocMonth, setAllocMonth, allocations, equalDistribution, setEqualDistribution, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
   // koszt_budowy_pct (kol. J) - nie ma jeszcze w bazie, defaultnie 0; mozna dodac do budowa pozniej
   const kosztBudowyPct = (budowaInfo?.koszt_budowy_pct || 0) / 100;
   const kaucjaGirPct = (budowaInfo?.kaucja_gir_pct || 0) / 100;
@@ -345,6 +345,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   };
 
   // Suma slotow danej pozycji
+  // iter79: O/P/Q nie pochodza z slotow - sa wyliczone serverside per pozycja (allocations.positions[pid])
   const computePositionRow = (positionId) => {
     const slots = slotsByPosition[positionId] || {};
     const aggregate = { qty: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: 0, hasL: false, M: 0, hasM: false, N: 0, O: 0, P: 0, Q: 0, R: 0, U: 0 };
@@ -361,12 +362,14 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
       aggregate.K += r.K;
       if (r.L != null) { aggregate.L += r.L; hasL = true; }
       aggregate.N += r.N;
-      aggregate.O += r.O;
-      aggregate.P += r.P;
-      aggregate.Q += r.Q;
-      aggregate.R += r.R;
-      aggregate.U += r.U;
     });
+    // iter79: O/P/Q z backend allocations (per pozycja)
+    const alloc = allocations?.positions?.[positionId];
+    aggregate.O = alloc?.O || 0;
+    aggregate.P = alloc?.P || 0;
+    aggregate.Q = alloc?.Q || 0;
+    aggregate.R = aggregate.O + aggregate.P + aggregate.Q + aggregate.N;
+    aggregate.U = aggregate.K - aggregate.R;
     aggregate.hasL = hasL;
     aggregate.M = hasL ? aggregate.K - aggregate.L : null;
     aggregate.S = aggregate.N > 0 ? (aggregate.R / aggregate.N) * 100 : 0;
@@ -433,15 +436,64 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           <FolderTree className="h-5 w-5" style={{ color: '#D4AF37' }} />
           Tabela kosztorysowa (szablon BUDŻET.xlsx)
         </CardTitle>
-        <Button size="sm"
-          onClick={onAddPosition}
-          disabled={stages.length === 0}
-          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
-          data-testid="template-add-position-btn"
-          title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (kod 1xx) z 3 podpozycjami'}>
-          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* iter79: Selektor okresu dla alokacji O/P/Q */}
+          {setAllocMonth && (
+            <div className="flex items-center gap-1 text-xs">
+              <label className="text-[#94A3B8]">Alokacja (O/P/Q):</label>
+              <select
+                value={allocMonth || 0}
+                onChange={(e) => setAllocMonth(parseInt(e.target.value, 10) || 0)}
+                className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1 rounded text-xs"
+                data-testid="budget-alloc-period">
+                <option value={0}>Cały rok {year}</option>
+                {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m} {year}</option>)}
+              </select>
+            </div>
+          )}
+          <Button size="sm"
+            onClick={onAddPosition}
+            disabled={stages.length === 0}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+            data-testid="template-add-position-btn"
+            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (kod 1xx) z 3 podpozycjami'}>
+            <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
+          </Button>
+        </div>
       </CardHeader>
+      {/* iter79: Banner gdy sa pule O/P/Q ale brak progresu (niedystrybuowane) */}
+      {allocations && !allocations.distributed && (
+        (allocations.pools?.O > 0 || allocations.pools?.P > 0 || allocations.pools?.Q > 0) && (
+          <div className="mx-4 mt-2 mb-1 rounded p-3 border border-[#D4AF37]/60 bg-[#D4AF37]/10" data-testid="alloc-undistributed-banner">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div>
+                <div className="text-[#D4AF37] font-bold text-sm mb-1">
+                  ⚠ Kwoty nie zostały rozpisane na pozycje
+                </div>
+                <div className="text-[#FCE99A] text-xs">
+                  Brak wpisów % zaawansowania pozycji w wybranym okresie. Pule:
+                  {' '}O = <b>{fmtNum(allocations.pools.O)} zł</b>,
+                  {' '}P = <b>{fmtNum(allocations.pools.P)} zł</b>,
+                  {' '}Q = <b>{fmtNum(allocations.pools.Q)} zł</b>.
+                  {' '}Wpisz progresy w zakładce „% Protokół" lub rozłóż równo na wszystkie pozycje.
+                </div>
+              </div>
+              <Button size="sm"
+                onClick={() => setEqualDistribution && setEqualDistribution(true)}
+                className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-7 text-xs"
+                data-testid="alloc-equal-distribute-btn">
+                Rozłóż równo
+              </Button>
+            </div>
+          </div>
+        )
+      )}
+      {allocations && allocations.distributed && equalDistribution && (
+        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#5F7552]/60 bg-[#5F7552]/15 text-[#A7D29E] text-xs flex items-center justify-between" data-testid="alloc-equal-active">
+          <span>ℹ Pule O/P/Q rozdzielone <b>równo</b> na pozycje (tryb awaryjny, brak progresów w okresie).</span>
+          <button onClick={() => setEqualDistribution && setEqualDistribution(false)} className="text-[#A7D29E] underline hover:text-white" data-testid="alloc-equal-disable-btn">wyłącz</button>
+        </div>
+      )}
       <CardContent className="p-0">
         {positions.length === 0 ? (
           <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="template-empty">
@@ -1246,7 +1298,7 @@ const PositionCard = ({
 };
 
 // =================== BUDZET (POZYCJE) ===================
-const BudgetLinesPanel = ({ budowaId, onChange }) => {
+const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
   const [lines, setLines] = useState([]);
   const [positions, setPositions] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -1262,6 +1314,21 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
   const [editPosition, setEditPosition] = useState(null); // do edycji nazwy pozycji
   // Modal dodawania podpozycji (Robocizna/Materiał/Sprzęt) do istniejącej pozycji
   const [subpositionFor, setSubpositionFor] = useState(null); // gdy ustawione - obiekt pozycji glownej
+  // iter79: okres alokacji kosztow O/P/Q (0 = caly rok, 1..12 = konkretny miesiac)
+  const [allocMonth, setAllocMonth] = useState(0);
+  const [allocations, setAllocations] = useState(null); // { pools, positions, distributed }
+  const [equalDistribution, setEqualDistribution] = useState(false);
+
+  const fetchAllocations = useCallback(() => {
+    if (!budowaId || !year) return;
+    const qs = allocMonth > 0 ? `&month=${allocMonth}` : '';
+    const eq = equalDistribution ? '&equal_distribution=true' : '';
+    api.get(`/budget/${budowaId}/allocations?year=${year}${qs}${eq}`)
+      .then((r) => setAllocations(r.data || null))
+      .catch(() => setAllocations(null));
+  }, [budowaId, year, allocMonth, equalDistribution]);
+
+  useEffect(() => { fetchAllocations(); }, [fetchAllocations]);
 
   const fetchAll = useCallback(() => {
     if (!budowaId) return;
@@ -1500,6 +1567,12 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         lines={lines}
         budowaInfo={budowaInfo}
         loading={loading}
+        year={year}
+        allocMonth={allocMonth}
+        setAllocMonth={setAllocMonth}
+        allocations={allocations}
+        equalDistribution={equalDistribution}
+        setEqualDistribution={setEqualDistribution}
         onAddPosition={() => { setEditPosition(null); setPositionModalOpen(true); }}
         onEditPosition={(pos) => { setEditPosition(pos); setPositionModalOpen(true); }}
         onDeletePosition={removePosition}

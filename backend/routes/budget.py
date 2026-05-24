@@ -341,6 +341,142 @@ async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_curr
     return {"options": options}
 
 
+@router.get("/budget/{budowa_id}/allocations")
+async def get_allocations(
+    budowa_id: str,
+    year: int = Query(...),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    equal_distribution: bool = Query(False, description="Gdy True i brak progresu, rozdziel pule rowno na wszystkie pozycje"),
+    _user: dict = Depends(get_current_admin),
+):
+    """Wylicza alokacje kosztow posrednich (kolumny O/P/Q) per pozycja w wybranym okresie.
+
+    Wagi: % zaawansowania pozycji (sumowany w okresie) z `budget_progress`.
+
+    Pule:
+      O = `finance_zapisy` budowy BEZ `budget_line_id`, kod != KP_WYNAGRODZENIA
+      P = `finance_zapisy` budowy BEZ `budget_line_id`, kod = KP_WYNAGRODZENIA
+      Q = (firmowe `finance_zapisy` bez budowy) x (KP budowy / KP firmy)
+
+    Dystrybucja per pozycja: pool * (progress_i / SUM(progress)).
+    Jezeli SUM(progress) == 0, pozycje dostaja 0 i pula wystepuje jako 'undistributed'.
+    """
+    # Filter daty
+    if month is not None:
+        start = f"{year:04d}-{month:02d}-01"
+        end = f"{year:04d}-{month:02d}-31"
+    else:
+        start = f"{year:04d}-01-01"
+        end = f"{year:04d}-12-31"
+    date_q = {"$gte": start, "$lte": end}
+
+    # Pozycje budowy (tylko te liczymy)
+    positions = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0, "id": 1}).to_list(length=2000)
+    position_ids = {p["id"] for p in positions}
+
+    # Progres per pozycja (sumowanie po miesiacach jezeli year-only)
+    prog_q: dict = {"position_id": {"$in": list(position_ids)} if position_ids else None, "year": year}
+    if not position_ids:
+        progress_by_pos: dict = {}
+    else:
+        if month is not None:
+            prog_q["month"] = month
+        progress_by_pos = {}
+        async for p in db.budget_progress.find(prog_q, {"_id": 0, "position_id": 1, "progress_pct": 1}):
+            pid = p.get("position_id")
+            if not pid:
+                continue
+            progress_by_pos[pid] = progress_by_pos.get(pid, 0.0) + float(p.get("progress_pct") or 0)
+    total_progress = sum(progress_by_pos.values())
+
+    # Pule O/P (z zapisow bez budget_line_id, dla tej budowy)
+    base_q = {
+        "budowa_id": budowa_id,
+        "date": date_q,
+        "$or": [{"budget_line_id": None}, {"budget_line_id": {"$exists": False}}],
+    }
+    o_pool = 0.0
+    p_pool = 0.0
+    async for z in db.finance_zapisy.find(base_q, {"_id": 0, "netto": 1, "kod_id": 1}):
+        netto = float(z.get("netto") or 0)
+        if z.get("kod_id") == "KP_WYNAGRODZENIA":
+            p_pool += netto
+        else:
+            o_pool += netto
+
+    # P_total_budowa (cale wynagrodzenia tej budowy - dla ratio do Q)
+    p_total_budowa = 0.0
+    async for z in db.finance_zapisy.find(
+        {"budowa_id": budowa_id, "kod_id": "KP_WYNAGRODZENIA", "date": date_q},
+        {"_id": 0, "netto": 1},
+    ):
+        p_total_budowa += float(z.get("netto") or 0)
+
+    # KP_total_firma (suma wynagrodzen calej firmy)
+    kp_total_firma = 0.0
+    async for z in db.finance_zapisy.find(
+        {"kod_id": "KP_WYNAGRODZENIA", "date": date_q},
+        {"_id": 0, "netto": 1},
+    ):
+        kp_total_firma += float(z.get("netto") or 0)
+
+    # Firmowe koszty bez budowy w okresie
+    unassigned_company = 0.0
+    async for z in db.finance_zapisy.find(
+        {"$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}], "date": date_q},
+        {"_id": 0, "netto": 1},
+    ):
+        unassigned_company += float(z.get("netto") or 0)
+
+    wynagrodzenia_ratio = (p_total_budowa / kp_total_firma) if kp_total_firma > 0 else 0.0
+    q_pool = round(unassigned_company * wynagrodzenia_ratio, 2)
+
+    # Dystrybucja
+    position_allocations: dict = {}
+    distributed = total_progress > 0
+    if distributed:
+        for pos_id, pct in progress_by_pos.items():
+            share = pct / total_progress
+            position_allocations[pos_id] = {
+                "O": round(o_pool * share, 2),
+                "P": round(p_pool * share, 2),
+                "Q": round(q_pool * share, 2),
+                "progress_pct": round(pct, 2),
+                "share": round(share, 4),
+            }
+    elif equal_distribution and position_ids:
+        # Rownomierna dystrybucja gdy brak progresu (na zyczenie uzytkownika)
+        n = len(position_ids)
+        share = 1.0 / n
+        for pos_id in position_ids:
+            position_allocations[pos_id] = {
+                "O": round(o_pool / n, 2),
+                "P": round(p_pool / n, 2),
+                "Q": round(q_pool / n, 2),
+                "progress_pct": 0.0,
+                "share": round(share, 4),
+            }
+        distributed = True
+
+    return {
+        "year": year,
+        "month": month,
+        "pools": {
+            "O": round(o_pool, 2),
+            "P": round(p_pool, 2),
+            "Q": round(q_pool, 2),
+            "p_total_budowa": round(p_total_budowa, 2),
+            "kp_total_firma": round(kp_total_firma, 2),
+            "unassigned_company": round(unassigned_company, 2),
+            "wynagrodzenia_ratio": round(wynagrodzenia_ratio, 4),
+        },
+        "positions": position_allocations,
+        "total_progress_pct": round(total_progress, 2),
+        "positions_with_progress": len(position_allocations),
+        "distributed": distributed,
+    }
+
+
 # ============== CATEGORIES ==============
 
 @router.get("/budget/{budowa_id}/categories")
