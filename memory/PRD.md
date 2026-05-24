@@ -1,4 +1,31 @@
-## Iteration 70 (2026-05-24) — Tabela kosztorysowa 1:1 z szablonu BUDŻET.xlsx (22 kolumny)
+## Iteration 71 (2026-05-24) — Dodawanie podpozycji na żądanie (zamiast auto-tworzenia 3 slotów)
+
+### User feedback
+„NIE DODAWAJ ODRAZU PODPOZYCJI ZRÓB MI PLUSIK PRZY NAZWIE POZYCJA GŁÓWNA BYM MÓGŁ DODAĆ PODPOZYCJE I OKREŚLIĆ DO JAKIEJ KATEGORII NALEŻY ROBOCIZNA CZY MATERIAŁ CZY SPRZĘT"
+
+### Backend (`/app/backend/routes/budget.py`)
+- **`POST /budget/positions`**: usunięte auto-tworzenie 3 slotów. Teraz tworzy TYLKO `budget_positions` record, bez `budget_lines`. Frontend dodaje podpozycje na żądanie przez standardowe `POST /budget/lines` z `position_id` + `type`.
+- Pozostała funkcjonalność bez zmian: walidacja etapu, kaskadowe usuwanie pozycji+linii, dziedziczenie position_id przez składowe.
+- Testy iter68: zaktualizowane do nowego modelu (`test_position_creates_only_position_no_slots`, manualne tworzenie slotów w pozostałych testach). **9/9 PASS** (iter67 + iter68).
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Nowy `SubpositionModal`** — modal dodawania podpozycji do istniejącej pozycji:
+  - 3 duże przyciski kategorii: **Robocizna** (olive) / **Materiał** (gold) / **Sprzęt** (gray)
+  - Nazwa (pre-filled = nazwa pozycji)
+  - Pola: Jedn. / Ilość / Cena netto / Kaucja GIR % / Kaucja DW % (opcjonalne)
+  - POST do `/budget/lines` z `position_id`, `type`, `stage_id` (dziedziczony z pozycji)
+- **`BudgetExcelTemplateView`** — przy nazwie pozycji głównej dodany **przycisk `+`** (`pos-add-sub-{id}`, olive, mała ramka) który otwiera SubpositionModal.
+- Gdy pozycja nie ma jeszcze podpozycji, wyświetla się **placeholder row** „Brak podpozycji. Kliknij ⊕ przy nazwie pozycji aby dodać Robociznę / Materiał / Sprzęt".
+- Zaktualizowany toast w `PositionModal`: „Pozycja utworzona. Kliknij + przy nazwie aby dodać podpozycje" + zaktualizowany hint w modalu.
+- Wyczyszczone dane testowe LEBA (3 lines + 1 position).
+
+### Test
+- Backend pytest: **9/9 PASS** (iter67 + iter68)
+- Live screenshot: utworzona pozycja „Wykonanie chodnika" bez auto-podpozycji; placeholder „Brak podpozycji" widoczny; klik `+` przy nazwie otwiera SubpositionModal z 3 przyciskami kategorii i polami Jedn./Ilość/Cena.
+
+
+
+
 
 ### User request
 User dołączył plik **BUDŻET.xlsx** z dokładnym układem 22 kolumn: kod budżetowy, rodzaj (przypisanie R/M/S), nazwa, ilość, cena, budżet, kaucja GIR, kaucja DW, koszt budowy, budżet zwolniony, koszt prognozowany, prognozowany zysk, koszty przypisane do etapów, koszty bez etapów (% protokół), % wynagrodzeń budowy, koszty nieprzypisane, KOSZTY RAZEM, % realizacji, pozostało budżetu, zysk, różnica zysku. Z hierarchią: **Etap → Pozycja Główna (101) → Podpozycje (101.1 sprzęt, 101.2 robocizna, 101.3 Materiał)**.

@@ -367,7 +367,7 @@ async def list_positions(budowa_id: str, _user: dict = Depends(get_current_admin
 
 @router.post("/budget/positions")
 async def create_position(payload: BudgetPositionCreate, current_user: dict = Depends(get_current_admin)):
-    """Tworzy pozycje kosztorysowa i AUTOMATYCZNIE 3 sloty: Robocizna, Materialy, Sprzet."""
+    """Tworzy tylko pozycje kosztorysowa (BEZ auto-slotow). Podpozycje (R/M/S) admin dodaje recznie przez POST /budget/lines z position_id+type."""
     stage = await db.budget_stages.find_one({"id": payload.stage_id}, {"_id": 0})
     if not stage:
         raise HTTPException(400, "Etap nie istnieje - pozycja musi byc przypisana do etapu")
@@ -386,36 +386,7 @@ async def create_position(payload: BudgetPositionCreate, current_user: dict = De
         "created_by": current_user["sub"],
     }
     await db.budget_positions.insert_one(pos_doc)
-    # Auto-utworz 3 sloty: labor, materials, equipment (puste, plan=0)
-    slot_types = [("labor", "Robocizna"), ("materials", "Materialy"), ("equipment", "Sprzet")]
-    slot_docs = []
-    for t, label in slot_types:
-        slot_docs.append({
-            "id": str(uuid.uuid4()),
-            "budowa_id": payload.budowa_id,
-            "category": label,
-            "name": payload.name,
-            "type": t,
-            "unit": None,
-            "quantity": 0.0,
-            "unit_price_netto": 0.0,
-            "plan_netto": None,
-            "kaucja_gir_pct": None,
-            "kaucja_dw_pct": None,
-            "stage_id": payload.stage_id,
-            "position_id": pos_id,
-            "parent_id": None,
-            "is_income": False,
-            "notes": None,
-            "order": 0,
-            "created_at": now,
-            "created_by": current_user["sub"],
-        })
-    await db.budget_lines.insert_many(slot_docs)
-    for s in slot_docs:
-        s.pop("_id", None)
     pos_doc.pop("_id", None)
-    pos_doc["slots"] = slot_docs
     return pos_doc
 
 

@@ -130,7 +130,7 @@ const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleStrin
 const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materials: 'Materiał' };
 const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w arkuszu user (Pompa, beton-robocizna, beton-material)
 
-const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onEditLine, onAddChildLine, onDeleteLine }) => {
+const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine }) => {
   // koszt_budowy_pct (kol. J) - nie ma jeszcze w bazie, defaultnie 0; mozna dodac do budowa pozniej
   const kosztBudowyPct = (budowaInfo?.koszt_budowy_pct || 0) / 100;
   const kaucjaGirPct = (budowaInfo?.kaucja_gir_pct || 0) / 100;
@@ -346,7 +346,14 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                             <tr data-testid={`pos-main-${pos.id}`} style={{ backgroundColor: POS_BG, borderTop: `1px solid ${BORDER}` }}>
                               <td className="px-1 py-1 text-center font-bold text-white border-r" style={{ borderColor: BORDER }}>{kod}</td>
                               <td className="px-1 py-1 text-center text-[#D4AF37] font-semibold border-r" style={{ borderColor: BORDER }}>Pozycja Główna</td>
-                              <td className="px-1 py-1 text-left text-white font-bold border-r truncate" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: POS_BG }} title={pos.name}>{pos.name}</td>
+                              <td className="px-1 py-1 text-left text-white font-bold border-r truncate" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: POS_BG }} title={pos.name}>
+                                <div className="flex items-center gap-1">
+                                  <span className="truncate flex-1">{pos.name}</span>
+                                  <button onClick={() => onAddSubposition(pos)} className="text-[#5F7552] hover:text-[#9DBC85] shrink-0 p-0.5 rounded bg-[#0B1120] border border-[#5F7552]/40" data-testid={`pos-add-sub-${pos.id}`} title="Dodaj podpozycję (Robocizna / Materiał / Sprzęt)">
+                                    <Plus className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              </td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(agg.qty)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.cena)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.G)}</td>
@@ -371,6 +378,19 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                               </td>
                             </tr>
                             {/* Podpozycje (3 sloty R/M/S w kolejnosci sprzet/robocizna/material) */}
+                            {(() => {
+                              const hasAnySub = SUB_TYPE_ORDER.some((t) => slots[t]);
+                              if (!hasAnySub) {
+                                return (
+                                  <tr data-testid={`pos-empty-${pos.id}`} style={{ backgroundColor: SUB_BG }}>
+                                    <td colSpan={cols.length + 1} className="px-3 py-2 text-center text-[#94A3B8] text-[10px] italic border-r" style={{ borderColor: BORDER }}>
+                                      Brak podpozycji. Kliknij <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#0B1120] border border-[#5F7552]/40 text-[#5F7552]"><Plus className="h-2.5 w-2.5" /></span> przy nazwie pozycji aby dodać Robociznę / Materiał / Sprzęt.
+                                    </td>
+                                  </tr>
+                                );
+                              }
+                              return null;
+                            })()}
                             {SUB_TYPE_ORDER.map((type, tIdx) => {
                               const slot = slots[type];
                               if (!slot) return null;
@@ -1078,6 +1098,8 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
   // Nowy widok kosztorysowy - modal dodawania pozycji
   const [positionModalOpen, setPositionModalOpen] = useState(false);
   const [editPosition, setEditPosition] = useState(null); // do edycji nazwy pozycji
+  // Modal dodawania podpozycji (Robocizna/Materiał/Sprzęt) do istniejącej pozycji
+  const [subpositionFor, setSubpositionFor] = useState(null); // gdy ustawione - obiekt pozycji glownej
 
   const fetchAll = useCallback(() => {
     if (!budowaId) return;
@@ -1261,6 +1283,7 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         onAddPosition={() => { setEditPosition(null); setPositionModalOpen(true); }}
         onEditPosition={(pos) => { setEditPosition(pos); setPositionModalOpen(true); }}
         onDeletePosition={removePosition}
+        onAddSubposition={(pos) => setSubpositionFor(pos)}
         onEditLine={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
         onAddChildLine={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
         onDeleteLine={remove}
@@ -1275,7 +1298,136 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(); onChange && onChange(); }}
       />
     )}
+    {subpositionFor && (
+      <SubpositionModal
+        budowaId={budowaId}
+        position={subpositionFor}
+        stageId={subpositionFor.stage_id}
+        onClose={() => setSubpositionFor(null)}
+        onSaved={() => { setSubpositionFor(null); fetchAll(); onChange && onChange(); }}
+      />
+    )}
     </>
+  );
+};
+
+// =================== PODPOZYCJA - MODAL (Robocizna / Materiał / Sprzęt) ===================
+const SubpositionModal = ({ budowaId, position, stageId, onClose, onSaved }) => {
+  const [form, setForm] = useState({
+    type: 'labor', // labor | materials | equipment
+    name: position?.name || '',
+    unit: '',
+    quantity: '',
+    unit_price_netto: '',
+    kaucja_gir_pct: '',
+    kaucja_dw_pct: '',
+  });
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!form.name.trim()) { toast.error('Podaj nazwę podpozycji'); return; }
+    setBusy(true);
+    try {
+      await api.post('/budget/lines', {
+        budowa_id: budowaId,
+        category: BUDGET_TYPES[form.type]?.label || 'Podpozycja',
+        name: form.name.trim(),
+        type: form.type,
+        unit: form.unit || null,
+        quantity: parseFloat(form.quantity) || 0,
+        unit_price_netto: parseFloat(form.unit_price_netto) || 0,
+        position_id: position.id,
+        stage_id: stageId || position.stage_id,
+        kaucja_gir_pct: form.kaucja_gir_pct === '' ? null : parseFloat(form.kaucja_gir_pct),
+        kaucja_dw_pct: form.kaucja_dw_pct === '' ? null : parseFloat(form.kaucja_dw_pct),
+      });
+      toast.success(`Dodano podpozycję: ${BUDGET_TYPES[form.type].label}`);
+      onSaved && onSaved();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="subposition-modal">
+        <DialogHeader>
+          <DialogTitle>Dodaj podpozycję do: {position?.name}</DialogTitle>
+          <p className="text-xs text-[#94A3B8] mt-1">Wybierz kategorię kosztu i wprowadź wartości.</p>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Kategoria *</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { v: 'labor', label: 'Robocizna' },
+                { v: 'materials', label: 'Materiał' },
+                { v: 'equipment', label: 'Sprzęt' },
+              ].map((opt) => {
+                const cfg = BUDGET_TYPES[opt.v];
+                const selected = form.type === opt.v;
+                return (
+                  <button key={opt.v} type="button"
+                    onClick={() => setForm({ ...form, type: opt.v })}
+                    className={`px-3 py-2 rounded border text-xs font-semibold transition ${selected ? 'ring-2 ring-[#D4AF37]' : ''}`}
+                    style={{ backgroundColor: selected ? cfg.bg : `${cfg.color}15`, color: selected ? cfg.textOnBg : cfg.color, borderColor: cfg.color }}
+                    data-testid={`subposition-type-${opt.v}`}>
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa podpozycji *</label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="np. Beton C8/10 chudziak"
+              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-name-input" autoFocus />
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Jedn.</label>
+              <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                placeholder="m³, mb, szt"
+                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-unit-input" />
+            </div>
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Ilość</label>
+              <Input type="number" min="0" step="0.01" value={form.quantity}
+                onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-quantity-input" />
+            </div>
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Cena netto</label>
+              <Input type="number" min="0" step="0.01" value={form.unit_price_netto}
+                onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })}
+                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-price-input" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Kaucja GIR % (opcjonalne)</label>
+              <Input type="number" min="0" step="0.1" value={form.kaucja_gir_pct}
+                onChange={(e) => setForm({ ...form, kaucja_gir_pct: e.target.value })}
+                placeholder="dziedziczy z budowy" className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-gir-input" />
+            </div>
+            <div>
+              <label className="text-xs text-[#94A3B8] mb-1 block">Kaucja DW % (opcjonalne)</label>
+              <Input type="number" min="0" step="0.1" value={form.kaucja_dw_pct}
+                onChange={(e) => setForm({ ...form, kaucja_dw_pct: e.target.value })}
+                placeholder="dziedziczy z budowy" className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-dw-input" />
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="ghost" onClick={onClose} data-testid="subposition-cancel-btn">Anuluj</Button>
+          <ActionButton onAction={save} disabled={busy || !form.name.trim()}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+            data-testid="subposition-save-btn">
+            <Plus className="h-4 w-4 mr-1" /> Dodaj podpozycję
+          </ActionButton>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 
@@ -1296,7 +1448,7 @@ const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => 
         toast.success('Pozycja zaktualizowana');
       } else {
         const r = await api.post('/budget/positions', { budowa_id: budowaId, name: name.trim(), stage_id: stageId, notes });
-        toast.success(`Pozycja utworzona (+3 sloty: Robocizna, Materiały, Sprzęt)`);
+        toast.success('Pozycja utworzona. Kliknij + przy nazwie aby dodać podpozycje.');
         onSaved && onSaved(r.data);
         return;
       }
@@ -1312,7 +1464,7 @@ const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => 
           <DialogTitle>{editPosition ? 'Edytuj pozycję kosztorysową' : 'Nowa pozycja kosztorysowa'}</DialogTitle>
           {!editPosition && (
             <p className="text-xs text-[#94A3B8] mt-1">
-              System utworzy automatycznie 3 sloty: <b style={{ color: '#5F7552' }}>Robocizna</b>, <b style={{ color: '#D4AF37' }}>Materiały</b>, <b style={{ color: '#94A3B8' }}>Sprzęt</b>.
+              Po utworzeniu pozycji kliknij <b className="text-[#D4AF37]">+</b> przy nazwie aby dodać podpozycje (Robocizna / Materiał / Sprzęt).
             </p>
           )}
         </DialogHeader>
