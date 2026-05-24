@@ -167,8 +167,10 @@ async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
                 execution_netto = float(r.get("netto") or 0)
                 execution_brutto = float(r.get("brutto") or 0)
 
-        plan_netto = sum(_compute_plan(ln) for ln in lines if not ln.get("is_income"))
-        plan_income = sum(_compute_plan(ln) for ln in lines if ln.get("is_income"))
+        # iter87: BUGFIX podwojnego liczenia - liczymy plan tylko z linii bez dzieci
+        children_parents = {ln.get("parent_id") for ln in lines if ln.get("parent_id")}
+        plan_netto = sum(_compute_plan(ln) for ln in lines if not ln.get("is_income") and ln.get("id") not in children_parents)
+        plan_income = sum(_compute_plan(ln) for ln in lines if ln.get("is_income") and ln.get("id") not in children_parents)
         # Zadania harmonogramu
         tasks_count = await db.budget_tasks.count_documents({"budowa_id": bid})
         result.append({
@@ -1069,12 +1071,21 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     all_lines = await db.budget_lines.find(
         {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0},
     ).to_list(length=10000)
-    # Suma `plan_netto_computed` (lub fallback `quantity * unit_price_netto` lub `plan_netto`) per position_id
+    # iter87: BUGFIX podwojnego liczenia. Sumujemy plan tylko z LISCI (linii bez dzieci),
+    # zgodnie z logika frontendu computeRow (gdy slot ma dzieci, jego plan = suma dzieci).
+    has_child = set()
+    for ln in all_lines:
+        pid_parent = ln.get("parent_id")
+        if pid_parent:
+            has_child.add(pid_parent)
     plan_per_pos = {}
-    qty_per_pos = {}  # przyklad jednostki - pierwsza spotkana
+    qty_per_pos = {}  # przyklad jednostki - pierwsza spotkana z lisci
     for line in all_lines:
         pid = line.get("position_id")
         if not pid:
+            continue
+        if line.get("id") in has_child:
+            # Slot z dziecmi - jego wartosci ida przez dzieci, nie liczymy tu
             continue
         plan = _compute_plan(line)
         plan_per_pos[pid] = plan_per_pos.get(pid, 0.0) + plan
