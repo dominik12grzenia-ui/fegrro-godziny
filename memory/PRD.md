@@ -1,4 +1,30 @@
-## Iteration 69 (2026-05-24) — Przywrócenie widoku Excel-style (iter67) zamiast akordeonowego (iter68)
+## Iteration 70 (2026-05-24) — Tabela kosztorysowa 1:1 z szablonu BUDŻET.xlsx (22 kolumny)
+
+### User request
+User dołączył plik **BUDŻET.xlsx** z dokładnym układem 22 kolumn: kod budżetowy, rodzaj (przypisanie R/M/S), nazwa, ilość, cena, budżet, kaucja GIR, kaucja DW, koszt budowy, budżet zwolniony, koszt prognozowany, prognozowany zysk, koszty przypisane do etapów, koszty bez etapów (% protokół), % wynagrodzeń budowy, koszty nieprzypisane, KOSZTY RAZEM, % realizacji, pozostało budżetu, zysk, różnica zysku. Z hierarchią: **Etap → Pozycja Główna (101) → Podpozycje (101.1 sprzęt, 101.2 robocizna, 101.3 Materiał)**.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Nowy komponent `BudgetExcelTemplateView`** renderujący tabelę 22-kolumnową 1:1 z arkuszem.
+- Hierarchia danych: korzysta z modelu **iter68** (BudgetPosition + auto 3 sloty R/M/S). Re-aktywowany — user pierwotnie odrzucił widok akordeonowy (iter68), ale model danych pasuje idealnie do szablonu Excel.
+- **Formuły 1:1**: G=Ilość×Cena, H=G×kaucja_gir_pct, I=G×kaucja_dw_pct, J=G×koszt_budowy_pct, K=G−H−I+J, M=L−K, R=O+P+Q+N, S=R/N, T=L−R, U=K−R, V=M−U.
+- **Kolumny O/P/Q** (alokacja kosztów ogólnych) chwilowo zwracają 0 z tooltipem „w przygotowaniu" — wymagają integracji z modułem płac firmy i protokołów. To kolejna iteracja.
+- **Sticky** nagłówek tabeli + kolumna NAZWA + kolumna Akcje (`position: sticky`).
+- Składowe (parent_id) wyświetlane jako trzeci poziom z prefiksem `↳↳`, wcięcie pl-8, agregują się do wartości slotu.
+- **Przycisk „Dodaj pozycję"** wraca do `PositionModal` (model iter68 — tworzy pozycję + auto 3 sloty).
+- Stary `BudgetExcelView` (iter67, 3 kolumny obok siebie) **pozostaje w kodzie ale nieużywany** — łatwo go reaktywować jeśli ktoś będzie chciał wrócić.
+- Legenda formuł pod tabelą wymienia każdą kolumnę 1:1 z arkusza.
+
+### Backend
+- Bez zmian — wykorzystany model iter68 (BudgetPosition + 3 auto-sloty + składowe via parent_id).
+- `koszt_budowy_pct` na razie domyślnie 0; do dodania na `finance_budowy` w kolejnej iteracji jeśli user potwierdzi że potrzebuje.
+
+### Test
+- Lint JS ✓
+- Live screenshot: tabela renderuje się 1:1 z szablonem; pozycja „Wykonanie chodnika" (kod 101) + 3 podpozycje (101.1 sprzęt / 101.2 robocizna / 101.3 Materiał) z wcięciem ↳ i kolumną „wpisz" dla L (Koszt prognozowany).
+
+
+
+
 
 ### User feedback
 „niepodoba mi się to przywruć poprzedni muj podział" - po wdrożeniu iter68 (akordeony Etap→Pozycja→R/M/S) user wrócił do preferencji widoku Excel-style z iter67 (3 bloki M/R/S w jednej tabeli ze złotymi separatorami).

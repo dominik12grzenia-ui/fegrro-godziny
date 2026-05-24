@@ -125,6 +125,342 @@ const Tile = ({ label, value, testId, highlight }) => (
 const fmtCell = (v) => (v == null || v === 0) ? '—' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+// =================== TABELA KOSZTORYSOWA wg szablonu BUDŻET.xlsx (22 kolumny) ===================
+// Hierarchia: Etap (label) -> Pozycja Główna (kod 101, auto-sum z 3 slotów) -> Podpozycje (101.1 sprzęt / 101.2 robocizna / 101.3 Materiał)
+const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materials: 'Materiał' };
+const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w arkuszu user (Pompa, beton-robocizna, beton-material)
+
+const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onEditLine, onAddChildLine, onDeleteLine }) => {
+  // koszt_budowy_pct (kol. J) - nie ma jeszcze w bazie, defaultnie 0; mozna dodac do budowa pozniej
+  const kosztBudowyPct = (budowaInfo?.koszt_budowy_pct || 0) / 100;
+  const kaucjaGirPct = (budowaInfo?.kaucja_gir_pct || 0) / 100;
+  const kaucjaDwPct = (budowaInfo?.kaucja_dw_pct || 0) / 100;
+
+  // Pozycje per etap (zachowaj kolejnosc z `stages`)
+  const positionsByStage = useMemo(() => {
+    const m = {};
+    positions.forEach((p) => {
+      const sid = p.stage_id || '__none__';
+      if (!m[sid]) m[sid] = [];
+      m[sid].push(p);
+    });
+    return m;
+  }, [positions]);
+
+  // Sloty per pozycja per typ (parent_id=null)
+  const slotsByPosition = useMemo(() => {
+    const m = {};
+    lines.forEach((ln) => {
+      if (!ln.position_id || ln.parent_id) return;
+      if (!m[ln.position_id]) m[ln.position_id] = {};
+      m[ln.position_id][ln.type || 'materials'] = ln;
+    });
+    return m;
+  }, [lines]);
+
+  // Skladowe per slot
+  const childrenByParent = useMemo(() => {
+    const m = {};
+    lines.forEach((ln) => {
+      if (!ln.parent_id) return;
+      if (!m[ln.parent_id]) m[ln.parent_id] = [];
+      m[ln.parent_id].push(ln);
+    });
+    return m;
+  }, [lines]);
+
+  // Oblicz wartosci kolumn dla pojedynczej linii (slotu)
+  const computeRow = (line) => {
+    const kids = line ? (childrenByParent[line.id] || []) : [];
+    const qty = kids.length > 0 ? kids.reduce((s, k) => s + (k.quantity || 0), 0) : (line?.quantity || 0);
+    let plan = line?.plan_netto_computed || 0;
+    let exec = line?.execution_netto || 0;
+    if (kids.length > 0) {
+      plan = kids.reduce((s, k) => s + (k.plan_netto_computed || 0), 0);
+      exec = kids.reduce((s, k) => s + (k.execution_netto || 0), 0);
+    }
+    const cena = qty > 0 ? plan / qty : (line?.unit_price_netto || 0);
+    const G = plan;
+    const H = G * kaucjaGirPct;
+    const I = G * kaucjaDwPct;
+    const J = G * kosztBudowyPct;
+    const K = G - H - I + J;
+    const L = (line?.notes_l != null) ? Number(line.notes_l) : null; // koszt prognozowany - manual, schowany w notes_l TODO
+    const M = (L != null) ? L - K : null;
+    const N = exec; // suma kosztow przypisanych (z finance_zapisy via execution_netto)
+    const O = 0; // TODO: protocol-based allocation
+    const P = 0; // TODO: salary share allocation
+    const Q = 0; // TODO: company-wide unallocated
+    const R = O + P + Q + N;
+    const S = N > 0 ? (R / N) * 100 : 0;
+    const T = (L != null) ? L - R : null;
+    const U = K - R;
+    const V = (M != null) ? M - U : null;
+    return { qty, cena, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V };
+  };
+
+  // Suma slotow danej pozycji
+  const computePositionRow = (positionId) => {
+    const slots = slotsByPosition[positionId] || {};
+    const aggregate = { qty: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: 0, hasL: false, M: 0, hasM: false, N: 0, O: 0, P: 0, Q: 0, R: 0, U: 0 };
+    let hasL = false;
+    SUB_TYPE_ORDER.forEach((t) => {
+      const slot = slots[t];
+      if (!slot) return;
+      const r = computeRow(slot);
+      aggregate.qty += r.qty;
+      aggregate.G += r.G;
+      aggregate.H += r.H;
+      aggregate.I += r.I;
+      aggregate.J += r.J;
+      aggregate.K += r.K;
+      if (r.L != null) { aggregate.L += r.L; hasL = true; }
+      aggregate.N += r.N;
+      aggregate.O += r.O;
+      aggregate.P += r.P;
+      aggregate.Q += r.Q;
+      aggregate.R += r.R;
+      aggregate.U += r.U;
+    });
+    aggregate.hasL = hasL;
+    aggregate.M = hasL ? aggregate.L - aggregate.K : null;
+    aggregate.S = aggregate.N > 0 ? (aggregate.R / aggregate.N) * 100 : 0;
+    aggregate.T = hasL ? aggregate.L - aggregate.R : null;
+    aggregate.V = hasL ? aggregate.M - aggregate.U : null;
+    aggregate.cena = aggregate.qty > 0 ? aggregate.G / aggregate.qty : 0;
+    return aggregate;
+  };
+
+  const BORDER = '#2A3B59';
+  const STAGE_BG = '#3F5235';
+  const POS_BG = '#19243C';
+  const SUB_BG = '#0B1120';
+  const HEADER_BG = '#4F6343';
+  const KAUCJA_BG = 'rgba(212, 175, 55, 0.12)';
+  const EXEC_BG = 'rgba(95, 117, 82, 0.14)';
+  const STICKY = { position: 'sticky', left: 0, zIndex: 5, backgroundColor: undefined };
+
+  // Naglowki kolumn 1:1 z arkusza
+  const cols = [
+    { k: 'A', label: 'Kod', w: 60 },
+    { k: 'B', label: 'Rodzaj', w: 100 },
+    { k: 'D', label: 'NAZWA', w: 240, sticky: true },
+    { k: 'E', label: 'Ilość', w: 60 },
+    { k: 'F', label: 'Cena', w: 80 },
+    { k: 'G', label: 'BUDŻET', w: 90 },
+    { k: 'H', label: 'KAUCJA GIR', w: 90, bg: KAUCJA_BG },
+    { k: 'I', label: 'KAUCJA DW', w: 90, bg: KAUCJA_BG },
+    { k: 'J', label: 'Koszt budowy', w: 90 },
+    { k: 'K', label: 'BUDŻET Zwolniony', w: 100 },
+    { k: 'L', label: 'Koszt prognozowany', w: 110 },
+    { k: 'M', label: 'Prognozowany zysk', w: 110 },
+    { k: 'N', label: 'Koszty przypisane do etapów', w: 130, bg: EXEC_BG },
+    { k: 'O', label: 'Koszty budowy bez etapów (%protokół)', w: 140 },
+    { k: 'P', label: '% wynagrodzeń budowy (firma)', w: 130 },
+    { k: 'Q', label: 'Koszty nieprzyp. (% wynagr.)', w: 130 },
+    { k: 'R', label: 'KOSZTY RAZEM', w: 100, bg: EXEC_BG },
+    { k: 'S', label: '% zrealizowanego', w: 90 },
+    { k: 'T', label: 'POZOSTAŁO BUDŻETU', w: 110 },
+    { k: 'U', label: 'Zysk', w: 90 },
+    { k: 'V', label: 'Różnica zysku', w: 100 },
+  ];
+
+  const totalWidth = cols.reduce((s, c) => s + c.w, 0);
+
+  // Render komorki numerycznej z formatowaniem
+  const num = (v, opts = {}) => {
+    if (v == null || (typeof v === 'number' && !isFinite(v))) return '—';
+    if (opts.pct) return `${Math.round(v)}%`;
+    if (typeof v !== 'number') return '—';
+    if (v === 0 && !opts.showZero) return '—';
+    return v.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  };
+
+  if (loading) return <Card className="bg-[#131C2F] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8] text-sm">Ładuję...</CardContent></Card>;
+
+  const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
+  const orphanPositions = positionsByStage['__none__'] || [];
+
+  return (
+    <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-template-view">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-white text-base flex items-center gap-2">
+          <FolderTree className="h-5 w-5" style={{ color: '#D4AF37' }} />
+          Tabela kosztorysowa (szablon BUDŻET.xlsx)
+        </CardTitle>
+        <Button size="sm"
+          onClick={onAddPosition}
+          disabled={stages.length === 0}
+          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+          data-testid="template-add-position-btn"
+          title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (kod 1xx) z 3 podpozycjami'}>
+          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
+        </Button>
+      </CardHeader>
+      <CardContent className="p-0">
+        {positions.length === 0 ? (
+          <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="template-empty">
+            Brak pozycji. {stages.length === 0 ? <>Najpierw utwórz <b>etap</b> w „Etapy", potem dodaj pozycję.</> : 'Kliknij „Dodaj pozycję" aby zacząć.'}
+          </div>
+        ) : (
+          <div className="overflow-x-auto" style={{ maxHeight: '70vh' }}>
+            <table className="text-[10px] border-collapse" style={{ minWidth: totalWidth, width: '100%' }}>
+              <thead className="sticky top-0 z-20" style={{ backgroundColor: HEADER_BG }}>
+                <tr>
+                  {cols.map((c) => (
+                    <th key={c.k}
+                      className="px-1 py-2 text-center font-bold text-white border-r border-b text-[9px] uppercase"
+                      style={{
+                        borderColor: BORDER,
+                        width: c.w,
+                        minWidth: c.w,
+                        ...(c.sticky ? { position: 'sticky', left: 0, zIndex: 21, backgroundColor: HEADER_BG } : {}),
+                        ...(c.bg ? { backgroundColor: c.bg } : {}),
+                      }}
+                      title={c.label}>
+                      <div className="leading-tight">{c.label}</div>
+                    </th>
+                  ))}
+                  <th className="px-1 py-2 sticky right-0 bg-[#3F5235] text-white text-[9px] uppercase border-l border-b" style={{ borderColor: BORDER, width: 70, minWidth: 70, zIndex: 21 }}>Akcje</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stagesWithPositions.map((stage, sIdx) => {
+                  const stagePositions = positionsByStage[stage.id] || [];
+                  return (
+                    <React.Fragment key={stage.id}>
+                      <tr>
+                        <td colSpan={cols.length + 1} className="px-2 py-1.5 font-bold text-white text-[11px] uppercase tracking-wide"
+                          style={{ backgroundColor: STAGE_BG, borderTop: `2px solid #D4AF37` }}
+                          data-testid={`stage-label-${stage.id}`}>
+                          {`▣ Etap ${sIdx + 1}: ${stage.name}`}
+                        </td>
+                      </tr>
+                      {stagePositions.map((pos, pIdx) => {
+                        const kod = `${100 + pIdx + 1}`;
+                        const slots = slotsByPosition[pos.id] || {};
+                        const agg = computePositionRow(pos.id);
+                        return (
+                          <React.Fragment key={pos.id}>
+                            {/* Pozycja Glowna - auto suma */}
+                            <tr data-testid={`pos-main-${pos.id}`} style={{ backgroundColor: POS_BG, borderTop: `1px solid ${BORDER}` }}>
+                              <td className="px-1 py-1 text-center font-bold text-white border-r" style={{ borderColor: BORDER }}>{kod}</td>
+                              <td className="px-1 py-1 text-center text-[#D4AF37] font-semibold border-r" style={{ borderColor: BORDER }}>Pozycja Główna</td>
+                              <td className="px-1 py-1 text-left text-white font-bold border-r truncate" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: POS_BG }} title={pos.name}>{pos.name}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(agg.qty)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.cena)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.G)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.H)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.I)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.J)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.K)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{agg.hasL ? num(agg.L) : '—'}</td>
+                              <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.M != null ? num(agg.M) : '—'}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.N)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: alokacja % protokół">{num(agg.O)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: % wynagrodzeń firmy">{num(agg.P)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: koszty nieprzypisane">{num(agg.Q)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.R)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums font-bold border-r" style={{ borderColor: BORDER, color: agg.S >= 100 ? '#FCA5A5' : agg.S >= 80 ? '#D4AF37' : '#5F7552' }}>{num(agg.S, { pct: true, showZero: true })}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{agg.T != null ? num(agg.T) : '—'}</td>
+                              <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.U||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{num(agg.U)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums border-r" style={{ borderColor: BORDER, color: (agg.V||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.V != null ? num(agg.V) : '—'}</td>
+                              <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: POS_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
+                                <button onClick={() => onEditPosition(pos)} className="text-[#94A3B8] hover:text-white p-1" data-testid={`pos-edit-${pos.id}`} title="Edytuj nazwę/etap"><Pencil className="h-3 w-3" /></button>
+                                <button onClick={() => onDeletePosition(pos)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-1" data-testid={`pos-del-${pos.id}`} title="Usuń pozycję (wraz z podpozycjami)"><Trash2 className="h-3 w-3" /></button>
+                              </td>
+                            </tr>
+                            {/* Podpozycje (3 sloty R/M/S w kolejnosci sprzet/robocizna/material) */}
+                            {SUB_TYPE_ORDER.map((type, tIdx) => {
+                              const slot = slots[type];
+                              if (!slot) return null;
+                              const r = computeRow(slot);
+                              const subKod = `${kod}.${tIdx + 1}`;
+                              const children = childrenByParent[slot.id] || [];
+                              return (
+                                <React.Fragment key={`${pos.id}-${type}`}>
+                                  <tr data-testid={`pos-sub-${slot.id}`} style={{ backgroundColor: SUB_BG }}>
+                                    <td className="px-1 py-1 text-center text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{subKod}</td>
+                                    <td className="px-1 py-1 text-center border-r" style={{ borderColor: BORDER, color: BUDGET_TYPES[type].color }}>{SUB_TYPE_LABEL[type]}</td>
+                                    <td className="px-1 py-1 text-left text-[#CBD5E1] border-r truncate pl-4" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: SUB_BG }} title={slot.name}>
+                                      <span className="text-[#64748B] mr-1">↳</span>{slot.name}
+                                    </td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(r.qty)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.cena)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-white border-r" style={{ borderColor: BORDER }}>{num(r.G)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.H)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.I)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.J)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.K)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] italic border-r" style={{ borderColor: BORDER }} title="trzeba wpisać ręcznie - kliknij ikonę ✎">{r.L != null ? num(r.L) : 'wpisz'}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (r.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{r.M != null ? num(r.M) : '—'}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.N)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.O)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.P)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.Q)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.R)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums font-bold border-r" style={{ borderColor: BORDER, color: r.S >= 100 ? '#FCA5A5' : r.S >= 80 ? '#D4AF37' : '#5F7552' }}>{num(r.S, { pct: true, showZero: true })}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{r.T != null ? num(r.T) : '—'}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (r.U||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{num(r.U)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums border-r" style={{ borderColor: BORDER, color: (r.V||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{r.V != null ? num(r.V) : '—'}</td>
+                                    <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: SUB_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
+                                      <button onClick={() => onAddChildLine(slot)} className="text-[#5F7552] hover:text-[#9DBC85] p-0.5" data-testid={`sub-add-child-${slot.id}`} title="Dodaj składową (rozwiń podpozycję)"><Plus className="h-3 w-3" /></button>
+                                      <button onClick={() => onEditLine(slot)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`sub-edit-${slot.id}`} title="Edytuj wartości"><Pencil className="h-3 w-3" /></button>
+                                    </td>
+                                  </tr>
+                                  {/* Skladowe (np. cement, piasek) - wciecie x2 */}
+                                  {children.map((c) => {
+                                    const cr = computeRow(c);
+                                    return (
+                                      <tr key={c.id} data-testid={`pos-skladowa-${c.id}`} style={{ backgroundColor: '#0a0f1d' }}>
+                                        <td className="px-1 py-0.5 text-center text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>{subKod}.</td>
+                                        <td className="px-1 py-0.5 text-center text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>składowa</td>
+                                        <td className="px-1 py-0.5 text-left text-[#94A3B8] italic text-[9px] border-r truncate pl-8" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: '#0a0f1d' }} title={c.name}>
+                                          <span className="text-[#D4AF37] mr-1">↳↳</span>{c.name}
+                                        </td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(cr.qty)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.cena)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#CBD5E1] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.G)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.H)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.I)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.J)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.K)}</td>
+                                        <td colSpan={11} className="px-1 py-0.5 text-[9px] text-[#64748B] text-center border-r" style={{ borderColor: BORDER }}>(składowa — wartości agregują się do podpozycji)</td>
+                                        <td className="px-1 py-0.5 text-center sticky right-0" style={{ backgroundColor: '#0a0f1d', zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
+                                          <button onClick={() => onEditLine(c)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`skladowa-edit-${c.id}`}><Pencil className="h-3 w-3" /></button>
+                                          <button onClick={() => onDeleteLine(c.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-0.5" data-testid={`skladowa-del-${c.id}`}><Trash2 className="h-3 w-3" /></button>
+                                        </td>
+                                      </tr>
+                                    );
+                                  })}
+                                </React.Fragment>
+                              );
+                            })}
+                          </React.Fragment>
+                        );
+                      })}
+                    </React.Fragment>
+                  );
+                })}
+                {orphanPositions.length > 0 && (
+                  <tr>
+                    <td colSpan={cols.length + 1} className="px-2 py-2 text-[#FCA5A5] bg-[#9B2C2C]/20 text-xs font-bold">
+                      ⚠ Pozycje bez etapu ({orphanPositions.length}) - przypisz je do etapu klikając ikonę ✎
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
+          Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=L−K · <b>N</b>=zapisy księgowe (auto) · <b>O/P/Q</b>=alokacja (w przygotowaniu — pokazuje 0) · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onAddChild }) => {
   // Helper: zbuduj displayRows per typ - parent + jego dzieci (max 2 poziomy)
   const buildDisplay = (typeLines) => {
@@ -819,9 +1155,11 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             Kategorie ({categories.length})
           </Button>
           <Button size="sm"
-            onClick={() => { setEditLine(null); setParentLine(null); setModalOpen(true); }}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
-            data-testid="budget-add-line-btn">
+            onClick={() => { setEditPosition(null); setPositionModalOpen(true); }}
+            disabled={stages.length === 0}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+            data-testid="budget-add-position-btn"
+            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (auto: 3 podpozycje R/M/S)'}>
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
           </Button>
         </div>
@@ -912,16 +1250,30 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         />
       )}
     </Card>
-    {/* === Widok zestawienia kosztorysowego (Excel-style z iter67) === */}
-    {!loading && lines.length > 0 && (
-      <div className="mt-4">
-        <BudgetExcelView
-          lines={lines}
-          onEdit={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
-          onDelete={remove}
-          onAddChild={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
-        />
-      </div>
+    {/* === Tabela kosztorysowa wg szablonu BUDŻET.xlsx (Etap → Pozycja → Podpozycje R/M/S) === */}
+    <div className="mt-4">
+      <BudgetExcelTemplateView
+        positions={positions}
+        stages={stages}
+        lines={lines}
+        budowaInfo={budowaInfo}
+        loading={loading}
+        onAddPosition={() => { setEditPosition(null); setPositionModalOpen(true); }}
+        onEditPosition={(pos) => { setEditPosition(pos); setPositionModalOpen(true); }}
+        onDeletePosition={removePosition}
+        onEditLine={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
+        onAddChildLine={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
+        onDeleteLine={remove}
+      />
+    </div>
+    {positionModalOpen && (
+      <PositionModal
+        budowaId={budowaId}
+        editPosition={editPosition}
+        stages={stages}
+        onClose={() => { setPositionModalOpen(false); setEditPosition(null); }}
+        onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(); onChange && onChange(); }}
+      />
     )}
     </>
   );
