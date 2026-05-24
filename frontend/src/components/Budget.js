@@ -330,7 +330,8 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     } else if (line?.forecast_cost != null) {
       L = Number(line.forecast_cost);
     }
-    const M = (L != null) ? L - K : null;
+    // M = K - L (Budżet Zwolniony minus Koszt Prognozowany) - prognozowany zysk
+    const M = (L != null) ? K - L : null;
     const N = exec;
     const O = 0;
     const P = 0;
@@ -367,7 +368,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
       aggregate.U += r.U;
     });
     aggregate.hasL = hasL;
-    aggregate.M = hasL ? aggregate.L - aggregate.K : null;
+    aggregate.M = hasL ? aggregate.K - aggregate.L : null;
     aggregate.S = aggregate.N > 0 ? (aggregate.R / aggregate.N) * 100 : 0;
     aggregate.T = hasL ? aggregate.L - aggregate.R : null;
     aggregate.V = hasL ? aggregate.M - aggregate.U : null;
@@ -635,7 +636,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           </div>
         )}
         <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
-          Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=L−K · <b>N</b>=zapisy księgowe (auto) · <b>O/P/Q</b>=alokacja (w przygotowaniu — pokazuje 0) · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U
+          Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy księgowe (auto) · <b>O/P/Q</b>=alokacja (w przygotowaniu — pokazuje 0) · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U
         </div>
       </CardContent>
     </Card>
