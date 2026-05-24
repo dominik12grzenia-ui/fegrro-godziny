@@ -1,4 +1,33 @@
-## Iteration 72 (2026-05-24) — Protokół zaciąga tylko Pozycje (bez Podpozycji) + checkbox include_in_protocol
+## Iteration 73 (2026-05-24) — Czyszczenie sierot budżetu + lepsze UX dla pustych budów
+
+### User feedback
+1. „CZEMU W POZYCJE BUDŻETOWE SĄ STARE DANE" — LEBA pokazuje sumę 49 678 954,32 zł z linii sierot sprzed iter68 (bez `position_id`), które nie są widoczne w nowej tabeli kosztorysowej, ale liczyły się w 3 kafelkach R/M/S i RAZEM KOSZTY.
+2. „CHCIAŁBYM MIEĆ MOŻLIWOŚĆ WEJŚCIA W TE POZYCJE I ZOBACZENIA Z CZEGO SIĘ NA NIE SKŁADA I EWENTUALNIE JE USUNĄĆ" — brakowało narzędzia do czyszczenia.
+3. „CZEMU NIE MOGĘ DODAĆ POZYCJI BUDŻETOWYCH W INNYCH BUDOWACH?" — BAUHAUS GDAŃSK ma 0 etapów, przycisk „Dodaj pozycję" jest disabled, ale brak jasnego CTA do utworzenia etapu.
+
+### Backend (`/app/backend/routes/budget.py`)
+- **Nowy endpoint `DELETE /budget/{budowa_id}/wipe`** — czyści całkowicie budżet jednej budowy:
+  - usuwa wszystkie `budget_lines` (lacznie z sierotami sprzed iter68)
+  - usuwa wszystkie `budget_positions`
+  - usuwa wszystkie `budget_progress` (po `budget_line_id` i `position_id`)
+  - czyści powiązania w `finance_zapisy.budget_line_id`
+  - Etapy i kategorie zostają (admin kasuje je osobno).
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Filtrowanie sierot**: nowa `linkedLines = lines.filter(l => l.position_id || l.is_income)`. Kafelki R/M/S i RAZEM KOSZTY/PRZYCHODY/ZYSK liczą **tylko `linkedLines`** — stare sieroty nie zafałszowują kwot.
+- **Banner ostrzegawczy** „⚠ Stare dane budżetu (N linii)" gdy `orphanCount > 0`, z hintem żeby kliknąć „Wyczyść".
+- **Przycisk `🗑 Wyczyść`** (czerwona ramka) w nagłówku Pozycje budżetu, widoczny gdy są jakiekolwiek linie/pozycje. Dwa kroki potwierdzenia + szczegółowy alert z listą tego co zostanie usunięte.
+- **CTA „+ Utwórz pierwszy etap"** (pulsujący gold) w nagłówku Pozycje budżetu, widoczny gdy `stages.length === 0`. Otwiera StagesManager.
+- **Empty state w tabeli kosztorysowej** dla budów bez etapów: pełniejszy komunikat „Aby zacząć tworzyć kosztorys, najpierw utwórz etap budowy (np. 'Mury oporowe', 'Roboty zewnętrzne')..." zamiast lakonicznego „Brak pozycji".
+
+### Testy
+- Backend pytest `test_iter73_wipe_budget`: **1/1 PASS**
+  - Tworzy etap + pozycję + podpozycję + sierote + progress → wipe → wszystko usunięte (poza etapem)
+- Regression: **iter67/68/72: 14/14 PASS** = **łącznie 15/15 PASS**.
+
+
+
+
 
 ### User request
 „WYZERUJ WSZYSTKIE DANE WPISANE PRZEZEMNIE W BUDŻECIE I PROTOKOLE. ZRÓB TAK BY PROTOKÓŁ ZACIĄGAŁ TYLKO DANE ETAPU ORAZ POZYCJI BEZ PODPOZYCJI I GDY TWORZE BUDŻET CHCE MIEĆ MOZLIWOŚC ODZNACZENIA CZY DANA POZYCJA MA BYĆ ZACIĄGNIĘTA DO PROTOKOŁU"

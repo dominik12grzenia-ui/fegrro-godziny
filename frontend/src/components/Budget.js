@@ -300,7 +300,14 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
       <CardContent className="p-0">
         {positions.length === 0 ? (
           <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="template-empty">
-            Brak pozycji. {stages.length === 0 ? <>Najpierw utwórz <b>etap</b> w „Etapy", potem dodaj pozycję.</> : 'Kliknij „Dodaj pozycję" aby zacząć.'}
+            {stages.length === 0 ? (
+              <div>
+                <div className="text-base mb-3">Aby zacząć tworzyć kosztorys, najpierw utwórz <b className="text-white">etap budowy</b> (np. „Mury oporowe", „Roboty zewnętrzne").</div>
+                <div className="text-xs text-[#64748B]">Etap to grupa pozycji kosztorysowych. Najczęściej odpowiada fazom realizacji budowy.</div>
+              </div>
+            ) : (
+              'Kliknij „Dodaj pozycję" aby zacząć.'
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto" style={{ maxHeight: '70vh' }}>
@@ -1147,23 +1154,38 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
+  const wipeBudget = async () => {
+    if (!window.confirm('⚠ Wyczyścić CAŁY budżet tej budowy?\n\nUsunięte zostaną:\n• wszystkie pozycje\n• wszystkie podpozycje (R/M/S)\n• wszystkie składowe\n• wszystkie wpisy % wykonania\n\nEtapy i kategorie zostają — usuwasz je osobno.')) return;
+    if (!window.confirm('Operacja nieodwracalna. Potwierdź ponownie aby usunąć.')) return;
+    try {
+      const r = await api.delete(`/budget/${budowaId}/wipe`);
+      toast.success(`Wyczyszczono: ${r.data?.deleted_lines || 0} linii, ${r.data?.deleted_positions || 0} pozycji`);
+      fetchAll();
+      onChange && onChange();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
   // Sumy per typ (do kafelkow podsumowania)
+  // iter73: liczymy TYLKO linie powiazane z pozycjami (position_id) - sieroty (stare dane sprzed iter68) sa pomijane
+  const linkedLines = useMemo(() => lines.filter(l => l.position_id || l.is_income), [lines]);
   const totalsByType = useMemo(() => {
     const t = { materials: { plan: 0, exec: 0 }, labor: { plan: 0, exec: 0 }, equipment: { plan: 0, exec: 0 } };
-    lines.filter(l => !l.is_income).forEach((ln) => {
+    linkedLines.filter(l => !l.is_income).forEach((ln) => {
       const type = ln.type || 'materials';
       if (!t[type]) t[type] = { plan: 0, exec: 0 };
       t[type].plan += ln.plan_netto_computed || 0;
       t[type].exec += ln.execution_netto || 0;
     });
     return t;
-  }, [lines]);
+  }, [linkedLines]);
 
-  const totalPlan = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
-  const totalExec = lines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
+  const totalPlan = linkedLines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
+  const totalExec = linkedLines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
   const totalIncomePlan = lines.filter(l => l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
   const totalIncomeExec = lines.filter(l => l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
   const zyskBiezacy = totalIncomeExec - totalExec;
+  // Czy sa stare linie sieroty (bez position_id, nie-przychod) - do pokazania ostrzezenia
+  const orphanCount = lines.filter(l => !l.position_id && !l.is_income).length;
 
   return (
     <>
@@ -1171,6 +1193,15 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base">Pozycje budżetu</CardTitle>
         <div className="flex gap-2 flex-wrap">
+          {stages.length === 0 && (
+            <Button size="sm"
+              onClick={() => setManagerOpen('stages')}
+              className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 animate-pulse"
+              data-testid="budget-create-first-stage-btn"
+              title="Budowa nie ma jeszcze etapów - kliknij aby utworzyć pierwszy">
+              <Plus className="h-4 w-4 mr-1" /> Utwórz pierwszy etap
+            </Button>
+          )}
           <Button size="sm" variant="outline"
             onClick={() => setManagerOpen('stages')}
             className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-stages-btn">
@@ -1181,19 +1212,38 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-categories-btn">
             Kategorie ({categories.length})
           </Button>
+          {(lines.length > 0 || positions.length > 0) && (
+            <Button size="sm" variant="outline"
+              onClick={wipeBudget}
+              className="border-[#9B2C2C] text-[#FCA5A5] hover:bg-[#9B2C2C]/30 h-8" data-testid="budget-wipe-btn"
+              title="Wyczyść CAŁY budżet (wszystkie pozycje + składowe + protokół)">
+              <Trash2 className="h-4 w-4 mr-1" /> Wyczyść
+            </Button>
+          )}
           <Button size="sm"
             onClick={() => { setEditPosition(null); setPositionModalOpen(true); }}
             disabled={stages.length === 0}
             className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
             data-testid="budget-add-position-btn"
-            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (auto: 3 podpozycje R/M/S)'}>
+            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
           </Button>
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto space-y-3">
+        {/* Ostrzezenie o starych liniach sierotach (sprzed iter68) */}
+        {orphanCount > 0 && (
+          <div className="rounded p-3 border border-[#9B2C2C]/60 bg-[#9B2C2C]/15" data-testid="orphan-warning">
+            <div className="flex items-start gap-2">
+              <div className="text-[#FCA5A5] font-bold text-sm">⚠ Stare dane budżetu ({orphanCount} linii)</div>
+            </div>
+            <div className="text-[#FCA5A5] text-xs mt-1">
+              Znaleziono {orphanCount} starych linii budżetu bez przypisania do pozycji (sprzed reorganizacji). Nie są one widoczne w nowej tabeli kosztorysowej ani w kafelkach poniżej. Kliknij <b>Wyczyść</b> w nagłówku aby je usunąć.
+            </div>
+          </div>
+        )}
         {/* === 3 kafelki podsumowania per Typ === */}
-        {!loading && lines.length > 0 && (
+        {!loading && linkedLines.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2" data-testid="budget-type-cards">
             {TYPE_ORDER.map((key) => {
               const cfg = BUDGET_TYPES[key];
@@ -1220,7 +1270,7 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         )}
 
         {/* === Karty RAZEM (przychody/koszty/zysk) === */}
-        {!loading && lines.length > 0 && (
+        {!loading && linkedLines.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t-2 border-[#D4AF37]" data-testid="budget-totals-footer">
             <div className="rounded p-3 bg-[#0B1120] border border-[#5F7552]/40">
               <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem przychody (Plan / Wyk)</div>

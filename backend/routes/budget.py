@@ -349,6 +349,39 @@ async def update_stage(stage_id: str, payload: BudgetStageCreate,
     return new_doc
 
 
+@router.delete("/budget/{budowa_id}/wipe")
+async def wipe_budget(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    """Czysci CALY budzet dla danej budowy:
+    - usuwa wszystkie budget_lines (lacznie z sierotami sprzed iter68)
+    - usuwa wszystkie budget_positions
+    - usuwa wszystkie budget_progress
+    - usuwa wszystkie budget_stages
+    Czysci tez powiazania w finance_zapisy (budget_line_id -> usuniete).
+    Etapy zostaja - jezeli chcesz je usunac, kasuj per etap.
+    """
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0, "id": 1})
+    if not budowa:
+        raise HTTPException(404, "Budowa nie istnieje")
+    # Linia ids tej budowy
+    lines = await db.budget_lines.find({"budowa_id": budowa_id}, {"_id": 0, "id": 1}).to_list(length=10000)
+    line_ids = [line["id"] for line in lines]
+    if line_ids:
+        await db.budget_progress.delete_many({"budget_line_id": {"$in": line_ids}})
+        await db.finance_zapisy.update_many({"budget_line_id": {"$in": line_ids}}, {"$unset": {"budget_line_id": ""}})
+    # Pozycje + ich progress (po position_id)
+    positions = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0, "id": 1}).to_list(length=2000)
+    pos_ids = [p["id"] for p in positions]
+    if pos_ids:
+        await db.budget_progress.delete_many({"position_id": {"$in": pos_ids}})
+    r1 = await db.budget_lines.delete_many({"budowa_id": budowa_id})
+    r2 = await db.budget_positions.delete_many({"budowa_id": budowa_id})
+    return {
+        "ok": True,
+        "deleted_lines": r1.deleted_count,
+        "deleted_positions": r2.deleted_count,
+    }
+
+
 @router.delete("/budget/stages/{stage_id}")
 async def delete_stage(stage_id: str, _user: dict = Depends(get_current_admin)):
     # Odlinkowanie pozycji od etapu (nie usuwa pozycji!)
