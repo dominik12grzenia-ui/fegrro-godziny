@@ -76,6 +76,8 @@ class BudgetLineCreate(BaseModel):
     position_id: Optional[str] = None  # FK do budget_positions - wymagane dla nie-przychodowych w nowym modelu
     parent_id: Optional[str] = None  # FK do innej pozycji - jezeli ustawione, to skladowa kosztowa
     is_income: bool = False  # True dla pozycji przychodowych
+    forecast_cost: Optional[float] = None  # kolumna L w kosztorysie (Koszt prognozowany) - reczna wartosc
+    forecast_note: Optional[str] = None  # notatka widoczna pod kursorem na komorce L
     notes: Optional[str] = None
     order: int = 0
 
@@ -94,6 +96,8 @@ class BudgetLineUpdate(BaseModel):
     position_id: Optional[str] = None
     parent_id: Optional[str] = None
     is_income: Optional[bool] = None
+    forecast_cost: Optional[float] = None
+    forecast_note: Optional[str] = None
     notes: Optional[str] = None
     order: Optional[int] = None
 
@@ -508,6 +512,8 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
         "position_id": inherited_position_id,
         "parent_id": payload.parent_id,
         "is_income": payload.is_income,
+        "forecast_cost": payload.forecast_cost,
+        "forecast_note": payload.forecast_note,
         "notes": payload.notes,
         "order": payload.order,
         "created_at": datetime.now().isoformat(),

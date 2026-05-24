@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { api } from '../context/AuthContext';
 import { Button } from './ui/button';
 import { ActionButton } from './ui/action-button';
@@ -125,12 +125,142 @@ const Tile = ({ label, value, testId, highlight }) => (
 const fmtCell = (v) => (v == null || v === 0) ? '—' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 const fmtCellNum = (v) => (v == null || v === 0) ? '0' : Number(v).toLocaleString('pl-PL', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
+// =================== INLINE EDIT KOMORKA "Koszt prognozowany" (L) ===================
+const ForecastCell = ({ line, computedL, isParent, computedQty, computedCena, computedG, onSave, num }) => {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [noteValue, setNoteValue] = useState(line?.forecast_note || '');
+  const [editingNote, setEditingNote] = useState(false);
+  const inputRef = useRef(null);
+
+  // Wartosc do wyswietlenia
+  const stored = line?.forecast_cost;
+  const displayValue = isParent && computedL != null ? computedL : (stored != null ? Number(stored) : null);
+  const tooltip = line?.forecast_note || '';
+
+  const evaluateExpression = (raw) => {
+    if (!raw) return null;
+    let expr = String(raw).trim();
+    if (expr.startsWith('=')) expr = expr.slice(1);
+    // Zezwol tylko na cyfry, operatory, %, kropki, przecinki, nawiasy i jednoznaczne zmienne
+    expr = expr.replace(/,/g, '.');
+    // Wymien zmienne na wartosci
+    expr = expr.replace(/\bilosc\b/gi, computedQty || 0);
+    expr = expr.replace(/\bilość\b/gi, computedQty || 0);
+    expr = expr.replace(/\bqty\b/gi, computedQty || 0);
+    expr = expr.replace(/\bcena\b/gi, computedCena || 0);
+    expr = expr.replace(/\bprice\b/gi, computedCena || 0);
+    expr = expr.replace(/\bbudzet\b/gi, computedG || 0);
+    expr = expr.replace(/\bbudżet\b/gi, computedG || 0);
+    expr = expr.replace(/\bg\b/gi, computedG || 0);
+    // Obsluga %: zamien "X%" na "X/100" (gdy obok cyfry)
+    expr = expr.replace(/(\d+(?:\.\d+)?)\s*%/g, '($1/100)');
+    if (!/^[\d+\-*/().\s]+$/.test(expr)) {
+      throw new Error('Nieprawidłowe wyrażenie. Dostępne: liczby, +, -, *, /, ( ), %, ilosc, cena, budzet');
+    }
+    // eslint-disable-next-line no-new-func
+    const result = Function(`"use strict"; return (${expr})`)();
+    if (typeof result !== 'number' || !isFinite(result)) throw new Error('Wynik nie jest liczbą');
+    return Math.round(result * 100) / 100;
+  };
+
+  const startEdit = () => {
+    if (isParent) return; // wartosc parenta to suma dzieci - nie edytujemy
+    setValue(stored != null ? String(stored) : '');
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const cancel = () => { setEditing(false); setValue(''); };
+
+  const save = async () => {
+    try {
+      const raw = value.trim();
+      const numeric = raw === '' ? null : evaluateExpression(raw);
+      await onSave(line.id, { forecast_cost: numeric });
+      setEditing(false);
+    } catch (e) {
+      toast.error(e.message || 'Błąd zapisu');
+    }
+  };
+
+  const saveNote = async () => {
+    try {
+      await onSave(line.id, { forecast_note: noteValue });
+      setEditingNote(false);
+    } catch (e) {
+      toast.error(e.message || 'Błąd zapisu notatki');
+    }
+  };
+
+  if (editing) {
+    return (
+      <span className="flex items-center gap-1">
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') save();
+            if (e.key === 'Escape') cancel();
+          }}
+          onBlur={save}
+          placeholder="liczba lub =ilosc*cena*0.3"
+          className="w-32 bg-[#0B1120] border border-[#D4AF37] text-white text-right text-[10px] px-1 py-0.5 rounded"
+          data-testid={`forecast-input-${line.id}`}
+        />
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-end gap-1 group" title={tooltip || (isParent ? 'Suma kosztu prognozowanego ze składowych' : 'Kliknij, aby wprowadzić koszt prognozowany. Możesz użyć wzoru np. =ilosc*cena*0.3')}>
+      {displayValue != null ? (
+        <button type="button" onClick={startEdit} disabled={isParent}
+          className={`tabular-nums text-right ${isParent ? 'cursor-default text-white font-semibold' : 'cursor-pointer hover:text-[#D4AF37]'}`}
+          data-testid={`forecast-display-${line.id}`}>
+          {num(displayValue)}
+        </button>
+      ) : (
+        !isParent && (
+          <button type="button" onClick={startEdit} className="text-[#64748B] italic hover:text-[#D4AF37]"
+            data-testid={`forecast-empty-${line.id}`}>
+            wpisz
+          </button>
+        )
+      )}
+      {!isParent && (
+        <button type="button"
+          onClick={() => setEditingNote(!editingNote)}
+          className="opacity-0 group-hover:opacity-100 text-[#64748B] hover:text-[#D4AF37] transition"
+          title={tooltip ? `Notatka: ${tooltip}` : 'Dodaj notatkę (widoczna po najechaniu)'}
+          data-testid={`forecast-note-btn-${line.id}`}>
+          <span className="text-[8px]">📝</span>
+        </button>
+      )}
+      {editingNote && (
+        <div className="absolute z-50 mt-6 right-0 bg-[#0B1120] border border-[#D4AF37] rounded p-2 shadow-2xl w-56">
+          <textarea value={noteValue} onChange={(e) => setNoteValue(e.target.value)}
+            placeholder="np. cena z oferty firmy XYZ"
+            className="w-full bg-[#131C2F] text-white text-[10px] p-1 rounded border border-[#2A3B59] min-h-[60px]"
+            data-testid={`forecast-note-input-${line.id}`} />
+          <div className="flex gap-1 justify-end mt-1">
+            <button onClick={() => setEditingNote(false)} className="text-[10px] text-[#94A3B8] hover:text-white">Anuluj</button>
+            <button onClick={saveNote} className="text-[10px] bg-[#D4AF37] text-[#0B1120] px-2 py-0.5 rounded font-bold" data-testid={`forecast-note-save-${line.id}`}>Zapisz</button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // =================== TABELA KOSZTORYSOWA wg szablonu BUDŻET.xlsx (22 kolumny) ===================
 // Hierarchia: Etap (label) -> Pozycja Główna (kod 101, auto-sum z 3 slotów) -> Podpozycje (101.1 sprzęt / 101.2 robocizna / 101.3 Materiał)
 const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materials: 'Materiał' };
 const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w arkuszu user (Pompa, beton-robocizna, beton-material)
 
-const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine }) => {
+const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
   // koszt_budowy_pct (kol. J) - nie ma jeszcze w bazie, defaultnie 0; mozna dodac do budowa pozniej
   const kosztBudowyPct = (budowaInfo?.koszt_budowy_pct || 0) / 100;
   const kaucjaGirPct = (budowaInfo?.kaucja_gir_pct || 0) / 100;
@@ -189,7 +319,17 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     const cena = qty > 0 ? plan / qty : (line?.unit_price_netto || 0);
     const G = plan;
     const K = G - H - I + J;
-    const L = (line?.notes_l != null) ? Number(line.notes_l) : null;
+    // L = forecast_cost: jezeli pozycja ma dzieci, sumujemy forecast_cost dzieci, w przeciwnym razie z linii
+    let L = null;
+    let forecastNote = line?.forecast_note || null;
+    if (kids.length > 0) {
+      const childForecasts = kids.filter(k => k.forecast_cost != null);
+      if (childForecasts.length > 0) {
+        L = childForecasts.reduce((s, k) => s + Number(k.forecast_cost || 0), 0);
+      }
+    } else if (line?.forecast_cost != null) {
+      L = Number(line.forecast_cost);
+    }
     const M = (L != null) ? L - K : null;
     const N = exec;
     const O = 0;
@@ -200,7 +340,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     const T = (L != null) ? L - R : null;
     const U = K - R;
     const V = (M != null) ? M - U : null;
-    return { qty, cena, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V };
+    return { qty, cena, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, forecastNote };
   };
 
   // Suma slotow danej pozycji
@@ -377,7 +517,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                               <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.I)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.J)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.K)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{agg.hasL ? num(agg.L) : '—'}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r relative" style={{ borderColor: BORDER }} title={agg.hasL ? 'Suma kosztu prognozowanego ze składowych' : 'Brak wartości - wpisz w podpozycjach'}>{agg.hasL ? num(agg.L) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.M != null ? num(agg.M) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.N)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: alokacja % protokół">{num(agg.O)}</td>
@@ -428,7 +568,9 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                                     <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.I)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.J)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.K)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] italic border-r" style={{ borderColor: BORDER }} title="trzeba wpisać ręcznie - kliknij ikonę ✎">{r.L != null ? num(r.L) : 'wpisz'}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums border-r relative" style={{ borderColor: BORDER }} data-testid={`forecast-cell-${slot.id}`}>
+                                      <ForecastCell line={slot} computedL={r.L} isParent={false} computedQty={r.qty} computedCena={r.cena} computedG={r.G} onSave={onSaveLine} num={num} />
+                                    </td>
                                     <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (r.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{r.M != null ? num(r.M) : '—'}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.N)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.O)}</td>
@@ -461,7 +603,10 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                                         <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.I)}</td>
                                         <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.J)}</td>
                                         <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.K)}</td>
-                                        <td colSpan={11} className="px-1 py-0.5 text-[9px] text-[#64748B] text-center border-r" style={{ borderColor: BORDER }}>(składowa — wartości agregują się do podpozycji)</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums border-r text-[9px] relative" style={{ borderColor: BORDER }} data-testid={`forecast-cell-skladowa-${c.id}`}>
+                                          <ForecastCell line={c} computedL={cr.L} isParent={false} computedQty={cr.qty} computedCena={cr.cena} computedG={cr.G} onSave={onSaveLine} num={num} />
+                                        </td>
+                                        <td colSpan={10} className="px-1 py-0.5 text-[9px] text-[#64748B] text-center border-r" style={{ borderColor: BORDER }}>(składowa — wartości agregują się do podpozycji)</td>
                                         <td className="px-1 py-0.5 text-center sticky right-0" style={{ backgroundColor: '#0a0f1d', zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
                                           <button onClick={() => onEditLine(c)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`skladowa-edit-${c.id}`}><Pencil className="h-3 w-3" /></button>
                                           <button onClick={() => onDeleteLine(c.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-0.5" data-testid={`skladowa-del-${c.id}`}><Trash2 className="h-3 w-3" /></button>
@@ -1169,6 +1314,21 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
+  // iter78: inline-update pola linii (uzywane przez inline-edit Koszt prognozowany L)
+  const saveLineInline = useCallback(async (lineId, patch) => {
+    // Optymistyczna aktualizacja lokalna
+    setLines((prev) => prev.map((line) => line.id === lineId ? { ...line, ...patch } : line));
+    try {
+      await api.patch(`/budget/lines/${lineId}`, patch);
+      // Cichy fetchAll w tle by przeladowac obliczone pola (plan_netto_computed itp.)
+      fetchAll();
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+      fetchAll();
+      throw e;
+    }
+  }, [fetchAll]);
+
   // Sumy per typ (do kafelkow podsumowania)
   // iter73: liczymy TYLKO linie powiazane z pozycjami (position_id) - sieroty (stare dane sprzed iter68) sa pomijane
   const linkedLines = useMemo(() => lines.filter(l => l.position_id || l.is_income), [lines]);
@@ -1346,6 +1506,7 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         onEditLine={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
         onAddChildLine={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
         onDeleteLine={remove}
+        onSaveLine={saveLineInline}
       />
     </div>
     {positionModalOpen && (
