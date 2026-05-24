@@ -2549,24 +2549,27 @@ const ProgressPanel = ({ budowaId, year }) => {
                   <td className="border border-[#2A3B59] p-1.5 text-right text-[#94A3B8] tabular-nums">{(row.prev_pct || 0).toFixed(2)}%</td>
                   <td className="border border-[#2A3B59] p-1.5 text-right text-[#D4AF37] tabular-nums font-semibold">{fmtPLN(row.miesiac_val)}</td>
                   <td className="border border-[#2A3B59] p-0 text-right" style={{ backgroundColor: '#1A2540' }}>
-                    <input
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={inputVal}
-                      onChange={(e) => setEdits((prev) => ({ ...prev, [row.id]: e.target.value }))}
-                      onBlur={async (e) => {
-                        const result = await saveCell(row.id, row.miesiac_pct || 0, row.prev_pct || 0, row.plan_netto, e.target.value);
-                        if (result === null) {
-                          setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
-                        } else {
-                          setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
-                        }
-                      }}
-                      className="w-full bg-transparent text-[#D4AF37] text-right text-xs font-bold px-1.5 py-1.5 outline-none focus:bg-[#0B1120] no-spinner"
-                      data-testid={`progress-input-${row.id}`}
-                    />
+                    <div className="relative">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={inputVal}
+                        onChange={(e) => setEdits((prev) => ({ ...prev, [row.id]: e.target.value }))}
+                        onBlur={async (e) => {
+                          const result = await saveCell(row.id, row.miesiac_pct || 0, row.prev_pct || 0, row.plan_netto, e.target.value);
+                          if (result === null) {
+                            setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
+                          } else {
+                            setEdits((prev) => { const n = { ...prev }; delete n[row.id]; return n; });
+                          }
+                        }}
+                        className="w-full bg-transparent text-[#D4AF37] text-right text-xs font-bold pl-1.5 pr-5 py-1.5 outline-none focus:bg-[#0B1120] no-spinner"
+                        data-testid={`progress-input-${row.id}`}
+                      />
+                      <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[#D4AF37] text-xs font-bold pointer-events-none">%</span>
+                    </div>
                   </td>
                 </tr>
               );
