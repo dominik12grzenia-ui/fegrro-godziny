@@ -206,6 +206,7 @@ async def get_budowa_info(budowa_id: str, _user: dict = Depends(get_current_admi
         "code": b.get("code", ""),
         "kaucja_gir_pct": float(b.get("kaucja_gir_pct") or 0),
         "kaucja_dw_pct": float(b.get("kaucja_dw_pct") or 0),
+        "koszt_budowy_pct": float(b.get("koszt_budowy_pct") or 0),
         "umowa_nr": b.get("umowa_nr", "") or "",
         "umowa_data": b.get("umowa_data", "") or "",
         "zamawiajacy": b.get("zamawiajacy", "") or "",

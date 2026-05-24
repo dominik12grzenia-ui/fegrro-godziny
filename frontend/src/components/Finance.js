@@ -787,7 +787,7 @@ const BudowyPanel = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);  // budowa or null
-  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -815,7 +815,7 @@ const BudowyPanel = () => {
         toast.success('Dodano');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -830,6 +830,7 @@ const BudowyPanel = () => {
       kaucja_gir_pct: b.kaucja_gir_pct != null ? b.kaucja_gir_pct : 2.0,
       is_dw: !!b.is_dw,
       kaucja_dw_pct: b.kaucja_dw_pct != null ? b.kaucja_dw_pct : 2.0,
+      koszt_budowy_pct: b.koszt_budowy_pct != null ? b.koszt_budowy_pct : 0.0,
       zamawiajacy: b.zamawiajacy || '',
       umowa_nr: b.umowa_nr || '',
       umowa_data: b.umowa_data || '',
@@ -863,7 +864,7 @@ const BudowyPanel = () => {
               className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
-          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
+          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
             className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
@@ -953,6 +954,20 @@ const BudowyPanel = () => {
                 className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
                 data-testid="finance-budowa-dw-pct" />
               <span className="text-[#94A3B8]">% z przychodu</span>
+            </div>
+            <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#131C2F] rounded">
+              <label className="flex items-center gap-2 cursor-pointer flex-1">
+                <span className="text-[#D4AF37]">●</span>
+                <span>Koszt budowy (kolumna J w kosztorysie)</span>
+              </label>
+              <Input type="number" step="0.1" min="0" max="100" value={form.koszt_budowy_pct}
+                onChange={(e) => setForm({...form, koszt_budowy_pct: parseFloat(e.target.value) || 0})}
+                className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
+                data-testid="finance-budowa-koszt-pct" />
+              <span className="text-[#94A3B8]">% z budżetu</span>
+            </div>
+            <div className="text-[10px] text-[#64748B] px-2">
+              Koszt budowy = % od kwoty budżetu pozycji (BUDŻET × % = Koszt budowy). Liczony jak kaucje. Dodawany do Budżetu Zwolnionego.
             </div>
           </div>
           {/* Dane do generowania protokolu miesiecznego */}

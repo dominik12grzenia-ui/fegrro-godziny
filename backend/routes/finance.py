@@ -138,6 +138,7 @@ class BudowaCreate(BaseModel):
     kaucja_gir_pct: Optional[float] = 2.0  # domyslnie 2%, ale admin moze zmienic
     is_dw: bool = False
     kaucja_dw_pct: Optional[float] = 2.0
+    koszt_budowy_pct: Optional[float] = 0.0  # % do kolumny J w kosztorysie (G * koszt_budowy_pct)
     notes: Optional[str] = None
     # Dane do generowania protokolu miesiecznego
     zamawiajacy: Optional[str] = None
@@ -154,6 +155,7 @@ class BudowaUpdate(BaseModel):
     kaucja_gir_pct: Optional[float] = None
     is_dw: Optional[bool] = None
     kaucja_dw_pct: Optional[float] = None
+    koszt_budowy_pct: Optional[float] = None
     notes: Optional[str] = None
     zamawiajacy: Optional[str] = None
     umowa_nr: Optional[str] = None
@@ -357,6 +359,7 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "kaucja_gir_pct": float(payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0),
         "is_dw": bool(payload.is_dw),
         "kaucja_dw_pct": float(payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0),
+        "koszt_budowy_pct": float(payload.koszt_budowy_pct if payload.koszt_budowy_pct is not None else 0.0),
         "notes": payload.notes or "",
         "zamawiajacy": payload.zamawiajacy or "",
         "umowa_nr": payload.umowa_nr or "",

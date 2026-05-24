@@ -1,4 +1,31 @@
-## Iteration 73 (2026-05-24) — Czyszczenie sierot budżetu + lepsze UX dla pustych budów
+## Iteration 74 (2026-05-24) — Pole `koszt_budowy_pct` na budowie (kolumna J w kosztorysie)
+
+### User request
+„KOSZT BUDOWY POWINIEN BYĆ LICZONY % TAK JAK KAUCJE I POWINIENEM GO MUC DODAC W ZAKŁADCE BUDOWY PRZY JEJ ZAKŁADANIU"
+
+### Backend (`/app/backend/routes/finance.py`, `/app/backend/routes/budget.py`)
+- `BudowaCreate.koszt_budowy_pct: Optional[float] = 0.0` — nowe pole na modelu Pydantic
+- `BudowaUpdate.koszt_budowy_pct: Optional[float] = None` — partial update
+- POST i PUT `/finance/budowy` zapisują pole w MongoDB (`db.finance_budowy`)
+- `/budget/{budowa_id}/budowa-info` zwraca `koszt_budowy_pct` (używane przez frontend kolumny J)
+
+### Frontend (`/app/frontend/src/components/Finance.js`)
+- Domyślny stan formularza `koszt_budowy_pct: 0.0`
+- `openEdit` mapuje istniejące pole z budowy
+- Nowy wiersz w modalu Dodaj/Edytuj budowę: **„Koszt budowy (kolumna J w kosztorysie)"** + input `% z budżetu` (test-id `finance-budowa-koszt-pct`)
+- Hint pod polem: „Koszt budowy = % od kwoty budżetu pozycji (BUDŻET × % = Koszt budowy). Liczony jak kaucje. Dodawany do Budżetu Zwolnionego."
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- `BudgetExcelTemplateView` od iter70 już używa `budowaInfo.koszt_budowy_pct` dla kolumny J — teraz dynamicznie reaguje na zmianę w modalu Finanse.
+
+### Test
+- curl PUT z `koszt_budowy_pct: 5.5` → GET `/budowa-info` zwraca `5.5` ✓
+- Lint JS/Python ✓
+- Live screenshot: modal Edytuj budowę pokazuje pole „Koszt budowy" z hintem; backend zapisuje wartość.
+
+
+
+
 
 ### User feedback
 1. „CZEMU W POZYCJE BUDŻETOWE SĄ STARE DANE" — LEBA pokazuje sumę 49 678 954,32 zł z linii sierot sprzed iter68 (bez `position_id`), które nie są widoczne w nowej tabeli kosztorysowej, ale liczyły się w 3 kafelkach R/M/S i RAZEM KOSZTY.
