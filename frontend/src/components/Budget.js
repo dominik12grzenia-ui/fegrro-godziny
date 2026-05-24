@@ -276,12 +276,15 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   }, [positions]);
 
   // Sloty per pozycja per typ (parent_id=null)
+  // iter88: obsluga LEGACY duplicate slots tego samego typu - lista zamiast pojedynczego
   const slotsByPosition = useMemo(() => {
     const m = {};
     lines.forEach((ln) => {
       if (!ln.position_id || ln.parent_id) return;
       if (!m[ln.position_id]) m[ln.position_id] = {};
-      m[ln.position_id][ln.type || 'materials'] = ln;
+      const t = ln.type || 'materials';
+      if (!m[ln.position_id][t]) m[ln.position_id][t] = [];
+      m[ln.position_id][t].push(ln);
     });
     return m;
   }, [lines]);
@@ -354,19 +357,20 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     const aggregate = { qty: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: 0, hasL: false, M: 0, hasM: false, N: 0, O: 0, P: 0, Q: 0, R: 0, U: 0 };
     let hasL = false;
     SUB_TYPE_ORDER.forEach((t) => {
-      const slot = slots[t];
-      if (!slot) return;
-      const r = computeRow(slot);
-      aggregate.qty += r.qty;
-      aggregate.G += r.G;
-      aggregate.H += r.H;
-      aggregate.I += r.I;
-      aggregate.J += r.J;
-      aggregate.K += r.K;
-      if (r.L != null) { aggregate.L += r.L; hasL = true; }
-      aggregate.N += r.N;
-      aggregate.P += r.P;  // P trafia tylko ze slotu labor (R)
-      aggregate.Q += r.Q;
+      const slotsArr = slots[t] || [];
+      slotsArr.forEach((slot) => {
+        const r = computeRow(slot);
+        aggregate.qty += r.qty;
+        aggregate.G += r.G;
+        aggregate.H += r.H;
+        aggregate.I += r.I;
+        aggregate.J += r.J;
+        aggregate.K += r.K;
+        if (r.L != null) { aggregate.L += r.L; hasL = true; }
+        aggregate.N += r.N;
+        aggregate.P += r.P;  // P trafia tylko ze slotu labor (R)
+        aggregate.Q += r.Q;
+      });
     });
     // iter79: O alokowane na poziomie pozycji
     const alloc = allocations?.positions?.[positionId];
@@ -644,7 +648,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                             </tr>
                             {/* Podpozycje (3 sloty R/M/S w kolejnosci sprzet/robocizna/material) */}
                             {(() => {
-                              const hasAnySub = SUB_TYPE_ORDER.some((t) => slots[t]);
+                              const hasAnySub = SUB_TYPE_ORDER.some((t) => (slots[t] || []).length > 0);
                               if (!hasAnySub) {
                                 return (
                                   <tr data-testid={`pos-empty-${pos.id}`} style={{ backgroundColor: SUB_BG }}>
@@ -656,14 +660,20 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                               }
                               return null;
                             })()}
-                            {SUB_TYPE_ORDER.map((type, tIdx) => {
-                              const slot = slots[type];
-                              if (!slot) return null;
-                              const r = computeRow(slot);
-                              const subKod = `${kod}.${tIdx + 1}`;
-                              const children = childrenByParent[slot.id] || [];
-                              return (
-                                <React.Fragment key={`${pos.id}-${type}`}>
+                            {(() => {
+                              // iter88: rozwijamy wszystkie sloty (tez duplikaty legacy)
+                              const flatSlots = [];
+                              let counter = 1;
+                              SUB_TYPE_ORDER.forEach((type) => {
+                                (slots[type] || []).forEach((slot) => {
+                                  flatSlots.push({ slot, type, subKod: `${kod}.${counter++}` });
+                                });
+                              });
+                              return flatSlots.map(({ slot, type, subKod }) => {
+                                const r = computeRow(slot);
+                                const children = childrenByParent[slot.id] || [];
+                                return (
+                                  <React.Fragment key={`${pos.id}-${slot.id}`}>
                                   <tr data-testid={`pos-sub-${slot.id}`} style={{ backgroundColor: SUB_BG }}>
                                     <td className="px-1 py-1 text-center text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{subKod}</td>
                                     <td className="px-1 py-1 text-center border-r" style={{ borderColor: BORDER, color: BUDGET_TYPES[type].color }}>{SUB_TYPE_LABEL[type]}</td>
@@ -725,7 +735,8 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                                   })}
                                 </React.Fragment>
                               );
-                            })}
+                            });
+                            })()}
                           </React.Fragment>
                         );
                       })}
@@ -1519,21 +1530,28 @@ const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
   // Sumy per typ (do kafelkow podsumowania)
   // iter73: liczymy TYLKO linie powiazane z pozycjami (position_id) - sieroty (stare dane sprzed iter68) sa pomijane
   const linkedLines = useMemo(() => lines.filter(l => l.position_id || l.is_income), [lines]);
+  // iter88: zbior idek linii ktore maja dzieci (slot kontener) - wykluczamy z sum aby uniknac podwojnego liczenia
+  const hasChildSet = useMemo(() => {
+    const s = new Set();
+    lines.forEach((ln) => { if (ln.parent_id) s.add(ln.parent_id); });
+    return s;
+  }, [lines]);
+  const leafLines = useMemo(() => linkedLines.filter(l => !hasChildSet.has(l.id)), [linkedLines, hasChildSet]);
   const totalsByType = useMemo(() => {
     const t = { materials: { plan: 0, exec: 0 }, labor: { plan: 0, exec: 0 }, equipment: { plan: 0, exec: 0 } };
-    linkedLines.filter(l => !l.is_income).forEach((ln) => {
+    leafLines.filter(l => !l.is_income).forEach((ln) => {
       const type = ln.type || 'materials';
       if (!t[type]) t[type] = { plan: 0, exec: 0 };
       t[type].plan += ln.plan_netto_computed || 0;
       t[type].exec += ln.execution_netto || 0;
     });
     return t;
-  }, [linkedLines]);
+  }, [leafLines]);
 
-  const totalPlan = linkedLines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
-  const totalExec = linkedLines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
-  const totalIncomePlan = lines.filter(l => l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
-  const totalIncomeExec = lines.filter(l => l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
+  const totalPlan = leafLines.filter(l => !l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
+  const totalExec = leafLines.filter(l => !l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
+  const totalIncomePlan = leafLines.filter(l => l.is_income).reduce((s, l) => s + (l.plan_netto_computed || 0), 0);
+  const totalIncomeExec = leafLines.filter(l => l.is_income).reduce((s, l) => s + (l.execution_netto || 0), 0);
   const zyskBiezacy = totalIncomeExec - totalExec;
   // Czy sa stare linie sieroty (bez position_id, nie-przychod) - do pokazania ostrzezenia
   const orphanCount = lines.filter(l => !l.position_id && !l.is_income).length;
