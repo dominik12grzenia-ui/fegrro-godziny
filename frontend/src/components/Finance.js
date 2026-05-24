@@ -969,7 +969,7 @@ const BudowyPanel = () => {
               <span className="text-[#94A3B8]">% z przychodu</span>
             </div>
             <div className="text-[10px] text-[#64748B] px-2">
-              Koszt budowy = % od przychodu pozycji (Przychód × % = Koszt budowy). Liczony tak samo jak kaucje. Dodawany do Budżetu Zwolnionego (kolumna K = G − H − I + J).
+              Koszt budowy = % od przychodu pozycji (Przychód × % = Koszt budowy). Liczony tak samo jak kaucje. Odejmowany od Budżetu Zwolnionego (kolumna K = G − H − I − J).
             </div>
           </div>
           {/* Dane do generowania protokolu miesiecznego */}

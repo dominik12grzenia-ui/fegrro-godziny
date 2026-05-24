@@ -319,7 +319,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     }
     const cena = qty > 0 ? plan / qty : (line?.unit_price_netto || 0);
     const G = plan;
-    const K = G - H - I + J;
+    const K = G - H - I - J;
     // L = forecast_cost: jezeli pozycja ma dzieci, sumujemy forecast_cost dzieci, w przeciwnym razie z linii
     let L = null;
     let forecastNote = line?.forecast_note || null;
@@ -740,7 +740,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           </div>
         )}
         <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
-          <div className="mb-1">Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy przypisane do pozycji · <b>O</b>=koszty budowy bez kodu (% protokół) · <b>P</b>=wynagrodzenia → robocizna · <b>Q</b>=firmowe koszty × % wynagr. → robocizna · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U</div>
+          <div className="mb-1">Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I−J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy przypisane do pozycji · <b>O</b>=koszty budowy bez kodu (% protokół) · <b>P</b>=wynagrodzenia → robocizna · <b>Q</b>=firmowe koszty × % wynagr. → robocizna · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U</div>
           <div className="text-[#FCA5A5]">
             Alerty wizualne (iter81): kolumny <b>S/T/U</b> mają kolorowanie:
             {' '}<span className="px-1 rounded" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span> = przekroczenie / strata,
