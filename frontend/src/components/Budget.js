@@ -1716,6 +1716,7 @@ const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
         budowaId={budowaId}
         position={subpositionFor}
         stageId={subpositionFor.stage_id}
+        existingLines={lines}
         onClose={() => setSubpositionFor(null)}
         onSaved={() => { setSubpositionFor(null); fetchAll(); onChange && onChange(); }}
       />
@@ -1725,7 +1726,7 @@ const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
 };
 
 // =================== PODPOZYCJA - MODAL (Robocizna / Materiał / Sprzęt) ===================
-const SubpositionModal = ({ budowaId, position, stageId, onClose, onSaved }) => {
+const SubpositionModal = ({ budowaId, position, stageId, existingLines = [], onClose, onSaved }) => {
   const [form, setForm] = useState({
     type: 'labor', // labor | materials | equipment
     name: position?.name || '',
@@ -1737,11 +1738,16 @@ const SubpositionModal = ({ budowaId, position, stageId, onClose, onSaved }) => 
   });
   const [busy, setBusy] = useState(false);
 
+  // iter86: znajdz istniejacy slot tego typu dla tej pozycji (sa "kontenery" - parent_id=null)
+  const existingSlot = (existingLines || []).find(
+    (l) => l.position_id === position?.id && !l.parent_id && (l.type || 'materials') === form.type,
+  );
+
   const save = async () => {
     if (!form.name.trim()) { toast.error('Podaj nazwę podpozycji'); return; }
     setBusy(true);
     try {
-      await api.post('/budget/lines', {
+      const payload = {
         budowa_id: budowaId,
         category: BUDGET_TYPES[form.type]?.label || 'Podpozycja',
         name: form.name.trim(),
@@ -1753,8 +1759,17 @@ const SubpositionModal = ({ budowaId, position, stageId, onClose, onSaved }) => 
         stage_id: stageId || position.stage_id,
         kaucja_gir_pct: form.kaucja_gir_pct === '' ? null : parseFloat(form.kaucja_gir_pct),
         kaucja_dw_pct: form.kaucja_dw_pct === '' ? null : parseFloat(form.kaucja_dw_pct),
-      });
-      toast.success(`Dodano podpozycję: ${BUDGET_TYPES[form.type].label}`);
+      };
+      // iter86: jezeli slot tego typu juz istnieje, dodaj jako skladowa (child)
+      if (existingSlot) {
+        payload.parent_id = existingSlot.id;
+      }
+      await api.post('/budget/lines', payload);
+      toast.success(
+        existingSlot
+          ? `Dodano składową do: ${BUDGET_TYPES[form.type].label}`
+          : `Dodano podpozycję: ${BUDGET_TYPES[form.type].label}`,
+      );
       onSaved && onSaved();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
     finally { setBusy(false); }
@@ -1767,6 +1782,11 @@ const SubpositionModal = ({ budowaId, position, stageId, onClose, onSaved }) => 
           <DialogTitle>Dodaj podpozycję do: {position?.name}</DialogTitle>
           <p className="text-xs text-[#94A3B8] mt-1">Wybierz kategorię kosztu i wprowadź wartości.</p>
         </DialogHeader>
+        {existingSlot && (
+          <div className="rounded p-2 border border-[#5F7552]/60 bg-[#5F7552]/15 text-[#A7D29E] text-xs mb-2" data-testid="subposition-existing-slot-hint">
+            ℹ <b>{BUDGET_TYPES[form.type].label}</b> już istnieje (<span className="font-mono">{existingSlot.name}</span>). Nowy wpis zostanie dodany jako <b>kolejna składowa</b> do tego samego rodzaju.
+          </div>
+        )}
         <div className="space-y-3">
           <div>
             <label className="text-xs text-[#94A3B8] mb-1 block">Kategoria *</label>
