@@ -1,4 +1,46 @@
-## Iteration 67 (2026-05-23) — Pozycje główne + składowe kosztowe (parent/child budget lines)
+## Iteration 68 (2026-05-24) — Przebudowa kosztorysu: Etap → Pozycja → Robocizna/Materiały/Sprzęt (akordeony)
+
+### User request
+Pełna przebudowa modułu Budżet:
+1. Każda **POZYCJA** istnieje raz i jest wspólna dla Robocizny / Materiałów / Sprzętu.
+2. Etapy jako akordeony grupujące pozycje (wymagane).
+3. Składowe (parent_id) zachowane.
+4. Nowa kolejność: Robocizna → Materiały → Sprzęt.
+5. Wyczyszczone istniejące dane.
+
+### Backend (`/app/backend/routes/budget.py`)
+- **Nowa kolekcja `budget_positions`** + modele Pydantic: `BudgetPositionCreate`/`Update`.
+- **`POST /budget/positions`**: tworzy pozycję + **automatycznie 3 sloty**: `labor`/`materials`/`equipment` (`type` ustawiony, `parent_id=null`, `position_id=<new>`).
+- `PATCH /budget/positions/{id}`: edycja; jeśli zmieniono `name` lub `stage_id`, sync zostaje przepuszczony na 3 sloty.
+- `DELETE /budget/positions/{id}`: kaskadowo usuwa sloty + ich składowe + progres + czyści powiązania w `finance_zapisy`. Zwraca `deleted_lines`.
+- `GET /budget/{budowa_id}/positions`: lista pozycji.
+- **`position_id` dodane do `BudgetLine`**. Składowe (parent_id) **automatycznie dziedziczą** `position_id` i `stage_id` od rodzica (slotu).
+- Walidacja: pozycja musi należeć do istniejącego etapu w tej samej budowie.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Wyczyszczone dane**: `db.budget_lines.delete_many({})` + `db.budget_positions.delete_many({})` + `db.budget_progress.delete_many({})`.
+- **Nowy komponent `BudgetCostingView`** zastępujący `BudgetExcelView`:
+  - Akordeony etapów (gradient olive `#3F5235→#4F6343`, badge count, sumy Plan/Wyk per etap).
+  - Karty pozycji (`PositionCard`) — `min-width: 900px`, horizontal scroll. Header z badge per typ (R/M/S) + grand-total Σ.
+  - 3-kolumnowy grid R/M/S na karcie pozycji. Każda kolumna pokazuje slot (Plan/Wyk/Postęp/Kaucje) + listę składowych z ikoną `↳`.
+  - Akcje: + Składowa, Edytuj slot, Edytuj/Usuń składową, Edytuj/Usuń pozycję.
+  - **SUMA KOSZTORYSU** — złoty pasek na dole (Plan / Wykonanie / %).
+- **Nowy `PositionModal`** — pole `Nazwa` + select `Etap` (wymagane). Toast: „Pozycja utworzona (+3 sloty)".
+- 3 kafelki podsumowania **w nowej kolejności** R → M → S (`TYPE_ORDER` constant).
+- `BudgetLineModal` przyjmuje `parentLine`; akcja „+ Składowa" przekazuje slot jako parentLine.
+
+### Testy
+- Backend pytest `test_iter68_budget_position.py`: **4/4 PASS**
+  - test_position_creates_3_slots (R/M/S, qty=0, parent_id=null)
+  - test_position_requires_stage (400 dla brakującego etapu)
+  - test_skladowa_inherits_position_id (dziedziczenie position_id + stage_id z rodzica)
+  - test_position_patch_syncs_slot_name (zmiana nazwy synchronizuje 3 sloty)
+- Regression iter67: **5/5 PASS**.
+- Live smoke screenshot: Pozycja utworzona przez UI → 1 etap, 1 pozycja, 3 sloty side-by-side. Modal „Dodaj składową" otwiera się z `data-testid="position-modal"`.
+
+
+
+
 
 ### User request
 Stworzenie rozbudowanego widoku zestawienia kosztorysowego z możliwością dodawania głównych pozycji oraz **zagnieżdżonych podwierszy reprezentujących koszty składowe** danej pozycji.

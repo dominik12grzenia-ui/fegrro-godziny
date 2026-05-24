@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, Building2, Calendar, CheckSquare, FileDown } from 'lucide-react';
+import { Plus, Trash2, Pencil, Building2, Calendar, CheckSquare, FileDown, ChevronDown, ChevronRight, FolderTree } from 'lucide-react';
 import { toast } from 'sonner';
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -408,9 +408,329 @@ const BUDGET_TYPES = {
   equipment: { label: 'Sprzęt',    short: 'S', color: '#94A3B8', bg: '#64748B', textOnBg: '#FFFFFF' },
 };
 
+// Kolejnosc wyswietlania w widoku kosztorysowym
+const TYPE_ORDER = ['labor', 'materials', 'equipment'];
+
+// =================== WIDOK KOSZTORYSOWY (Stage > Position > R/M/S) ===================
+const BudgetCostingView = ({
+  positions, stages, lines, loading,
+  onAddPosition, onEditPosition, onDeletePosition,
+  onEditLine, onAddChildLine, onDeleteLine,
+}) => {
+  const [collapsedStages, setCollapsedStages] = useState({});
+  const [collapsedPositions, setCollapsedPositions] = useState({});
+
+  const toggleStage = (id) => setCollapsedStages((s) => ({ ...s, [id]: !s[id] }));
+  const togglePosition = (id) => setCollapsedPositions((s) => ({ ...s, [id]: !s[id] }));
+
+  // Grupuj pozycje per etap
+  const positionsByStage = useMemo(() => {
+    const m = {};
+    positions.forEach((p) => {
+      const sid = p.stage_id || '__none__';
+      if (!m[sid]) m[sid] = [];
+      m[sid].push(p);
+    });
+    return m;
+  }, [positions]);
+
+  // Sloty (parent_id=null, position_id ustawione) i skladowe (parent_id != null)
+  const slotsByPosition = useMemo(() => {
+    const m = {};
+    lines.forEach((ln) => {
+      if (!ln.position_id || ln.parent_id) return;
+      const k = ln.position_id;
+      if (!m[k]) m[k] = {};
+      m[k][ln.type || 'materials'] = ln;
+    });
+    return m;
+  }, [lines]);
+
+  const childrenByParent = useMemo(() => {
+    const m = {};
+    lines.forEach((ln) => {
+      if (!ln.parent_id) return;
+      if (!m[ln.parent_id]) m[ln.parent_id] = [];
+      m[ln.parent_id].push(ln);
+    });
+    return m;
+  }, [lines]);
+
+  // Agreguj wartosci pozycji (suma slotow + skladowych)
+  const computePositionTotals = (positionId) => {
+    const slots = slotsByPosition[positionId] || {};
+    const byType = {};
+    let totalPlan = 0;
+    let totalExec = 0;
+    TYPE_ORDER.forEach((t) => {
+      const slot = slots[t];
+      if (!slot) { byType[t] = { plan: 0, exec: 0, pct: 0, hasChildren: false }; return; }
+      const kids = childrenByParent[slot.id] || [];
+      let plan = slot.plan_netto_computed || 0;
+      let exec = slot.execution_netto || 0;
+      if (kids.length > 0) {
+        plan = kids.reduce((s, k) => s + (k.plan_netto_computed || 0), 0);
+        exec = kids.reduce((s, k) => s + (k.execution_netto || 0), 0);
+      }
+      const pct = plan > 0 ? Math.round((exec / plan) * 100) : 0;
+      byType[t] = { plan, exec, pct, hasChildren: kids.length > 0, slot };
+      totalPlan += plan;
+      totalExec += exec;
+    });
+    const totalPct = totalPlan > 0 ? Math.round((totalExec / totalPlan) * 100) : 0;
+    return { byType, totalPlan, totalExec, totalPct };
+  };
+
+  const computeStageTotals = (stageId) => {
+    const stagePositions = positionsByStage[stageId] || [];
+    let plan = 0; let exec = 0;
+    stagePositions.forEach((p) => {
+      const tt = computePositionTotals(p.id);
+      plan += tt.totalPlan;
+      exec += tt.totalExec;
+    });
+    return { plan, exec, pct: plan > 0 ? Math.round((exec / plan) * 100) : 0, count: stagePositions.length };
+  };
+
+  // Suma calego kosztorysu
+  const grandTotals = useMemo(() => {
+    let plan = 0; let exec = 0;
+    positions.forEach((p) => {
+      const tt = computePositionTotals(p.id);
+      plan += tt.totalPlan;
+      exec += tt.totalExec;
+    });
+    return { plan, exec, pct: plan > 0 ? Math.round((exec / plan) * 100) : 0 };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [positions, slotsByPosition, childrenByParent]);
+
+  const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
+  const orphanPositions = positionsByStage['__none__'] || [];
+
+  if (loading) return <Card className="bg-[#131C2F] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8] text-sm">Ładuję...</CardContent></Card>;
+
+  return (
+    <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-costing-view">
+      <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-white text-base flex items-center gap-2">
+          <FolderTree className="h-5 w-5" style={{ color: '#D4AF37' }} />
+          Kosztorys: Etapy → Pozycje → Robocizna · Materiały · Sprzęt
+        </CardTitle>
+        <Button size="sm"
+          onClick={onAddPosition}
+          disabled={stages.length === 0}
+          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+          data-testid="costing-add-position-btn"
+          title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
+          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
+        </Button>
+      </CardHeader>
+      <CardContent className="p-2 space-y-2">
+        {positions.length === 0 ? (
+          <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="costing-empty">
+            Brak pozycji kosztorysowych. {stages.length === 0 ? <>Najpierw utwórz <b>etap</b> (np. „Roboty zewnętrzne"), potem dodaj pozycje.</> : 'Kliknij „Dodaj pozycję" aby zacząć.'}
+          </div>
+        ) : (
+          <>
+            {stagesWithPositions.map((stage) => {
+              const collapsed = collapsedStages[stage.id];
+              const stagePositions = positionsByStage[stage.id] || [];
+              const st = computeStageTotals(stage.id);
+              return (
+                <div key={stage.id} className="rounded border border-[#2A3B59] overflow-hidden" data-testid={`stage-block-${stage.id}`}>
+                  <button
+                    type="button"
+                    onClick={() => toggleStage(stage.id)}
+                    className="w-full flex items-center justify-between gap-3 px-3 py-2 bg-gradient-to-r from-[#3F5235] to-[#4F6343] hover:from-[#4F6343] hover:to-[#5F7552] text-left"
+                    data-testid={`stage-toggle-${stage.id}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      {collapsed ? <ChevronRight className="h-4 w-4 text-white shrink-0" /> : <ChevronDown className="h-4 w-4 text-white shrink-0" />}
+                      <span className="text-white font-bold text-sm uppercase tracking-wide truncate">{stage.name}</span>
+                      <span className="text-[#0B1120] bg-[#D4AF37] text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">{st.count}</span>
+                    </div>
+                    <div className="flex items-center gap-4 text-[11px] tabular-nums shrink-0">
+                      <span className="text-[#0B1120] bg-white/85 px-2 py-0.5 rounded font-semibold">Plan: {fmtNum(st.plan)} zł</span>
+                      <span className="text-[#0B1120] bg-[#D4AF37] px-2 py-0.5 rounded font-bold">Wyk: {fmtNum(st.exec)} zł ({st.pct}%)</span>
+                    </div>
+                  </button>
+                  {!collapsed && (
+                    <div className="bg-[#0B1120]/40 p-2 space-y-2">
+                      {stagePositions.map((pos) => (
+                        <PositionCard
+                          key={pos.id}
+                          position={pos}
+                          totals={computePositionTotals(pos.id)}
+                          collapsed={collapsedPositions[pos.id]}
+                          onToggle={() => togglePosition(pos.id)}
+                          onEditPosition={onEditPosition}
+                          onDeletePosition={onDeletePosition}
+                          onEditLine={onEditLine}
+                          onAddChildLine={onAddChildLine}
+                          onDeleteLine={onDeleteLine}
+                          childrenByParent={childrenByParent}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            {orphanPositions.length > 0 && (
+              <div className="rounded border border-dashed border-[#9B2C2C]" data-testid="orphan-positions">
+                <div className="px-3 py-2 bg-[#9B2C2C]/20 text-[#FCA5A5] text-xs font-bold uppercase tracking-wide">
+                  ⚠ Pozycje bez etapu ({orphanPositions.length}) - przypisz je do etapu
+                </div>
+                <div className="bg-[#0B1120]/40 p-2 space-y-2">
+                  {orphanPositions.map((pos) => (
+                    <PositionCard
+                      key={pos.id}
+                      position={pos}
+                      totals={computePositionTotals(pos.id)}
+                      collapsed={collapsedPositions[pos.id]}
+                      onToggle={() => togglePosition(pos.id)}
+                      onEditPosition={onEditPosition}
+                      onDeletePosition={onDeletePosition}
+                      onEditLine={onEditLine}
+                      onAddChildLine={onAddChildLine}
+                      onDeleteLine={onDeleteLine}
+                      childrenByParent={childrenByParent}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Suma calego kosztorysu */}
+            <div className="rounded border-2 border-[#D4AF37] bg-gradient-to-r from-[#3F5235] to-[#1a2436] px-3 py-2 mt-2 flex items-center justify-between" data-testid="costing-grand-total">
+              <div className="text-white font-bold text-sm uppercase tracking-wide">SUMA KOSZTORYSU</div>
+              <div className="flex items-center gap-4 text-xs tabular-nums">
+                <span className="text-white">Plan: <b>{fmtNum(grandTotals.plan)} zł</b></span>
+                <span className="text-[#D4AF37] font-bold">Wykonanie: {fmtNum(grandTotals.exec)} zł ({grandTotals.pct}%)</span>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+// Karta pojedynczej pozycji kosztorysowej z 3 slotami (R/M/S)
+const PositionCard = ({
+  position, totals, collapsed,
+  onToggle, onEditPosition, onDeletePosition,
+  onEditLine, onAddChildLine, onDeleteLine,
+  childrenByParent,
+}) => {
+  return (
+    <div className="rounded bg-[#131C2F] border border-[#2A3B59] overflow-hidden" data-testid={`position-card-${position.id}`}>
+      {/* Naglowek pozycji - klikalny */}
+      <div className="flex items-center gap-2 px-2 py-1.5 bg-[#19243C] border-b border-[#2A3B59]">
+        <button type="button" onClick={onToggle} className="shrink-0 text-[#D4AF37] hover:text-white" data-testid={`position-toggle-${position.id}`}>
+          {collapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </button>
+        <div className="text-white text-sm font-semibold flex-1 truncate" title={position.name}>{position.name}</div>
+        <div className="hidden sm:flex items-center gap-2 text-[10px] tabular-nums">
+          {TYPE_ORDER.map((t) => {
+            const cfg = BUDGET_TYPES[t];
+            const td = totals.byType[t] || { plan: 0, exec: 0, pct: 0 };
+            return (
+              <span key={t} className="px-1.5 py-0.5 rounded" style={{ backgroundColor: `${cfg.color}20`, color: cfg.color, border: `1px solid ${cfg.color}40` }} title={cfg.label}>
+                {cfg.short}: {fmtNum(td.exec)}/{fmtNum(td.plan)}
+              </span>
+            );
+          })}
+          <span className="px-1.5 py-0.5 rounded bg-[#D4AF37] text-[#0B1120] font-bold">
+            Σ {fmtNum(totals.totalExec)}/{fmtNum(totals.totalPlan)} zł ({totals.totalPct}%)
+          </span>
+        </div>
+        <button onClick={() => onEditPosition(position)} className="text-[#94A3B8] hover:text-white shrink-0 p-1" data-testid={`position-edit-${position.id}`} title="Edytuj pozycję">
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+        <button onClick={() => onDeletePosition(position)} className="text-[#94A3B8] hover:text-[#FCA5A5] shrink-0 p-1" data-testid={`position-del-${position.id}`} title="Usuń pozycję (wraz z wszystkimi kosztami)">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {!collapsed && (
+        <div className="overflow-x-auto">
+          <div className="grid grid-cols-3 gap-px bg-[#2A3B59] min-w-[900px]">
+            {TYPE_ORDER.map((type) => {
+              const cfg = BUDGET_TYPES[type];
+              const td = totals.byType[type] || {};
+              const slot = td.slot;
+              const children = slot ? (childrenByParent[slot.id] || []) : [];
+              return (
+                <div key={type} className="bg-[#0B1120] p-2" data-testid={`position-${position.id}-slot-${type}`}>
+                  <div className="flex items-center justify-between mb-1.5 pb-1.5 border-b" style={{ borderColor: `${cfg.color}40` }}>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="w-5 h-5 rounded flex items-center justify-center font-bold text-[10px] shrink-0" style={{ backgroundColor: cfg.bg, color: cfg.textOnBg }}>{cfg.short}</div>
+                      <div className="text-xs font-semibold truncate" style={{ color: cfg.color }}>{cfg.label}</div>
+                    </div>
+                    <div className="flex items-center gap-0.5 shrink-0">
+                      {slot && (
+                        <>
+                          <button onClick={() => onAddChildLine(slot)} className="text-[#5F7552] hover:text-[#9DBC85] p-0.5" data-testid={`slot-add-child-${slot.id}`} title="Dodaj składową">
+                            <Plus className="h-3 w-3" />
+                          </button>
+                          <button onClick={() => onEditLine(slot)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`slot-edit-${slot.id}`} title="Edytuj wartości slotu">
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {/* Wartosci slotu (lub agregat ze skladowych) */}
+                  <div className="text-[10px] grid grid-cols-2 gap-x-2 gap-y-0.5 tabular-nums">
+                    <span className="text-[#94A3B8]">Plan:</span>
+                    <span className="text-white font-semibold text-right">{fmtNum(td.plan || 0)} zł</span>
+                    <span className="text-[#94A3B8]">Wykonanie:</span>
+                    <span className="text-right" style={{ color: cfg.color }}>{fmtNum(td.exec || 0)} zł</span>
+                    <span className="text-[#94A3B8]">Postęp:</span>
+                    <span className={`text-right font-bold ${td.pct >= 100 ? 'text-[#9B2C2C]' : td.pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>{td.pct || 0}%</span>
+                    {slot && (slot.kaucja_gir_amount || slot.kaucja_dw_amount) ? (
+                      <>
+                        <span className="text-[#94A3B8]">Kaucje:</span>
+                        <span className="text-[#94A3B8] text-right">{fmtNum((slot.kaucja_gir_amount || 0) + (slot.kaucja_dw_amount || 0))} zł</span>
+                      </>
+                    ) : null}
+                  </div>
+                  {/* Skladowe */}
+                  {children.length > 0 && (
+                    <div className="mt-2 pt-1.5 border-t border-[#2A3B59]/50 space-y-0.5">
+                      <div className="text-[9px] text-[#64748B] uppercase tracking-wide mb-0.5">Składowe ({children.length})</div>
+                      {children.map((c) => (
+                        <div key={c.id} className="flex items-center justify-between gap-1 text-[10px] hover:bg-[#19243C]/60 px-1 py-0.5 rounded">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-[#D4AF37] shrink-0">↳</span>
+                            <span className="text-[#CBD5E1] truncate" title={c.name}>{c.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <span className="text-white tabular-nums">{fmtNum(c.plan_netto_computed || 0)}</span>
+                            <button onClick={() => onEditLine(c)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`child-edit-${c.id}`} title="Edytuj składową">
+                              <Pencil className="h-2.5 w-2.5" />
+                            </button>
+                            <button onClick={() => onDeleteLine(c.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-0.5" data-testid={`child-del-${c.id}`} title="Usuń składową">
+                              <Trash2 className="h-2.5 w-2.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // =================== BUDZET (POZYCJE) ===================
 const BudgetLinesPanel = ({ budowaId, onChange }) => {
   const [lines, setLines] = useState([]);
+  const [positions, setPositions] = useState([]);
   const [categories, setCategories] = useState([]);
   const [stages, setStages] = useState([]);
   const [budowaInfo, setBudowaInfo] = useState(null);
@@ -419,6 +739,9 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
   const [editLine, setEditLine] = useState(null);
   const [parentLine, setParentLine] = useState(null); // gdy ustawione - tryb "dodaj skladowa do"
   const [managerOpen, setManagerOpen] = useState(null); // null | 'categories' | 'stages'
+  // Nowy widok kosztorysowy - modal dodawania pozycji
+  const [positionModalOpen, setPositionModalOpen] = useState(false);
+  const [editPosition, setEditPosition] = useState(null); // do edycji nazwy pozycji
 
   const fetchAll = useCallback(() => {
     if (!budowaId) return;
@@ -428,11 +751,13 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
       api.get(`/budget/${budowaId}/categories`),
       api.get(`/budget/${budowaId}/stages`),
       api.get(`/budget/${budowaId}/budowa-info`),
-    ]).then(([l, c, s, b]) => {
+      api.get(`/budget/${budowaId}/positions`),
+    ]).then(([l, c, s, b, p]) => {
       setLines(l.data?.rows || []);
       setCategories(c.data?.rows || []);
       setStages(s.data?.rows || []);
       setBudowaInfo(b.data || null);
+      setPositions(p.data?.rows || []);
     }).catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
   }, [budowaId]);
@@ -444,6 +769,16 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
     try {
       await api.delete(`/budget/lines/${id}`);
       toast.success('Pozycja usunięta');
+      fetchAll();
+      onChange && onChange();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const removePosition = async (pos) => {
+    if (!window.confirm(`Usunąć pozycję „${pos.name}" wraz z kosztami Robocizny / Materiałów / Sprzętu i ich składowymi?`)) return;
+    try {
+      const r = await api.delete(`/budget/positions/${pos.id}`);
+      toast.success(`Pozycja usunięta (${r.data?.deleted_lines || 0} linii)`);
       fetchAll();
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
@@ -484,9 +819,11 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             Kategorie ({categories.length})
           </Button>
           <Button size="sm"
-            onClick={() => { setEditLine(null); setParentLine(null); setModalOpen(true); }}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
-            data-testid="budget-add-line-btn">
+            onClick={() => { setEditPosition(null); setPositionModalOpen(true); }}
+            disabled={stages.length === 0}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+            data-testid="budget-add-position-btn"
+            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
           </Button>
         </div>
@@ -495,7 +832,8 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         {/* === 3 kafelki podsumowania per Typ === */}
         {!loading && lines.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2" data-testid="budget-type-cards">
-            {Object.entries(BUDGET_TYPES).map(([key, cfg]) => {
+            {TYPE_ORDER.map((key) => {
+              const cfg = BUDGET_TYPES[key];
               const t = totalsByType[key] || { plan: 0, exec: 0 };
               const pct = t.plan > 0 ? Math.round((t.exec / t.plan) * 100) : 0;
               return (
@@ -518,13 +856,8 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
           </div>
         )}
 
-        {loading ? (
-          <div className="text-[#94A3B8] text-sm">Ładuję...</div>
-        ) : lines.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="budget-empty">
-            Brak pozycji. Kliknij „Dodaj pozycję" aby zacząć.
-          </div>
-        ) : (
+        {/* === Karty RAZEM (przychody/koszty/zysk) === */}
+        {!loading && lines.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t-2 border-[#D4AF37]" data-testid="budget-totals-footer">
             <div className="rounded p-3 bg-[#0B1120] border border-[#5F7552]/40">
               <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem przychody (Plan / Wyk)</div>
@@ -540,6 +873,8 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             </div>
           </div>
         )}
+
+        {loading && <div className="text-[#94A3B8] text-sm">Ładuję...</div>}
       </CardContent>
       {modalOpen && (
         <BudgetLineModal
@@ -573,18 +908,106 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         />
       )}
     </Card>
-    {/* === Tabela Excel-style na dole === */}
-    {!loading && lines.length > 0 && (
-      <div className="mt-4">
-        <BudgetExcelView
-          lines={lines}
-          onEdit={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
-          onDelete={remove}
-          onAddChild={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
-        />
-      </div>
+    {/* === Nowy widok kosztorysowy: Etap > Pozycja > R/M/S === */}
+    <div className="mt-4">
+      <BudgetCostingView
+        positions={positions}
+        stages={stages}
+        lines={lines}
+        loading={loading}
+        onAddPosition={() => { setEditPosition(null); setPositionModalOpen(true); }}
+        onEditPosition={(pos) => { setEditPosition(pos); setPositionModalOpen(true); }}
+        onDeletePosition={removePosition}
+        onEditLine={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
+        onAddChildLine={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
+        onDeleteLine={remove}
+      />
+    </div>
+    {positionModalOpen && (
+      <PositionModal
+        budowaId={budowaId}
+        editPosition={editPosition}
+        stages={stages}
+        onClose={() => { setPositionModalOpen(false); setEditPosition(null); }}
+        onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(); onChange && onChange(); }}
+      />
     )}
     </>
+  );
+};
+
+// =================== POZYCJA - MODAL ===================
+const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => {
+  const [name, setName] = useState(editPosition?.name || '');
+  const [stageId, setStageId] = useState(editPosition?.stage_id || (stages[0]?.id || ''));
+  const [notes, setNotes] = useState(editPosition?.notes || '');
+  const [busy, setBusy] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) { toast.error('Podaj nazwę pozycji'); return; }
+    if (!stageId) { toast.error('Wybierz etap'); return; }
+    setBusy(true);
+    try {
+      if (editPosition) {
+        await api.patch(`/budget/positions/${editPosition.id}`, { name: name.trim(), stage_id: stageId, notes });
+        toast.success('Pozycja zaktualizowana');
+      } else {
+        const r = await api.post('/budget/positions', { budowa_id: budowaId, name: name.trim(), stage_id: stageId, notes });
+        toast.success(`Pozycja utworzona (+3 sloty: Robocizna, Materiały, Sprzęt)`);
+        onSaved && onSaved(r.data);
+        return;
+      }
+      onSaved && onSaved();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    finally { setBusy(false); }
+  };
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="position-modal">
+        <DialogHeader>
+          <DialogTitle>{editPosition ? 'Edytuj pozycję kosztorysową' : 'Nowa pozycja kosztorysowa'}</DialogTitle>
+          {!editPosition && (
+            <p className="text-xs text-[#94A3B8] mt-1">
+              System utworzy automatycznie 3 sloty: <b style={{ color: '#5F7552' }}>Robocizna</b>, <b style={{ color: '#D4AF37' }}>Materiały</b>, <b style={{ color: '#94A3B8' }}>Sprzęt</b>.
+            </p>
+          )}
+        </DialogHeader>
+        <div className="space-y-3">
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Etap budowy *</label>
+            <select value={stageId} onChange={(e) => setStageId(e.target.value)}
+              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
+              data-testid="position-stage-select">
+              {stages.length === 0 ? <option value="">-- najpierw utwórz etap --</option> :
+                stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa pozycji *</label>
+            <Input value={name} onChange={(e) => setName(e.target.value)}
+              placeholder="np. Wykonanie chodnika"
+              className="bg-[#0B1120] border-[#2A3B59] text-white"
+              data-testid="position-name-input"
+              autoFocus />
+          </div>
+          <div>
+            <label className="text-xs text-[#94A3B8] mb-1 block">Notatki (opcjonalnie)</label>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)}
+              className="bg-[#0B1120] border-[#2A3B59] text-white"
+              data-testid="position-notes-input" />
+          </div>
+        </div>
+        <div className="flex gap-2 justify-end pt-2">
+          <Button variant="ghost" onClick={onClose} data-testid="position-cancel-btn">Anuluj</Button>
+          <ActionButton onAction={save} disabled={busy || !name.trim() || !stageId}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+            data-testid="position-save-btn">
+            <Plus className="h-4 w-4 mr-1" /> {editPosition ? 'Zapisz' : 'Utwórz pozycję'}
+          </ActionButton>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 };
 

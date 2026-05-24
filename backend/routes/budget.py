@@ -44,6 +44,21 @@ class BudgetStageCreate(BaseModel):
     order: int = 0
 
 
+class BudgetPositionCreate(BaseModel):
+    budowa_id: str
+    stage_id: str = Field(..., description="ID etapu - WYMAGANE")
+    name: str = Field(..., description="Nazwa pozycji np. 'Wykonanie chodnika'")
+    notes: Optional[str] = None
+    order: int = 0
+
+
+class BudgetPositionUpdate(BaseModel):
+    stage_id: Optional[str] = None
+    name: Optional[str] = None
+    notes: Optional[str] = None
+    order: Optional[int] = None
+
+
 class BudgetLineCreate(BaseModel):
     budowa_id: str
     category: str = Field(..., description="Kategoria np. 'Beton', 'Stal', 'Robocizna'")
@@ -56,6 +71,7 @@ class BudgetLineCreate(BaseModel):
     kaucja_gir_pct: Optional[float] = None  # gdy None - dziedziczy z finance_budowy
     kaucja_dw_pct: Optional[float] = None
     stage_id: Optional[str] = None  # FK do budget_stages
+    position_id: Optional[str] = None  # FK do budget_positions - wymagane dla nie-przychodowych w nowym modelu
     parent_id: Optional[str] = None  # FK do innej pozycji - jezeli ustawione, to skladowa kosztowa
     is_income: bool = False  # True dla pozycji przychodowych
     notes: Optional[str] = None
@@ -73,6 +89,7 @@ class BudgetLineUpdate(BaseModel):
     kaucja_gir_pct: Optional[float] = None
     kaucja_dw_pct: Optional[float] = None
     stage_id: Optional[str] = None
+    position_id: Optional[str] = None
     parent_id: Optional[str] = None
     is_income: Optional[bool] = None
     notes: Optional[str] = None
@@ -340,9 +357,113 @@ async def delete_stage(stage_id: str, _user: dict = Depends(get_current_admin)):
     return {"ok": True}
 
 
+# ============== POZYCJE KOSZTORYSOWE (Position) ==============
+
+@router.get("/budget/{budowa_id}/positions")
+async def list_positions(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    rows = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("stage_id", 1), ("order", 1), ("created_at", 1)]).to_list(length=2000)
+    return {"rows": rows}
+
+
+@router.post("/budget/positions")
+async def create_position(payload: BudgetPositionCreate, current_user: dict = Depends(get_current_admin)):
+    """Tworzy pozycje kosztorysowa i AUTOMATYCZNIE 3 sloty: Robocizna, Materialy, Sprzet."""
+    stage = await db.budget_stages.find_one({"id": payload.stage_id}, {"_id": 0})
+    if not stage:
+        raise HTTPException(400, "Etap nie istnieje - pozycja musi byc przypisana do etapu")
+    if stage.get("budowa_id") != payload.budowa_id:
+        raise HTTPException(400, "Etap nalezy do innej budowy")
+    pos_id = str(uuid.uuid4())
+    now = datetime.now().isoformat()
+    pos_doc = {
+        "id": pos_id,
+        "budowa_id": payload.budowa_id,
+        "stage_id": payload.stage_id,
+        "name": payload.name,
+        "notes": payload.notes,
+        "order": payload.order,
+        "created_at": now,
+        "created_by": current_user["sub"],
+    }
+    await db.budget_positions.insert_one(pos_doc)
+    # Auto-utworz 3 sloty: labor, materials, equipment (puste, plan=0)
+    slot_types = [("labor", "Robocizna"), ("materials", "Materialy"), ("equipment", "Sprzet")]
+    slot_docs = []
+    for t, label in slot_types:
+        slot_docs.append({
+            "id": str(uuid.uuid4()),
+            "budowa_id": payload.budowa_id,
+            "category": label,
+            "name": payload.name,
+            "type": t,
+            "unit": None,
+            "quantity": 0.0,
+            "unit_price_netto": 0.0,
+            "plan_netto": None,
+            "kaucja_gir_pct": None,
+            "kaucja_dw_pct": None,
+            "stage_id": payload.stage_id,
+            "position_id": pos_id,
+            "parent_id": None,
+            "is_income": False,
+            "notes": None,
+            "order": 0,
+            "created_at": now,
+            "created_by": current_user["sub"],
+        })
+    await db.budget_lines.insert_many(slot_docs)
+    for s in slot_docs:
+        s.pop("_id", None)
+    pos_doc.pop("_id", None)
+    pos_doc["slots"] = slot_docs
+    return pos_doc
+
+
+@router.patch("/budget/positions/{position_id}")
+async def update_position(position_id: str, payload: BudgetPositionUpdate, current_user: dict = Depends(get_current_admin)):
+    existing = await db.budget_positions.find_one({"id": position_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Pozycja nie istnieje")
+    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    if updates:
+        updates["updated_at"] = datetime.now().isoformat()
+        updates["updated_by"] = current_user["sub"]
+        await db.budget_positions.update_one({"id": position_id}, {"$set": updates})
+        # Jezeli zmienila sie nazwa lub etap - sync na slotach (3 wiersze)
+        sync = {}
+        if "name" in updates:
+            sync["name"] = updates["name"]
+        if "stage_id" in updates:
+            sync["stage_id"] = updates["stage_id"]
+        if sync:
+            await db.budget_lines.update_many({"position_id": position_id, "parent_id": None}, {"$set": sync})
+    return await db.budget_positions.find_one({"id": position_id}, {"_id": 0})
+
+
+@router.delete("/budget/positions/{position_id}")
+async def delete_position(position_id: str, _user: dict = Depends(get_current_admin)):
+    """Usuwa pozycje i wszystkie powiazane linie (sloty + skladowe)."""
+    # Wszystkie linie z position_id (sloty + skladowe slotow)
+    lines = await db.budget_lines.find({"position_id": position_id}, {"_id": 0, "id": 1}).to_list(length=2000)
+    line_ids = [line["id"] for line in lines]
+    if line_ids:
+        await db.budget_progress.delete_many({"budget_line_id": {"$in": line_ids}})
+        await db.finance_zapisy.update_many({"budget_line_id": {"$in": line_ids}}, {"$unset": {"budget_line_id": ""}})
+        await db.budget_lines.delete_many({"id": {"$in": line_ids}})
+    res = await db.budget_positions.delete_one({"id": position_id})
+    if res.deleted_count == 0:
+        raise HTTPException(404, "Pozycja nie istnieje")
+    return {"ok": True, "deleted_lines": len(line_ids)}
+
+
+# ============== END POZYCJE KOSZTORYSOWE ==============
+
+
 @router.post("/budget/lines")
 async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(get_current_admin)):
     # Walidacja parent_id: musi istniec, miec ta sama budowa+typ, nie moze sam byc skladowa (max 2 poziomy)
+    inherited_position_id = payload.position_id
+    inherited_stage_id = payload.stage_id
     if payload.parent_id:
         parent = await db.budget_lines.find_one({"id": payload.parent_id}, {"_id": 0})
         if not parent:
@@ -353,6 +474,11 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
             raise HTTPException(400, "Skladowa nie moze byc dodana do innej skladowej (max 2 poziomy)")
         if (parent.get("type") or "materials") != (payload.type or "materials"):
             raise HTTPException(400, "Typ skladowej musi byc taki sam jak pozycji nadrzednej")
+        # Skladowe dziedzicza position_id i stage_id z rodzica
+        if not inherited_position_id:
+            inherited_position_id = parent.get("position_id")
+        if not inherited_stage_id:
+            inherited_stage_id = parent.get("stage_id")
     line_id = str(uuid.uuid4())
     doc = {
         "id": line_id,
@@ -366,7 +492,8 @@ async def create_line(payload: BudgetLineCreate, current_user: dict = Depends(ge
         "plan_netto": payload.plan_netto,
         "kaucja_gir_pct": payload.kaucja_gir_pct,  # None = dziedziczenie z budowy
         "kaucja_dw_pct": payload.kaucja_dw_pct,
-        "stage_id": payload.stage_id,
+        "stage_id": inherited_stage_id,
+        "position_id": inherited_position_id,
         "parent_id": payload.parent_id,
         "is_income": payload.is_income,
         "notes": payload.notes,
