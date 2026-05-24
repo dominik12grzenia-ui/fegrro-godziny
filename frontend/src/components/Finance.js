@@ -964,10 +964,10 @@ const BudowyPanel = () => {
                 onChange={(e) => setForm({...form, koszt_budowy_pct: parseFloat(e.target.value) || 0})}
                 className="w-20 no-spinner bg-[#131C2F] border-[#2A3B59] text-white text-right"
                 data-testid="finance-budowa-koszt-pct" />
-              <span className="text-[#94A3B8]">% z budżetu</span>
+              <span className="text-[#94A3B8]">% z przychodu</span>
             </div>
             <div className="text-[10px] text-[#64748B] px-2">
-              Koszt budowy = % od kwoty budżetu pozycji (BUDŻET × % = Koszt budowy). Liczony jak kaucje. Dodawany do Budżetu Zwolnionego.
+              Koszt budowy = % od przychodu pozycji (Przychód × % = Koszt budowy). Liczony tak samo jak kaucje. Dodawany do Budżetu Zwolnionego (kolumna K = G − H − I + J).
             </div>
           </div>
           {/* Dane do generowania protokolu miesiecznego */}
