@@ -880,6 +880,7 @@ const BudowyPanel = () => {
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">W godzinach</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">GIR %</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">DW %</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]" title="Koszt budowy - % do kolumny J w kosztorysie">Koszt budowy %</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Status</th>
               <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Akcje</th>
             </tr>
@@ -891,6 +892,7 @@ const BudowyPanel = () => {
                 <td className="py-3 px-4 text-center">{b.show_in_hours ? <span className="text-[#5F7552]">TAK</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center">{b.is_gir ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center">{b.is_dw ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
+                <td className="py-3 px-4 text-center" data-testid={`finance-budowa-koszt-cell-${b.id}`}>{(b.koszt_budowy_pct ?? 0) > 0 ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.koszt_budowy_pct)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center">
                   {b.is_archived ? <span className="text-[#94A3B8] text-xs px-2 py-1 bg-[#131C2F] rounded">Archiwum</span> : <span className="text-[#5F7552] text-xs px-2 py-1 bg-[#4F6343]/20 rounded">Aktywna</span>}
                 </td>
