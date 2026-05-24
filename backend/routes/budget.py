@@ -326,12 +326,20 @@ async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_curr
                 if not slot:
                     continue
                 slot_code = f"{pos_code}.{type_letter[t]}"
+                # Nazwa slotu - dodajemy gdy jest sensowna (nie domyslna auto-generowana)
+                slot_name = (slot.get("name") or "").strip()
+                default_names = {f"slot-{t}", type_pl[t], type_pl[t].lower(), ""}
+                show_name = slot_name and slot_name.lower() not in {n.lower() for n in default_names}
+                slot_label = f"   {slot_code} · {type_pl[t]}"
+                if show_name:
+                    slot_label += f" · {slot_name}"
                 options.append({
                     "id": slot["id"],
                     "code": slot_code,
-                    "label": f"   {slot_code} · {type_pl[t]}",
+                    "label": slot_label,
                     "stage_name": stage["name"],
                     "position_name": pos["name"],
+                    "slot_name": slot_name or None,
                     "type": t,
                     "level": "slot",
                 })
