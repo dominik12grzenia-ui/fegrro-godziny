@@ -349,6 +349,11 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                               <td className="px-1 py-1 text-left text-white font-bold border-r truncate" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: POS_BG }} title={pos.name}>
                                 <div className="flex items-center gap-1">
                                   <span className="truncate flex-1">{pos.name}</span>
+                                  {pos.include_in_protocol === false && (
+                                    <span className="shrink-0 text-[8px] px-1 py-0.5 rounded bg-[#9B2C2C]/30 text-[#FCA5A5] border border-[#9B2C2C]/50" title="Pozycja NIE jest zaciągana do protokołu zaawansowania">
+                                      bez prot.
+                                    </span>
+                                  )}
                                   <button onClick={() => onAddSubposition(pos)} className="text-[#5F7552] hover:text-[#9DBC85] shrink-0 p-0.5 rounded bg-[#0B1120] border border-[#5F7552]/40" data-testid={`pos-add-sub-${pos.id}`} title="Dodaj podpozycję (Robocizna / Materiał / Sprzęt)">
                                     <Plus className="h-3 w-3" />
                                   </button>
@@ -1436,6 +1441,9 @@ const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => 
   const [name, setName] = useState(editPosition?.name || '');
   const [stageId, setStageId] = useState(editPosition?.stage_id || (stages[0]?.id || ''));
   const [notes, setNotes] = useState(editPosition?.notes || '');
+  const [includeInProtocol, setIncludeInProtocol] = useState(
+    editPosition ? (editPosition.include_in_protocol !== false) : true
+  );
   const [busy, setBusy] = useState(false);
 
   const save = async () => {
@@ -1443,14 +1451,18 @@ const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => 
     if (!stageId) { toast.error('Wybierz etap'); return; }
     setBusy(true);
     try {
+      const payload = {
+        name: name.trim(),
+        stage_id: stageId,
+        notes,
+        include_in_protocol: includeInProtocol,
+      };
       if (editPosition) {
-        await api.patch(`/budget/positions/${editPosition.id}`, { name: name.trim(), stage_id: stageId, notes });
+        await api.patch(`/budget/positions/${editPosition.id}`, payload);
         toast.success('Pozycja zaktualizowana');
       } else {
-        const r = await api.post('/budget/positions', { budowa_id: budowaId, name: name.trim(), stage_id: stageId, notes });
+        await api.post('/budget/positions', { budowa_id: budowaId, ...payload });
         toast.success('Pozycja utworzona. Kliknij + przy nazwie aby dodać podpozycje.');
-        onSaved && onSaved(r.data);
-        return;
       }
       onSaved && onSaved();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
@@ -1492,6 +1504,17 @@ const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved }) => 
               className="bg-[#0B1120] border-[#2A3B59] text-white"
               data-testid="position-notes-input" />
           </div>
+          {/* Checkbox: zaciagac do protokolu */}
+          <label className="flex items-start gap-2 cursor-pointer p-2 rounded bg-[#0B1120] border border-[#2A3B59] hover:border-[#D4AF37]/60 transition">
+            <input type="checkbox" checked={includeInProtocol}
+              onChange={(e) => setIncludeInProtocol(e.target.checked)}
+              className="mt-0.5 accent-[#D4AF37]"
+              data-testid="position-include-in-protocol" />
+            <div className="flex-1 text-xs">
+              <div className="text-white font-semibold">Zaciągaj do protokołu zaawansowania</div>
+              <div className="text-[#94A3B8] mt-0.5">Gdy ZAZNACZONE, pozycja pojawi się w protokole z możliwością wpisania % wykonania. Odznacz dla pozycji pomocniczych (np. „ZUS", „Wynajem biura").</div>
+            </div>
+          </label>
         </div>
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="ghost" onClick={onClose} data-testid="position-cancel-btn">Anuluj</Button>
@@ -1991,7 +2014,8 @@ const ProgressPanel = ({ budowaId, year }) => {
     }
     if (Math.abs(pct - currentMiesiacPct) < 0.001) return pct;
     try {
-      await api.post(`/budget/lines/${lineId}/progress`, { year, month, progress_pct: pct });
+      // iter72+: protokol operuje na pozycjach (BudgetPosition), lineId tutaj = position_id
+      await api.post(`/budget/positions/${lineId}/progress`, { year, month, progress_pct: pct });
       // Optymistyczna aktualizacja danych
       setData((d) => {
         if (!d) return d;

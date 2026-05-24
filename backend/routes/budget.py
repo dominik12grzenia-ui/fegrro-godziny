@@ -50,6 +50,7 @@ class BudgetPositionCreate(BaseModel):
     name: str = Field(..., description="Nazwa pozycji np. 'Wykonanie chodnika'")
     notes: Optional[str] = None
     order: int = 0
+    include_in_protocol: bool = True
 
 
 class BudgetPositionUpdate(BaseModel):
@@ -57,6 +58,7 @@ class BudgetPositionUpdate(BaseModel):
     name: Optional[str] = None
     notes: Optional[str] = None
     order: Optional[int] = None
+    include_in_protocol: Optional[bool] = None
 
 
 class BudgetLineCreate(BaseModel):
@@ -382,6 +384,7 @@ async def create_position(payload: BudgetPositionCreate, current_user: dict = De
         "name": payload.name,
         "notes": payload.notes,
         "order": payload.order,
+        "include_in_protocol": payload.include_in_protocol,
         "created_at": now,
         "created_by": current_user["sub"],
     }
@@ -581,6 +584,64 @@ async def set_progress(line_id: str, payload: BudgetProgressSet,
     return update_set
 
 
+@router.post("/budget/positions/{position_id}/progress")
+async def set_position_progress(position_id: str, payload: BudgetProgressSet,
+                                current_user: dict = Depends(get_current_admin)):
+    """Ustawia przerob miesieczny dla POZYCJI kosztorysowej (iter72+).
+    Klucz: position_id (zamiast budget_line_id).
+    Walidacja: suma wszystkich przerobow per pozycja nie moze przekroczyc 100%.
+    """
+    pos = await db.budget_positions.find_one({"id": position_id}, {"_id": 0})
+    if not pos:
+        raise HTTPException(404, "Pozycja nie istnieje")
+
+    # Walidacja sumy
+    existing_sum = 0.0
+    async for p in db.budget_progress.find(
+        {"position_id": position_id,
+         "$or": [{"year": {"$ne": payload.year}},
+                 {"year": payload.year, "month": {"$ne": payload.month}}]},
+        {"_id": 0, "progress_pct": 1},
+    ):
+        existing_sum += float(p.get("progress_pct") or 0)
+    total_after = existing_sum + payload.progress_pct
+    if total_after > 100.01:
+        raise HTTPException(
+            400,
+            f"Przekroczono 100% realizacji pozycji. "
+            f"Suma innych miesiecy: {existing_sum:.1f}%, "
+            f"pozostalo do rozdysponowania: {max(0, 100 - existing_sum):.1f}%"
+        )
+
+    # Plan pozycji = suma plan_netto wszystkich linii pod pozycja
+    lines_pos = await db.budget_lines.find(
+        {"budowa_id": pos["budowa_id"], "position_id": position_id, "is_income": {"$ne": True}},
+        {"_id": 0},
+    ).to_list(length=500)
+    plan = sum(_compute_plan(line) for line in lines_pos)
+    value_netto = round(plan * (payload.progress_pct / 100.0), 2)
+
+    key = {"position_id": position_id, "year": payload.year, "month": payload.month}
+    update_set = {
+        **key,
+        "progress_pct": payload.progress_pct,
+        "value_netto": value_netto,
+        "notes": payload.notes,
+        "updated_at": datetime.now().isoformat(),
+        "updated_by": current_user["sub"],
+    }
+    existing = await db.budget_progress.find_one(key, {"_id": 0})
+    if existing:
+        await db.budget_progress.update_one(key, {"$set": update_set})
+        update_set["id"] = existing["id"]
+    else:
+        update_set["id"] = str(uuid.uuid4())
+        update_set["created_at"] = datetime.now().isoformat()
+        await db.budget_progress.insert_one(update_set)
+    update_set.pop("_id", None)
+    return update_set
+
+
 # ============== ENDPOINTS: TASKS (HARMONOGRAM) ==============
 
 @router.get("/budget/{budowa_id}/tasks")
@@ -656,14 +717,18 @@ def _month_range(year: int, month: int):
 async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     """Pobiera dane potrzebne do wygenerowania protokolu (xlsx lub pdf).
 
+    Nowy model (iter72+): protokol operuje na POZYCJACH (BudgetPosition), nie na liniach.
+    Pozycja jest zaciagana do protokolu tylko jezeli `include_in_protocol=True`.
+    Wartosc planu pozycji = SUMA `plan_netto_computed` wszystkich podpozycji + skladowych.
+
     Konwencja:
       - budget_progress.progress_pct = PRZEROB DANEGO MIESIACA (nie narastajaco)
-      - progress_curr[line_id] = przerob biezacego miesiaca
-      - progress_prev[line_id] = SUMA przerobow PRZED biezacym miesiacem
-      - Narastajaco = progress_prev + progress_curr
-      - lines sortowane wg etapu (stage.order) potem (line.order, created_at)
+      - klucz: position_id (nie budget_line_id)
+      - progress_curr[position_id] = przerob biezacego miesiaca
+      - progress_prev[position_id] = SUMA przerobow PRZED biezacym miesiacem
 
-    Zwraca tuple: (budowa, lines, progress_curr, progress_prev, nr_protokolu, stages_map).
+    Zwraca tuple: (budowa, positions_with_plan, progress_curr, progress_prev, nr_protokolu, stages_map).
+    `positions_with_plan` to lista dictow z polami: id, name, stage_id, plan_netto, quantity, unit, unit_price, category.
     stages_map: dict {stage_id: {id, name, order, start_date, end_date}}.
     """
     if month < 1 or month > 12:
@@ -675,50 +740,91 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     # Etapy budowy + mapa
     stages = await db.budget_stages.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1), ("start_date", 1)]).to_list(length=500)
     stages_map = {s["id"]: s for s in stages}
-    # Stable kolejnosc etapow: po order/start_date z DB; "bez etapu" zawsze na koncu
     stage_order = {s["id"]: i for i, s in enumerate(stages)}
-    stage_order[None] = len(stages) + 1  # bez etapu na koncu
+    stage_order[None] = len(stages) + 1
 
-    lines = await db.budget_lines.find(
-        {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0}
-    ).to_list(length=5000)
-    # Sortuj lines: stage_order -> line.order -> created_at
-    lines.sort(key=lambda ln: (
-        stage_order.get(ln.get("stage_id"), 999),
-        ln.get("order") or 0,
-        ln.get("created_at") or "",
+    # Pozycje (tylko include_in_protocol=True, domyslnie True)
+    positions = await db.budget_positions.find(
+        {"budowa_id": budowa_id, "include_in_protocol": {"$ne": False}},
+        {"_id": 0},
+    ).to_list(length=2000)
+
+    # Wszystkie linie dla tej budowy zeby zsumowac plan per pozycja
+    all_lines = await db.budget_lines.find(
+        {"budowa_id": budowa_id, "is_income": {"$ne": True}}, {"_id": 0},
+    ).to_list(length=10000)
+    # Suma `plan_netto_computed` (lub fallback `quantity * unit_price_netto` lub `plan_netto`) per position_id
+    plan_per_pos = {}
+    qty_per_pos = {}  # przyklad jednostki - pierwsza spotkana
+    for line in all_lines:
+        pid = line.get("position_id")
+        if not pid:
+            continue
+        plan = _compute_plan(line)
+        plan_per_pos[pid] = plan_per_pos.get(pid, 0.0) + plan
+        if pid not in qty_per_pos and line.get("quantity"):
+            qty_per_pos[pid] = {
+                "quantity": line.get("quantity"),
+                "unit": line.get("unit"),
+                "unit_price_netto": line.get("unit_price_netto"),
+            }
+
+    # Wzbogac pozycje o plan
+    positions_with_plan = []
+    for p in positions:
+        pid = p["id"]
+        plan = round(plan_per_pos.get(pid, 0.0), 2)
+        qi = qty_per_pos.get(pid, {})
+        positions_with_plan.append({
+            "id": pid,
+            "name": p.get("name", ""),
+            "stage_id": p.get("stage_id"),
+            "order": p.get("order") or 0,
+            "created_at": p.get("created_at") or "",
+            "plan_netto": plan,
+            "quantity": qi.get("quantity") or 0,
+            "unit": qi.get("unit") or "",
+            "unit_price_netto": qi.get("unit_price_netto") or 0,
+            "category": "",
+        })
+
+    # Sortuj: stage_order -> position.order -> created_at
+    positions_with_plan.sort(key=lambda pp: (
+        stage_order.get(pp.get("stage_id"), 999),
+        pp.get("order") or 0,
+        pp.get("created_at") or "",
     ))
 
-    line_ids = [ln["id"] for ln in lines]
+    pos_ids = [p["id"] for p in positions_with_plan]
     progress_curr = {}
     progress_prev = {}
-    if line_ids:
+    if pos_ids:
         async for p in db.budget_progress.find(
-            {"budget_line_id": {"$in": line_ids}, "year": year, "month": month},
-            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+            {"position_id": {"$in": pos_ids}, "year": year, "month": month},
+            {"_id": 0, "position_id": 1, "progress_pct": 1},
         ):
-            progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
+            progress_curr[p["position_id"]] = float(p["progress_pct"])
         async for p in db.budget_progress.find(
-            {"budget_line_id": {"$in": line_ids},
+            {"position_id": {"$in": pos_ids},
              "$or": [
                  {"year": {"$lt": year}},
                  {"year": year, "month": {"$lt": month}},
              ]},
-            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+            {"_id": 0, "position_id": 1, "progress_pct": 1},
         ):
-            lid = p["budget_line_id"]
-            progress_prev[lid] = progress_prev.get(lid, 0.0) + float(p["progress_pct"])
+            pid = p["position_id"]
+            progress_prev[pid] = progress_prev.get(pid, 0.0) + float(p["progress_pct"])
 
     distinct_months = set()
     async for p in db.budget_progress.find(
-        {"budget_line_id": {"$in": line_ids},
+        {"position_id": {"$in": pos_ids},
          "progress_pct": {"$gt": 0},
          "$or": [{"year": {"$lt": year}}, {"year": year, "month": {"$lt": month}}]},
         {"_id": 0, "year": 1, "month": 1},
     ):
         distinct_months.add((p["year"], p["month"]))
     nr = len(distinct_months) + 1
-    return budowa, lines, progress_curr, progress_prev, nr, stages_map
+    return budowa, positions_with_plan, progress_curr, progress_prev, nr, stages_map
 
 
 @router.get("/budget/{budowa_id}/protokol-view/{year}/{month}")
@@ -729,39 +835,39 @@ async def get_protokol_view(
     _user: dict = Depends(get_current_admin),
 ):
     """Dane do widoku Protokol w stylu Excel.
-    Zwraca wiersze: ETAPY jako sekcje + pozycje z narastajaco / poprzedni / miesiac rozliczeniowy.
-    Format identyczny jak generator XLSX, ale jako JSON dla frontendu.
+    Zwraca wiersze: ETAPY jako sekcje + pozycje (Pozycja Główna) z narastajaco / poprzedni / miesiac rozliczeniowy.
+    UWAGA (iter72): wiersze sa pozycjami (BudgetPosition), NIE podpozycjami. ID wiersza = position_id.
     """
-    budowa, lines, progress_curr, progress_prev, nr, stages_map = await _fetch_protokol_data(budowa_id, year, month)
+    budowa, positions, progress_curr, progress_prev, nr, stages_map = await _fetch_protokol_data(budowa_id, year, month)
 
     rows = []
     last_stage = "__init__"
     lp = 1
     sum_budzet = sum_narast = sum_prev = sum_miesiac = 0.0
 
-    for ln in lines:
-        sid = ln.get("stage_id")
+    for pos in positions:
+        sid = pos.get("stage_id")
         if sid != last_stage:
             stage = stages_map.get(sid)
             stage_name = (stage.get("name") if stage else "Bez etapu") or "Bez etapu"
             rows.append({"type": "section", "stage_id": sid, "stage_name": stage_name})
             last_stage = sid
-        plan = _compute_plan(ln)
-        miesiac_pct = progress_curr.get(ln["id"], 0.0)
-        prev_pct = progress_prev.get(ln["id"], 0.0)
+        plan = pos["plan_netto"]
+        miesiac_pct = progress_curr.get(pos["id"], 0.0)
+        prev_pct = progress_prev.get(pos["id"], 0.0)
         narast_pct = min(100.0, prev_pct + miesiac_pct)
         narast_val = round(plan * narast_pct / 100, 2)
         prev_val = round(plan * prev_pct / 100, 2)
         miesiac_val = round(plan * miesiac_pct / 100, 2)
         rows.append({
-            "type": "line",
-            "id": ln["id"],
+            "type": "line",  # zachowujemy 'line' dla kompatybilnosci frontendu
+            "id": pos["id"],
             "lp": lp,
-            "category": ln.get("category") or "",
-            "name": ln.get("name", ""),
-            "unit": ln.get("unit") or "",
-            "quantity": ln.get("quantity") or 0,
-            "unit_price_netto": ln.get("unit_price_netto") or 0,
+            "category": pos.get("category") or "",
+            "name": pos.get("name", ""),
+            "unit": pos.get("unit") or "",
+            "quantity": pos.get("quantity") or 0,
+            "unit_price_netto": pos.get("unit_price_netto") or 0,
             "plan_netto": plan,
             "narast_val": narast_val,
             "narast_pct": narast_pct,
@@ -923,7 +1029,7 @@ async def generate_protokol_pdf(
             row = ["", stage_name.upper(), "", "", "", "", "", "", "", "", "", ""]
             data.append(row)
             last_stage = sid
-        plan = _compute_plan(ln)
+        plan = ln.get("plan_netto", 0)  # iter72: pozycje maja juz policzony plan
         miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)
         narast_pct = min(100.0, prev_pct + miesiac_pct)
@@ -1270,7 +1376,7 @@ async def generate_protokol_xlsx(
             r += 1
             last_stage = sid
 
-        plan = _compute_plan(ln)
+        plan = ln.get("plan_netto", 0)  # iter72: pozycje maja juz policzony plan
         # Nowa konwencja: progress_curr to przerob miesiaca, progress_prev to suma narast. do poprz.
         miesiac_pct = progress_curr.get(ln["id"], 0.0)
         prev_pct = progress_prev.get(ln["id"], 0.0)

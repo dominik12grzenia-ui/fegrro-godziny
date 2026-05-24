@@ -1,4 +1,33 @@
-## Iteration 71 (2026-05-24) — Dodawanie podpozycji na żądanie (zamiast auto-tworzenia 3 slotów)
+## Iteration 72 (2026-05-24) — Protokół zaciąga tylko Pozycje (bez Podpozycji) + checkbox include_in_protocol
+
+### User request
+„WYZERUJ WSZYSTKIE DANE WPISANE PRZEZEMNIE W BUDŻECIE I PROTOKOLE. ZRÓB TAK BY PROTOKÓŁ ZACIĄGAŁ TYLKO DANE ETAPU ORAZ POZYCJI BEZ PODPOZYCJI I GDY TWORZE BUDŻET CHCE MIEĆ MOZLIWOŚC ODZNACZENIA CZY DANA POZYCJA MA BYĆ ZACIĄGNIĘTA DO PROTOKOŁU"
+
+### Backend (`/app/backend/routes/budget.py`)
+- **Wyczyszczone dane**: budget_lines=0, budget_positions=1, budget_progress=0, budget_stages=1 usunięte.
+- **`BudgetPositionCreate/Update`**: nowe pole `include_in_protocol: bool = True`.
+- **`_fetch_protokol_data`** kompletnie zrefaktoryzowany: zamiast iterować `budget_lines`, pobiera `budget_positions` (filtr `include_in_protocol != False`) i sumuje `plan_netto_computed` ze wszystkich podpozycji + składowych per `position_id` → `plan_netto` pozycji.
+- **`get_protokol_view`**: zwraca wiersze z `id = position_id` (interfejs frontendu pozostaje, type="line" zachowane).
+- **`get_protokol_pdf` + `generate_protokol_xlsx`**: zaktualizowane do nowego modelu (`ln.get("plan_netto", 0)` zamiast `_compute_plan(ln)`).
+- **Nowy endpoint `POST /budget/positions/{position_id}/progress`**: zapisuje progress per position_id z walidacją sumy ≤100%, oblicza value_netto z planu pozycji.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **`PositionModal`**: nowy checkbox **„Zaciągaj do protokołu zaawansowania"** (`data-testid="position-include-in-protocol"`, gold accent, domyślnie ON) z hintem „Odznacz dla pozycji pomocniczych (np. ZUS, Wynajem biura)".
+- **`BudgetExcelTemplateView`**: gdy `pos.include_in_protocol === false`, obok nazwy pojawia się czerwona plakietka **„bez prot."** (z tooltipem).
+- **`ProgressPanel.saveCell`**: zmienione z `POST /budget/lines/{lineId}/progress` na **`POST /budget/positions/{positionId}/progress`** (komentarz: iter72+ protokol operuje na pozycjach, lineId tutaj = position_id).
+
+### Test
+- Backend pytest **iter72: 5/5 PASS** (+ iter67/iter68 regression: 9/9 PASS → razem **14/14**)
+  - test_include_in_protocol_field_default_true
+  - test_include_in_protocol_false_excluded_from_view
+  - test_position_plan_netto_aggregates_sublines
+  - test_progress_via_position_endpoint (+ walidacja >100%)
+  - test_patch_include_in_protocol
+- Live smoke screenshot: modal z checkboxem widoczny, default ON, hint poprawny.
+
+
+
+
 
 ### User feedback
 „NIE DODAWAJ ODRAZU PODPOZYCJI ZRÓB MI PLUSIK PRZY NAZWIE POZYCJA GŁÓWNA BYM MÓGŁ DODAĆ PODPOZYCJE I OKREŚLIĆ DO JAKIEJ KATEGORII NALEŻY ROBOCIZNA CZY MATERIAŁ CZY SPRZĘT"
