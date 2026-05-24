@@ -429,6 +429,44 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     return v.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
   };
 
+  // iter81: Alert wizualny przekroczenia budzetu.
+  // - col 'S' (pct): >=100% czerwone (przekroczone), >=80% zolte, <80% zielone
+  // - col 'T' (pozostalo budzetu z prognozy) i col 'U' (zysk z budzetu): <0 czerwone, < 5% ref zolte, >=5% zielone
+  // - col 'V' (roznica zysku): <0 czerwone, w przeciwnym razie zielone (brak progu zoltego - referencja sluzy do M)
+  // Zwraca {style, icon} - icon to '⚠' tekstowo gdy alert.
+  const alertCell = (val, ref, opts = {}) => {
+    const base = { borderColor: BORDER };
+    if (val == null || (typeof val === 'number' && !isFinite(val))) {
+      return { style: { ...base, color: '#94A3B8' }, icon: null };
+    }
+    if (opts.pct) {
+      if (val >= 100) return { style: { ...base, color: '#FFFFFF', backgroundColor: '#9B2C2C', fontWeight: 700 }, icon: '⚠' };
+      if (val >= 80) return { style: { ...base, color: '#0B1120', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
+      return { style: { ...base, color: '#5F7552', fontWeight: 700 }, icon: null };
+    }
+    if (val < 0) {
+      return { style: { ...base, color: '#FFFFFF', backgroundColor: '#9B2C2C', fontWeight: 700 }, icon: '⚠' };
+    }
+    if (!opts.skipWarn) {
+      const refAbs = Math.abs(ref || 0);
+      if (refAbs > 0 && val < refAbs * 0.05) {
+        return { style: { ...base, color: '#0B1120', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
+      }
+    }
+    return { style: { ...base, color: '#5F7552', fontWeight: 700 }, icon: null };
+  };
+
+  // Renderer komorki z opcjonalnym alert icon (T, U, V, S)
+  const renderAlertCell = (val, ref, opts = {}) => {
+    const { style, icon } = alertCell(val, ref, opts);
+    return (
+      <td className="px-1 py-1 text-right tabular-nums border-r" style={style} title={icon ? (opts.warningTitle || 'Uwaga: przekroczenie/strata') : undefined}>
+        {icon && <span className="mr-0.5">{icon}</span>}
+        {val == null ? '—' : num(val, opts.pct ? { pct: true, showZero: true } : {})}
+      </td>
+    );
+  };
+
   if (loading) return <Card className="bg-[#131C2F] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8] text-sm">Ładuję...</CardContent></Card>;
 
   const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
@@ -587,14 +625,14 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                               <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r relative" style={{ borderColor: BORDER }} title={agg.hasL ? 'Suma kosztu prognozowanego ze składowych' : 'Brak wartości - wpisz w podpozycjach'}>{agg.hasL ? num(agg.L) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.M != null ? num(agg.M) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.N)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: alokacja % protokół">{num(agg.O)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: % wynagrodzeń firmy">{num(agg.P)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }} title="TODO: koszty nieprzypisane">{num(agg.Q)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="O = koszty bez budget_line_id na tej budowie (z wyl. KP), rozproszone wg % protokol pozycji">{num(agg.O)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="P = wynagrodzenia tej budowy alokowane do slotu robocizny pozycji">{num(agg.P)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="Q = firmowe koszty bez budowy x (KP_budowa / KP_firma), alokowane do slotu robocizny">{num(agg.Q)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.R)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums font-bold border-r" style={{ borderColor: BORDER, color: agg.S >= 100 ? '#FCA5A5' : agg.S >= 80 ? '#D4AF37' : '#5F7552' }}>{num(agg.S, { pct: true, showZero: true })}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{agg.T != null ? num(agg.T) : '—'}</td>
-                              <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.U||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{num(agg.U)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums border-r" style={{ borderColor: BORDER, color: (agg.V||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.V != null ? num(agg.V) : '—'}</td>
+                              {renderAlertCell(agg.S, null, { pct: true, warningTitle: 'Przekroczono 100% kosztu jednostkowego - sprawdz alokacje O/P/Q vs N' })}
+                              {renderAlertCell(agg.T, agg.L, { warningTitle: 'Przekroczono prognozowany koszt (T = L - R < 0)' })}
+                              {renderAlertCell(agg.U, agg.K, { warningTitle: 'STRATA - koszty przekraczaja Budzet Zwolniony (U = K - R < 0)' })}
+                              {renderAlertCell(agg.V, null, { skipWarn: true, warningTitle: 'Zysk faktyczny gorszy od prognozowanego' })}
                               <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: POS_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
                                 <button onClick={() => onEditPosition(pos)} className="text-[#94A3B8] hover:text-white p-1" data-testid={`pos-edit-${pos.id}`} title="Edytuj nazwę/etap"><Pencil className="h-3 w-3" /></button>
                                 <button onClick={() => onDeletePosition(pos)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-1" data-testid={`pos-del-${pos.id}`} title="Usuń pozycję (wraz z podpozycjami)"><Trash2 className="h-3 w-3" /></button>
@@ -644,10 +682,10 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                                     <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.P)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.Q)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.R)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums font-bold border-r" style={{ borderColor: BORDER, color: r.S >= 100 ? '#FCA5A5' : r.S >= 80 ? '#D4AF37' : '#5F7552' }}>{num(r.S, { pct: true, showZero: true })}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{r.T != null ? num(r.T) : '—'}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (r.U||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{num(r.U)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums border-r" style={{ borderColor: BORDER, color: (r.V||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{r.V != null ? num(r.V) : '—'}</td>
+                                    {renderAlertCell(r.S, null, { pct: true, warningTitle: 'Slot: przekroczono 100% kosztu (R/N)' })}
+                                    {renderAlertCell(r.T, r.L, { warningTitle: 'Slot: przekroczono prognoze (T = L - R)' })}
+                                    {renderAlertCell(r.U, r.K, { warningTitle: 'Slot: strata (U = K - R)' })}
+                                    {renderAlertCell(r.V, null, { skipWarn: true })}
                                     <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: SUB_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
                                       <button onClick={() => onAddChildLine(slot)} className="text-[#5F7552] hover:text-[#9DBC85] p-0.5" data-testid={`sub-add-child-${slot.id}`} title="Dodaj składową (rozwiń podpozycję)"><Plus className="h-3 w-3" /></button>
                                       <button onClick={() => onEditLine(slot)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`sub-edit-${slot.id}`} title="Edytuj wartości"><Pencil className="h-3 w-3" /></button>
@@ -702,7 +740,13 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           </div>
         )}
         <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
-          Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy księgowe (auto) · <b>O/P/Q</b>=alokacja (w przygotowaniu — pokazuje 0) · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U
+          <div className="mb-1">Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I+J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy przypisane do pozycji · <b>O</b>=koszty budowy bez kodu (% protokół) · <b>P</b>=wynagrodzenia → robocizna · <b>Q</b>=firmowe koszty × % wynagr. → robocizna · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U</div>
+          <div className="text-[#FCA5A5]">
+            Alerty wizualne (iter81): kolumny <b>S/T/U</b> mają kolorowanie:
+            {' '}<span className="px-1 rounded" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span> = przekroczenie / strata,
+            {' '}<span className="px-1 rounded" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span> = mała rezerwa (&lt; 5%),
+            {' '}<span className="px-1 rounded" style={{ color: '#5F7552' }}>zielone</span> = bezpieczny zapas.
+          </div>
         </div>
       </CardContent>
     </Card>

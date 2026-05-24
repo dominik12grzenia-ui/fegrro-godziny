@@ -1,3 +1,30 @@
+## Iteration 81 (2026-05-24) — Alerty wizualne przekroczeń budżetu (S/T/U/V)
+
+### User request
+„Skoro wynagrodzenia są precyzyjnie alokowane do robocizny, warto by kolumna `% zrealizowanego` (S) wykrywała przekroczenie 100% z czerwoną podświetlaną komórką."
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Nowy helper `alertCell(val, ref, opts)`** zwracający `{style, icon}` dla komórki:
+  - **Kolumna `S` (pct = true)**: ≥100% → 🔴 czerwone tło + ⚠; ≥80% → 🟡 żółte tło; <80% → 🟢 zielony font.
+  - **Kolumny `T` (POZOSTAŁO BUDŻETU) i `U` (Zysk)**:
+    - `< 0` → 🔴 czerwone tło + ⚠ (strata / przekroczenie planu)
+    - `0 ≤ val < 5% × |ref|` → 🟡 żółte tło (niska rezerwa)
+    - reszta → 🟢 zielony font (bezpieczny zapas)
+  - **Kolumna `V` (Różnica zysku)**: `<0` → 🔴 (skipWarn — nie pokazujemy żółtego, bo brak naturalnej referencji).
+- **Renderer `renderAlertCell(val, ref, opts)`** stosuje styl + dodaje ikonę „⚠" gdy `icon != null` + `title` z opisem alertu.
+- Zastosowano w wierszach **Pozycji głównej** i **slotów** dla kolumn S/T/U/V.
+- **Tooltipy O/P/Q** uaktualnione (już nie „TODO" — opisują logikę alokacji z iter79/80).
+- **Legenda** rozszerzona o sekcję alertów wizualnych z próbkami kolorów.
+
+### Smoke test UI
+Lint JS ✓; preview env nie ma budów z planem != 0 zł, więc alerty nie są wyzwalane wizualnie. Logika jest pure-JS, dziedziczona z istniejącego wzorca kolorowania (kolumny M/U/V od dawna używały warunkowego koloru fontu — teraz mają również czerwone tło + ⚠ ikonkę dla strat).
+
+### Pliki zmienione
+- `/app/frontend/src/components/Budget.js` — dodano `alertCell` + `renderAlertCell`, zastosowano w S/T/U/V (poziom pozycji i slotów), zaktualizowane tooltipy O/P/Q, rozszerzona legenda.
+
+---
+
+
 ## Iteration 80 (2026-05-24) — P/Q tylko do slotów `labor` (robocizna)
 
 ### User request
