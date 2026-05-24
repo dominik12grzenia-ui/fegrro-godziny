@@ -1,3 +1,51 @@
+## Iteration 78 (2026-05-24) — Inline przypisywanie kodów budżetowych w Zapisach
+
+### User request
+„dobra teraz w zapisach dodaj kolumnę z boku budowy gdzie będą znajdować się wszystkie kody budżetowe z danej budowy. czyli jak wybiorę budowę to wtedy wyskakują mi dane z kodami i nazwami budżetu tylko dla tej budowy. Po wybraniu budowy i przypisaniu kodu budżetu koszt zostaje dodany do koszt przypisany do etapów."
+
+Wybrane opcje: a)c (przypisanie do pozycji + składowych R/M/S), b)a (prosty dropdown w wierszu), c) kolumna obok prognozowanego zysku w tabeli „koszty przypisane do etapów".
+
+### Backend (`/app/backend/routes/budget.py`)
+- **Nowy endpoint `GET /budget/{budowa_id}/options-flat`** — zwraca spłaszczoną hierarchię opcji do dropdownu:
+  - Iteruje Etapy → Pozycje → Sloty (S/R/M) → Składowe.
+  - Każda opcja: `id` (= `budget_lines.id`), `code` (np. `101.S`, `101.R`, `101.M`, `101.M.1`), `label` (czytelna), `stage_name`, `position_name`, `type`, `level` (`slot`/`sub`).
+  - Pomija stage/position bez slotów.
+
+### Backend (`/app/backend/routes/finance.py`)
+- **`update_zapis` allowuje clear `budget_line_id`**: jawnie zachowuje `None` w `upd` dla tego pola, zachowując filtrację `None` dla pozostałych pól (zgodnie z PATCH semantyką).
+- Walidacja: gdy `budget_line_id != None`, sprawdza istnienie w `budget_lines`.
+
+### Frontend (`/app/frontend/src/components/Finance.js`)
+- **Nowa kolumna „Pozycja budżetu"** między „Budowa" a „Netto" w tabeli Faktur i Zapisów.
+- **Inline dropdown `renderBudgetCodeSelect(budowaId, val, onChange, testid)`**:
+  - Bez budowy → pokazuje „wybierz budowę" (zachęta).
+  - Bez pozycji/etapów w budowie → „brak pozycji".
+  - Inaczej dropdown w formacie `kod · nazwa pozycji [› nazwa składowej]`.
+- **Lazy fetch opcji** per `budowa_id`, cache w `budgetOptionsByBudowa`. Pre-fetch wszystkich budów widocznych w `rows`.
+- **Modal Dodaj/Edytuj zapis**: zmieniono fetch z `/budget/.../lines` na `/budget/.../options-flat` dla spójności z inline dropdownem.
+- **Quick assign**: `quickAssignPos(z, 'budget_line_id', val||null)` dla pozycji faktur i standalone zapisów (optymistyczna aktualizacja + rollback przy błędzie).
+- **Nagłówki faktur**: cell „(w pozycjach)" — kody przypisuje się indywidualnie do pozycji.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- Kolumna N „Koszty przypisane do etapów" już istnieje (iter77) i agreguje `execution_netto` per linia + roll-up do slotów/pozycji w `computeRow`/`computePositionRow`. Brak zmian.
+
+### Test
+- `/app/backend/tests/test_iter78_budget_options_flat.py` (3 testy, wszystkie passed):
+  - `test_options_flat_empty` — pusta budowa zwraca `[]`
+  - `test_options_flat_with_hierarchy` — 1 etap + 1 pozycja + 3 sloty + 2 składowe pod M → 5 opcji (101.S, 101.R, 101.M, 101.M.1, 101.M.2)
+  - `test_zapis_assign_budget_line` — przypisanie + rollup do `execution_netto` w `/budget/lines` + clear przez PUT `{budget_line_id: null}`
+- Smoke test UI: live screenshot pokazuje nową kolumnę „Pozycja budżetu" w tabeli Zapisy, hint „wybierz budowę" dla pustych pozycji.
+- Lint JS/Python ✓
+
+### Pliki zmienione
+- `/app/backend/routes/budget.py` — nowy endpoint `/budget/{budowa_id}/options-flat`
+- `/app/backend/routes/finance.py` — clear `budget_line_id` w `update_zapis`
+- `/app/frontend/src/components/Finance.js` — nowa kolumna + dropdown + cache opcji
+- `/app/backend/tests/test_iter78_budget_options_flat.py` — testy pytest
+
+---
+
+
 ## Iteration 74 (2026-05-24) — Pole `koszt_budowy_pct` na budowie (kolumna J w kosztorysie)
 
 ### User request

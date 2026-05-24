@@ -277,6 +277,70 @@ async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
     return {"rows": lines}
 
 
+@router.get("/budget/{budowa_id}/options-flat")
+async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_current_admin)):
+    """Splaszczona hierarchia budzetu dla dropdownu w Zapisach (Finance).
+
+    Zwraca opcje wyboru w kolejnosci: Etap -> Pozycja -> Slot R/M/S -> Skladowa.
+    Kazda opcja ma `id` (= budget_lines.id), `code` (np. "101.R" lub "101.M.2"),
+    `label` (czytelna etykieta), `stage_name`, `position_name`, `type`, `level`.
+    """
+    stages = await db.budget_stages.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1), ("created_at", 1)]).to_list(length=500)
+    positions = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1), ("created_at", 1)]).to_list(length=2000)
+    lines = await db.budget_lines.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1), ("created_at", 1)]).to_list(length=5000)
+
+    pos_by_stage: dict = {}
+    for p in positions:
+        pos_by_stage.setdefault(p.get("stage_id"), []).append(p)
+
+    slots_by_pos: dict = {}  # position_id -> {type: slot_line}
+    subs_by_parent: dict = {}  # parent_id -> [sub_lines]
+    for ln in lines:
+        if ln.get("parent_id"):
+            subs_by_parent.setdefault(ln["parent_id"], []).append(ln)
+        elif ln.get("position_id"):
+            slots_by_pos.setdefault(ln["position_id"], {})[ln.get("type") or "materials"] = ln
+
+    type_letter = {"equipment": "S", "labor": "R", "materials": "M"}
+    type_pl = {"equipment": "sprzęt", "labor": "robocizna", "materials": "Materiał"}
+    type_order = ["equipment", "labor", "materials"]
+
+    options: list = []
+    for stage in stages:
+        positions_for_stage = pos_by_stage.get(stage["id"], [])
+        for p_idx, pos in enumerate(positions_for_stage):
+            pos_code = f"{100 + p_idx + 1}"  # 101, 102, ...
+            slots = slots_by_pos.get(pos["id"], {})
+            for t in type_order:
+                slot = slots.get(t)
+                if not slot:
+                    continue
+                slot_code = f"{pos_code}.{type_letter[t]}"
+                options.append({
+                    "id": slot["id"],
+                    "code": slot_code,
+                    "label": f"{slot_code} · {pos['name']} ({type_pl[t]})",
+                    "stage_name": stage["name"],
+                    "position_name": pos["name"],
+                    "type": t,
+                    "level": "slot",
+                })
+                subs = subs_by_parent.get(slot["id"], [])
+                for sub_idx, sub in enumerate(subs):
+                    sub_code = f"{slot_code}.{sub_idx + 1}"
+                    options.append({
+                        "id": sub["id"],
+                        "code": sub_code,
+                        "label": f"    {sub_code} · {sub.get('name') or ''}",
+                        "stage_name": stage["name"],
+                        "position_name": pos["name"],
+                        "parent_slot_id": slot["id"],
+                        "type": t,
+                        "level": "sub",
+                    })
+    return {"options": options}
+
+
 # ============== CATEGORIES ==============
 
 @router.get("/budget/{budowa_id}/categories")

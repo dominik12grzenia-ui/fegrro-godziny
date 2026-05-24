@@ -550,7 +550,13 @@ async def update_zapis(zapis_id: str, payload: ZapisUpdate, current_user: dict =
     existing = await db.finance_zapisy.find_one({"id": zapis_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Zapis nie znaleziony")
-    upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
+    raw = payload.model_dump(exclude_unset=True)
+    # budget_line_id moze byc explicitnie wyzerowany (None) - reszta None traktowana jak brak zmiany
+    upd = {k: v for k, v in raw.items() if v is not None or k == "budget_line_id"}
+    if "budget_line_id" in raw and raw["budget_line_id"]:
+        bl = await db.budget_lines.find_one({"id": raw["budget_line_id"]}, {"_id": 0, "id": 1})
+        if not bl:
+            raise HTTPException(status_code=400, detail="Nieznana pozycja budzetu")
     if "date" in upd:
         try:
             d = datetime.strptime(upd["date"], "%Y-%m-%d")

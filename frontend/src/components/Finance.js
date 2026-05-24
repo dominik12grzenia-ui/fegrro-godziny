@@ -1040,14 +1040,25 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   });
   // Pozycje budzetu dla aktualnie wybranej budowy (modal)
   const [budgetLines, setBudgetLines] = useState([]);
+  // Opcje budzetu (flat) dla inline dropdownow w tabeli - cache per budowa_id
+  const [budgetOptionsByBudowa, setBudgetOptionsByBudowa] = useState({});
 
-  // Auto-fetch budget lines gdy uzytkownik wybierze budowe w modalu
+  // Auto-fetch budget options gdy uzytkownik wybierze budowe w modalu
   useEffect(() => {
     if (!form.budowa_id) { setBudgetLines([]); return; }
-    api.get(`/budget/${form.budowa_id}/lines`)
-      .then((r) => setBudgetLines(r.data?.rows || []))
+    api.get(`/budget/${form.budowa_id}/options-flat`)
+      .then((r) => setBudgetLines(r.data?.options || []))
       .catch(() => setBudgetLines([]));
   }, [form.budowa_id]);
+
+  // Lazy loader opcji budzetowych dla danej budowy (dla inline dropdownow w wierszach)
+  const ensureBudgetOptions = useCallback((budowaId) => {
+    if (!budowaId || budgetOptionsByBudowa[budowaId] !== undefined) return;
+    setBudgetOptionsByBudowa(prev => ({ ...prev, [budowaId]: [] })); // placeholder zeby nie powtarzac fetcha
+    api.get(`/budget/${budowaId}/options-flat`)
+      .then((r) => setBudgetOptionsByBudowa(prev => ({ ...prev, [budowaId]: r.data?.options || [] })))
+      .catch(() => setBudgetOptionsByBudowa(prev => ({ ...prev, [budowaId]: [] })));
+  }, [budgetOptionsByBudowa]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -1109,6 +1120,16 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   }, [year, month]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Pre-fetch opcji budzetu dla budow widocznych w wierszach (zarowno faktury+pozycje, jak i standalone zapisy)
+  useEffect(() => {
+    const ids = new Set();
+    rows.forEach(r => {
+      if (r.budowa_id) ids.add(r.budowa_id);
+      if (r.positions) r.positions.forEach(p => { if (p.budowa_id) ids.add(p.budowa_id); });
+    });
+    ids.forEach(id => ensureBudgetOptions(id));
+  }, [rows, ensureBudgetOptions]);
 
   const budowaName = (id) => budowy.find(b => b.id === id)?.name || '-';
   const kodName = (id) => kody.find(k => k.id === id)?.name || id;
@@ -1329,6 +1350,35 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     </select>
   );
 
+  // Inline dropdown - kod pozycji budzetowej. Tylko gdy budowa_id ustawiona.
+  // Lazy fetch opcji dla budowy przy pierwszym renderze rzedu.
+  const renderBudgetCodeSelect = (budowaId, val, onChange, testid) => {
+    if (!budowaId) {
+      return <span className="text-[#475569] text-[10px] italic">wybierz budowę</span>;
+    }
+    const opts = budgetOptionsByBudowa[budowaId];
+    if (opts === undefined) {
+      // Trigger fetch - useEffect ponizej zlapie to przez sledzenie rows
+      ensureBudgetOptions(budowaId);
+      return <span className="text-[#475569] text-[10px] italic">ładuję…</span>;
+    }
+    if (opts.length === 0) {
+      return <span className="text-[#475569] text-[10px] italic">brak pozycji</span>;
+    }
+    return (
+      <select value={val || ''} onChange={onChange}
+        className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-1 py-1 text-xs"
+        data-testid={testid}>
+        <option value="">— bez kodu —</option>
+        {opts.map(opt => (
+          <option key={opt.id} value={opt.id} title={`${opt.stage_name} · ${opt.position_name}`}>
+            {opt.code} · {opt.position_name}{opt.level === 'sub' ? ` › ${opt.label.trim().split('·').slice(1).join('·').trim()}` : ''}
+          </option>
+        ))}
+      </select>
+    );
+  };
+
   return (
     <Card className="bg-[#19243C] border-[#2A3B59]">
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
@@ -1443,6 +1493,7 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               <th className="p-2 text-left">Pozycja / Reszta</th>
               <th className="p-2 text-left">Kod kosztu</th>
               <th className="p-2 text-left">Budowa</th>
+              <th className="p-2 text-left">Pozycja budżetu</th>
               <th className="p-2 text-right">Netto</th>
               <th className="p-2 text-right">Akcje</th>
             </tr>
@@ -1511,6 +1562,9 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                         {renderBudowaSelect(r.budowa_id, (e) => quickAssignInv(r, 'budowa_id', e.target.value),
                           `finance-invoice-budowa-${r.id}`)}
                       </td>
+                      <td className="p-2 text-xs text-[#475569] text-[10px] italic" title="Kody budżetu przypisuje się indywidualnie do pozycji faktury">
+                        {(r.positions || []).length > 0 ? '(w pozycjach)' : '—'}
+                      </td>
                       <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmtPLN(r.netto)}</td>
                       <td className="p-2 text-right">
                         <button onClick={() => removeInvoice(r)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń fakture + pozycje"><Trash2 className="h-4 w-4 text-[#9B2C2C]" /></button>
@@ -1531,6 +1585,10 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                         <td className="p-2 text-xs">
                           {renderBudowaSelect(p.budowa_id, (e) => quickAssignPos(p, 'budowa_id', e.target.value),
                             `finance-pos-budowa-${p.id}`)}
+                        </td>
+                        <td className="p-2 text-xs">
+                          {renderBudgetCodeSelect(p.budowa_id, p.budget_line_id, (e) => quickAssignPos(p, 'budget_line_id', e.target.value || null),
+                            `finance-pos-budget-line-${p.id}`)}
                         </td>
                         <td className="p-2 text-right text-[#CBD5E1] font-mono whitespace-nowrap">{fmtPLN(p.netto)}</td>
                         <td className="p-2 text-right"></td>
@@ -1560,6 +1618,10 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                   </td>
                   <td className="p-2 text-xs">
                     <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>
+                  </td>
+                  <td className="p-2 text-xs">
+                    {renderBudgetCodeSelect(z.budowa_id, z.budget_line_id, (e) => quickAssignPos(z, 'budget_line_id', e.target.value || null),
+                      `finance-zapis-budget-line-${z.id}`)}
                   </td>
                   <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmtPLN(z.netto)}</td>
                   <td className="p-2 text-right">
@@ -1631,9 +1693,9 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                   className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                   data-testid="finance-zapis-budget-line">
                   <option value="">— bez przypisania —</option>
-                  {budgetLines.map(ln => (
-                    <option key={ln.id} value={ln.id}>
-                      {ln.category} → {ln.name} (plan: {ln.plan_netto_computed?.toLocaleString('pl-PL') || 0} zł)
+                  {budgetLines.map(opt => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.stage_name} › {opt.label}
                     </option>
                   ))}
                 </select>
