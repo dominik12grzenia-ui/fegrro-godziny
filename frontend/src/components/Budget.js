@@ -819,11 +819,9 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
             Kategorie ({categories.length})
           </Button>
           <Button size="sm"
-            onClick={() => { setEditPosition(null); setPositionModalOpen(true); }}
-            disabled={stages.length === 0}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
-            data-testid="budget-add-position-btn"
-            title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
+            onClick={() => { setEditLine(null); setParentLine(null); setModalOpen(true); }}
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8"
+            data-testid="budget-add-line-btn">
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
           </Button>
         </div>
@@ -874,7 +872,13 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
           </div>
         )}
 
-        {loading && <div className="text-[#94A3B8] text-sm">Ładuję...</div>}
+        {loading ? (
+          <div className="text-[#94A3B8] text-sm">Ładuję...</div>
+        ) : lines.length === 0 ? (
+          <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="budget-empty">
+            Brak pozycji. Kliknij „Dodaj pozycję" aby zacząć.
+          </div>
+        ) : null}
       </CardContent>
       {modalOpen && (
         <BudgetLineModal
@@ -908,29 +912,16 @@ const BudgetLinesPanel = ({ budowaId, onChange }) => {
         />
       )}
     </Card>
-    {/* === Nowy widok kosztorysowy: Etap > Pozycja > R/M/S === */}
-    <div className="mt-4">
-      <BudgetCostingView
-        positions={positions}
-        stages={stages}
-        lines={lines}
-        loading={loading}
-        onAddPosition={() => { setEditPosition(null); setPositionModalOpen(true); }}
-        onEditPosition={(pos) => { setEditPosition(pos); setPositionModalOpen(true); }}
-        onDeletePosition={removePosition}
-        onEditLine={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
-        onAddChildLine={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
-        onDeleteLine={remove}
-      />
-    </div>
-    {positionModalOpen && (
-      <PositionModal
-        budowaId={budowaId}
-        editPosition={editPosition}
-        stages={stages}
-        onClose={() => { setPositionModalOpen(false); setEditPosition(null); }}
-        onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(); onChange && onChange(); }}
-      />
+    {/* === Widok zestawienia kosztorysowego (Excel-style z iter67) === */}
+    {!loading && lines.length > 0 && (
+      <div className="mt-4">
+        <BudgetExcelView
+          lines={lines}
+          onEdit={(ln) => { setEditLine(ln); setParentLine(null); setModalOpen(true); }}
+          onDelete={remove}
+          onAddChild={(ln) => { setEditLine(null); setParentLine(ln); setModalOpen(true); }}
+        />
+      </div>
     )}
     </>
   );

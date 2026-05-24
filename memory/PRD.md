@@ -1,4 +1,25 @@
-## Iteration 68 (2026-05-24) — Przebudowa kosztorysu: Etap → Pozycja → Robocizna/Materiały/Sprzęt (akordeony)
+## Iteration 69 (2026-05-24) — Przywrócenie widoku Excel-style (iter67) zamiast akordeonowego (iter68)
+
+### User feedback
+„niepodoba mi się to przywruć poprzedni muj podział" - po wdrożeniu iter68 (akordeony Etap→Pozycja→R/M/S) user wrócił do preferencji widoku Excel-style z iter67 (3 bloki M/R/S w jednej tabeli ze złotymi separatorami).
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Przycisk „Dodaj pozycję"** wraca do otwierania `BudgetLineModal` (nie `PositionModal`).
+- **Empty state** przywrócony w `CardContent` (placeholder „Brak pozycji").
+- **`BudgetExcelView`** ponownie renderowany na dole panelu (zamiast `BudgetCostingView`).
+- `BudgetCostingView`, `PositionCard`, `PositionModal` zostają w kodzie ale są **nieużywane** — będą wykorzystane gdyby user wrócił do akordeonowego widoku (lub usunąć w cleanupie).
+
+### Backend
+- Bez zmian — kolekcja `budget_positions` + endpointy `POST/PATCH/DELETE/GET /budget/positions` pozostają w kodzie, nie przeszkadzają. Pole `position_id` na `BudgetLine` zostaje (nullable, ignorowane przez Excel-view).
+- Istniejące pozycje testowe LEBA pozostały: 1 etap „FUNDAMENTY", 1 pozycja „wylanie chudziaka" z 3 slotami (R: 200zł, M: 0, S: 0) + 1 składowa „pompa" 200zł.
+
+### Test
+- Lint JS ✓
+- Live screenshot: Excel-style view z powrotem, kolejność kafelków R/M/S zachowana (z iter68), kosztorysowe sloty utworzone w iter68 widoczne jako zwykłe linie.
+
+
+
+
 
 ### User request
 Pełna przebudowa modułu Budżet:
