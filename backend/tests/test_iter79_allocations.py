@@ -96,15 +96,23 @@ def test_allocations_month(H, setup):
     assert abs(pools["Q"] - expected_q) < 0.5
     # Total progress = 80 + 60 = 140
     assert data["total_progress_pct"] == 140.0
-    # Position p1: share = 80/140
+    # Position p1: share = 80/140; O na poziomie pozycji
     alloc_p1 = data["positions"][setup["p1"]]
     share_p1 = 80.0 / 140.0
     assert round(alloc_p1["O"], 2) == round(1400.0 * share_p1, 2)
-    assert round(alloc_p1["P"], 2) == round(1000.0 * share_p1, 2)
+    # iter80: P i Q NIE sa na poziomie pozycji - sa na slot_allocations (labor)
+    assert "P" not in alloc_p1
+    assert "Q" not in alloc_p1
     # Position p2
     alloc_p2 = data["positions"][setup["p2"]]
     share_p2 = 60.0 / 140.0
     assert round(alloc_p2["O"], 2) == round(1400.0 * share_p2, 2)
+    # Pozycje nie maja slotu 'labor' (R) - tylko 'materials'. Wiec P i Q trafiaja do undistributed_labor.
+    undistributed = data["undistributed_labor"]
+    expected_p_undistributed = round(1000.0 * share_p1, 2) + round(1000.0 * share_p2, 2)
+    assert abs(undistributed["P"] - expected_p_undistributed) < 0.5
+    # slots empty
+    assert data["slots"] == {}
 
 
 def test_allocations_no_progress(H, setup):
@@ -127,3 +135,50 @@ def test_allocations_year(H, setup):
     data = r.json()
     assert data["distributed"] is True
     assert data["total_progress_pct"] == 140.0
+
+
+def test_allocations_p_q_to_labor_slot(H):
+    """iter80: P i Q trafiaja do slotu 'labor' (R), nie do pozycji."""
+    suffix = uuid.uuid4().hex[:6]
+    bid = requests.post(f"{API}/finance/budowy", json={"name": f"ALOC-LABOR-{suffix}"}, headers=H).json()["id"]
+    sid = requests.post(f"{API}/budget/stages", json={"budowa_id": bid, "name": "E1"}, headers=H).json()["id"]
+    pid = requests.post(f"{API}/budget/positions", json={"budowa_id": bid, "stage_id": sid, "name": "Wykop"}, headers=H).json()["id"]
+    # Sloty: labor + materials
+    labor_slot = requests.post(f"{API}/budget/lines", json={
+        "budowa_id": bid, "category": "labor", "name": "robocizna", "type": "labor",
+        "stage_id": sid, "position_id": pid, "quantity": 10, "unit_price_netto": 50,
+    }, headers=H).json()
+    requests.post(f"{API}/budget/lines", json={
+        "budowa_id": bid, "category": "materials", "name": "materialy", "type": "materials",
+        "stage_id": sid, "position_id": pid, "quantity": 100, "unit_price_netto": 10,
+    }, headers=H)
+    # Progress 50%
+    requests.post(f"{API}/budget/positions/{pid}/progress", json={"year": 2026, "month": 3, "progress_pct": 50}, headers=H)
+    # Wynagrodzenia tej budowy (poszesnie do P_pool)
+    kody = requests.get(f"{API}/finance/kody", headers=H).json()["rows"]
+    kp_id = next(k["id"] for k in kody if k["id"] == "KP_WYNAGRODZENIA")
+    requests.post(f"{API}/finance/zapisy", json={
+        "date": "2026-03-15", "netto": 2000, "kod_id": kp_id, "budowa_id": bid,
+    }, headers=H)
+    try:
+        r = requests.get(f"{API}/budget/{bid}/allocations?year=2026&month=3", headers=H)
+        assert r.status_code == 200, r.text
+        data = r.json()
+        # Pozycja ma slot labor - P/Q ida tam, nie do undistributed
+        assert data["slots"][labor_slot["id"]]["P"] == 2000.0
+        # undistributed_labor.P = 0
+        assert data["undistributed_labor"]["P"] == 0.0
+        # Pozycja ma O (= 0 bo brak innych zapisow), ale NIE ma P/Q
+        alloc = data["positions"][pid]
+        assert "P" not in alloc and "Q" not in alloc
+    finally:
+        # cleanup
+        try:
+            zlist = requests.get(f"{API}/finance/zapisy?budowa_id={bid}&year=2026", headers=H).json().get("rows", [])
+            for z in zlist:
+                requests.delete(f"{API}/finance/zapisy/{z['id']}", headers=H)
+            requests.delete(f"{API}/budget/{bid}/wipe", headers=H)
+            requests.delete(f"{API}/budget/stages/{sid}", headers=H)
+            requests.delete(f"{API}/finance/budowy/{bid}", headers=H)
+        except Exception:
+            pass

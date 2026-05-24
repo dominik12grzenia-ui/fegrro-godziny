@@ -431,19 +431,39 @@ async def get_allocations(
     wynagrodzenia_ratio = (p_total_budowa / kp_total_firma) if kp_total_firma > 0 else 0.0
     q_pool = round(unassigned_company * wynagrodzenia_ratio, 2)
 
+    # iter80: znajdz slot 'labor' (R) per pozycja - tam alokujemy P i Q (robocizna)
+    labor_slot_by_pos: dict = {}
+    if position_ids:
+        async for ln in db.budget_lines.find(
+            {"budowa_id": budowa_id, "type": "labor", "parent_id": None,
+             "position_id": {"$in": list(position_ids)}},
+            {"_id": 0, "id": 1, "position_id": 1},
+        ):
+            labor_slot_by_pos[ln["position_id"]] = ln["id"]
+
     # Dystrybucja
-    position_allocations: dict = {}
+    # iter80: O alokowane na poziomie POZYCJI; P i Q alokowane na poziomie SLOTU labor (R)
+    position_allocations: dict = {}  # {position_id: {O, progress_pct, share}}
+    slot_allocations: dict = {}  # {labor_slot_id: {P, Q}}
+    p_undistributed_no_labor = 0.0  # P pozycji bez slotu R
+    q_undistributed_no_labor = 0.0
     distributed = total_progress > 0
     if distributed:
         for pos_id, pct in progress_by_pos.items():
             share = pct / total_progress
             position_allocations[pos_id] = {
                 "O": round(o_pool * share, 2),
-                "P": round(p_pool * share, 2),
-                "Q": round(q_pool * share, 2),
                 "progress_pct": round(pct, 2),
                 "share": round(share, 4),
             }
+            p_amt = round(p_pool * share, 2)
+            q_amt = round(q_pool * share, 2)
+            labor_slot_id = labor_slot_by_pos.get(pos_id)
+            if labor_slot_id:
+                slot_allocations[labor_slot_id] = {"P": p_amt, "Q": q_amt}
+            else:
+                p_undistributed_no_labor += p_amt
+                q_undistributed_no_labor += q_amt
     elif equal_distribution and position_ids:
         # Rownomierna dystrybucja gdy brak progresu (na zyczenie uzytkownika)
         n = len(position_ids)
@@ -451,11 +471,17 @@ async def get_allocations(
         for pos_id in position_ids:
             position_allocations[pos_id] = {
                 "O": round(o_pool / n, 2),
-                "P": round(p_pool / n, 2),
-                "Q": round(q_pool / n, 2),
                 "progress_pct": 0.0,
                 "share": round(share, 4),
             }
+            p_amt = round(p_pool / n, 2)
+            q_amt = round(q_pool / n, 2)
+            labor_slot_id = labor_slot_by_pos.get(pos_id)
+            if labor_slot_id:
+                slot_allocations[labor_slot_id] = {"P": p_amt, "Q": q_amt}
+            else:
+                p_undistributed_no_labor += p_amt
+                q_undistributed_no_labor += q_amt
         distributed = True
 
     return {
@@ -471,6 +497,12 @@ async def get_allocations(
             "wynagrodzenia_ratio": round(wynagrodzenia_ratio, 4),
         },
         "positions": position_allocations,
+        "slots": slot_allocations,
+        "undistributed_labor": {
+            "P": round(p_undistributed_no_labor, 2),
+            "Q": round(q_undistributed_no_labor, 2),
+            "positions_without_labor": [pid for pid in progress_by_pos if pid not in labor_slot_by_pos] if distributed else [],
+        },
         "total_progress_pct": round(total_progress, 2),
         "positions_with_progress": len(position_allocations),
         "distributed": distributed,

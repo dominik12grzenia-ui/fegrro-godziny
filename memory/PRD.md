@@ -1,3 +1,42 @@
+## Iteration 80 (2026-05-24) — P/Q tylko do slotów `labor` (robocizna)
+
+### User request
+„Teraz O/P/Q są wyliczone na poziomie POZYCJI, ale fizycznie wynagrodzenia (P) i Q dotyczą głównie robocizny (R). Chciałbym by P i Q były automatycznie przypisywane TYLKO do slotów R (robocizna)."
+
+### Backend (`/app/backend/routes/budget.py`)
+- `GET /budget/{budowa_id}/allocations` przebudowane:
+  - **`position_allocations[pos_id]`** zawiera **tylko `O`** (oraz `progress_pct`, `share`).
+  - **`slot_allocations[labor_slot_id]`** zawiera **`P` i `Q`** — alokacja na slot typu `labor` danej pozycji.
+  - **`undistributed_labor: {P, Q, positions_without_labor: [pos_id...]}`** — kwoty P/Q które nie miały gdzie trafić (pozycja nie ma slotu robocizny).
+- Mechanika: dla każdej pozycji wyznacza `labor_slot_by_pos`, jeśli istnieje → kwota alokowana do tego slotu, w przeciwnym razie → akumulowane w `undistributed_labor`.
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- `computeRow(slot)`:
+  - Dla slotu `parent_id == null && type == 'labor'`: `P = allocations.slots[slot.id]?.P`, `Q = allocations.slots[slot.id]?.Q`.
+  - Dla pozostałych slotów i wszystkich subslotów: `P = Q = 0`.
+  - `R = O + P + Q + N` (O zawsze 0 na poziomie slotu).
+- `computePositionRow(positionId)`:
+  - **O** z `allocations.positions[positionId]?.O`.
+  - **P, Q** sumowane z slotów (fizycznie pochodzą tylko ze slotu `labor`).
+  - `R = O + P + Q + N`.
+- **Nowy banner `alloc-labor-missing-banner`** (czerwony) gdy `undistributed_labor.P/Q > 0`: informuje że X zł nie zostało przypisane bo Y pozycji nie ma slotu robocizny.
+
+### Test (`/app/backend/tests/test_iter79_allocations.py`)
+- Zaktualizowane: `test_allocations_month` sprawdza że `positions[pid]` nie ma już `P`/`Q`, ma za to tylko `O`; sprawdza `undistributed_labor.P > 0` dla pozycji bez slotów R.
+- Nowy: `test_allocations_p_q_to_labor_slot` — pozycja z slotem `labor` → `slots[labor_slot_id].P == p_pool` (cały P trafia do slotu robocizny, `undistributed_labor.P == 0`).
+- Wszystkie 7 testów (iter78+iter79+iter80) PASSED.
+
+### Smoke test UI
+Live preview działa: nagłówek tabeli kosztorysowej pokazuje nadal selektor okresu + banner ostrzegawczy.
+
+### Pliki zmienione
+- `/app/backend/routes/budget.py` — przebudowa logiki alokacji w `/allocations`
+- `/app/frontend/src/components/Budget.js` — `computeRow` (P/Q tylko dla labor slot), `computePositionRow` (P/Q sumowane z slotów), nowy banner `alloc-labor-missing-banner`
+- `/app/backend/tests/test_iter79_allocations.py` — zaktualizowane asercje + nowy test
+
+---
+
+
 ## Iteration 79 (2026-05-24) — Alokacja kosztów pośrednich (kolumny O/P/Q)
 
 ### User request

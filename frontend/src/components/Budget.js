@@ -301,6 +301,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
 
   // Oblicz wartosci kolumn dla pojedynczej linii (slotu)
   // iter77: kaucje (H/I) oraz koszt budowy (J) zaciagane z backendu PER LINIA (effective_*_pct + *_amount)
+  // iter80: P/Q dla slotu typu 'labor' (R) z allocations.slots
   const computeRow = (line) => {
     const kids = line ? (childrenByParent[line.id] || []) : [];
     const qty = kids.length > 0 ? kids.reduce((s, k) => s + (k.quantity || 0), 0) : (line?.quantity || 0);
@@ -334,8 +335,11 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     const M = (L != null) ? K - L : null;
     const N = exec;
     const O = 0;
-    const P = 0;
-    const Q = 0;
+    // iter80: P i Q tylko dla slotu typu 'labor' (R), z allocations.slots[slot_id]
+    const isLaborSlot = line && !line.parent_id && (line.type || 'materials') === 'labor';
+    const slotAlloc = isLaborSlot ? (allocations?.slots?.[line.id]) : null;
+    const P = slotAlloc?.P || 0;
+    const Q = slotAlloc?.Q || 0;
     const R = O + P + Q + N;
     const S = N > 0 ? (R / N) * 100 : 0;
     const T = (L != null) ? L - R : null;
@@ -345,7 +349,8 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   };
 
   // Suma slotow danej pozycji
-  // iter79: O/P/Q nie pochodza z slotow - sa wyliczone serverside per pozycja (allocations.positions[pid])
+  // iter79: O - na poziomie pozycji (z allocations.positions)
+  // iter80: P i Q - sumowane z slotow (faktycznie wpadaja tylko z slotu labor)
   const computePositionRow = (positionId) => {
     const slots = slotsByPosition[positionId] || {};
     const aggregate = { qty: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: 0, hasL: false, M: 0, hasM: false, N: 0, O: 0, P: 0, Q: 0, R: 0, U: 0 };
@@ -362,12 +367,12 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
       aggregate.K += r.K;
       if (r.L != null) { aggregate.L += r.L; hasL = true; }
       aggregate.N += r.N;
+      aggregate.P += r.P;  // P trafia tylko ze slotu labor (R)
+      aggregate.Q += r.Q;
     });
-    // iter79: O/P/Q z backend allocations (per pozycja)
+    // iter79: O alokowane na poziomie pozycji
     const alloc = allocations?.positions?.[positionId];
     aggregate.O = alloc?.O || 0;
-    aggregate.P = alloc?.P || 0;
-    aggregate.Q = alloc?.Q || 0;
     aggregate.R = aggregate.O + aggregate.P + aggregate.Q + aggregate.N;
     aggregate.U = aggregate.K - aggregate.R;
     aggregate.hasL = hasL;
@@ -487,6 +492,15 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
             </div>
           </div>
         )
+      )}
+      {/* iter80: Banner gdy P/Q nie trafiajaja do robocizny bo pozycja nie ma slotu labor */}
+      {allocations?.distributed && (allocations.undistributed_labor?.P > 0 || allocations.undistributed_labor?.Q > 0) && (
+        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#9B2C2C]/60 bg-[#9B2C2C]/15 text-[#FCA5A5] text-xs" data-testid="alloc-labor-missing-banner">
+          ⚠ Nie wszystkie pozycje mają slot <b>robocizny (R)</b>:
+          {' '}<b>{fmtNum(allocations.undistributed_labor.P)} zł</b> (P) +
+          {' '}<b>{fmtNum(allocations.undistributed_labor.Q)} zł</b> (Q)
+          {' '}nie zostało przypisane do żadnej komórki (pozycje bez robocizny: {allocations.undistributed_labor.positions_without_labor?.length || 0}). Dodaj slot „robocizna" do tych pozycji aby koszty wynagrodzeń się rozpisały.
+        </div>
       )}
       {allocations && allocations.distributed && equalDistribution && (
         <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#5F7552]/60 bg-[#5F7552]/15 text-[#A7D29E] text-xs flex items-center justify-between" data-testid="alloc-equal-active">
