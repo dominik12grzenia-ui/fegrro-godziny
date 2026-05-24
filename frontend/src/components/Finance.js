@@ -1562,8 +1562,41 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                         {renderBudowaSelect(r.budowa_id, (e) => quickAssignInv(r, 'budowa_id', e.target.value),
                           `finance-invoice-budowa-${r.id}`)}
                       </td>
-                      <td className="p-2 text-xs text-[#475569] text-[10px] italic" title="Kody budżetu przypisuje się indywidualnie do pozycji faktury">
-                        {(r.positions || []).length > 0 ? '(w pozycjach)' : '—'}
+                      <td className="p-2 text-xs">
+                        {(() => {
+                          const positions = r.positions || [];
+                          // 1-pozycja: pokaz dropdown bezposrednio na poziomie naglowka (przypisuje do pozycji)
+                          if (positions.length === 1) {
+                            const p = positions[0];
+                            const effectiveBudowaId = p.budowa_id || r.budowa_id;
+                            return renderBudgetCodeSelect(
+                              effectiveBudowaId,
+                              p.budget_line_id,
+                              async (e) => {
+                                const val = e.target.value || null;
+                                // Jezeli pozycja nie ma budowa_id a naglowek ma - propaguj
+                                if (val && !p.budowa_id && r.budowa_id) {
+                                  await quickAssignPos(p, 'budowa_id', r.budowa_id);
+                                }
+                                await quickAssignPos(p, 'budget_line_id', val);
+                              },
+                              `finance-invoice-budget-line-${r.id}`,
+                            );
+                          }
+                          // Wiele pozycji - rozwin chevron aby przypisac
+                          if (positions.length > 1) {
+                            return (
+                              <button
+                                onClick={() => setExpanded(s => ({ ...s, [r.id]: true }))}
+                                className="text-[#D4AF37] text-[10px] underline hover:text-[#FCE99A]"
+                                title="Kliknij aby rozwinąć i przypisać kody do poszczególnych pozycji"
+                                data-testid={`finance-invoice-budget-expand-${r.id}`}>
+                                rozwiń ({positions.length} poz.)
+                              </button>
+                            );
+                          }
+                          return <span className="text-[#475569] text-[10px] italic">—</span>;
+                        })()}
                       </td>
                       <td className="p-2 text-right text-white font-mono whitespace-nowrap font-semibold">{fmtPLN(r.netto)}</td>
                       <td className="p-2 text-right">
