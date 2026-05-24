@@ -170,27 +170,31 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   }, [lines]);
 
   // Oblicz wartosci kolumn dla pojedynczej linii (slotu)
+  // iter77: kaucje (H/I) oraz koszt budowy (J) zaciagane z backendu PER LINIA (effective_*_pct + *_amount)
   const computeRow = (line) => {
     const kids = line ? (childrenByParent[line.id] || []) : [];
     const qty = kids.length > 0 ? kids.reduce((s, k) => s + (k.quantity || 0), 0) : (line?.quantity || 0);
     let plan = line?.plan_netto_computed || 0;
     let exec = line?.execution_netto || 0;
+    let H = line?.kaucja_gir_amount || 0;
+    let I = line?.kaucja_dw_amount || 0;
+    let J = line?.koszt_budowy_amount || 0;
     if (kids.length > 0) {
       plan = kids.reduce((s, k) => s + (k.plan_netto_computed || 0), 0);
       exec = kids.reduce((s, k) => s + (k.execution_netto || 0), 0);
+      H = kids.reduce((s, k) => s + (k.kaucja_gir_amount || 0), 0);
+      I = kids.reduce((s, k) => s + (k.kaucja_dw_amount || 0), 0);
+      J = kids.reduce((s, k) => s + (k.koszt_budowy_amount || 0), 0);
     }
     const cena = qty > 0 ? plan / qty : (line?.unit_price_netto || 0);
     const G = plan;
-    const H = G * kaucjaGirPct;
-    const I = G * kaucjaDwPct;
-    const J = G * kosztBudowyPct;
     const K = G - H - I + J;
-    const L = (line?.notes_l != null) ? Number(line.notes_l) : null; // koszt prognozowany - manual, schowany w notes_l TODO
+    const L = (line?.notes_l != null) ? Number(line.notes_l) : null;
     const M = (L != null) ? L - K : null;
-    const N = exec; // suma kosztow przypisanych (z finance_zapisy via execution_netto)
-    const O = 0; // TODO: protocol-based allocation
-    const P = 0; // TODO: salary share allocation
-    const Q = 0; // TODO: company-wide unallocated
+    const N = exec;
+    const O = 0;
+    const P = 0;
+    const Q = 0;
     const R = O + P + Q + N;
     const S = N > 0 ? (R / N) * 100 : 0;
     const T = (L != null) ? L - R : null;

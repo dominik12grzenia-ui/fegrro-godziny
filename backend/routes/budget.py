@@ -218,9 +218,10 @@ async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
     """Pozycje budzetowe danej budowy + wyliczone wykonanie.
     Kaucje GIR/DW: pierwszenstwo ma wartosc z linii (override), fallback z finance_budowy.
     """
-    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0, "kaucja_gir_pct": 1, "kaucja_dw_pct": 1}) or {}
+    budowa = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0, "kaucja_gir_pct": 1, "kaucja_dw_pct": 1, "koszt_budowy_pct": 1}) or {}
     budowa_gir = float(budowa.get("kaucja_gir_pct") or 0)
     budowa_dw = float(budowa.get("kaucja_dw_pct") or 0)
+    budowa_kb = float(budowa.get("koszt_budowy_pct") or 0)
 
     lines = await db.budget_lines.find(
         {"budowa_id": budowa_id}, {"_id": 0}
@@ -265,6 +266,9 @@ async def get_lines(budowa_id: str, _user: dict = Depends(get_current_admin)):
         ln["effective_kaucja_dw_pct"] = eff_dw
         ln["kaucja_gir_amount"] = round(plan * eff_gir / 100, 2)
         ln["kaucja_dw_amount"] = round(plan * eff_dw / 100, 2)
+        # Koszt budowy: per linia identycznie jak kaucje (zaciag z budowy)
+        ln["effective_koszt_budowy_pct"] = budowa_kb
+        ln["koszt_budowy_amount"] = round(plan * budowa_kb / 100, 2)
 
     return {"rows": lines}
 
