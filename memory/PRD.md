@@ -1,3 +1,34 @@
+## Iteration 82b (2026-05-24) — Klikalne nagłówki kolumn + modal opisu
+
+### User request
+„Zamień te o Q i inne na opis słowny najlepiej żeby zamiast tego tu po kliknięciu w opis kolumny można zobaczyć szczegóły."
+
+### Frontend (`/app/frontend/src/components/Budget.js`)
+- **Rozszerzenie `cols[]`**: każda kolumna ma teraz pola `desc` (opis słowny w PL) i opcjonalnie `formula` (wzór).
+  - Przykłady: `Q = Koszty nieprzyp. × % wynagr. → robocizna · "Firmowe koszty BEZ budowy × (KP budowy / KP firmy) rozproszone tylko na sloty robocizny."`
+- **Nagłówki kolumn (`<th>`) klikalne**:
+  - `cursor-pointer hover:bg-[#5F7552]` + ikonka „ⓘ" obok labela
+  - `onClick={() => setInfoCol(c)}` otwiera modal
+  - `data-testid="col-header-{k}"` dla każdej kolumny
+- **Nowy modal `col-info-modal`** (Dialog z shadcn):
+  - Tytuł = symbol kolumny (badge) + pełna nazwa
+  - Sekcja „Wzór" (jeśli istnieje) — code block z formułą
+  - Sekcja „Opis" — pełne wyjaśnienie po polsku
+  - Dla kolumn S/T/U/V dodatkowa sekcja „Alerty kolorów" z legendą czerwone/żółte/zielone
+- **Uproszczona stopka tabeli** — zamiast dense legendy z symbolami:
+  - „ⓘ Kliknij nagłówek kolumny aby zobaczyć opis i wzór."
+  - Mini legenda alertów kolorystycznych (czerwone/żółte/zielone)
+- Usunięto nieużywane zmienne `kosztBudowyPct`, `kaucjaGirPct`, `kaucjaDwPct`.
+
+### Smoke test UI
+Lint passed ✓. Preview env nie ma budów z pozycjami budżetowymi więc tabela kosztorysowa nie renderuje się — wizualny test modalu wykona się gdy użytkownik utworzy pozycje na produkcji (już ma dane na prod wg screenshotu).
+
+### Pliki zmienione
+- `/app/frontend/src/components/Budget.js` — rozszerzony `cols[]`, klikalne `<th>`, modal `col-info-modal`, uproszczona stopka
+
+---
+
+
 ## Iteration 81 (2026-05-24) — Alerty wizualne przekroczeń budżetu (S/T/U/V)
 
 ### User request

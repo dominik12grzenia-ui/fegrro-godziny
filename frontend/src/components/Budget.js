@@ -261,10 +261,8 @@ const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materials: 'M
 const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w arkuszu user (Pompa, beton-robocizna, beton-material)
 
 const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, year, allocMonth, setAllocMonth, allocations, equalDistribution, setEqualDistribution, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
-  // koszt_budowy_pct (kol. J) - nie ma jeszcze w bazie, defaultnie 0; mozna dodac do budowa pozniej
-  const kosztBudowyPct = (budowaInfo?.koszt_budowy_pct || 0) / 100;
-  const kaucjaGirPct = (budowaInfo?.kaucja_gir_pct || 0) / 100;
-  const kaucjaDwPct = (budowaInfo?.kaucja_dw_pct || 0) / 100;
+  // iter82: stan modalu z opisem kolumny po klikniciu w naglowek
+  const [infoCol, setInfoCol] = useState(null);
 
   // Pozycje per etap (zachowaj kolejnosc z `stages`)
   const positionsByStage = useMemo(() => {
@@ -394,28 +392,29 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   const STICKY = { position: 'sticky', left: 0, zIndex: 5, backgroundColor: undefined };
 
   // Naglowki kolumn 1:1 z arkusza
+  // iter82: kazda kolumna ma description + formula - klikalny modal z detalami
   const cols = [
-    { k: 'A', label: 'Kod', w: 60 },
-    { k: 'B', label: 'Rodzaj', w: 100 },
-    { k: 'D', label: 'NAZWA', w: 240, sticky: true },
-    { k: 'E', label: 'Ilość', w: 60 },
-    { k: 'F', label: 'Cena', w: 80 },
-    { k: 'G', label: 'BUDŻET', w: 90 },
-    { k: 'H', label: 'KAUCJA GIR', w: 90, bg: KAUCJA_BG },
-    { k: 'I', label: 'KAUCJA DW', w: 90, bg: KAUCJA_BG },
-    { k: 'J', label: 'Koszt budowy', w: 90 },
-    { k: 'K', label: 'BUDŻET Zwolniony', w: 100 },
-    { k: 'L', label: 'Koszt prognozowany', w: 110 },
-    { k: 'M', label: 'Prognozowany zysk', w: 110 },
-    { k: 'N', label: 'Koszty przypisane do etapów', w: 130, bg: EXEC_BG },
-    { k: 'O', label: 'Koszty budowy bez etapów (%protokół)', w: 140 },
-    { k: 'P', label: '% wynagrodzeń budowy (firma)', w: 130 },
-    { k: 'Q', label: 'Koszty nieprzyp. (% wynagr.)', w: 130 },
-    { k: 'R', label: 'KOSZTY RAZEM', w: 100, bg: EXEC_BG },
-    { k: 'S', label: '% zrealizowanego', w: 90 },
-    { k: 'T', label: 'POZOSTAŁO BUDŻETU', w: 110 },
-    { k: 'U', label: 'Zysk', w: 90 },
-    { k: 'V', label: 'Różnica zysku', w: 100 },
+    { k: 'A', label: 'Kod', w: 60, desc: 'Kod pozycji w hierarchii: 101 (pozycja), 101.1 (slot), 101.1.1 (składowa).' },
+    { k: 'B', label: 'Rodzaj', w: 100, desc: 'Typ wiersza: Pozycja Główna / sprzęt / robocizna / Materiał / składowa.' },
+    { k: 'D', label: 'NAZWA', w: 240, sticky: true, desc: 'Nazwa pozycji budżetowej. Kliknij + na pozycji aby dodać podpozycję R/M/S.' },
+    { k: 'E', label: 'Ilość', w: 60, desc: 'Ilość jednostek (z podpozycji lub składowych).' },
+    { k: 'F', label: 'Cena', w: 80, desc: 'Cena jednostkowa: BUDŻET / Ilość.' },
+    { k: 'G', label: 'BUDŻET', w: 90, formula: 'G = Ilość × Cena', desc: 'Wartość planowana pozycji (przychód oczekiwany).' },
+    { k: 'H', label: 'KAUCJA GIR', w: 90, bg: KAUCJA_BG, formula: 'H = G × % kaucji GIR', desc: 'Kaucja gwarancyjna inwestycji (zatrzymywana przez inwestora).' },
+    { k: 'I', label: 'KAUCJA DW', w: 90, bg: KAUCJA_BG, formula: 'I = G × % kaucji DW', desc: 'Kaucja gwarancji wykonania (zatrzymywana do zakończenia).' },
+    { k: 'J', label: 'Koszt budowy', w: 90, formula: 'J = G × % koszt budowy', desc: 'Procentowy koszt obsługi budowy (admin, projekt itp.). Odejmowany od Budżetu Zwolnionego.' },
+    { k: 'K', label: 'BUDŻET Zwolniony', w: 100, formula: 'K = G − H − I − J', desc: 'Realny przychód po odjęciu kaucji i kosztu budowy. To z czego liczymy zysk i koszty.' },
+    { k: 'L', label: 'Koszt prognozowany', w: 110, desc: 'Wpisana ręcznie prognoza kosztów pozycji. Obsługuje formuły, np. =10*10*0.3. Hover dla notatki.' },
+    { k: 'M', label: 'Prognozowany zysk', w: 110, formula: 'M = K − L', desc: 'Zysk oczekiwany: Budżet Zwolniony minus Koszt Prognozowany. Ujemny = przewidywana strata.' },
+    { k: 'N', label: 'Koszty przypisane do etapów', w: 130, bg: EXEC_BG, desc: 'Suma zapisów (faktur/zapisów) przypisanych do tej linii budżetu w module Finanse → Zapisy.' },
+    { k: 'O', label: 'Koszty budowy bez etapów (% protokół)', w: 140, desc: 'Koszty budowy BEZ kodu pozycji rozproszone na pozycje proporcjonalnie do % zaawansowania z protokołów. Tryb równy włącza przycisk „Rozłóż równo".' },
+    { k: 'P', label: '% wynagrodzeń budowy → robocizna', w: 130, desc: 'Wynagrodzenia BEZ kodu pozycji rozproszone tylko na sloty robocizny (R) wg % zaawansowania.' },
+    { k: 'Q', label: 'Koszty nieprzyp. × % wynagr. → robocizna', w: 130, desc: 'Firmowe koszty BEZ budowy × (KP budowy / KP firmy) rozproszone tylko na sloty robocizny.' },
+    { k: 'R', label: 'KOSZTY RAZEM', w: 100, bg: EXEC_BG, formula: 'R = N + O + P + Q', desc: 'Suma wszystkich kosztów: bezpośrednich + alokowanych pośrednich.' },
+    { k: 'S', label: '% zrealizowanego', w: 90, formula: 'S = R / N × 100', desc: 'Stosunek kosztów razem do kosztów bezpośrednich. ≥100% = kosztów pośrednich (O/P/Q) jest więcej niż bezpośrednich — sygnał do sprawdzenia. ALERT: ≥100% czerwone, ≥80% żółte.' },
+    { k: 'T', label: 'POZOSTAŁO BUDŻETU', w: 110, formula: 'T = L − R', desc: 'Ile zostało z prognozowanego kosztu. Ujemne = przekroczono prognozę. ALERT: <0 czerwone, <5%·L żółte.' },
+    { k: 'U', label: 'Zysk', w: 90, formula: 'U = K − R', desc: 'Faktyczny zysk z pozycji (Budżet Zwolniony − Koszty Razem). Ujemne = STRATA. ALERT: <0 czerwone, <5%·K żółte.' },
+    { k: 'V', label: 'Różnica zysku', w: 100, formula: 'V = M − U', desc: 'Różnica między prognozowanym a faktycznym zyskiem. Ujemne = realizacja gorsza niż prognoza.' },
   ];
 
   const totalWidth = cols.reduce((s, c) => s + c.w, 0);
@@ -565,7 +564,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                 <tr>
                   {cols.map((c) => (
                     <th key={c.k}
-                      className="px-1 py-2 text-center font-bold text-white border-r border-b text-[9px] uppercase"
+                      className="px-1 py-2 text-center font-bold text-white border-r border-b text-[9px] uppercase cursor-pointer hover:bg-[#5F7552] transition-colors"
                       style={{
                         borderColor: BORDER,
                         width: c.w,
@@ -573,8 +572,13 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                         ...(c.sticky ? { position: 'sticky', left: 0, zIndex: 21, backgroundColor: HEADER_BG } : {}),
                         ...(c.bg ? { backgroundColor: c.bg } : {}),
                       }}
-                      title={c.label}>
-                      <div className="leading-tight">{c.label}</div>
+                      onClick={() => setInfoCol(c)}
+                      data-testid={`col-header-${c.k}`}
+                      title={'Kliknij aby zobaczyć opis kolumny: ' + c.label}>
+                      <div className="leading-tight flex items-center justify-center gap-0.5">
+                        {c.label}
+                        <span className="text-[#D4AF37] text-[8px] opacity-70">ⓘ</span>
+                      </div>
                     </th>
                   ))}
                   <th className="px-1 py-2 sticky right-0 bg-[#3F5235] text-white text-[9px] uppercase border-l border-b" style={{ borderColor: BORDER, width: 70, minWidth: 70, zIndex: 21 }}>Akcje</th>
@@ -740,15 +744,72 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           </div>
         )}
         <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
-          <div className="mb-1">Legenda kolumn (1:1 z arkuszem BUDŻET.xlsx): <b>G</b>=Ilość×Cena · <b>H</b>=G×{Math.round(kaucjaGirPct*100)}% (KAUCJA GIR) · <b>I</b>=G×{Math.round(kaucjaDwPct*100)}% (KAUCJA DW) · <b>J</b>=G×{Math.round(kosztBudowyPct*100)}% (koszt budowy) · <b>K</b>=G−H−I−J · <b>M</b>=K−L (prognozowany zysk) · <b>N</b>=zapisy przypisane do pozycji · <b>O</b>=koszty budowy bez kodu (% protokół) · <b>P</b>=wynagrodzenia → robocizna · <b>Q</b>=firmowe koszty × % wynagr. → robocizna · <b>R</b>=O+P+Q+N · <b>S</b>=R/N · <b>T</b>=L−R · <b>U</b>=K−R · <b>V</b>=M−U</div>
-          <div className="text-[#FCA5A5]">
-            Alerty wizualne (iter81): kolumny <b>S/T/U</b> mają kolorowanie:
-            {' '}<span className="px-1 rounded" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span> = przekroczenie / strata,
-            {' '}<span className="px-1 rounded" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span> = mała rezerwa (&lt; 5%),
-            {' '}<span className="px-1 rounded" style={{ color: '#5F7552' }}>zielone</span> = bezpieczny zapas.
+          <div className="flex items-center gap-2 flex-wrap" data-testid="budget-legend">
+            <span className="text-[#D4AF37] font-semibold">ⓘ</span>
+            <span>Kliknij nagłówek kolumny aby zobaczyć opis i wzór.</span>
+            <span className="text-[#475569]">·</span>
+            <span>Alerty:</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span>
+            <span>= strata / przekroczenie</span>
+            <span className="text-[#475569]">·</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+            <span>= rezerwa &lt; 5%</span>
+            <span className="text-[#475569]">·</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ color: '#5F7552' }}>zielone</span>
+            <span>= bezpieczny zapas</span>
           </div>
         </div>
       </CardContent>
+      {/* iter82: Modal opisu kolumny */}
+      <Dialog open={!!infoCol} onOpenChange={(o) => { if (!o) setInfoCol(null); }}>
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-lg" data-testid="col-info-modal">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <span className="px-2 py-1 rounded bg-[#4F6343] text-white text-xs font-mono">{infoCol?.k}</span>
+              <span>{infoCol?.label}</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            {infoCol?.formula && (
+              <div>
+                <div className="text-[#94A3B8] text-xs uppercase mb-1">Wzór</div>
+                <code className="block bg-[#0B1120] border border-[#2A3B59] rounded px-3 py-2 text-[#D4AF37] font-mono">{infoCol.formula}</code>
+              </div>
+            )}
+            <div>
+              <div className="text-[#94A3B8] text-xs uppercase mb-1">Opis</div>
+              <div className="text-[#CBD5E1] leading-relaxed">{infoCol?.desc || 'Brak opisu.'}</div>
+            </div>
+            {['S', 'T', 'U', 'V'].includes(infoCol?.k) && (
+              <div>
+                <div className="text-[#94A3B8] text-xs uppercase mb-1">Alerty kolorów</div>
+                <div className="space-y-1 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span>
+                    <span>strata lub przekroczenie planu</span>
+                  </div>
+                  {['T', 'U'].includes(infoCol?.k) && (
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+                      <span>mała rezerwa (mniej niż 5% wartości referencyjnej)</span>
+                    </div>
+                  )}
+                  {infoCol?.k === 'S' && (
+                    <div className="flex items-center gap-2">
+                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+                      <span>≥ 80% i &lt; 100%</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <span className="px-1.5 py-0.5 rounded font-bold" style={{ color: '#5F7552' }}>zielone</span>
+                    <span>w normie / bezpieczny zapas</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 };
