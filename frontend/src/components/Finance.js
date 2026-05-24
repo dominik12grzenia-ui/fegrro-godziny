@@ -1351,29 +1351,44 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   );
 
   // Inline dropdown - kod pozycji budzetowej. Tylko gdy budowa_id ustawiona.
-  // Lazy fetch opcji dla budowy przy pierwszym renderze rzedu.
+  // iter83: grupowanie po Etapie (optgroup), nagłówki pozycji jako disabled separatory
   const renderBudgetCodeSelect = (budowaId, val, onChange, testid) => {
     if (!budowaId) {
       return <span className="text-[#475569] text-[10px] italic">wybierz budowę</span>;
     }
     const opts = budgetOptionsByBudowa[budowaId];
     if (opts === undefined) {
-      // Trigger fetch - useEffect ponizej zlapie to przez sledzenie rows
       ensureBudgetOptions(budowaId);
       return <span className="text-[#475569] text-[10px] italic">ładuję…</span>;
     }
     if (opts.length === 0) {
       return <span className="text-[#475569] text-[10px] italic">brak pozycji</span>;
     }
+    // Grupowanie po Etapie
+    const groups = [];
+    const seen = new Map();
+    opts.forEach(o => {
+      const key = o.stage_name || '—';
+      if (!seen.has(key)) { seen.set(key, []); groups.push(key); }
+      seen.get(key).push(o);
+    });
     return (
       <select value={val || ''} onChange={onChange}
         className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-1 py-1 text-xs"
         data-testid={testid}>
         <option value="">— bez kodu —</option>
-        {opts.map(opt => (
-          <option key={opt.id} value={opt.id} title={`${opt.stage_name} · ${opt.position_name}`}>
-            {opt.code} · {opt.position_name}{opt.level === 'sub' ? ` › ${opt.label.trim().split('·').slice(1).join('·').trim()}` : ''}
-          </option>
+        {groups.map(stageName => (
+          <optgroup key={stageName} label={`ETAP: ${stageName.toUpperCase()}`}>
+            {seen.get(stageName).map(opt => (
+              <option
+                key={opt.id}
+                value={opt.disabled ? '' : opt.id}
+                disabled={!!opt.disabled}
+                title={`${opt.stage_name} › ${opt.position_name}`}>
+                {opt.label}
+              </option>
+            ))}
+          </optgroup>
         ))}
       </select>
     );
@@ -1726,11 +1741,27 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                   className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
                   data-testid="finance-zapis-budget-line">
                   <option value="">— bez przypisania —</option>
-                  {budgetLines.map(opt => (
-                    <option key={opt.id} value={opt.id}>
-                      {opt.stage_name} › {opt.label}
-                    </option>
-                  ))}
+                  {(() => {
+                    const groups = [];
+                    const seen = new Map();
+                    budgetLines.forEach(o => {
+                      const key = o.stage_name || '—';
+                      if (!seen.has(key)) { seen.set(key, []); groups.push(key); }
+                      seen.get(key).push(o);
+                    });
+                    return groups.map(stageName => (
+                      <optgroup key={stageName} label={`ETAP: ${stageName.toUpperCase()}`}>
+                        {seen.get(stageName).map(opt => (
+                          <option
+                            key={opt.id}
+                            value={opt.disabled ? '' : opt.id}
+                            disabled={!!opt.disabled}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ));
+                  })()}
                 </select>
               </div>
             )}

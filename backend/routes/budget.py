@@ -311,6 +311,16 @@ async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_curr
         for p_idx, pos in enumerate(positions_for_stage):
             pos_code = f"{100 + p_idx + 1}"  # 101, 102, ...
             slots = slots_by_pos.get(pos["id"], {})
+            # Naglowek pozycji glownej (disabled - sluzy tylko jako separator wizualny)
+            options.append({
+                "id": f"position:{pos['id']}",
+                "code": pos_code,
+                "label": f"━━ {pos_code} · {pos['name']} ━━",
+                "stage_name": stage["name"],
+                "position_name": pos["name"],
+                "level": "position",
+                "disabled": True,
+            })
             for t in type_order:
                 slot = slots.get(t)
                 if not slot:
@@ -319,7 +329,7 @@ async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_curr
                 options.append({
                     "id": slot["id"],
                     "code": slot_code,
-                    "label": f"{slot_code} · {pos['name']} ({type_pl[t]})",
+                    "label": f"   {slot_code} · {type_pl[t]}",
                     "stage_name": stage["name"],
                     "position_name": pos["name"],
                     "type": t,
@@ -331,7 +341,7 @@ async def get_budget_options_flat(budowa_id: str, _user: dict = Depends(get_curr
                     options.append({
                         "id": sub["id"],
                         "code": sub_code,
-                        "label": f"    {sub_code} · {sub.get('name') or ''}",
+                        "label": f"      └ {sub_code} · {sub.get('name') or ''}",
                         "stage_name": stage["name"],
                         "position_name": pos["name"],
                         "parent_slot_id": slot["id"],

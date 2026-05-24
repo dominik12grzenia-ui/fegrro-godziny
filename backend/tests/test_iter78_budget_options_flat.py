@@ -79,8 +79,13 @@ def test_options_flat_with_hierarchy(H, budowa):
     r = requests.get(f"{API}/budget/{budowa}/options-flat", headers=H)
     assert r.status_code == 200
     opts = r.json()["options"]
-    # 3 sloty + 2 sub = 5 opcji
-    assert len(opts) == 5
+    # iter83: pozycja-header + 3 sloty + 2 sub = 6 opcji
+    assert len(opts) == 6
+    # Pierwsza powinna byc position-header
+    assert opts[0]["level"] == "position"
+    assert opts[0]["disabled"] is True
+    assert opts[0]["id"].startswith("position:")
+    # Reszta - sloty i sub
     codes = [o["code"] for o in opts]
     assert "101.S" in codes
     assert "101.R" in codes
@@ -90,19 +95,22 @@ def test_options_flat_with_hierarchy(H, budowa):
     # Sloty maja level=slot
     slot_opts = [o for o in opts if o["level"] == "slot"]
     sub_opts = [o for o in opts if o["level"] == "sub"]
+    pos_opts = [o for o in opts if o["level"] == "position"]
     assert len(slot_opts) == 3
     assert len(sub_opts) == 2
-    # stage_name+position_name uzupelnione
-    assert all(o["stage_name"] == "Etap 1 - Roboty ziemne" for o in opts)
-    assert all(o["position_name"] == "Wykop fundamentowy" for o in opts)
+    assert len(pos_opts) == 1
+    # stage_name+position_name uzupelnione (pomijajac headery)
+    assert all(o["stage_name"] == "Etap 1 - Roboty ziemne" for o in opts if o["level"] != "position")
+    assert all(o["position_name"] == "Wykop fundamentowy" for o in opts if o["level"] != "position")
 
 
 def test_zapis_assign_budget_line(H, budowa):
     """Tworzymy zapis i przypisujemy budget_line_id, potem czyscimy."""
-    # Pobierz dowolny line_id z opcji
+    # Pobierz pierwsza opcje slotu/sub (nie position-header)
     opts = requests.get(f"{API}/budget/{budowa}/options-flat", headers=H).json()["options"]
-    assert opts, "Brak opcji budzetu - upewnij sie ze test_options_flat_with_hierarchy zostal uruchomiony wczesniej"
-    line_id = opts[0]["id"]
+    assignable = [o for o in opts if o["level"] != "position"]
+    assert assignable, "Brak opcji budzetu - upewnij sie ze test_options_flat_with_hierarchy zostal uruchomiony wczesniej"
+    line_id = assignable[0]["id"]
     # Pobierz kod
     kody = requests.get(f"{API}/finance/kody", headers=H).json()["rows"]
     kod_id = kody[0]["id"]
