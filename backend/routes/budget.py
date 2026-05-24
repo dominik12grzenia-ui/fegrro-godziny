@@ -400,10 +400,14 @@ async def get_allocations(
     total_progress = sum(progress_by_pos.values())
 
     # Pule O/P (z zapisow bez budget_line_id, dla tej budowy)
+    # iter84: wykluczamy faktury przychodowe (is_income=True lub kod_id w income codes) - to przychod, nie koszt
+    income_codes = ["PZS", "PZSV"]
     base_q = {
         "budowa_id": budowa_id,
         "date": date_q,
         "$or": [{"budget_line_id": None}, {"budget_line_id": {"$exists": False}}],
+        "is_income": {"$ne": True},
+        "kod_id": {"$nin": income_codes},
     }
     o_pool = 0.0
     p_pool = 0.0
@@ -414,7 +418,7 @@ async def get_allocations(
         else:
             o_pool += netto
 
-    # P_total_budowa (cale wynagrodzenia tej budowy - dla ratio do Q)
+    # P_total_budowa (cale wynagrodzenia tej budowy - dla statystyk)
     p_total_budowa = 0.0
     async for z in db.finance_zapisy.find(
         {"budowa_id": budowa_id, "kod_id": "KP_WYNAGRODZENIA", "date": date_q},
@@ -422,24 +426,41 @@ async def get_allocations(
     ):
         p_total_budowa += float(z.get("netto") or 0)
 
-    # KP_total_firma (suma wynagrodzen calej firmy)
-    kp_total_firma = 0.0
-    async for z in db.finance_zapisy.find(
-        {"kod_id": "KP_WYNAGRODZENIA", "date": date_q},
-        {"_id": 0, "netto": 1},
-    ):
-        kp_total_firma += float(z.get("netto") or 0)
+    # iter84: ratio Q liczone wg sprzedazy (przychod = faktury is_income=true), nie wg wynagrodzen
+    # Sprzedaz firmy w okresie (income invoices lub PZS kody)
+    sprzedaz_q_firma = {
+        "date": date_q,
+        "$or": [{"is_income": True}, {"kod_id": {"$in": income_codes}}],
+    }
+    sprzedaz_total_firma = 0.0
+    async for z in db.finance_zapisy.find(sprzedaz_q_firma, {"_id": 0, "netto": 1}):
+        sprzedaz_total_firma += float(z.get("netto") or 0)
 
-    # Firmowe koszty bez budowy w okresie
+    # Sprzedaz tej budowy
+    sprzedaz_budowa = 0.0
+    sprzedaz_q_budowa = {
+        "budowa_id": budowa_id,
+        "date": date_q,
+        "$or": [{"is_income": True}, {"kod_id": {"$in": income_codes}}],
+    }
+    async for z in db.finance_zapisy.find(sprzedaz_q_budowa, {"_id": 0, "netto": 1}):
+        sprzedaz_budowa += float(z.get("netto") or 0)
+
+    # Firmowe koszty bez budowy w okresie (wykluczamy income)
     unassigned_company = 0.0
     async for z in db.finance_zapisy.find(
-        {"$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}], "date": date_q},
+        {
+            "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}],
+            "date": date_q,
+            "is_income": {"$ne": True},
+            "kod_id": {"$nin": income_codes},
+        },
         {"_id": 0, "netto": 1},
     ):
         unassigned_company += float(z.get("netto") or 0)
 
-    wynagrodzenia_ratio = (p_total_budowa / kp_total_firma) if kp_total_firma > 0 else 0.0
-    q_pool = round(unassigned_company * wynagrodzenia_ratio, 2)
+    sprzedaz_ratio = (sprzedaz_budowa / sprzedaz_total_firma) if sprzedaz_total_firma > 0 else 0.0
+    q_pool = round(unassigned_company * sprzedaz_ratio, 2)
 
     # iter80: znajdz slot 'labor' (R) per pozycja - tam alokujemy P i Q (robocizna)
     labor_slot_by_pos: dict = {}
@@ -502,9 +523,10 @@ async def get_allocations(
             "P": round(p_pool, 2),
             "Q": round(q_pool, 2),
             "p_total_budowa": round(p_total_budowa, 2),
-            "kp_total_firma": round(kp_total_firma, 2),
+            "sprzedaz_total_firma": round(sprzedaz_total_firma, 2),
+            "sprzedaz_budowa": round(sprzedaz_budowa, 2),
             "unassigned_company": round(unassigned_company, 2),
-            "wynagrodzenia_ratio": round(wynagrodzenia_ratio, 4),
+            "sprzedaz_ratio": round(sprzedaz_ratio, 4),
         },
         "positions": position_allocations,
         "slots": slot_allocations,

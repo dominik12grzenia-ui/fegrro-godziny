@@ -409,7 +409,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     { k: 'N', label: 'Koszty przypisane do etapów', w: 130, bg: EXEC_BG, desc: 'Suma zapisów (faktur/zapisów) przypisanych do tej linii budżetu w module Finanse → Zapisy.' },
     { k: 'O', label: 'Koszty budowy bez etapów (% protokół)', w: 140, desc: 'Koszty budowy BEZ kodu pozycji rozproszone na pozycje proporcjonalnie do % zaawansowania z protokołów. Tryb równy włącza przycisk „Rozłóż równo".' },
     { k: 'P', label: '% wynagrodzeń budowy → robocizna', w: 130, desc: 'Wynagrodzenia BEZ kodu pozycji rozproszone tylko na sloty robocizny (R) wg % zaawansowania.' },
-    { k: 'Q', label: 'Koszty nieprzyp. × % wynagr. → robocizna', w: 130, desc: 'Firmowe koszty BEZ budowy × (KP budowy / KP firmy) rozproszone tylko na sloty robocizny.' },
+    { k: 'Q', label: 'Koszty nieprzyp. × % sprzedaży → robocizna', w: 130, desc: 'Firmowe koszty BEZ budowy × (Sprzedaż tej budowy / Sprzedaż firmy) w wybranym miesiącu. Następnie rozproszone na sloty robocizny proporcjonalnie do % zaawansowania pozycji z protokołów.' },
     { k: 'R', label: 'KOSZTY RAZEM', w: 100, bg: EXEC_BG, formula: 'R = N + O + P + Q', desc: 'Suma wszystkich kosztów: bezpośrednich + alokowanych pośrednich.' },
     { k: 'S', label: '% zrealizowanego', w: 90, formula: 'S = R / N × 100', desc: 'Stosunek kosztów razem do kosztów bezpośrednich. ≥100% = kosztów pośrednich (O/P/Q) jest więcej niż bezpośrednich — sygnał do sprawdzenia. ALERT: ≥100% czerwone, ≥80% żółte.' },
     { k: 'T', label: 'POZOSTAŁO BUDŻETU', w: 110, formula: 'T = L − R', desc: 'Ile zostało z prognozowanego kosztu. Ujemne = przekroczono prognozę. ALERT: <0 czerwone, <5%·L żółte.' },

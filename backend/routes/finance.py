@@ -174,6 +174,8 @@ class ZapisCreate(BaseModel):
     nr_faktury: Optional[str] = None
     pozycja_nazwa: Optional[str] = None
     notes: Optional[str] = None
+    is_invoice: Optional[bool] = False
+    is_income: Optional[bool] = False
 
 
 class ZapisUpdate(BaseModel):

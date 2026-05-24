@@ -40,6 +40,8 @@ def setup(H):
     kp_id = next(k["id"] for k in kody if k["id"] == "KP_WYNAGRODZENIA")
     # Pierwszy nie-KP kod kosztowy
     ksb_id = next(k["id"] for k in kody if k["category"] == "KSB")
+    # Sprzedazowy kod (income) - PZS = Przychody ze sprzedazy netto
+    ks_id = next(k["id"] for k in kody if k.get("category") == "PZS")
     # O_pool=1400 (budowa A, brak budget_line_id, kod != KP)
     requests.post(f"{API}/finance/zapisy", json={
         "date": "2026-02-15", "netto": 1400, "kod_id": ksb_id, "budowa_id": b1,
@@ -48,9 +50,14 @@ def setup(H):
     requests.post(f"{API}/finance/zapisy", json={
         "date": "2026-02-10", "netto": 1000, "kod_id": kp_id, "budowa_id": b1,
     }, headers=H)
-    # Budowa B - drugie KP zeby kp_total_firma > KP_budowa_A
+    # iter84: sprzedaz (faktura przychodowa) budowy A=2000, budowy B=8000 → ratio=20%
     requests.post(f"{API}/finance/zapisy", json={
-        "date": "2026-02-10", "netto": 4000, "kod_id": kp_id, "budowa_id": b2,
+        "date": "2026-02-12", "netto": 2000, "kod_id": ks_id, "budowa_id": b1,
+        "is_invoice": True, "is_income": True,
+    }, headers=H)
+    requests.post(f"{API}/finance/zapisy", json={
+        "date": "2026-02-12", "netto": 8000, "kod_id": ks_id, "budowa_id": b2,
+        "is_invoice": True, "is_income": True,
     }, headers=H)
     # Koszty firmowe BEZ budowy: 5000
     requests.post(f"{API}/finance/zapisy", json={
@@ -84,13 +91,13 @@ def test_allocations_month(H, setup):
     pools = data["pools"]
     assert pools["O"] == 1400.0
     assert pools["P"] == 1000.0
-    # KP firma = KP_budowa_A (1000) + KP_budowa_B (4000) + ewentualne starsze KP w DB.
-    # Spr. consystencje matematyczna: ratio = p_total_budowa / kp_total_firma
-    assert pools["p_total_budowa"] == 1000.0
-    assert pools["kp_total_firma"] >= 5000.0  # nasze 5000 + ew. inne
-    expected_ratio = pools["p_total_budowa"] / pools["kp_total_firma"]
-    assert abs(pools["wynagrodzenia_ratio"] - round(expected_ratio, 4)) < 0.001
-    # Q = unassigned_company × ratio (zaokr.)
+    # iter84: ratio liczony ze sprzedazy budowy / sprzedazy firmy.
+    # Sprzedaz budowy A=2000, ale w preview DB moga byc inne income invoices wczesniej.
+    assert pools["sprzedaz_budowa"] >= 2000.0
+    assert pools["sprzedaz_total_firma"] >= 10000.0  # 2000 + 8000 + ew. inne
+    expected_ratio = pools["sprzedaz_budowa"] / pools["sprzedaz_total_firma"]
+    assert abs(pools["sprzedaz_ratio"] - round(expected_ratio, 4)) < 0.001
+    # Q = unassigned_company × sprzedaz_ratio (zaokr.)
     assert pools["unassigned_company"] >= 5000.0
     expected_q = round(pools["unassigned_company"] * expected_ratio, 2)
     assert abs(pools["Q"] - expected_q) < 0.5
