@@ -715,6 +715,23 @@ async def return_to_repair(notification_id: str,
     )
 
     actor_name = await _get_user_name(current_user["sub"])
+
+    # iter91: Tworzymy automatyczny wpis w equipment_defects zeby admin mial przyciski
+    # "Naprawione" / "Zlom" w panelu Zgloszone usterki.
+    defect_doc = {
+        "id": str(uuid.uuid4()),
+        "equipment_id": eq_id,
+        "equipment_name": notif["equipment_name"],
+        "foreman_id": notif["from_foreman_id"],
+        "foreman_name": notif["from_foreman_name"],
+        "quantity": qty,
+        "description": "Sprzet przekierowany do naprawy podczas odbioru zwrotu.",
+        "photo": None,
+        "status": "open",
+        "source": "return_to_repair",
+        "created_at": datetime.now().isoformat(),
+    }
+    await db.equipment_defects.insert_one(defect_doc)
     await db.equipment_return_notifications.update_one(
         {"id": notification_id},
         {"$set": {

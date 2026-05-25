@@ -997,16 +997,20 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Defects */}
       {defects.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#19243C] border-[#2A3B59]" data-testid="defects-panel">
           <CardHeader>
             <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-              <AlertTriangle className="h-5 w-5 text-[#DC4A3A]" /> Zgloszone usterki
+              <AlertTriangle className="h-5 w-5 text-[#DC4A3A]" /> Sprzęt w naprawie i zgłoszone usterki
             </CardTitle>
+            <p className="text-xs text-[#94A3B8] mt-1">
+              Kliknij <b>Naprawione</b> aby zwrócić do magazynu (lub przypisać brygadziście) albo <b>Złom</b> jeśli nie da się naprawić.
+            </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {defects.slice(0, 20).map((d) => {
                 const resolved = d.status === 'resolved';
+                const isReturnToRepair = d.source === 'return_to_repair';
                 return (
                 <div
                   key={d.id}
@@ -1015,6 +1019,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 >
                   <div className="flex justify-between flex-wrap gap-2">
                     <span>
+                      {isReturnToRepair && !resolved && (
+                        <span className="mr-2 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded font-semibold uppercase">W naprawie</span>
+                      )}
                       <span className={`font-semibold ${resolved ? 'text-[#4F6343] line-through' : 'text-[#DC4A3A]'}`}>{d.equipment_name}</span>
                       <span className="text-[#94A3B8]"> x {d.quantity}</span>
                       <span className="text-[#94A3B8]"> · </span>
