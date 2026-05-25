@@ -263,7 +263,6 @@ const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w a
 const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, year, allocMonth, setAllocMonth, allocations, equalDistribution, setEqualDistribution, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
   // iter82: stan modalu z opisem kolumny po klikniciu w naglowek
   const [infoCol, setInfoCol] = useState(null);
-
   // Pozycje per etap (zachowaj kolejnosc z `stages`)
   const positionsByStage = useMemo(() => {
     const m = {};
@@ -475,6 +474,34 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
   const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
   const orphanPositions = positionsByStage['__none__'] || [];
 
+  // iter90: SUMY KOLUMN (caly budet) - liczone z agregatow pozycji
+  const grandTotals = (() => {
+    const tot = { qty: 0, G: 0, H: 0, I: 0, J: 0, K: 0, L: 0, hasL: false, M: 0, N: 0, O: 0, P: 0, Q: 0, R: 0, T: 0, hasT: false, U: 0, V: 0, hasV: false };
+    const allPositions = [...stagesWithPositions.flatMap(s => positionsByStage[s.id] || []), ...orphanPositions];
+    allPositions.forEach((pos) => {
+      const a = computePositionRow(pos.id);
+      tot.qty += a.qty || 0;
+      tot.G += a.G || 0;
+      tot.H += a.H || 0;
+      tot.I += a.I || 0;
+      tot.J += a.J || 0;
+      tot.K += a.K || 0;
+      if (a.hasL) { tot.L += a.L; tot.hasL = true; }
+      if (a.M != null) tot.M += a.M;
+      tot.N += a.N || 0;
+      tot.O += a.O || 0;
+      tot.P += a.P || 0;
+      tot.Q += a.Q || 0;
+      tot.R += a.R || 0;
+      if (a.T != null) { tot.T += a.T; tot.hasT = true; }
+      tot.U += a.U || 0;
+      if (a.V != null) { tot.V += a.V; tot.hasV = true; }
+    });
+    tot.S = tot.N > 0 ? (tot.R / tot.N) * 100 : 0;
+    tot.cena = tot.qty > 0 ? tot.G / tot.qty : 0;
+    return tot;
+  })();
+
   return (
     <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-template-view">
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
@@ -586,6 +613,30 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                     </th>
                   ))}
                   <th className="px-1 py-2 sticky right-0 bg-[#3F5235] text-white text-[9px] uppercase border-l border-b" style={{ borderColor: BORDER, width: 70, minWidth: 70, zIndex: 21 }}>Akcje</th>
+                </tr>
+                {/* iter90: Wiersz SUM kolumn (sticky pod naglowkami) */}
+                <tr data-testid="grand-totals-row" style={{ backgroundColor: '#0F1A30', borderTop: `2px solid #D4AF37`, borderBottom: `2px solid ${BORDER}` }}>
+                  <td className="px-1 py-1.5 text-center font-bold text-[#D4AF37] text-[10px] uppercase border-r" style={{ borderColor: BORDER }} colSpan={2}>Σ SUMA</td>
+                  <td className="px-1 py-1.5 text-left font-bold text-[#D4AF37] text-[10px] border-r" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 18, backgroundColor: '#0F1A30' }}>Wszystkie pozycje budowy</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.qty)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#94A3B8] text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.cena)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.G)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(grandTotals.H)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(grandTotals.I)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.J)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.K)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{grandTotals.hasL ? num(grandTotals.L) : '—'}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{grandTotals.hasL ? num(grandTotals.M) : '—'}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(grandTotals.N)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.O)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.P)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.Q)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(grandTotals.R)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums font-bold text-[10px] border-r" style={{ borderColor: BORDER, color: grandTotals.S >= 100 ? '#FCA5A5' : grandTotals.S >= 80 ? '#D4AF37' : '#5F7552' }}>{num(grandTotals.S, { pct: true, showZero: true })}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{grandTotals.hasT ? num(grandTotals.T) : '—'}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums font-bold text-[10px] border-r" style={{ borderColor: BORDER, color: (grandTotals.U || 0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{num(grandTotals.U)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums font-bold text-[10px] border-r" style={{ borderColor: BORDER, color: (grandTotals.V || 0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{grandTotals.hasV ? num(grandTotals.V) : '—'}</td>
+                  <td className="px-1 py-1.5 sticky right-0" style={{ backgroundColor: '#0F1A30', zIndex: 17 }}></td>
                 </tr>
               </thead>
               <tbody>
