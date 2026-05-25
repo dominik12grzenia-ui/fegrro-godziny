@@ -48,6 +48,10 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [previewPhoto, setPreviewPhoto] = useState(null);
   const [allForemen, setAllForemen] = useState([]);
   const [warehouseModal, setWarehouseModal] = useState(false);
+  // iter89: Equipment confirmation (potwierdz odbior sprzetu / kontestuj)
+  const [pendingConfirmations, setPendingConfirmations] = useState([]);
+  const [contestModal, setContestModal] = useState(null);  // { id, equipment_name, quantity }
+  const [contestReason, setContestReason] = useState('');
 
   // Stale-while-revalidate cached data — instant render on tab re-mount (60s)
   const cachedMy = useCachedApi(`/equipment/my?category=${encodeURIComponent(category)}`, 60000);
@@ -77,16 +81,18 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setLoading(false);
 
       // SECONDARY - transfers banner, keeper status, pending returns etc.
-      const [ptRes, meRes, retRes, wkRes] = await Promise.all([
+      const [ptRes, meRes, retRes, wkRes, confRes] = await Promise.all([
         api.get('/equipment/transfers/pending'),
         api.get('/foreman/me').catch(() => ({ data: null })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null } })),
+        api.get('/equipment/confirmations/pending').catch(() => ({ data: { rows: [] } })),
       ]);
       const me = meRes.data;
       setForemen(allF.filter((f) => !me || f.id !== me.id));
       setPendingTransfers(ptRes.data);
       setPendingReturns(retRes.data);
+      setPendingConfirmations(confRes.data?.rows || []);
       const keeperFlag = me && wkRes.data?.foreman_id === me.id;
       setIsWarehouseKeeper(keeperFlag);
       if (keeperFlag) {
@@ -115,10 +121,13 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         if (me && wk.data?.foreman_id === me.id) setIsWarehouseKeeper(true);
       }).catch(() => {});
     }).catch(() => {});
-    // Poll for new pending transfers every 30s
+    // Poll for new pending transfers + confirmations every 30s
     const id = setInterval(() => {
       api.get('/equipment/transfers/pending').then((r) => setPendingTransfers(r.data)).catch(() => {});
+      api.get('/equipment/confirmations/pending').then((r) => setPendingConfirmations(r.data?.rows || [])).catch(() => {});
     }, 30000);
+    // initial fetch confirmations (background)
+    api.get('/equipment/confirmations/pending').then((r) => setPendingConfirmations(r.data?.rows || [])).catch(() => {});
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchAll]);
@@ -199,6 +208,36 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setPendingTransfers(backup);
       toast.error(err.response?.data?.detail || 'Błąd');
       throw err;
+    }
+  };
+
+  // iter89: potwierdzanie odbioru
+  const handleConfirmReceipt = async (cid) => {
+    const backup = pendingConfirmations;
+    setPendingConfirmations((prev) => prev.filter((c) => c.id !== cid));
+    try {
+      await api.post(`/equipment/confirmations/${cid}/confirm`);
+      toast.success('Potwierdzono odbiór');
+    } catch (err) {
+      setPendingConfirmations(backup);
+      toast.error(err.response?.data?.detail || 'Błąd');
+      throw err;
+    }
+  };
+
+  const handleContestSubmit = async () => {
+    if (!contestModal) return;
+    const cid = contestModal.id;
+    const backup = pendingConfirmations;
+    setPendingConfirmations((prev) => prev.filter((c) => c.id !== cid));
+    try {
+      await api.post(`/equipment/confirmations/${cid}/contest`, { reason: contestReason || null });
+      toast.success('Spór zgłoszony - admin zostanie powiadomiony');
+      setContestModal(null);
+      setContestReason('');
+    } catch (err) {
+      setPendingConfirmations(backup);
+      toast.error(err.response?.data?.detail || 'Błąd');
     }
   };
 
@@ -318,6 +357,123 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   }
 
   // BLOCKING modal: if there are pending transfers, force foreman to respond before doing anything else
+  // iter89: BLOKUJACY modal dla pending_confirmation (najwyzszy priorytet)
+  if (pendingConfirmations.length > 0 && !contestModal) {
+    const c = pendingConfirmations[0];
+    const deadline = c.deadline_at ? new Date(c.deadline_at) : null;
+    const hoursLeft = deadline ? Math.max(0, Math.round((deadline - new Date()) / 36e5)) : null;
+    return (
+      <div
+        className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+        data-testid="blocking-confirmation-modal"
+      >
+        <Card className="bg-[#19243C] border-2 border-[#D4AF37] w-full max-w-md shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-[#D4AF37] flex items-center gap-2 text-lg">
+              <Bell className="h-6 w-6 animate-pulse" />
+              Potwierdź odbiór sprzętu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="bg-[#131C2F] border border-[#2A3B59] rounded-lg p-4">
+              <p className="text-[#CBD5E1] text-base">Zostało Ci przypisane:</p>
+              <p className="text-2xl font-bold text-[#D4AF37] mt-2">{c.equipment_name}</p>
+              <p className="text-[#CBD5E1] text-lg mt-1">
+                Ilość: <span className="font-bold text-white">{c.quantity} szt.</span>
+              </p>
+              {hoursLeft !== null && (
+                <p className="text-xs text-[#FCA5A5] mt-2">
+                  Pozostało: <b>{hoursLeft}h</b> do upływu 48-godzinnego SLA
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-[#94A3B8] text-center">
+              Potwierdź odbiór jeśli sprzęt fizycznie posiadasz, lub kliknij „Nie otrzymałem" aby zgłosić spór.
+            </p>
+            <div className="flex gap-2">
+              <ActionButton
+                onAction={() => { setContestModal(c); }}
+                variant="ghost"
+                className="flex-1 text-[#FCA5A5] hover:bg-[#9B2C2C] border border-[#9B2C2C]"
+                data-testid={`contest-confirmation-${c.id}`}
+              >
+                <X className="h-4 w-4 mr-2" /> Nie otrzymałem
+              </ActionButton>
+              <ActionButton
+                onAction={() => handleConfirmReceipt(c.id)}
+                loadingText="Potwierdzam..."
+                className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
+                data-testid={`confirm-confirmation-${c.id}`}
+              >
+                <Check className="h-4 w-4 mr-2" /> Potwierdzam odbiór
+              </ActionButton>
+            </div>
+            {pendingConfirmations.length > 1 && (
+              <p className="text-xs text-[#D4AF37] text-center">
+                Masz {pendingConfirmations.length - 1} kolejnych potwierdzeń do rozpatrzenia po tym
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // iter89: Modal zglaszania sporu (poza glownym blokujacym)
+  if (contestModal) {
+    return (
+      <div
+        className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
+        data-testid="contest-reason-modal"
+      >
+        <Card className="bg-[#19243C] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
+              <AlertTriangle className="h-6 w-6" />
+              Zgłoś spór - nie otrzymałem sprzętu
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-[#CBD5E1] text-sm">
+              Sprzęt: <b>{contestModal.equipment_name} x{contestModal.quantity}</b>
+            </p>
+            <div>
+              <label className="text-sm text-[#94A3B8] block mb-1">Powód (opcjonalnie)</label>
+              <Input
+                value={contestReason}
+                onChange={(e) => setContestReason(e.target.value)}
+                placeholder="Np. nie odebrałem z magazynu / nie zostało mi przekazane"
+                className="bg-[#131C2F] border-[#2A3B59] text-white"
+                data-testid="contest-reason-input"
+              />
+            </div>
+            <p className="text-xs text-[#94A3B8] text-center">
+              Admin zostanie powiadomiony i zdecyduje czy zostawić przypisanie, czy je wycofać.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => { setContestModal(null); setContestReason(''); }}
+                variant="ghost"
+                className="flex-1 text-[#94A3B8] hover:bg-[#2A3B59]"
+                data-testid="contest-cancel-btn"
+              >
+                Anuluj
+              </Button>
+              <ActionButton
+                onAction={handleContestSubmit}
+                loadingText="Wysyłam..."
+                className="flex-1 bg-[#9B2C2C] hover:bg-[#7C1D1D] text-white"
+                data-testid="contest-submit-btn"
+              >
+                Zgłoś spór
+              </ActionButton>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (pendingTransfers.length > 0) {
     const t = pendingTransfers[0];
     return (

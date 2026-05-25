@@ -98,6 +98,122 @@ async def _get_user_name(user_id: str) -> str:
     return u["full_name"] if u else "Nieznany"
 
 
+# ============= iter89: Equipment Assignment Confirmation (48h SLA) =============
+import os  # noqa: E402
+from urllib.parse import quote  # noqa: E402
+
+
+async def _send_assignment_email(*, to_email: str, subject: str, html: str) -> None:
+    """Resend email helper - silent fail."""
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key or not to_email:
+        return
+    from_addr = os.environ.get("RESEND_FROM_EMAIL", "noreply@fegrro.pl")
+    try:
+        import httpx  # noqa: WPS433
+        async with httpx.AsyncClient(timeout=12) as client:
+            await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={"from": from_addr, "to": [to_email], "subject": subject, "html": html},
+            )
+    except Exception as e:
+        logger.warning(f"Resend assignment email failed: {e}")
+
+
+async def _notify_assignment_pending(*, equipment_id: str, equipment_name: str,
+                                       foreman_id: str, foreman_name: str,
+                                       quantity: int, confirmation_id: str) -> None:
+    """Push + email do brygadzisty z prosba o potwierdzenie odbioru."""
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=foreman_id,
+            title="Sprzet przypisany - potwierdz odbior",
+            body=f"{equipment_name} x{quantity}. Masz 48h na potwierdzenie.",
+            url="/worker/dashboard",
+            tag=f"confirm-{confirmation_id}",
+            require_interaction=True,
+        )
+    except Exception as e:
+        logger.warning(f"Push (assign pending) failed: {e}")
+    # Email
+    user = await db.users.find_one({"id": foreman_id}, {"_id": 0, "email": 1})
+    email = (user or {}).get("email")
+    if email:
+        html = f"""<html><body style="font-family:sans-serif;max-width:600px">
+          <h2 style="color:#5F7151">Sprzet przypisany do potwierdzenia</h2>
+          <p>Witaj <b>{foreman_name}</b>,</p>
+          <p>Zostal Ci przypisany sprzet: <b>{equipment_name} x{quantity}</b>.</p>
+          <p>Masz <b>48 godzin</b> na potwierdzenie odbioru w aplikacji.</p>
+          <p>Jezeli nie otrzymales sprzetu - kliknij "Nie otrzymalem" w aplikacji.</p>
+        </body></html>"""
+        await _send_assignment_email(
+            to_email=email,
+            subject=f"FeGrro: potwierdz odbior {equipment_name} x{quantity}",
+            html=html,
+        )
+
+
+async def _notify_assignment_disputed(*, confirmation: dict, reason: str | None) -> None:
+    """Push do adminow + email gdy pracownik kontestuje odbior."""
+    try:
+        from routes.push import send_push_to_admins
+        await send_push_to_admins(
+            title="Spor przypisania sprzetu",
+            body=f"{confirmation['foreman_name']} zgloszil ze nie otrzymal: {confirmation['equipment_name']} x{confirmation['quantity']}",
+            url="/admin/dashboard",
+            tag=f"dispute-{confirmation['id']}",
+            require_interaction=True,
+        )
+    except Exception as e:
+        logger.warning(f"Push (dispute) failed: {e}")
+    # Email do adminow
+    admins = await db.users.find({"role": "admin", "email": {"$exists": True, "$ne": None}},
+                                   {"_id": 0, "email": 1, "full_name": 1}).to_list(20)
+    for adm in admins:
+        if not adm.get("email"):
+            continue
+        reason_line = f"<p>Powod podany przez pracownika: <i>{reason}</i></p>" if reason else ""
+        html = f"""<html><body style="font-family:sans-serif;max-width:600px">
+          <h2 style="color:#9B2C2C">Spor przypisania sprzetu</h2>
+          <p>Pracownik <b>{confirmation['foreman_name']}</b> zgloszil, ze nie otrzymal przypisanego sprzetu:</p>
+          <ul>
+            <li><b>{confirmation['equipment_name']}</b> x{confirmation['quantity']}</li>
+            <li>Data przypisania: {confirmation.get('assigned_at','?')}</li>
+          </ul>
+          {reason_line}
+          <p>Zaloguj sie do panelu admina aby rozpatrzyc spor.</p>
+        </body></html>"""
+        await _send_assignment_email(
+            to_email=adm["email"],
+            subject=f"FeGrro: spor przypisania - {confirmation['foreman_name']}",
+            html=html,
+        )
+
+
+async def _create_confirmation(*, equipment_id: str, equipment_name: str,
+                                foreman_id: str, foreman_name: str,
+                                quantity: int, assigned_by: str) -> dict:
+    """Tworzy event 'pending_confirmation' z deadline 48h."""
+    now = datetime.now()
+    doc = {
+        "id": str(uuid.uuid4()),
+        "equipment_id": equipment_id,
+        "equipment_name": equipment_name,
+        "foreman_id": foreman_id,
+        "foreman_name": foreman_name,
+        "quantity": int(quantity),
+        "assigned_at": now.isoformat(),
+        "assigned_by": assigned_by,
+        "deadline_at": (now + timedelta(hours=48)).isoformat(),
+        "status": "pending_confirmation",
+    }
+    await db.equipment_confirmations.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+
 # ============= Equipment CRUD (admin) =============
 @router.get("/equipment")
 async def list_equipment(
@@ -293,6 +409,7 @@ async def set_assignment(payload: AssignmentSet,
                           current_user: dict = Depends(get_current_admin_or_warehouse)):
     """Set the quantity assigned to a specific foreman for an equipment.
     quantity=0 removes the assignment.
+    iter89: gdy delta > 0, tworzymy 'pending_confirmation' event dla pracownika z deadline 48h.
     """
     eq = await db.equipment.find_one({"id": equipment_id})
     if not eq:
@@ -302,6 +419,14 @@ async def set_assignment(payload: AssignmentSet,
         raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
     if payload.quantity < 0:
         raise HTTPException(status_code=400, detail="Ilosc nie moze byc ujemna")
+
+    # iter89: poprzednia ilosc dla tego pracownika
+    prev_assignment = await db.equipment_assignments.find_one(
+        {"equipment_id": equipment_id, "foreman_id": payload.foreman_id},
+        {"_id": 0, "quantity": 1},
+    )
+    prev_qty = int((prev_assignment or {}).get("quantity") or 0)
+    delta = int(payload.quantity) - prev_qty
 
     # Compute total assigned excluding this foreman
     pipeline = [
@@ -344,20 +469,24 @@ async def set_assignment(payload: AssignmentSet,
         {"foreman_id": payload.foreman_id, "foreman_name": foreman["full_name"],
          "quantity": payload.quantity}
     )
-    # Push to the foreman so they know equipment is now assigned to them
-    if payload.quantity > 0:
-        try:
-            from routes.push import send_push
-            await send_push(
-                user_id=payload.foreman_id,
-                title="Sprzet gotowy do odbioru",
-                body=f"{eq.get('name','Sprzet')} x{payload.quantity}",
-                url="/worker/dashboard",
-                tag=f"assign-{equipment_id}",
-                require_interaction=True,
-            )
-        except Exception:
-            pass
+    # iter89: jezeli ilosc wzrosla, utworz confirmation event dla DELTY + powiadomienia
+    if delta > 0:
+        conf = await _create_confirmation(
+            equipment_id=equipment_id,
+            equipment_name=eq.get("name", "Sprzet"),
+            foreman_id=payload.foreman_id,
+            foreman_name=foreman["full_name"],
+            quantity=delta,
+            assigned_by=current_user["sub"],
+        )
+        await _notify_assignment_pending(
+            equipment_id=equipment_id,
+            equipment_name=eq.get("name", "Sprzet"),
+            foreman_id=payload.foreman_id,
+            foreman_name=foreman["full_name"],
+            quantity=delta,
+            confirmation_id=conf["id"],
+        )
     return {"message": "Przypisanie zaktualizowane"}
 
 
@@ -1670,4 +1799,164 @@ async def confirm_inventory(check_id: str,
             {"$set": {"status": "finished", "finished_at": datetime.now().isoformat()}},
         )
     return {"message": "Potwierdzono"}
+
+
+# ============= iter89: Assignment confirmation endpoints =============
+class ContestPayload(BaseModel):
+    reason: Optional[str] = None
+
+
+class ResolveDispute(BaseModel):
+    decision: str  # 'keep' | 'revoke'
+
+
+@router.get("/equipment/confirmations/pending")
+async def my_pending_confirmations(current_user: dict = Depends(get_current_user)):
+    """Pracownik: lista przypisan oczekujacych na potwierdzenie odbioru."""
+    items = await db.equipment_confirmations.find(
+        {"foreman_id": current_user["sub"], "status": "pending_confirmation"},
+        {"_id": 0},
+    ).sort("assigned_at", -1).to_list(200)
+    return {"rows": items}
+
+
+@router.post("/equipment/confirmations/{cid}/confirm")
+async def confirm_assignment(cid: str, current_user: dict = Depends(get_current_user)):
+    """Pracownik potwierdza odbior sprzetu."""
+    conf = await db.equipment_confirmations.find_one({"id": cid})
+    if not conf:
+        raise HTTPException(status_code=404, detail="Potwierdzenie nie znalezione")
+    if conf["foreman_id"] != current_user["sub"]:
+        raise HTTPException(status_code=403, detail="To nie jest Twoje przypisanie")
+    if conf["status"] != "pending_confirmation":
+        raise HTTPException(status_code=400, detail="Potwierdzenie juz rozpatrzone")
+    await db.equipment_confirmations.update_one(
+        {"id": cid},
+        {"$set": {
+            "status": "confirmed",
+            "confirmed_at": datetime.now().isoformat(),
+        }},
+    )
+    await _add_history(
+        conf["equipment_id"], "assignment_confirmed", current_user["sub"],
+        conf["foreman_name"],
+        {"quantity": conf["quantity"], "confirmation_id": cid},
+    )
+    return {"message": "Potwierdzono"}
+
+
+@router.post("/equipment/confirmations/{cid}/contest")
+async def contest_assignment(cid: str, payload: ContestPayload,
+                              current_user: dict = Depends(get_current_user)):
+    """Pracownik zglasza ze nie otrzymal sprzetu - tworzy spor do rozpatrzenia przez admina."""
+    conf = await db.equipment_confirmations.find_one({"id": cid})
+    if not conf:
+        raise HTTPException(status_code=404, detail="Potwierdzenie nie znalezione")
+    if conf["foreman_id"] != current_user["sub"]:
+        raise HTTPException(status_code=403, detail="To nie jest Twoje przypisanie")
+    if conf["status"] != "pending_confirmation":
+        raise HTTPException(status_code=400, detail="Potwierdzenie juz rozpatrzone")
+    now = datetime.now().isoformat()
+    await db.equipment_confirmations.update_one(
+        {"id": cid},
+        {"$set": {
+            "status": "disputed",
+            "contested_at": now,
+            "contested_reason": payload.reason,
+        }},
+    )
+    conf["status"] = "disputed"
+    conf["contested_reason"] = payload.reason
+    conf["contested_at"] = now
+    await _add_history(
+        conf["equipment_id"], "assignment_contested", current_user["sub"],
+        conf["foreman_name"],
+        {"quantity": conf["quantity"], "confirmation_id": cid, "reason": payload.reason},
+    )
+    await _notify_assignment_disputed(confirmation=conf, reason=payload.reason)
+    return {"message": "Spor zgloszony - czekaj na decyzje admina"}
+
+
+@router.get("/equipment/confirmations/disputes")
+async def list_disputes(current_user: dict = Depends(get_current_admin)):
+    """Admin: lista sporow do rozpatrzenia."""
+    items = await db.equipment_confirmations.find(
+        {"status": "disputed"}, {"_id": 0},
+    ).sort("contested_at", -1).to_list(200)
+    return {"rows": items}
+
+
+@router.get("/equipment/confirmations/all")
+async def list_all_confirmations(
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Admin: lista wszystkich confirmation events, opcjonalnie filtrowana po statusie."""
+    q: dict = {}
+    if status:
+        q["status"] = status
+    items = await db.equipment_confirmations.find(q, {"_id": 0}).sort("assigned_at", -1).to_list(500)
+    return {"rows": items}
+
+
+@router.post("/equipment/confirmations/{cid}/resolve")
+async def resolve_dispute(cid: str, payload: ResolveDispute,
+                            current_user: dict = Depends(get_current_admin)):
+    """Admin rozstrzyga spor: 'keep' (zostawia przypisany) lub 'revoke' (cofa przypisanie).
+
+    'revoke' decrementuje equipment_assignments o quantity (sprzet wraca do magazynu)."""
+    if payload.decision not in ("keep", "revoke"):
+        raise HTTPException(status_code=400, detail="Nieznana decyzja")
+    conf = await db.equipment_confirmations.find_one({"id": cid})
+    if not conf:
+        raise HTTPException(status_code=404, detail="Potwierdzenie nie znalezione")
+    if conf["status"] not in ("disputed", "pending_confirmation"):
+        raise HTTPException(status_code=400, detail="Potwierdzenie juz rozpatrzone")
+
+    if payload.decision == "revoke":
+        # Zmniejsz equipment_assignments o quantity
+        src = await db.equipment_assignments.find_one(
+            {"equipment_id": conf["equipment_id"], "foreman_id": conf["foreman_id"]},
+        )
+        if src:
+            new_qty = int(src.get("quantity") or 0) - int(conf["quantity"])
+            if new_qty <= 0:
+                await db.equipment_assignments.delete_one({"id": src["id"]})
+            else:
+                await db.equipment_assignments.update_one(
+                    {"id": src["id"]},
+                    {"$set": {"quantity": new_qty}},
+                )
+
+    actor_name = await _get_user_name(current_user["sub"])
+    new_status = "resolved_revoked" if payload.decision == "revoke" else "resolved_kept"
+    await db.equipment_confirmations.update_one(
+        {"id": cid},
+        {"$set": {
+            "status": new_status,
+            "resolved_at": datetime.now().isoformat(),
+            "resolved_by": current_user["sub"],
+            "resolved_by_name": actor_name,
+            "resolved_decision": payload.decision,
+        }},
+    )
+    await _add_history(
+        conf["equipment_id"], "dispute_resolved", current_user["sub"], actor_name,
+        {"quantity": conf["quantity"], "decision": payload.decision,
+         "foreman_name": conf["foreman_name"], "confirmation_id": cid},
+    )
+    # Notify foreman about resolution
+    try:
+        from routes.push import send_push
+        msg_decision = "zostawiony przypisany" if payload.decision == "keep" else "wycofany z Twojego stanu"
+        await send_push(
+            user_id=conf["foreman_id"],
+            title="Spor rozpatrzony",
+            body=f"{conf['equipment_name']} x{conf['quantity']} - sprzet zostal {msg_decision}.",
+            url="/worker/dashboard",
+            tag=f"dispute-resolved-{cid}",
+        )
+    except Exception:
+        pass
+    return {"message": "Spor rozpatrzony", "decision": payload.decision}
 

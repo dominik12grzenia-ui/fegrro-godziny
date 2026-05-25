@@ -47,6 +47,8 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
   const [transferModal, setTransferModal] = useState(null); // { equipment, prefilledForemanId? }
   const [transferForemanId, setTransferForemanId] = useState('');
   const [transferQty, setTransferQty] = useState('');
+  // iter89: spory przypisan sprzetu
+  const [disputes, setDisputes] = useState([]);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -64,7 +66,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
       setLoading(false);
 
       // SECONDARY fetches - same cache-first strategy
-      const [hisData, defData, trData, wkData, retData, scrData, invData, shData] = await Promise.all([
+      const [hisData, defData, trData, wkData, retData, scrData, invData, shData, dispData] = await Promise.all([
         prefetch('/equipment/history'),
         prefetch('/equipment/defects'),
         prefetch('/equipment/transfers/all'),
@@ -73,6 +75,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
         prefetch(`/equipment/scrapped?category=${encodeURIComponent(category)}`),
         prefetch('/equipment/inventory/list'),
         prefetch('/equipment/inventory/shortages?status=open'),
+        prefetch('/equipment/confirmations/disputes'),
       ]);
       if (hisData) setHistory(hisData);
       if (defData) setDefects(defData);
@@ -82,6 +85,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
       if (scrData) setScrapped(scrData);
       if (invData) setActiveInventory((invData || []).filter((c) => c.category === category && c.status === 'active'));
       if (shData) setShortages((shData || []).filter((s) => s.category === category));
+      if (dispData) setDisputes(dispData?.rows || []);
     } catch (e) {
       toast.error('Błąd pobierania danych sprzętu');
       setLoading(false);
@@ -881,6 +885,77 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       data-testid={`acknowledge-return-${r.id}`}
                     >
                       Potwierdź przyjecie
+                    </ActionButton>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* iter89: Sporne przypisania sprzetu */}
+      {disputes.length > 0 && (
+        <Card className="bg-[#19243C] border-[#9B2C2C]" data-testid="disputes-panel">
+          <CardHeader>
+            <CardTitle className="text-[#FCA5A5] flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5" /> Sporne przypisania sprzętu ({disputes.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {disputes.map((d) => (
+                <div
+                  key={d.id}
+                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#9B2C2C]/40"
+                  data-testid={`dispute-${d.id}`}
+                >
+                  <div className="text-sm flex-1 min-w-[200px]">
+                    <div>
+                      <span className="text-[#CBD5E1] font-semibold">{d.foreman_name}</span>
+                      <span className="text-[#94A3B8]"> twierdzi że nie otrzymał: </span>
+                      <span className="text-[#FCA5A5] font-bold">{d.equipment_name}</span>
+                      <span className="text-[#94A3B8]"> x </span>
+                      <span className="text-white font-bold">{d.quantity}</span>
+                    </div>
+                    {d.contested_reason && (
+                      <div className="text-xs text-[#94A3B8] mt-1 italic">
+                        Powód: „{d.contested_reason}"
+                      </div>
+                    )}
+                    <div className="text-[#64748B] text-xs mt-1">
+                      Przypisane: {d.assigned_at ? new Date(d.assigned_at).toLocaleString('pl-PL') : '—'}
+                      {d.contested_at && ` · Zgłoszone: ${new Date(d.contested_at).toLocaleString('pl-PL')}`}
+                    </div>
+                  </div>
+                  <div className="flex gap-2 flex-wrap">
+                    <ActionButton
+                      size="sm"
+                      onAction={async () => {
+                        await api.post(`/equipment/confirmations/${d.id}/resolve`, { decision: 'keep' });
+                        setDisputes((prev) => prev.filter((x) => x.id !== d.id));
+                        toast.success('Przypisanie zachowane');
+                      }}
+                      loadingText="..."
+                      variant="outline"
+                      className="border-[#5F7552] text-[#5F7552] hover:bg-[#5F7552]/20"
+                      data-testid={`dispute-keep-${d.id}`}
+                    >
+                      Zostaw przypisany
+                    </ActionButton>
+                    <ActionButton
+                      size="sm"
+                      onAction={async () => {
+                        await api.post(`/equipment/confirmations/${d.id}/resolve`, { decision: 'revoke' });
+                        setDisputes((prev) => prev.filter((x) => x.id !== d.id));
+                        toast.success('Przypisanie wycofane - sprzęt wraca do magazynu');
+                        fetchAll();
+                      }}
+                      loadingText="..."
+                      className="bg-[#9B2C2C] hover:bg-[#7C1D1D] text-white"
+                      data-testid={`dispute-revoke-${d.id}`}
+                    >
+                      Wycofaj
                     </ActionButton>
                   </div>
                 </div>
