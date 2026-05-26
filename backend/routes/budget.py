@@ -457,43 +457,104 @@ async def get_allocations(
     ):
         p_total_budowa += float(z.get("netto") or 0)
 
-    # iter95e: Q_pool = suma z dwoch zrodel:
+    # iter95e/iter95f: Q_pool = suma z dwoch zrodel:
     # 1) Kategoryzowane (KP/KBB/KSP/PPE) - alokacja IDENTYCZNA jak w zakladce Sprzedaz
     #    (kp_aloc + kbb_aloc + ksp_uklady_aloc + ksp_aloc + podatek_aloc)
     # 2) Reszta firmowych kosztow bez budowy (KSB bez budowy, kod_id=null, inne) -
     #    rozdzielane pro-rata wg sprzedazy (sprzedaz_budowa / sprzedaz_total_firma)
-    sprzedaz_data = await _compute_sprzedaz_data(year, month, date_start=start, date_end=end)
-    sprzedaz_row = next((r for r in sprzedaz_data["rows"] if r["budowa_id"] == budowa_id), None)
-    q_categorized = 0.0
-    sprzedaz_budowa = 0.0
-    if sprzedaz_row:
-        d = sprzedaz_row["details"]
-        q_categorized = (
-            d.get("kp_aloc", 0) + d.get("kbb_aloc", 0)
-            + d.get("ksp_uklady_aloc", 0) + d.get("ksp_aloc", 0)
-            + d.get("podatek_aloc", 0)
-        )
-        sprzedaz_budowa = d.get("sprzedaz", 0)
-    helper = sprzedaz_data.get("helper", {})
-    sprzedaz_total_firma = helper.get("total_pzs", 0)
-    # Reszta firmowych kosztow bez budowy w okresie - to co NIE jest pokryte przez sprzedaz buckets
-    # (np. KSB bez budowy, kod_id=null, inne nietypowe kategorie)
-    # Pokryte przez sprzedaz: KP (kategoria), KSP (kategoria - cala), PPE (kategoria - cala)
+    #
+    # iter95f: Dla widoku ROCZNEGO liczymy PER MIESIAC i sumujemy - nie jako jeden duzy
+    # agregat. To poprawnie odzwierciedla zmienne ratio sprzedazy w roznych miesiacach.
+    # Miesiace, w ktorych budowa nie miala zadnej aktywnosci (zapisu) - pomijamy.
     covered_categories = ["KP", "KSP", "PPE"]
-    leftover_unassigned = 0.0
-    async for z in db.finance_zapisy.find(
-        {
-            "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
-            "date": date_q,
-            "is_income": {"$ne": True},
-            "$nor": [{"kod_category": {"$in": covered_categories}}],
-            "kod_id": {"$nin": income_codes},
-        },
-        {"_id": 0, "netto": 1},
-    ):
-        leftover_unassigned += float(z.get("netto") or 0)
+
+    async def _q_for_month(yr: int, mo: int) -> dict:
+        """Liczy q_categorized + q_leftover + statystyki dla pojedynczego miesiaca."""
+        m_start = f"{yr:04d}-{mo:02d}-01"
+        m_end = f"{yr:04d}-{mo:02d}-31"
+        sp = await _compute_sprzedaz_data(yr, mo, date_start=m_start, date_end=m_end)
+        row = next((r for r in sp["rows"] if r["budowa_id"] == budowa_id), None)
+        m_qcat = 0.0
+        m_sprz_bud = 0.0
+        if row:
+            dd = row["details"]
+            m_qcat = (
+                dd.get("kp_aloc", 0) + dd.get("kbb_aloc", 0)
+                + dd.get("ksp_uklady_aloc", 0) + dd.get("ksp_aloc", 0)
+                + dd.get("podatek_aloc", 0)
+            )
+            m_sprz_bud = dd.get("sprzedaz", 0)
+        h = sp.get("helper", {})
+        m_sprz_firma = h.get("total_pzs", 0)
+        m_leftover = 0.0
+        async for z in db.finance_zapisy.find(
+            {
+                "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
+                "date": {"$gte": m_start, "$lte": m_end},
+                "is_income": {"$ne": True},
+                "$nor": [{"kod_category": {"$in": covered_categories}}],
+                "kod_id": {"$nin": income_codes},
+            },
+            {"_id": 0, "netto": 1},
+        ):
+            m_leftover += float(z.get("netto") or 0)
+        m_ratio = (m_sprz_bud / m_sprz_firma) if m_sprz_firma > 0 else 0.0
+        m_qleft = m_leftover * m_ratio
+        return {
+            "q_cat": m_qcat,
+            "q_left": m_qleft,
+            "sprzedaz_budowa": m_sprz_bud,
+            "sprzedaz_firma": m_sprz_firma,
+            "leftover": m_leftover,
+            "helper": h,
+        }
+
+    if month is not None:
+        # Widok miesieczny - 1 wywolanie
+        mo_data = await _q_for_month(year, month)
+        q_categorized = mo_data["q_cat"]
+        q_leftover = mo_data["q_left"]
+        sprzedaz_budowa = mo_data["sprzedaz_budowa"]
+        sprzedaz_total_firma = mo_data["sprzedaz_firma"]
+        leftover_unassigned = mo_data["leftover"]
+        helper = mo_data["helper"]
+    else:
+        # Widok ROCZNY - sumujemy per miesiac aktywnosci budowy
+        # Miesiace aktywnosci = miesiace, w ktorych budowa ma zapis
+        active_months_cursor = db.finance_zapisy.find(
+            {"budowa_id": budowa_id, "year": year},
+            {"_id": 0, "month": 1},
+        )
+        active_months = set()
+        async for z in active_months_cursor:
+            mo_v = z.get("month")
+            if mo_v:
+                active_months.add(int(mo_v))
+        q_categorized = 0.0
+        q_leftover = 0.0
+        sprzedaz_budowa = 0.0
+        sprzedaz_total_firma = 0.0
+        leftover_unassigned = 0.0
+        helper_agg: dict = {
+            "kp_stawki_unassigned": 0.0,
+            "ksp_stawki_unassigned": 0.0,
+            "ksp_uklady_unassigned": 0.0,
+            "total_ppe": 0.0,
+            "total_ksp": 0.0,
+        }
+        for mo_v in sorted(active_months):
+            mo_data = await _q_for_month(year, mo_v)
+            q_categorized += mo_data["q_cat"]
+            q_leftover += mo_data["q_left"]
+            sprzedaz_budowa += mo_data["sprzedaz_budowa"]
+            sprzedaz_total_firma += mo_data["sprzedaz_firma"]
+            leftover_unassigned += mo_data["leftover"]
+            mh = mo_data["helper"]
+            for k in helper_agg:
+                helper_agg[k] += mh.get(k, 0) or 0
+        helper = helper_agg
+
     sprzedaz_ratio = (sprzedaz_budowa / sprzedaz_total_firma) if sprzedaz_total_firma > 0 else 0.0
-    q_leftover = leftover_unassigned * sprzedaz_ratio
     q_pool = round(q_categorized + q_leftover, 2)
     # unassigned_company = laczna pula firmowa nieprzypisana (dla bannera diagnostycznego)
     unassigned_company = (
