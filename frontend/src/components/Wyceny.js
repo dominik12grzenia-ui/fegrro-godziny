@@ -69,7 +69,7 @@ export const Wyceny = () => {
             <LaborPriceBook />
           </TabsContent>
           <TabsContent value="equipment">
-            <PriceBook category="equipment" />
+            <EquipmentPriceBook />
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -798,6 +798,159 @@ const LaborRow = ({ item, onChange, onDel }) => {
       </td>
       <td className="text-right pr-1 pt-1">
         <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`labor-del-${item.id}`}>
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// =============== PRICE BOOK (EQUIPMENT - Excel-style: 3 ceny + wynajmujący + koszty poboczne) ===============
+const EquipmentPriceBook = () => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const fetchRows = useCallback(() => {
+    setLoading(true);
+    const params = { category: 'equipment' };
+    if (search) params.q = search;
+    api.get('/wyceny/cennik', { params })
+      .then((r) => setRows(r.data?.rows || []))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+      .finally(() => setLoading(false));
+  }, [search]);
+
+  useEffect(() => { fetchRows(); }, [fetchRows]);
+
+  const addRow = async () => {
+    try {
+      await api.post('/wyceny/cennik', { category: 'equipment', name: '' });
+      fetchRows();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Usunąć pozycję?')) return;
+    try { await api.delete(`/wyceny/cennik/${id}`); fetchRows(); }
+    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  return (
+    <div className="space-y-2" data-testid="equipment-pricebook">
+      <div className="flex items-center gap-2">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj nazwy sprzętu..."
+          className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="equipment-search" />
+        <Button onClick={addRow} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+          data-testid="equipment-add-btn">
+          <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
+        </Button>
+        <div className="text-xs text-[#94A3B8]">{rows.length} pozycji</div>
+      </div>
+      {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : rows.length === 0 ? (
+        <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="equipment-empty">
+          Brak pozycji. Kliknij „Dodaj pozycję".
+        </div>
+      ) : (
+        <div className="overflow-x-auto border border-[#2A3B59] rounded">
+          <table className="w-full text-xs" data-testid="equipment-table">
+            <thead className="bg-[#0B1120] text-[#94A3B8] sticky top-0">
+              <tr>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[200px]">nazwa sprzętu</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">koszt za godzinę</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">koszt za dzień</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">koszt za miesiąc</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[160px]">wynajmujący</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[100px]">koszty poboczne</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[200px]">opis kosztów pobocznych</th>
+                <th className="p-2 border-b border-[#2A3B59] w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((it) => (
+                <EquipmentRow key={it.id} item={it} onChange={fetchRows} onDel={() => remove(it.id)} />
+              ))}
+            </tbody>
+          </table>
+          <div className="bg-[#0B1120]/50 text-[10px] text-[#64748B] p-2 border-t border-[#2A3B59]">
+            ℹ Koszty poboczne są doliczane do każdej jednostki rozliczeniowej (godzina/dzień/miesiąc). Opis pozwala wyjaśnić co wchodzi w skład tej dopłaty (np. transport, paliwo, operator).
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const EquipmentRow = ({ item, onChange, onDel }) => {
+  const [edit, setEdit] = useState(item);
+  useEffect(() => { setEdit(item); }, [item]);
+
+  const save = async () => {
+    const payload = {
+      name: edit.name || '',
+      price_hour: edit.price_hour === '' || edit.price_hour == null ? null : parseFloat(edit.price_hour),
+      price_day: edit.price_day === '' || edit.price_day == null ? null : parseFloat(edit.price_day),
+      price_month: edit.price_month === '' || edit.price_month == null ? null : parseFloat(edit.price_month),
+      wynajmujacy: edit.wynajmujacy || '',
+      extra_cost: edit.extra_cost === '' || edit.extra_cost == null ? null : parseFloat(edit.extra_cost),
+      extra_cost_desc: edit.extra_cost_desc || '',
+    };
+    try { await api.patch(`/wyceny/cennik/${item.id}`, payload); }
+    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
+
+  return (
+    <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`equipment-row-${item.id}`}>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          placeholder="np. zagęszczarka, młot udarowy..."
+          className={`${inputCls} text-white`} data-testid={`equipment-name-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input type="number" step="0.01" value={edit.price_hour ?? ''}
+          onChange={(e) => setEdit({ ...edit, price_hour: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
+          data-testid={`equipment-price-hour-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input type="number" step="0.01" value={edit.price_day ?? ''}
+          onChange={(e) => setEdit({ ...edit, price_day: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
+          data-testid={`equipment-price-day-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input type="number" step="0.01" value={edit.price_month ?? ''}
+          onChange={(e) => setEdit({ ...edit, price_month: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
+          data-testid={`equipment-price-month-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input value={edit.wynajmujacy || ''} onChange={(e) => setEdit({ ...edit, wynajmujacy: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          placeholder="np. Ramirent, własny..."
+          className={`${inputCls} text-[#CBD5E1]`} data-testid={`equipment-wyn-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input type="number" step="0.01" value={edit.extra_cost ?? ''}
+          onChange={(e) => setEdit({ ...edit, extra_cost: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          className={`${inputCls} text-right tabular-nums text-[#FCA5A5]`}
+          data-testid={`equipment-extra-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 p-1">
+        <input value={edit.extra_cost_desc || ''} onChange={(e) => setEdit({ ...edit, extra_cost_desc: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          placeholder="np. transport, paliwo..."
+          className={`${inputCls} text-[#94A3B8]`} data-testid={`equipment-extra-desc-${item.id}`} />
+      </td>
+      <td className="text-right pr-1">
+        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`equipment-del-${item.id}`}>
           <Trash2 className="h-3 w-3" />
         </button>
       </td>

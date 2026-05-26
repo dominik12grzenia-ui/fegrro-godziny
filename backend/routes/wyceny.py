@@ -87,6 +87,13 @@ class PriceBookCreate(BaseModel):
     # iter95m: pola dla LABOR (robocizna)
     price_m2: Optional[float] = None         # cena za m2
     price_m3: Optional[float] = None         # cena za m3
+    # iter95n: pola dla EQUIPMENT (sprzet)
+    price_hour: Optional[float] = None       # koszt za godzine
+    price_day: Optional[float] = None        # koszt za dzien
+    price_month: Optional[float] = None      # koszt za miesiac
+    wynajmujacy: Optional[str] = None        # nazwa firmy wynajmujacej
+    extra_cost: Optional[float] = None       # koszty poboczne doliczane do kazdej jednostki
+    extra_cost_desc: Optional[str] = None    # opis kosztow pobocznych
 
 
 class PriceBookUpdate(BaseModel):
@@ -106,6 +113,13 @@ class PriceBookUpdate(BaseModel):
     # iter95m: labor
     price_m2: Optional[float] = None
     price_m3: Optional[float] = None
+    # iter95n: equipment
+    price_hour: Optional[float] = None
+    price_day: Optional[float] = None
+    price_month: Optional[float] = None
+    wynajmujacy: Optional[str] = None
+    extra_cost: Optional[float] = None
+    extra_cost_desc: Optional[str] = None
 
 
 VALID_CATEGORIES = {"materials", "labor", "equipment"}
@@ -364,6 +378,13 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         # iter95m: labor
         "price_m2": payload.price_m2,
         "price_m3": payload.price_m3,
+        # iter95n: equipment
+        "price_hour": payload.price_hour,
+        "price_day": payload.price_day,
+        "price_month": payload.price_month,
+        "wynajmujacy": payload.wynajmujacy,
+        "extra_cost": payload.extra_cost,
+        "extra_cost_desc": payload.extra_cost_desc,
         "price_history": [],  # iter95m: lista wpisow {date, field, old, new}
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
