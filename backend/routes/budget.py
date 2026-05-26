@@ -1228,6 +1228,11 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
         pid_parent = ln.get("parent_id")
         if pid_parent:
             has_child.add(pid_parent)
+    # iter95h: Plan + lista podpozycji (slotów R/M/S) per pozycja - zwracane do widoku protokolu
+    # (ale NIE do exportu Excel/PDF). Slot = linia z parent_id=None (top-level pod pozycja).
+    # Dla protokolu pokazujemy 3 grupy: equipment (sprzet) / labor (robocizna) / materials (materialy).
+    SUB_TYPE_LABEL_BE = {"equipment": "sprzęt", "labor": "robocizna", "materials": "Materiał"}
+    subrows_per_pos: dict = {}
     plan_per_pos = {}
     qty_per_pos = {}  # przyklad jednostki - pierwsza spotkana z lisci
     for line in all_lines:
@@ -1245,8 +1250,17 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
                 "unit": line.get("unit"),
                 "unit_price_netto": line.get("unit_price_netto"),
             }
+        # Slot top-level (parent_id=None) = subrow w protokole
+        if not line.get("parent_id"):
+            subrows_per_pos.setdefault(pid, []).append({
+                "id": line["id"],
+                "type": line.get("type") or "materials",
+                "type_label": SUB_TYPE_LABEL_BE.get(line.get("type") or "materials", ""),
+                "name": line.get("name") or SUB_TYPE_LABEL_BE.get(line.get("type") or "materials", ""),
+                "plan_netto": round(plan, 2),
+            })
 
-    # Wzbogac pozycje o plan
+    # Wzbogac pozycje o plan + subrows
     positions_with_plan = []
     for p in positions:
         pid = p["id"]
@@ -1263,6 +1277,7 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
             "unit": qi.get("unit") or "",
             "unit_price_netto": qi.get("unit_price_netto") or 0,
             "category": "",
+            "subrows": subrows_per_pos.get(pid, []),  # iter95h: podpozycje (sloty R/M/S)
         })
 
     # Sortuj: stage_order -> position.order -> created_at
@@ -1273,8 +1288,15 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
     ))
 
     pos_ids = [p["id"] for p in positions_with_plan]
+    # iter95h: Lista wszystkich slot_id (subpozycji) dla ktorych mozemy mieć progres
+    all_sub_ids = []
+    for p in positions_with_plan:
+        for sr in p.get("subrows", []):
+            all_sub_ids.append(sr["id"])
     progress_curr = {}
     progress_prev = {}
+    sub_progress_curr = {}  # iter95h: {line_id: pct} biezacy mc
+    sub_progress_prev = {}  # iter95h: {line_id: sum_pct} poprzednie mc
     if pos_ids:
         async for p in db.budget_progress.find(
             {"position_id": {"$in": pos_ids}, "year": year, "month": month},
@@ -1291,6 +1313,44 @@ async def _fetch_protokol_data(budowa_id: str, year: int, month: int):
         ):
             pid = p["position_id"]
             progress_prev[pid] = progress_prev.get(pid, 0.0) + float(p["progress_pct"])
+    # iter95h: progresy subpozycji (klucz: budget_line_id)
+    if all_sub_ids:
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": all_sub_ids}, "year": year, "month": month},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+        ):
+            sub_progress_curr[p["budget_line_id"]] = float(p["progress_pct"])
+        async for p in db.budget_progress.find(
+            {"budget_line_id": {"$in": all_sub_ids},
+             "$or": [
+                 {"year": {"$lt": year}},
+                 {"year": year, "month": {"$lt": month}},
+             ]},
+            {"_id": 0, "budget_line_id": 1, "progress_pct": 1},
+        ):
+            lid = p["budget_line_id"]
+            sub_progress_prev[lid] = sub_progress_prev.get(lid, 0.0) + float(p["progress_pct"])
+
+    # iter95h: wzbogac subrows o progress
+    for p in positions_with_plan:
+        for sr in p.get("subrows", []):
+            sr["miesiac_pct"] = round(sub_progress_curr.get(sr["id"], 0.0), 2)
+            sr["prev_pct"] = round(sub_progress_prev.get(sr["id"], 0.0), 2)
+            sr["miesiac_val"] = round(sr["plan_netto"] * sr["miesiac_pct"] / 100.0, 2)
+            sr["prev_val"] = round(sr["plan_netto"] * sr["prev_pct"] / 100.0, 2)
+            sr["narast_pct"] = round(min(100.0, sr["miesiac_pct"] + sr["prev_pct"]), 2)
+            sr["narast_val"] = round(sr["plan_netto"] * sr["narast_pct"] / 100.0, 2)
+        # iter95h: gdy istnieja subprogresy, nadpisz progress_curr/prev pozycji weighted avg
+        # (to gwarantuje ze PDF/Excel pokazuja zgodne wartosci nawet gdy nie ma synced position progress)
+        subrows = p.get("subrows", [])
+        if subrows:
+            sub_has_progress = any(
+                (s.get("miesiac_pct", 0) > 0 or s.get("prev_pct", 0) > 0) for s in subrows
+            )
+            if sub_has_progress:
+                sub_plan_total = sum(s["plan_netto"] for s in subrows) or 1.0
+                progress_curr[p["id"]] = sum(s["plan_netto"] * s.get("miesiac_pct", 0) for s in subrows) / sub_plan_total
+                progress_prev[p["id"]] = sum(s["plan_netto"] * s.get("prev_pct", 0) for s in subrows) / sub_plan_total
 
     distinct_months = set()
     async for p in db.budget_progress.find(
@@ -1330,8 +1390,20 @@ async def get_protokol_view(
             rows.append({"type": "section", "stage_id": sid, "stage_name": stage_name})
             last_stage = sid
         plan = pos["plan_netto"]
-        miesiac_pct = progress_curr.get(pos["id"], 0.0)
-        prev_pct = progress_prev.get(pos["id"], 0.0)
+        subrows = pos.get("subrows", [])
+        # iter95h: jezeli sa subrows z progresem, % pozycji = srednia wazona z subrows.
+        # W przeciwnym razie - bierzemy z budget_progress.position_id (stara logika).
+        sub_has_progress = any(
+            (s.get("miesiac_pct", 0) > 0 or s.get("prev_pct", 0) > 0)
+            for s in subrows
+        )
+        if sub_has_progress and subrows:
+            sub_plan_total = sum(s["plan_netto"] for s in subrows) or 1.0
+            miesiac_pct = sum(s["plan_netto"] * s.get("miesiac_pct", 0) for s in subrows) / sub_plan_total
+            prev_pct = sum(s["plan_netto"] * s.get("prev_pct", 0) for s in subrows) / sub_plan_total
+        else:
+            miesiac_pct = progress_curr.get(pos["id"], 0.0)
+            prev_pct = progress_prev.get(pos["id"], 0.0)
         narast_pct = min(100.0, prev_pct + miesiac_pct)
         narast_val = round(plan * narast_pct / 100, 2)
         prev_val = round(plan * prev_pct / 100, 2)
@@ -1352,6 +1424,8 @@ async def get_protokol_view(
             "prev_pct": prev_pct,
             "miesiac_val": miesiac_val,
             "miesiac_pct": miesiac_pct,
+            "subrows": subrows,  # iter95h
+            "sub_has_progress": sub_has_progress,  # iter95h: gdy True, pozycja wylicza % z subrows
         })
         sum_budzet += plan
         sum_narast += narast_val
