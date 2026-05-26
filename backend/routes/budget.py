@@ -390,10 +390,25 @@ async def get_allocations(
     if month is not None:
         start = f"{year:04d}-{month:02d}-01"
         end = f"{year:04d}-{month:02d}-31"
+        date_q = {"$gte": start, "$lte": end}
     else:
-        start = f"{year:04d}-01-01"
-        end = f"{year:04d}-12-31"
-    date_q = {"$gte": start, "$lte": end}
+        # iter95d: widok roczny - ograniczamy do miesiacy AKTYWNOSCI budowy w tym roku.
+        # Bez tego budowa zalozona np. w kwietniu zaciagalaby koszty nieprzypisane firmy
+        # od stycznia, co jest niepoprawne. Bierzemy miesiac pierwszego zapisu budowy.
+        year_start = f"{year:04d}-01-01"
+        year_end = f"{year:04d}-12-31"
+        first_zap = await db.finance_zapisy.find_one(
+            {"budowa_id": budowa_id, "date": {"$gte": year_start, "$lte": year_end}},
+            {"_id": 0, "date": 1},
+            sort=[("date", 1)],
+        )
+        if first_zap and first_zap.get("date"):
+            # Start od pierwszego dnia miesiaca pierwszego zapisu
+            start = first_zap["date"][:7] + "-01"
+        else:
+            start = year_start
+        end = year_end
+        date_q = {"$gte": start, "$lte": end}
 
     # Pozycje budowy (tylko te liczymy)
     positions = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0, "id": 1}).to_list(length=2000)
@@ -560,6 +575,7 @@ async def get_allocations(
     return {
         "year": year,
         "month": month,
+        "date_range": {"start": start, "end": end},  # iter95d: efektywny zakres dat
         "pools": {
             "O": round(o_pool, 2),
             "P": round(p_pool, 2),

@@ -583,7 +583,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
         <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#2A3B59] bg-[#0B1120] text-[#94A3B8] text-xs"
              data-testid="alloc-pools-diagnostic">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <span>📊 <b className="text-[#CBD5E1]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}):</span>
+            <span>📊 <b className="text-[#CBD5E1]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}{allocations.date_range ? ` · zakres: ${allocations.date_range.start} → ${allocations.date_range.end}` : ''}):</span>
             <span>O (koszty bez etapów) = <b className={allocations.pools.O > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.O)} zł</b></span>
             <span>P (wynagrodzenia bez etapów) = <b className={allocations.pools.P > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.P)} zł</b></span>
             <span>Q (firmowe × %sprzedaży) = <b className={allocations.pools.Q > 0 ? 'text-[#D4AF37]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.Q)} zł</b></span>
