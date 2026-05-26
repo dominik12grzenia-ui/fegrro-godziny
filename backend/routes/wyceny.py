@@ -31,6 +31,9 @@ class WycenaCreate(BaseModel):
     default_gir_pct: Optional[float] = None
     default_dw_pct: Optional[float] = None
     default_koszt_pct: Optional[float] = None
+    # iter95s: domyslne narzuty dla subpozycji
+    default_narzut_pct: Optional[float] = None
+    default_marza_pct: Optional[float] = None
 
 
 class WycenaUpdate(BaseModel):
@@ -39,6 +42,8 @@ class WycenaUpdate(BaseModel):
     default_gir_pct: Optional[float] = None
     default_dw_pct: Optional[float] = None
     default_koszt_pct: Optional[float] = None
+    default_narzut_pct: Optional[float] = None
+    default_marza_pct: Optional[float] = None
 
 
 class StageCreate(BaseModel):
@@ -79,6 +84,9 @@ class LineCreate(BaseModel):
     quantity: float = 0
     unit_price_netto: float = 0
     order: int = 0
+    # iter95s: narzut na zapas + marza (procentowe - mnoza budzet)
+    narzut_zapas_pct: Optional[float] = None
+    marza_pct: Optional[float] = None
 
 
 class LineUpdate(BaseModel):
@@ -88,6 +96,8 @@ class LineUpdate(BaseModel):
     unit_price_netto: Optional[float] = None
     type: Optional[str] = None
     order: Optional[int] = None
+    narzut_zapas_pct: Optional[float] = None
+    marza_pct: Optional[float] = None
 
 
 class PriceBookCreate(BaseModel):
@@ -186,6 +196,8 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
         "default_gir_pct": payload.default_gir_pct if payload.default_gir_pct is not None else 2.0,
         "default_dw_pct": payload.default_dw_pct if payload.default_dw_pct is not None else 2.0,
         "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 2.0,
+        "default_narzut_pct": payload.default_narzut_pct if payload.default_narzut_pct is not None else 0.0,
+        "default_marza_pct": payload.default_marza_pct if payload.default_marza_pct is not None else 0.0,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -344,6 +356,8 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         "type": payload.type, "name": payload.name,
         "unit": payload.unit, "quantity": payload.quantity,
         "unit_price_netto": payload.unit_price_netto,
+        "narzut_zapas_pct": payload.narzut_zapas_pct,
+        "marza_pct": payload.marza_pct,
         "order": payload.order,
         "created_at": datetime.now().isoformat(),
     }
