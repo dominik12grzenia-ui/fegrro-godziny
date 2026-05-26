@@ -1208,6 +1208,90 @@ async def update_task(task_id: str, payload: BudgetTaskUpdate,
     return new_doc
 
 
+class GenerateScheduleBody(BaseModel):
+    start_date: Optional[str] = None  # YYYY-MM-DD; domyslnie dzis
+    days_per_position: int = 30
+    parallel_stages: bool = False  # True = etapy zaczynaja sie w tym samym dniu
+
+
+@router.post("/budget/{budowa_id}/tasks/generate")
+async def generate_tasks_from_budget(
+    budowa_id: str,
+    payload: GenerateScheduleBody,
+    current_user: dict = Depends(get_current_admin),
+):
+    """iter95j: Generuje zadania harmonogramu z pozycji budzetu.
+
+    - Pomija pozycje ktore juz maja powiazany task (po position_id)
+    - Tworzy task per pozycja, sekwencyjnie w obrebie etapu
+    - Etapy: sekwencyjne (default) lub rownolegle (parallel_stages=True)
+    - days_per_position = czas trwania kazdej pozycji (default 30 dni)
+    - Kolor task = kolor stage (cykliczny z palety)
+
+    Zwraca: {created, skipped, total_positions}
+    """
+    bud = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0, "id": 1})
+    if not bud:
+        raise HTTPException(404, "Budowa nie istnieje")
+    from datetime import datetime as dt, timedelta
+    start_dt = dt.fromisoformat(payload.start_date) if payload.start_date else dt.now()
+    days = max(1, int(payload.days_per_position or 30))
+
+    # Pozycje budzetu w kolejnosci etap.order, pos.order
+    stages = await db.budget_stages.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1)]).to_list(length=None)
+    positions = await db.budget_positions.find({"budowa_id": budowa_id}, {"_id": 0}).sort([("order", 1)]).to_list(length=None)
+    pos_by_stage: dict = {}
+    for p in positions:
+        pos_by_stage.setdefault(p.get("stage_id"), []).append(p)
+
+    # Pozycje ktore juz maja task
+    existing = await db.budget_tasks.find({"budowa_id": budowa_id, "position_id": {"$ne": None}}, {"_id": 0, "position_id": 1}).to_list(length=None)
+    existing_pids = {t["position_id"] for t in existing}
+
+    palette = ["#D4AF37", "#9DBC85", "#7AB3D6", "#E0857C", "#B8A2D6", "#F0C674", "#6FAFB5"]
+    docs_to_insert = []
+    skipped = 0
+    total = 0
+
+    stage_cursor = start_dt
+    for st_idx, st in enumerate(stages):
+        color = palette[st_idx % len(palette)]
+        ps = pos_by_stage.get(st["id"], [])
+        cursor = start_dt if payload.parallel_stages else stage_cursor
+        for p_idx, p in enumerate(ps):
+            total += 1
+            if p["id"] in existing_pids:
+                skipped += 1
+                continue
+            s_iso = cursor.date().isoformat()
+            end_dt = cursor + timedelta(days=days - 1)
+            e_iso = end_dt.date().isoformat()
+            docs_to_insert.append({
+                "id": str(uuid.uuid4()),
+                "budowa_id": budowa_id,
+                "name": f"{st.get('name', 'Etap')} → {p.get('name', 'Pozycja')}",
+                "start_date": s_iso,
+                "end_date": e_iso,
+                "progress_pct": 0.0,
+                "color": color,
+                "notes": None,
+                "dependencies": [],
+                "order": st_idx * 1000 + p_idx,
+                "position_id": p["id"],
+                "actual_end_date": None,
+                "created_at": dt.now().isoformat(),
+                "created_by": current_user["sub"],
+            })
+            cursor = end_dt + timedelta(days=1)
+        # Po etapie - przesun stage_cursor
+        if not payload.parallel_stages:
+            stage_cursor = cursor
+
+    if docs_to_insert:
+        await db.budget_tasks.insert_many(docs_to_insert)
+    return {"created": len(docs_to_insert), "skipped": skipped, "total_positions": total}
+
+
 @router.delete("/budget/tasks/{task_id}")
 async def delete_task(task_id: str, _user: dict = Depends(get_current_admin)):
     # Usun referencje z dependencies innych zadan
