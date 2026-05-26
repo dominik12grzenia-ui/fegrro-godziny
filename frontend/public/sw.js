@@ -7,7 +7,7 @@
 //
 // Brak fetch handlera == przegladarka idzie wprost do sieci. Vercel ustawia
 // no-cache na index.html/sw.js/manifest, wiec kazdy deploy jest natychmiast widoczny.
-const SW_VERSION = 'fegrro-push-2026-02-13-02-nav';
+const SW_VERSION = 'fegrro-wyceny-2026-02-26-iter95n';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
