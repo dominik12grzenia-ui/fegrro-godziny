@@ -171,12 +171,25 @@ const WycenyList = ({ onOpen }) => {
 const SUB_TYPE_LABEL = { labor: 'robocizna', materials: 'Materiał', equipment: 'Sprzęt' };
 const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipment: '#7AB3D6' };
 
+// iter95s: narzut na zapas materialu i marza - mnoza cene
+// Wzor: budzet = ilosc * cena * (1 + narzut/100) * (1 + marza/100)
+const computeSubRow = (sub, defaults = {}) => {
+  const qty = parseFloat(sub.quantity) || 0;
+  const cena = parseFloat(sub.unit_price_netto) || 0;
+  const narzutPct = parseFloat(sub.narzut_zapas_pct ?? defaults.narzut ?? 0) || 0;
+  const marzaPct = parseFloat(sub.marza_pct ?? defaults.marza ?? 0) || 0;
+  const budzetBazowy = qty * cena;
+  const budzet = budzetBazowy * (1 + narzutPct / 100) * (1 + marzaPct / 100);
+  return { qty, cena, budzet, budzetBazowy, narzutPct, marzaPct };
+};
+
 const computePosRow = (p, defaults = {}) => {
   const subs = p.slots || [];
   let qty = 0, budzet = 0, cena = 0;
   if (subs.length > 0) {
     qty = Math.max(...subs.map((s) => parseFloat(s.quantity) || 0));
-    budzet = subs.reduce((acc, s) => acc + (parseFloat(s.quantity) || 0) * (parseFloat(s.unit_price_netto) || 0), 0);
+    // budzet sumujemy juz po zastosowaniu narzutu i marzy per subpozycja
+    budzet = subs.reduce((acc, s) => acc + computeSubRow(s, defaults).budzet, 0);
     cena = qty > 0 ? budzet / qty : 0;
   }
   // iter95r: jezeli pozycja nie ma wlasnych pct, uzyj domyslnych z wyceny
@@ -190,15 +203,6 @@ const computePosRow = (p, defaults = {}) => {
   const kosztPrognozowany = parseFloat(p.koszt_prognozowany ?? 0) || 0;
   const prognozy = kosztPrognozowany > 0 ? (budzetZwolniony - kosztPrognozowany) : null;
   return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy };
-};
-
-const computeSubRow = (sub) => {
-  const qty = parseFloat(sub.quantity) || 0;
-  const cena = parseFloat(sub.unit_price_netto) || 0;
-  const budzet = qty * cena;
-  // Subpozycje takze sa procentowane wzgledem pozycji nadrzednej (z domyslnym 2%)
-  // Ale w UI z screenshota - dla subs widac kaucje i koszty proporcjonalnie do budzet sub
-  return { qty, cena, budzet };
 };
 
 const Th = ({ children, w }) => (
@@ -278,6 +282,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     gir: data?.wycena?.default_gir_pct ?? 2,
     dw: data?.wycena?.default_dw_pct ?? 2,
     koszt: data?.wycena?.default_koszt_pct ?? 2,
+    narzut: data?.wycena?.default_narzut_pct ?? 0,
+    marza: data?.wycena?.default_marza_pct ?? 0,
   }), [data]);
 
   const saveDefault = async (field, value) => {
@@ -374,6 +380,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           onSave={(v) => saveDefault('default_dw_pct', v)} />
         <PctInput label="Koszt budowy" testId="default-koszt" value={defaults.koszt}
           onSave={(v) => saveDefault('default_koszt_pct', v)} />
+        <PctInput label="Narzut na zapas" testId="default-narzut" value={defaults.narzut}
+          onSave={(v) => saveDefault('default_narzut_pct', v)} />
+        <PctInput label="Marża materiał" testId="default-marza" value={defaults.marza}
+          onSave={(v) => saveDefault('default_marza_pct', v)} />
         <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
@@ -388,6 +398,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <Th w="240">NAZWA</Th>
               <Th w="80">ILOŚĆ</Th>
               <Th w="70">CENA</Th>
+              <Th w="80">NARZUT %</Th>
+              <Th w="80">MARŻA %</Th>
               <Th w="100">BUDŻET</Th>
               <Th w="90">KAUCJA GIR</Th>
               <Th w="90">KAUCJA DW</Th>
@@ -403,6 +415,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#2A3B59] px-2 py-2 text-[#CBD5E1]">Wszystkie pozycje wyceny</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums text-[#94A3B8]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
@@ -419,7 +433,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               return (
                 <React.Fragment key={st.id}>
                   <tr className="bg-[#3F5235]/40 text-white font-semibold">
-                    <td colSpan={12} className="border border-[#2A3B59] px-2 py-1.5">
+                    <td colSpan={14} className="border border-[#2A3B59] px-2 py-1.5">
                       <button onClick={() => toggleStage(st.id)} className="mr-2 text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
                         {stCollapsed ? '▶' : '▼'}
                       </button>
@@ -446,13 +460,13 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                           onDel={() => delPosition(p.id)} />
                         {!posCollapsed && (p.slots || []).map((sub, subIdx) => (
                           <SubRow key={sub.id} code={`${code}.${subIdx + 1}`} sub={sub}
-                            posComputed={r}
+                            posComputed={r} defaults={defaults}
                             onLocalUpdate={updateLineLocal}
                             onDel={() => delSlot(sub.id)} />
                         ))}
                         {!posCollapsed && (
                           <tr className="bg-[#0B1120]/40">
-                            <td colSpan={13} className="border border-[#2A3B59] px-2 py-1">
+                            <td colSpan={15} className="border border-[#2A3B59] px-2 py-1">
                               <div className="flex gap-2 items-center pl-12">
                                 <span className="text-[10px] text-[#64748B]">+ Dodaj podpozycję:</span>
                                 <button onClick={() => addSlot(p.id, st.id, 'labor')} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-2 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`add-sub-lab-${p.id}`}>+ Robocizna</button>
@@ -520,6 +534,8 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
       </Td>
       <Td right>{row.qty ? row.qty.toFixed(1) : '—'}</Td>
       <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(0) : '—'}</Td>
+      <Td right className="text-[#64748B]">—</Td>
+      <Td right className="text-[#64748B]">—</Td>
       <Td right>{fmtPLN(row.budzet)}</Td>
       <Td right>{fmtPLN(row.kaucjaGir)}</Td>
       <Td right>{fmtPLN(row.kaucjaDw)}</Td>
@@ -544,7 +560,7 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
   );
 };
 
-const SubRow = ({ code, sub, posComputed, onLocalUpdate, onDel }) => {
+const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
   useEffect(() => { setEdit(sub); }, [sub]);
 
@@ -553,6 +569,10 @@ const SubRow = ({ code, sub, posComputed, onLocalUpdate, onDel }) => {
       name: edit.name || '',
       quantity: parseFloat(edit.quantity) || 0,
       unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
+      narzut_zapas_pct: edit.narzut_zapas_pct === '' || edit.narzut_zapas_pct == null
+        ? null : parseFloat(edit.narzut_zapas_pct) || 0,
+      marza_pct: edit.marza_pct === '' || edit.marza_pct == null
+        ? null : parseFloat(edit.marza_pct) || 0,
     };
     try {
       await api.patch(`/wyceny/lines/${sub.id}`, payload);
@@ -560,10 +580,13 @@ const SubRow = ({ code, sub, posComputed, onLocalUpdate, onDel }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  const r = computeSubRow(edit);
+  const r = computeSubRow(edit, defaults);
   // Proporcjonalne kaucje/koszty w stosunku do budzetu sub
   const ratio = posComputed.budzet > 0 ? r.budzet / posComputed.budzet : 0;
   const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
+  // placeholdery pokazuja domysla z poziomu wyceny
+  const narzutPlaceholder = (defaults.narzut ?? 0) ? String(defaults.narzut) : '0';
+  const marzaPlaceholder = (defaults.marza ?? 0) ? String(defaults.marza) : '0';
 
   return (
     <tr className="bg-[#0B1120]/30" data-testid={`sub-row-${sub.id}`}>
@@ -587,6 +610,20 @@ const SubRow = ({ code, sub, posComputed, onLocalUpdate, onDel }) => {
           onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
           onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
           data-testid={`sub-price-${sub.id}`} />
+      </Td>
+      <Td right>
+        <input type="number" step="0.1" min="0" value={edit.narzut_zapas_pct ?? ''}
+          onChange={(e) => setEdit({ ...edit, narzut_zapas_pct: e.target.value })}
+          onBlur={save} placeholder={narzutPlaceholder}
+          className={`${inputCls} text-right tabular-nums text-[#9DBC85]`}
+          data-testid={`sub-narzut-${sub.id}`} />
+      </Td>
+      <Td right>
+        <input type="number" step="0.1" min="0" value={edit.marza_pct ?? ''}
+          onChange={(e) => setEdit({ ...edit, marza_pct: e.target.value })}
+          onBlur={save} placeholder={marzaPlaceholder}
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
+          data-testid={`sub-marza-${sub.id}`} />
       </Td>
       <Td right className="text-white font-semibold">{fmtPLN(r.budzet)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>

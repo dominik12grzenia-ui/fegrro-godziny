@@ -2246,3 +2246,44 @@ Wczesniej `budget_progress.progress_pct` byl traktowany jako "narastajaco do teg
 
 ### Lint czysty FE+BE
 
+
+---
+
+## iter95s — Narzut na zapas + Marża materiał w Wycenach (2026-05-26)
+
+### Zakres
+- 2 nowe kolumny edytowalne w tabeli Wyceny między **CENA** a **BUDŻET**:
+  - **NARZUT %** (zielony, `narzut_zapas_pct`)
+  - **MARŻA %** (zloty, `marza_pct`)
+- 2 nowe globalne inputy w panelu "Domyślne stawki dla całej wyceny":
+  - **Narzut na zapas** → `default_narzut_pct`
+  - **Marża materiał** → `default_marza_pct`
+- Pola na pod-pozycji nadpisują globalne defaulty (placeholder pokazuje default).
+
+### Wzór (wariant C)
+```
+BUDŻET = ilość × cena × (1 + narzut%/100) × (1 + marża%/100)
+```
+- Kaucja GIR/DW i Koszt budowy są liczone od **nowego** budżetu (po narzucie + marży).
+- Budżet zwolniony = budżet − kaucjaGIR − kaucjaDW − koszt budowy.
+- Suma budżetu wyceny w nagłówku też uwzględnia narzuty i marże.
+
+### Pliki
+- **Backend**: `/app/backend/routes/wyceny.py` — `LineCreate/Update`, `WycenaCreate/Update` (pola dodane w poprzedniej sesji).
+- **Frontend**: `/app/frontend/src/components/Wyceny.js`
+  - `computeSubRow(sub, defaults)` — dolicza narzut+marżę
+  - `computePosRow` — sumuje budżet już po narzucie+marży na pod-pozycji
+  - `defaults` useMemo + `saveDefault('default_narzut_pct'|'default_marza_pct')`
+  - 2 nowe `<Th>` + 2 nowe `<td>` w wierszu SUMA + PosRow + SubRow
+  - Stage row colSpan 12→14, add-slot row colSpan 13→15
+
+### E2E weryfikacja (curl + screenshot)
+- `quantity=10, cena=100, narzut=10%, marza=20%` → **BUDŻET = 1320,00 zł** ✓
+- Kaucja GIR (2%): 26,40 zł ✓
+- Budżet zwolniony: 1240,80 zł ✓
+- Persistencja `default_narzut_pct/default_marza_pct` przez PATCH `/wyceny/{id}` ✓
+- UI: kolumny NARZUT % / MARŻA % widoczne między CENA a BUDŻET ✓
+- UI: 2 nowe inputy w panelu defaultów (Narzut na zapas, Marża materiał) ✓
+
+### Status
+DONE — czeka na weryfikację użytkownika.
