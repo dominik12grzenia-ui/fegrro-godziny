@@ -835,6 +835,20 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
 // =============== PRICE BOOK (MATERIALS - Excel-style) ===============
 const MATERIAL_SUB_CATS = ['izolacje', 'betony', 'stal', 'murowane', 'drobnica', 'pozostałe'];
 
+// iter95y: warianty jednostek dla cennika materialow
+const PKG_UNITS = ['', 'kg', 'l', 'm²', 'm³', 'mb', 'szt', 'kpl', 't', 'rol', 'opak.'];
+// jd. do jd. = norma zuzycia (np. kg na 1 m2 ulozonej posadzki)
+const ZAP_UNITS = [
+  '',
+  'kg/m²', 'kg/m³', 'kg/mb', 'kg/szt', 'kg/kpl',
+  'l/m²', 'l/m³', 'l/mb', 'l/szt',
+  'm²/m²', 'm²/m³', 'm²/mb', 'm²/szt',
+  'm³/m²', 'm³/m³', 'm³/mb', 'm³/szt',
+  'mb/m²', 'mb/m³', 'mb/mb', 'mb/szt',
+  'szt/m²', 'szt/m³', 'szt/mb', 'szt/szt', 'szt/kpl',
+  't/m³',
+];
+
 const MaterialsPriceBook = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -909,6 +923,7 @@ const MaterialsPriceBook = () => {
                 <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">zapotrzebowanie</th>
                 <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[90px]">jd. do jd.</th>
                 <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[90px]">warstw</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]" title="Koszty dodatkowe doliczane do każdej jednostki (np. transport)">koszty inne do jd</th>
                 <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[140px]">uwagi</th>
                 <th className="p-2 border-b border-[#2A3B59] w-8"></th>
               </tr>
@@ -950,6 +965,8 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
 
   // iter95p: zapis bez triggera fetch - aktualizuje tylko lokalnie (zachowuje focus)
   const save = async (extra = {}) => {
+    // iter95y: gdy onBlur przekazuje event, ignoruj (uzywaj wylacznie czystego patcha)
+    const safeExtra = extra && typeof extra === 'object' && !extra.nativeEvent && !extra.target ? extra : {};
     const payload = {
       name: edit.name || '',
       unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
@@ -960,9 +977,10 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
       zapotrzebowanie: edit.zapotrzebowanie === '' || edit.zapotrzebowanie == null ? null : parseFloat(edit.zapotrzebowanie),
       zap_unit: edit.zap_unit || '',
       liczba_warstw: edit.liczba_warstw === '' || edit.liczba_warstw == null ? null : parseFloat(edit.liczba_warstw),
+      koszty_inne_do_jd: edit.koszty_inne_do_jd === '' || edit.koszty_inne_do_jd == null ? null : parseFloat(edit.koszty_inne_do_jd),
       notes: edit.notes || '',
       sub_category: edit.sub_category || '',
-      ...extra,
+      ...safeExtra,
     };
     try {
       await api.patch(`/wyceny/cennik/${item.id}`, payload);
@@ -1006,8 +1024,11 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
           onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
-        <input value={edit.pkg_unit || ''} onChange={(e) => setEdit({ ...edit, pkg_unit: e.target.value })}
-          onBlur={save} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+        <select value={edit.pkg_unit || ''}
+          onChange={(e) => { const v = e.target.value; setEdit({ ...edit, pkg_unit: v }); save({ pkg_unit: v }); }}
+          className={`${inputCls} text-[#94A3B8]`} data-testid={`mat-pkg-unit-${item.id}`}>
+          {PKG_UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+        </select>
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.001" value={edit.zapotrzebowanie ?? ''}
@@ -1015,13 +1036,23 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
           onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
-        <input value={edit.zap_unit || ''} onChange={(e) => setEdit({ ...edit, zap_unit: e.target.value })}
-          onBlur={save} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+        <select value={edit.zap_unit || ''}
+          onChange={(e) => { const v = e.target.value; setEdit({ ...edit, zap_unit: v }); save({ zap_unit: v }); }}
+          className={`${inputCls} text-[#94A3B8]`} data-testid={`mat-zap-unit-${item.id}`}>
+          {ZAP_UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+        </select>
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.5" value={edit.liczba_warstw ?? ''}
           onChange={(e) => setEdit({ ...edit, liczba_warstw: e.target.value })}
           onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input type="number" step="0.01" value={edit.koszty_inne_do_jd ?? ''}
+          onChange={(e) => setEdit({ ...edit, koszty_inne_do_jd: e.target.value })}
+          onBlur={save} placeholder="zł/jd"
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
+          data-testid={`mat-koszty-inne-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.notes || ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })}

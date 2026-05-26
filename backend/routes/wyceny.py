@@ -121,6 +121,7 @@ class PriceBookCreate(BaseModel):
     zapotrzebowanie: Optional[float] = None  # norma zuzycia (np. 1.5)
     zap_unit: Optional[str] = None           # jd. do jd. (kg/m2, szt/m2, mb/mb)
     liczba_warstw: Optional[float] = None    # liczba warstw
+    koszty_inne_do_jd: Optional[float] = None  # iter95y: koszty inne doliczane do jednostki
     # iter95m: pola dla LABOR (robocizna)
     price_m2: Optional[float] = None         # cena za m2
     price_m3: Optional[float] = None         # cena za m3
@@ -147,6 +148,7 @@ class PriceBookUpdate(BaseModel):
     zapotrzebowanie: Optional[float] = None
     zap_unit: Optional[str] = None
     liczba_warstw: Optional[float] = None
+    koszty_inne_do_jd: Optional[float] = None
     # iter95m: labor
     price_m2: Optional[float] = None
     price_m3: Optional[float] = None
@@ -428,6 +430,7 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         "zapotrzebowanie": payload.zapotrzebowanie,
         "zap_unit": payload.zap_unit,
         "liczba_warstw": payload.liczba_warstw,
+        "koszty_inne_do_jd": payload.koszty_inne_do_jd,
         # iter95m: labor
         "price_m2": payload.price_m2,
         "price_m3": payload.price_m3,
