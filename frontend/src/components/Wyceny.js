@@ -182,6 +182,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
+  // iter95p: lokalna aktualizacja konkretnej linii bez refetch calego template (zachowuje focus)
+  const updateLineLocal = useCallback((lineId, patch) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const stages = (prev.stages || []).map((st) => ({
+        ...st,
+        positions: (st.positions || []).map((p) => ({
+          ...p,
+          slots: (p.slots || []).map((s) => s.id === lineId ? { ...s, ...patch } : s),
+        })),
+      }));
+      return { ...prev, stages };
+    });
+  }, []);
+
   const totalNetto = useMemo(() => {
     if (!data) return 0;
     let total = 0;
@@ -264,7 +279,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         {(data.stages || []).map((st) => (
           <StageBlock key={st.id} stage={st} wycenaId={wycenaId}
             expanded={expanded} toggleExpand={toggleExpand}
-            onChange={fetchData}
+            onChange={fetchData} onLocalUpdate={updateLineLocal}
             onAddPos={() => addPosition(st.id)}
             onDelStage={() => delStage(st.id)}
             onDelPos={delPosition} />
@@ -286,7 +301,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   );
 };
 
-const StageBlock = ({ stage, wycenaId, expanded, toggleExpand, onChange, onAddPos, onDelStage, onDelPos }) => {
+const StageBlock = ({ stage, wycenaId, expanded, toggleExpand, onChange, onLocalUpdate, onAddPos, onDelStage, onDelPos }) => {
   return (
     <div className="border border-[#2A3B59] rounded bg-[#0B1120]/30">
       <div className="flex items-center justify-between p-2 bg-[#131C2F] border-b border-[#2A3B59]">
@@ -307,7 +322,7 @@ const StageBlock = ({ stage, wycenaId, expanded, toggleExpand, onChange, onAddPo
         <div>
           {(stage.positions || []).map((p) => (
             <PositionBlock key={p.id} position={p} wycenaId={wycenaId} stageId={stage.id}
-              expanded={expanded} toggleExpand={toggleExpand} onChange={onChange}
+              expanded={expanded} toggleExpand={toggleExpand} onChange={onChange} onLocalUpdate={onLocalUpdate}
               onDel={() => onDelPos(p.id)} />
           ))}
         </div>
@@ -316,7 +331,7 @@ const StageBlock = ({ stage, wycenaId, expanded, toggleExpand, onChange, onAddPo
   );
 };
 
-const PositionBlock = ({ position, wycenaId, stageId, expanded, toggleExpand, onChange, onDel }) => {
+const PositionBlock = ({ position, wycenaId, stageId, expanded, toggleExpand, onChange, onLocalUpdate, onDel }) => {
   const isOpen = expanded.has(position.id);
   const slotsTotal = (position.slots || []).reduce((acc, s) => {
     if (s.children?.length > 0) return acc + s.children.reduce((a, c) => a + (c.quantity || 0) * (c.unit_price_netto || 0), 0);
@@ -338,13 +353,13 @@ const PositionBlock = ({ position, wycenaId, stageId, expanded, toggleExpand, on
         </button>
       </div>
       {isOpen && (
-        <SlotsTable position={position} wycenaId={wycenaId} stageId={stageId} onChange={onChange} />
+        <SlotsTable position={position} wycenaId={wycenaId} stageId={stageId} onChange={onChange} onLocalUpdate={onLocalUpdate} />
       )}
     </div>
   );
 };
 
-const SlotsTable = ({ position, wycenaId, stageId, onChange }) => {
+const SlotsTable = ({ position, wycenaId, stageId, onChange, onLocalUpdate }) => {
   const [adding, setAdding] = useState(null);  // type to add
 
   const addSlot = async (type) => {
@@ -379,7 +394,7 @@ const SlotsTable = ({ position, wycenaId, stageId, onChange }) => {
         </thead>
         <tbody>
           {(position.slots || []).map((slot) => (
-            <SlotRow key={slot.id} slot={slot} onChange={onChange} onDel={() => delLine(slot.id)} />
+            <SlotRow key={slot.id} slot={slot} onChange={onChange} onLocalUpdate={onLocalUpdate} onDel={() => delLine(slot.id)} />
           ))}
           {(position.slots || []).length === 0 && (
             <tr><td colSpan="7" className="text-[#64748B] text-center p-2">Brak podpozycji</td></tr>
@@ -398,7 +413,7 @@ const SlotsTable = ({ position, wycenaId, stageId, onChange }) => {
   );
 };
 
-const SlotRow = ({ slot, onChange, onDel }) => {
+const SlotRow = ({ slot, onLocalUpdate, onChange, onDel }) => {
   const [picker, setPicker] = useState(false);
   const [edit, setEdit] = useState({ name: slot.name, unit: slot.unit || '', quantity: slot.quantity, unit_price_netto: slot.unit_price_netto });
 
@@ -406,14 +421,16 @@ const SlotRow = ({ slot, onChange, onDel }) => {
     setEdit({ name: slot.name, unit: slot.unit || '', quantity: slot.quantity, unit_price_netto: slot.unit_price_netto });
   }, [slot]);
 
+  // iter95p: zapis lokalny - bez refetch wszystkiego (zachowuje focus)
   const save = async () => {
+    const payload = {
+      name: edit.name, unit: edit.unit,
+      quantity: parseFloat(edit.quantity) || 0,
+      unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
+    };
     try {
-      await api.patch(`/wyceny/lines/${slot.id}`, {
-        name: edit.name, unit: edit.unit,
-        quantity: parseFloat(edit.quantity) || 0,
-        unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
-      });
-      onChange();
+      await api.patch(`/wyceny/lines/${slot.id}`, payload);
+      onLocalUpdate(slot.id, payload);
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
@@ -486,6 +503,11 @@ const MaterialsPriceBook = () => {
   }, [search]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
+
+  // iter95p: lokalna aktualizacja wiersza bez fetchRows (zachowuje focus + brak migotania)
+  const updateLocal = useCallback((id, patch) => {
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
+  }, []);
 
   const addRow = async (subCategory) => {
     try {
@@ -561,7 +583,7 @@ const MaterialsPriceBook = () => {
                     <tr><td colSpan="12" className="p-2 text-[#64748B] text-center text-[10px]">— brak pozycji —</td></tr>
                   ) : (
                     grouped[sc].map((it) => (
-                      <MaterialRow key={it.id} item={it} onChange={fetchRows} onDel={() => remove(it.id)} />
+                      <MaterialRow key={it.id} item={it} onLocalUpdate={updateLocal} onCategoryChange={fetchRows} onDel={() => remove(it.id)} />
                     ))
                   )}
                 </React.Fragment>
@@ -574,10 +596,11 @@ const MaterialsPriceBook = () => {
   );
 };
 
-const MaterialRow = ({ item, onChange, onDel }) => {
+const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
   const [edit, setEdit] = useState(item);
   useEffect(() => { setEdit(item); }, [item]);
 
+  // iter95p: zapis bez triggera fetch - aktualizuje tylko lokalnie (zachowuje focus)
   const save = async (extra = {}) => {
     const payload = {
       name: edit.name || '',
@@ -593,8 +616,10 @@ const MaterialRow = ({ item, onChange, onDel }) => {
       sub_category: edit.sub_category || '',
       ...extra,
     };
-    try { await api.patch(`/wyceny/cennik/${item.id}`, payload); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    try {
+      await api.patch(`/wyceny/cennik/${item.id}`, payload);
+      onLocalUpdate(item.id, payload);  // optimistic update parent state
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
   const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
@@ -603,56 +628,56 @@ const MaterialRow = ({ item, onChange, onDel }) => {
     <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`mat-row-${item.id}`}>
       <td className="border-r border-[#2A3B59]/40">
         <select value={edit.sub_category || ''}
-          onChange={(e) => { setEdit({ ...edit, sub_category: e.target.value }); save({ sub_category: e.target.value }).then(onChange); }}
+          onChange={(e) => { setEdit({ ...edit, sub_category: e.target.value }); save({ sub_category: e.target.value }).then(onCategoryChange); }}
           className={`${inputCls} text-[#CBD5E1]`}>
           {MATERIAL_SUB_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-white`} data-testid={`mat-name-${item.id}`} />
+          onBlur={save} className={`${inputCls} text-white`} data-testid={`mat-name-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
           onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right text-[#D4AF37] tabular-nums`} data-testid={`mat-price-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.oferent || ''} onChange={(e) => setEdit({ ...edit, oferent: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-[#CBD5E1]`} />
+          onBlur={save} className={`${inputCls} text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.opakowanie || ''} onChange={(e) => setEdit({ ...edit, opakowanie: e.target.value })}
-          onBlur={() => save().then(onChange)} placeholder="wiaderko/paleta..."
+          onBlur={save} placeholder="wiaderko/paleta..."
           className={`${inputCls} text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.001" value={edit.pkg_qty ?? ''}
           onChange={(e) => setEdit({ ...edit, pkg_qty: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.pkg_unit || ''} onChange={(e) => setEdit({ ...edit, pkg_unit: e.target.value })}
-          onBlur={() => save().then(onChange)} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+          onBlur={save} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.001" value={edit.zapotrzebowanie ?? ''}
           onChange={(e) => setEdit({ ...edit, zapotrzebowanie: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.zap_unit || ''} onChange={(e) => setEdit({ ...edit, zap_unit: e.target.value })}
-          onBlur={() => save().then(onChange)} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+          onBlur={save} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input type="number" step="0.5" value={edit.liczba_warstw ?? ''}
           onChange={(e) => setEdit({ ...edit, liczba_warstw: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.notes || ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
-          onBlur={() => save().then(onChange)} className={`${inputCls} text-[#94A3B8]`} />
+          onBlur={save} className={`${inputCls} text-[#94A3B8]`} />
       </td>
       <td className="text-right pr-1">
         <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`mat-del-${item.id}`}>
@@ -682,6 +707,20 @@ const LaborPriceBook = () => {
   }, [search]);
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
+
+  // iter95p: lokalna aktualizacja bez fetchRows (zachowuje focus)
+  const updateLocal = useCallback((id, patch, fullDoc = null) => {
+    setRows((prev) => prev.map((r) => r.id === id ? (fullDoc || { ...r, ...patch }) : r));
+  }, []);
+
+  // iter95p: po zmianie ceny refetch tylko TEGO wiersza (zeby zaktualizowac price_history)
+  const refetchOne = useCallback(async (id) => {
+    try {
+      const r = await api.get('/wyceny/cennik', { params: { category: 'labor' } });
+      const fresh = (r.data?.rows || []).find((x) => x.id === id);
+      if (fresh) updateLocal(id, {}, fresh);
+    } catch (_e) { /* ignore */ }
+  }, [updateLocal]);
 
   const addRow = async () => {
     try {
@@ -727,7 +766,7 @@ const LaborPriceBook = () => {
             </thead>
             <tbody>
               {rows.map((it) => (
-                <LaborRow key={it.id} item={it} onChange={fetchRows} onDel={() => remove(it.id)} />
+                <LaborRow key={it.id} item={it} onLocalUpdate={updateLocal} onPriceChange={refetchOne} onDel={() => remove(it.id)} />
               ))}
             </tbody>
           </table>
@@ -737,19 +776,26 @@ const LaborPriceBook = () => {
   );
 };
 
-const LaborRow = ({ item, onChange, onDel }) => {
+const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
   const [edit, setEdit] = useState(item);
   useEffect(() => { setEdit(item); }, [item]);
 
-  const save = async (extra = {}) => {
+  const save = async () => {
     const payload = {
       name: edit.name || '',
       price_m2: edit.price_m2 === '' || edit.price_m2 == null ? null : parseFloat(edit.price_m2),
       price_m3: edit.price_m3 === '' || edit.price_m3 == null ? null : parseFloat(edit.price_m3),
-      ...extra,
     };
-    try { await api.patch(`/wyceny/cennik/${item.id}`, payload); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    // iter95p: czy zmienila sie cena? jezeli tak - refetch (zeby zaktualizowac price_history)
+    const priceChanged = (item.price_m2 !== payload.price_m2) || (item.price_m3 !== payload.price_m3);
+    try {
+      await api.patch(`/wyceny/cennik/${item.id}`, payload);
+      if (priceChanged) {
+        await onPriceChange(item.id);
+      } else {
+        onLocalUpdate(item.id, payload);
+      }
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
   const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
@@ -759,21 +805,21 @@ const LaborRow = ({ item, onChange, onDel }) => {
     <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30 align-top" data-testid={`labor-row-${item.id}`}>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           placeholder="np. tynkowanie ścian, malowanie..."
           className={`${inputCls} text-white`} data-testid={`labor-name-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.price_m2 ?? ''}
           onChange={(e) => setEdit({ ...edit, price_m2: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`labor-price-m2-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.price_m3 ?? ''}
           onChange={(e) => setEdit({ ...edit, price_m3: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`labor-price-m3-${item.id}`} />
       </td>
@@ -823,6 +869,11 @@ const EquipmentPriceBook = () => {
 
   useEffect(() => { fetchRows(); }, [fetchRows]);
 
+  // iter95p: lokalna aktualizacja bez fetchRows
+  const updateLocal = useCallback((id, patch) => {
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, ...patch } : r));
+  }, []);
+
   const addRow = async () => {
     try {
       await api.post('/wyceny/cennik', { category: 'equipment', name: '' });
@@ -868,7 +919,7 @@ const EquipmentPriceBook = () => {
             </thead>
             <tbody>
               {rows.map((it) => (
-                <EquipmentRow key={it.id} item={it} onChange={fetchRows} onDel={() => remove(it.id)} />
+                <EquipmentRow key={it.id} item={it} onLocalUpdate={updateLocal} onDel={() => remove(it.id)} />
               ))}
             </tbody>
           </table>
@@ -881,7 +932,7 @@ const EquipmentPriceBook = () => {
   );
 };
 
-const EquipmentRow = ({ item, onChange, onDel }) => {
+const EquipmentRow = ({ item, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(item);
   useEffect(() => { setEdit(item); }, [item]);
 
@@ -895,8 +946,10 @@ const EquipmentRow = ({ item, onChange, onDel }) => {
       extra_cost: edit.extra_cost === '' || edit.extra_cost == null ? null : parseFloat(edit.extra_cost),
       extra_cost_desc: edit.extra_cost_desc || '',
     };
-    try { await api.patch(`/wyceny/cennik/${item.id}`, payload); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    try {
+      await api.patch(`/wyceny/cennik/${item.id}`, payload);
+      onLocalUpdate(item.id, payload);
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
   const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
@@ -905,47 +958,47 @@ const EquipmentRow = ({ item, onChange, onDel }) => {
     <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`equipment-row-${item.id}`}>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           placeholder="np. zagęszczarka, młot udarowy..."
           className={`${inputCls} text-white`} data-testid={`equipment-name-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.price_hour ?? ''}
           onChange={(e) => setEdit({ ...edit, price_hour: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-hour-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.price_day ?? ''}
           onChange={(e) => setEdit({ ...edit, price_day: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-day-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.price_month ?? ''}
           onChange={(e) => setEdit({ ...edit, price_month: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-month-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input value={edit.wynajmujacy || ''} onChange={(e) => setEdit({ ...edit, wynajmujacy: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           placeholder="np. Ramirent, własny..."
           className={`${inputCls} text-[#CBD5E1]`} data-testid={`equipment-wyn-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input type="number" step="0.01" value={edit.extra_cost ?? ''}
           onChange={(e) => setEdit({ ...edit, extra_cost: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#FCA5A5]`}
           data-testid={`equipment-extra-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40 p-1">
         <input value={edit.extra_cost_desc || ''} onChange={(e) => setEdit({ ...edit, extra_cost_desc: e.target.value })}
-          onBlur={() => save().then(onChange)}
+          onBlur={save}
           placeholder="np. transport, paliwo..."
           className={`${inputCls} text-[#94A3B8]`} data-testid={`equipment-extra-desc-${item.id}`} />
       </td>
