@@ -14,7 +14,7 @@ import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '../api';
+import { api } from '../context/AuthContext';
 
 const fmtPLN = (v) => new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
 
