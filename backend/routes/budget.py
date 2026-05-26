@@ -146,8 +146,13 @@ def _compute_plan(line: dict) -> float:
 
 @router.get("/budget/budowy")
 async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
-    """Lista budow z podsumowaniem budzetu (czy ma pozycje, suma planu i wykonania)."""
-    budowy = await db.finance_budowy.find({}, {"_id": 0, "id": 1, "name": 1, "code": 1}).to_list(length=1000)
+    """Lista budow z podsumowaniem budzetu (czy ma pozycje, suma planu i wykonania).
+
+    iter93: pomija budowy z has_budget=False (admin moze odznaczyc je w panelu Finanse > Budowy).
+    """
+    # has_budget != False (default True dla starszych rekordow bez flagi)
+    q = {"$or": [{"has_budget": {"$ne": False}}]}
+    budowy = await db.finance_budowy.find(q, {"_id": 0, "id": 1, "name": 1, "code": 1}).to_list(length=1000)
     result = []
     for b in budowy:
         bid = b["id"]

@@ -787,7 +787,7 @@ const BudowyPanel = () => {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);  // budowa or null
-  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
   const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
@@ -815,7 +815,7 @@ const BudowyPanel = () => {
         toast.success('Dodano');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ name: '', code: '', show_in_hours: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+      setForm({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
       fetchData();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -826,7 +826,9 @@ const BudowyPanel = () => {
     setEditing(b);
     setForm({
       name: b.name, code: b.code || '',
-      show_in_hours: !!b.show_in_hours, is_gir: !!b.is_gir,
+      show_in_hours: !!b.show_in_hours,
+      has_budget: b.has_budget !== false,  // default true gdy brak flagi
+      is_gir: !!b.is_gir,
       kaucja_gir_pct: b.kaucja_gir_pct != null ? b.kaucja_gir_pct : 2.0,
       is_dw: !!b.is_dw,
       kaucja_dw_pct: b.kaucja_dw_pct != null ? b.kaucja_dw_pct : 2.0,
@@ -864,7 +866,7 @@ const BudowyPanel = () => {
               className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
-          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
+          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, has_budget:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
             className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
@@ -878,6 +880,7 @@ const BudowyPanel = () => {
             <tr>
               <th className="py-3 px-4 text-left border-b border-[#2A3B59]">Nazwa</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">W godzinach</th>
+              <th className="py-3 px-4 text-center border-b border-[#2A3B59]" title="Czy budowa ma być widoczna w module Budżet">W budżecie</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">GIR %</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]">DW %</th>
               <th className="py-3 px-4 text-center border-b border-[#2A3B59]" title="Koszt budowy - % do kolumny J w kosztorysie">Koszt budowy %</th>
@@ -890,6 +893,25 @@ const BudowyPanel = () => {
               <tr key={b.id} className="border-b border-[#2A3B59] hover:bg-[#131C2F]/50 transition-colors" data-testid={`finance-budowa-row-${b.id}`}>
                 <td className="py-3 px-4 text-white font-medium">{b.name}</td>
                 <td className="py-3 px-4 text-center">{b.show_in_hours ? <span className="text-[#5F7552]">TAK</span> : <span className="text-[#2A3B59]">-</span>}</td>
+                <td className="py-3 px-4 text-center">
+                  <button
+                    onClick={async () => {
+                      const newVal = !(b.has_budget !== false);
+                      try {
+                        await api.put(`/finance/budowy/${b.id}`, { has_budget: newVal });
+                        toast.success(newVal ? 'Budowa dodana do modułu Budżet' : 'Budowa ukryta z modułu Budżet');
+                        fetchData();
+                      } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
+                    }}
+                    className="text-xs px-2 py-1 rounded transition-colors hover:opacity-80"
+                    title="Kliknij aby przełączyć widoczność w module Budżet"
+                    data-testid={`finance-budowa-has-budget-${b.id}`}
+                  >
+                    {b.has_budget !== false
+                      ? <span className="text-[#5F7552] bg-[#4F6343]/20 px-2 py-1 rounded">TAK</span>
+                      : <span className="text-[#94A3B8] bg-[#131C2F] px-2 py-1 rounded">NIE</span>}
+                  </button>
+                </td>
                 <td className="py-3 px-4 text-center">{b.is_gir ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_gir_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center">{b.is_dw ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.kaucja_dw_pct ?? 2)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
                 <td className="py-3 px-4 text-center" data-testid={`finance-budowa-koszt-cell-${b.id}`}>{(b.koszt_budowy_pct ?? 0) > 0 ? <span className="text-[#D4AF37] font-mono tabular-nums">{fmt(b.koszt_budowy_pct)}%</span> : <span className="text-[#2A3B59]">-</span>}</td>
@@ -930,6 +952,11 @@ const BudowyPanel = () => {
               <input type="checkbox" checked={form.show_in_hours} onChange={(e) => setForm({...form, show_in_hours: e.target.checked})}
                 className="accent-[#4F6343]" data-testid="finance-budowa-show-in-hours" />
               <span>Pokaż w liscie godzin (przypisywanie pracownikow)</span>
+            </label>
+            <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#131C2F] rounded">
+              <input type="checkbox" checked={form.has_budget} onChange={(e) => setForm({...form, has_budget: e.target.checked})}
+                className="accent-[#D4AF37]" data-testid="finance-budowa-has-budget-modal" />
+              <span>Widoczna w module <b>Budżet</b> (kosztorys/protokoly)</span>
             </label>
             <div className="flex items-center gap-2 text-sm p-2 hover:bg-[#131C2F] rounded">
               <label className="flex items-center gap-2 cursor-pointer flex-1">

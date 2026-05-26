@@ -134,6 +134,7 @@ class BudowaCreate(BaseModel):
     name: str
     code: Optional[str] = None
     show_in_hours: bool = True  # default TRUE - admin chce zwykle przypisywac pracownikow
+    has_budget: bool = True  # iter93: czy budowa ma byc widoczna w module Budzet
     is_gir: bool = False
     kaucja_gir_pct: Optional[float] = 2.0  # domyslnie 2%, ale admin moze zmienic
     is_dw: bool = False
@@ -151,6 +152,7 @@ class BudowaUpdate(BaseModel):
     name: Optional[str] = None
     code: Optional[str] = None
     show_in_hours: Optional[bool] = None
+    has_budget: Optional[bool] = None  # iter93
     is_gir: Optional[bool] = None
     kaucja_gir_pct: Optional[float] = None
     is_dw: Optional[bool] = None
@@ -336,9 +338,15 @@ async def import_budowy_from_sites(current_user: dict = Depends(get_current_admi
 @router.get("/finance/budowy")
 async def list_budowy(
     include_archived: bool = Query(False),
+    has_budget: Optional[bool] = Query(None, description="iter93: filtr po has_budget"),
     current_user: dict = Depends(get_current_admin),
 ):
-    q = {} if include_archived else {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}
+    q: dict = {} if include_archived else {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}
+    if has_budget is True:
+        # Default = True dla starszych rekordow ktore nie maja flagi
+        q["$and"] = [{"$or": [{"has_budget": {"$ne": False}}]}]
+    elif has_budget is False:
+        q["has_budget"] = False
     rows = await db.finance_budowy.find(q, {"_id": 0}).sort("name", 1).to_list(length=None)
     return {"rows": rows}
 
@@ -357,6 +365,7 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "name": name,
         "code": payload.code or "",
         "show_in_hours": bool(payload.show_in_hours),
+        "has_budget": bool(payload.has_budget),  # iter93
         "is_gir": bool(payload.is_gir),
         "kaucja_gir_pct": float(payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0),
         "is_dw": bool(payload.is_dw),
