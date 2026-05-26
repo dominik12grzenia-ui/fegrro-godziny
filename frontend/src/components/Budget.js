@@ -578,6 +578,32 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           {' '}nie zostało przypisane do żadnej komórki (pozycje bez robocizny: {allocations.undistributed_labor.positions_without_labor?.length || 0}). Dodaj slot „robocizna" do tych pozycji aby koszty wynagrodzeń się rozpisały.
         </div>
       )}
+      {/* iter95: Diagnostyczny banner pul allokacji - pokazuje DLACZEGO Q=0 (lub niskie) */}
+      {allocations?.pools && (
+        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#2A3B59] bg-[#0B1120] text-[#94A3B8] text-xs"
+             data-testid="alloc-pools-diagnostic">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>📊 <b className="text-[#CBD5E1]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}):</span>
+            <span>O (koszty bez etapów) = <b className={allocations.pools.O > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.O)} zł</b></span>
+            <span>P (wynagrodzenia bez etapów) = <b className={allocations.pools.P > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.P)} zł</b></span>
+            <span>Q (firmowe × %sprzedaży) = <b className={allocations.pools.Q > 0 ? 'text-[#D4AF37]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.Q)} zł</b></span>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px]">
+            <span>↳ Sprzedaż firmy = <b>{fmtNum(allocations.pools.sprzedaz_total_firma)} zł</b></span>
+            <span>Sprzedaż tej budowy = <b className={allocations.pools.sprzedaz_budowa > 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.sprzedaz_budowa)} zł</b></span>
+            <span>% sprzedaży = <b>{((allocations.pools.sprzedaz_ratio || 0) * 100).toFixed(2)}%</b></span>
+            <span>Koszty firmowe nieprzyp. (bez budowy) = <b className={allocations.pools.unassigned_company > 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.unassigned_company)} zł</b></span>
+          </div>
+          {allocations.pools.Q === 0 && (
+            <div className="mt-1 text-[10px] text-[#FCA5A5]">
+              ⚠ Q = 0 bo:
+              {allocations.pools.sprzedaz_budowa === 0 && ' brak sprzedaży przypisanej do tej budowy NA POZIOMIE POZYCJI (kliknij „Propaguj budowy → pozycje" w Finanse).'}
+              {allocations.pools.unassigned_company === 0 && allocations.pools.sprzedaz_budowa > 0 && ' brak kosztów firmowych BEZ przypisanej budowy w tym okresie.'}
+              {allocations.pools.sprzedaz_total_firma === 0 && ' brak żadnej sprzedaży firmy w okresie (sprawdź faktury sprzedażowe z is_income=true).'}
+            </div>
+          )}
+        </div>
+      )}
       <CardContent className="p-0">
         {positions.length === 0 ? (
           <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="template-empty">

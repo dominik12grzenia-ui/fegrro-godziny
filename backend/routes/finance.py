@@ -714,23 +714,39 @@ async def backfill_invoice_budowa_to_positions(
     Zwraca: {invoices_processed, positions_updated}.
     """
     invoices = await db.finance_invoices.find(
-        {"budowa_id": {"$ne": None, "$exists": True}},
-        {"_id": 0, "id": 1, "budowa_id": 1},
+        {},
+        {"_id": 0, "id": 1, "budowa_id": 1, "is_income": 1, "kod_id": 1},
     ).to_list(length=None)
     updated_total = 0
+    income_fixed = 0
     for inv in invoices:
         bid = inv.get("budowa_id")
-        if not bid:
-            continue
-        res = await db.finance_zapisy.update_many(
-            {
-                "parent_invoice_id": inv["id"],
-                "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
-            },
-            {"$set": {"budowa_id": bid, "updated_at": datetime.now().isoformat()}},
-        )
-        updated_total += res.modified_count
-    return {"invoices_processed": len(invoices), "positions_updated": updated_total}
+        is_inc = inv.get("is_income")
+        # Propaguj budowa_id (jezeli ustawiona w naglowku)
+        if bid:
+            res = await db.finance_zapisy.update_many(
+                {
+                    "parent_invoice_id": inv["id"],
+                    "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
+                },
+                {"$set": {"budowa_id": bid, "updated_at": datetime.now().isoformat()}},
+            )
+            updated_total += res.modified_count
+        # Propaguj is_income (jezeli ustawione w naglowku) - naprawia stare zapisy bez is_income
+        if is_inc is not None:
+            res2 = await db.finance_zapisy.update_many(
+                {
+                    "parent_invoice_id": inv["id"],
+                    "$or": [{"is_income": None}, {"is_income": {"$exists": False}}],
+                },
+                {"$set": {"is_income": is_inc}},
+            )
+            income_fixed += res2.modified_count
+    return {
+        "invoices_processed": len(invoices),
+        "positions_updated": updated_total,
+        "is_income_fixed": income_fixed,
+    }
 
 
 @router.delete("/finance/invoices/{invoice_id}")
