@@ -518,6 +518,17 @@ async def get_allocations(
         sprzedaz_total_firma = mo_data["sprzedaz_firma"]
         leftover_unassigned = mo_data["leftover"]
         helper = mo_data["helper"]
+        q_monthly = [{
+            "year": year, "month": month,
+            "q_cat": round(mo_data["q_cat"], 2),
+            "q_left": round(mo_data["q_left"], 2),
+            "q": round(mo_data["q_cat"] + mo_data["q_left"], 2),
+            "sprzedaz_budowa": round(mo_data["sprzedaz_budowa"], 2),
+            "sprzedaz_firma": round(mo_data["sprzedaz_firma"], 2),
+            "ratio": round((mo_data["sprzedaz_budowa"] / mo_data["sprzedaz_firma"])
+                           if mo_data["sprzedaz_firma"] > 0 else 0, 4),
+            "leftover": round(mo_data["leftover"], 2),
+        }]
     else:
         # Widok ROCZNY - sumujemy per miesiac aktywnosci budowy
         # Miesiace aktywnosci = miesiace, w ktorych budowa ma zapis
@@ -542,6 +553,7 @@ async def get_allocations(
             "total_ppe": 0.0,
             "total_ksp": 0.0,
         }
+        q_monthly = []
         for mo_v in sorted(active_months):
             mo_data = await _q_for_month(year, mo_v)
             q_categorized += mo_data["q_cat"]
@@ -552,6 +564,17 @@ async def get_allocations(
             mh = mo_data["helper"]
             for k in helper_agg:
                 helper_agg[k] += mh.get(k, 0) or 0
+            q_monthly.append({
+                "year": year, "month": mo_v,
+                "q_cat": round(mo_data["q_cat"], 2),
+                "q_left": round(mo_data["q_left"], 2),
+                "q": round(mo_data["q_cat"] + mo_data["q_left"], 2),
+                "sprzedaz_budowa": round(mo_data["sprzedaz_budowa"], 2),
+                "sprzedaz_firma": round(mo_data["sprzedaz_firma"], 2),
+                "ratio": round((mo_data["sprzedaz_budowa"] / mo_data["sprzedaz_firma"])
+                               if mo_data["sprzedaz_firma"] > 0 else 0, 4),
+                "leftover": round(mo_data["leftover"], 2),
+            })
         helper = helper_agg
 
     sprzedaz_ratio = (sprzedaz_budowa / sprzedaz_total_firma) if sprzedaz_total_firma > 0 else 0.0
@@ -674,6 +697,7 @@ async def get_allocations(
         "positions_with_progress": len(position_allocations),
         "distributed": distributed,
         "fallback_mode": fallback_mode,  # iter94: 'plan' | 'equal' | None
+        "q_monthly": q_monthly,  # iter95g: per-miesiac breakdown Q (do modala "skąd to się wzięło")
     }
 
 

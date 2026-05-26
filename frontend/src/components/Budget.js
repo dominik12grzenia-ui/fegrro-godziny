@@ -263,6 +263,8 @@ const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w a
 const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, year, allocMonth, setAllocMonth, allocations, equalDistribution, setEqualDistribution, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
   // iter82: stan modalu z opisem kolumny po klikniciu w naglowek
   const [infoCol, setInfoCol] = useState(null);
+  // iter95g: modal z rozbiciem Q (skąd się wziął)
+  const [showQBreakdown, setShowQBreakdown] = useState(false);
   // Pozycje per etap (zachowaj kolejnosc z `stages`)
   const positionsByStage = useMemo(() => {
     const m = {};
@@ -586,7 +588,11 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
             <span>📊 <b className="text-[#CBD5E1]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}{allocations.date_range ? ` · zakres: ${allocations.date_range.start} → ${allocations.date_range.end}` : ''}):</span>
             <span>O (koszty bez etapów) = <b className={allocations.pools.O > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.O)} zł</b></span>
             <span>P (wynagrodzenia bez etapów) = <b className={allocations.pools.P > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.P)} zł</b></span>
-            <span>Q (firmowe × %sprzedaży) = <b className={allocations.pools.Q > 0 ? 'text-[#D4AF37]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.Q)} zł</b></span>
+            <span>Q (firmowe × %sprzedaży) = <button onClick={() => setShowQBreakdown(true)}
+              className={`underline decoration-dotted hover:decoration-solid font-bold ${allocations.pools.Q > 0 ? 'text-[#D4AF37]' : 'text-[#FCA5A5]'}`}
+              data-testid="q-breakdown-btn" title="Kliknij aby zobaczyć rozbicie Q per miesiąc i kategoria">
+              {fmtNum(allocations.pools.Q)} zł 🔍
+            </button></span>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px]">
             <span>↳ Sprzedaż firmy = <b>{fmtNum(allocations.pools.sprzedaz_total_firma)} zł</b></span>
@@ -904,6 +910,121 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
               </div>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+      {/* iter95g: Modal rozbicia Q (skąd się wziął) */}
+      <Dialog open={showQBreakdown} onOpenChange={setShowQBreakdown}>
+        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-3xl" data-testid="q-breakdown-modal">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <span className="px-2 py-1 rounded bg-[#4F6343] text-white text-xs font-mono">Q</span>
+              <span>Skąd wzięła się ta kwota? Rozbicie kolumny Q</span>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 text-sm max-h-[70vh] overflow-y-auto">
+            <div className="rounded bg-[#0B1120] border border-[#2A3B59] p-3">
+              <div className="text-[#D4AF37] font-bold text-lg mb-1">
+                Q = {fmtNum(allocations?.pools?.Q || 0)} zł
+              </div>
+              <div className="text-xs text-[#94A3B8]">
+                Suma kosztów firmowych BEZ przypisanej budowy, rozdzielonych pomiędzy budowy proporcjonalnie do sprzedaży.
+                Następnie ta kwota trafia tylko na sloty <b>robocizny (R)</b> proporcjonalnie do % zaawansowania pozycji.
+              </div>
+            </div>
+
+            {/* Skład Q */}
+            <div>
+              <div className="text-[#94A3B8] text-xs uppercase mb-2">Skład Q (jak liczone)</div>
+              <table className="w-full text-xs border border-[#2A3B59] rounded overflow-hidden">
+                <tbody>
+                  <tr className="border-b border-[#2A3B59]">
+                    <td className="px-2 py-1.5">🔹 Kategoryzowane (KP/KSP/PPE pro-rata jak Sprzedaż)</td>
+                    <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.q_categorized || 0)} zł</td>
+                  </tr>
+                  <tr>
+                    <td className="px-2 py-1.5">🔹 Pozostałe (KSB bez budowy, kod=brak) × %sprzedaży</td>
+                    <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.q_leftover || 0)} zł</td>
+                  </tr>
+                  <tr className="bg-[#0B1120] border-t border-[#D4AF37]/40">
+                    <td className="px-2 py-1.5 font-bold">SUMA Q</td>
+                    <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.Q || 0)} zł</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Per miesiąc */}
+            {allocations?.q_monthly?.length > 0 && (
+              <div>
+                <div className="text-[#94A3B8] text-xs uppercase mb-2">
+                  Rozbicie per miesiąc (w widoku rocznym sumujemy Q liczone NIEZALEŻNIE dla każdego miesiąca)
+                </div>
+                <table className="w-full text-xs border border-[#2A3B59] rounded overflow-hidden">
+                  <thead className="bg-[#131C2F] text-[#94A3B8]">
+                    <tr>
+                      <th className="px-2 py-1.5 text-left">Miesiąc</th>
+                      <th className="px-2 py-1.5 text-right">Sprzedaż tej budowy</th>
+                      <th className="px-2 py-1.5 text-right">Sprzedaż firmy</th>
+                      <th className="px-2 py-1.5 text-right">% sprzedaży</th>
+                      <th className="px-2 py-1.5 text-right">Kategoryzow.</th>
+                      <th className="px-2 py-1.5 text-right">Pozostałe × %</th>
+                      <th className="px-2 py-1.5 text-right">Q miesiąca</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allocations.q_monthly.map((m) => (
+                      <tr key={m.month} className="border-t border-[#2A3B59]">
+                        <td className="px-2 py-1.5 font-mono">{MONTHS_PL[m.month-1]} {m.year}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.sprzedaz_budowa)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.sprzedaz_firma)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{(m.ratio * 100).toFixed(2)}%</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.q_cat)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.q_left)}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums font-bold text-[#D4AF37]">{fmtNum(m.q)}</td>
+                      </tr>
+                    ))}
+                    <tr className="bg-[#0B1120] border-t border-[#D4AF37]/40 font-bold">
+                      <td className="px-2 py-1.5">SUMA</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.sprzedaz_budowa)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.sprzedaz_total_firma)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{((allocations.pools.sprzedaz_ratio || 0) * 100).toFixed(2)}%</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.q_categorized)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.q_leftover)}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums text-[#D4AF37]">{fmtNum(allocations.pools.Q)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <div className="text-[10px] text-[#64748B] mt-2">
+                  ℹ Miesiące, w których budowa nie miała żadnego zapisu (faktury/kosztu), są pomijane.
+                  Q jest liczone osobno per miesiąc i sumowane — dzięki temu różne miesięczne ratio
+                  sprzedaży są poprawnie odzwierciedlone.
+                </div>
+              </div>
+            )}
+
+            {/* Wyjaśnienie metody */}
+            <div className="rounded bg-[#0B1120] border border-[#2A3B59] p-3 text-xs">
+              <div className="text-[#94A3B8] uppercase mb-1">Jak działa „Kategoryzowane"</div>
+              <ul className="space-y-0.5 list-disc list-inside text-[#CBD5E1]">
+                <li>KP (wynagrodzenia) nieprzyp. × (KP tej budowy / suma KP wszystkich budów)</li>
+                <li>KSP_STAWKI nieprzyp. × ((KP+KBB) tej budowy / suma)</li>
+                <li>KSP_UKLADY nieprzyp. × udział KP</li>
+                <li>Pozostałe KSP × udział KP</li>
+                <li>PPE (podatki) × (sprzedaż tej budowy / sprzedaż całej firmy)</li>
+              </ul>
+              <div className="text-[#94A3B8] uppercase mt-3 mb-1">Jak działa „Pozostałe"</div>
+              <div className="text-[#CBD5E1]">
+                Wszystkie firmowe koszty BEZ budowy które NIE są w kategoriach KP/KSP/PPE
+                (np. faktury Hilti, NOE bez kodu — patrz screenshot).
+                Mnożone przez: <code className="bg-[#19243C] px-1 rounded">sprzedaż_budowy / sprzedaż_firmy</code> dla danego miesiąca.
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={() => setShowQBreakdown(false)}
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white px-4 py-2 rounded text-sm"
+              data-testid="q-breakdown-close">Zamknij</button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Card>
