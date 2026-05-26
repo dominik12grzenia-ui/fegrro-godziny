@@ -499,7 +499,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
       tot.U += a.U || 0;
       if (a.V != null) { tot.V += a.V; tot.hasV = true; }
     });
-    tot.S = tot.N > 0 ? (tot.R / tot.N) * 100 : 0;
+    tot.S = tot.K > 0 ? (tot.R / tot.K) * 100 : 0;
     tot.cena = tot.qty > 0 ? tot.G / tot.qty : 0;
     return tot;
   })();
