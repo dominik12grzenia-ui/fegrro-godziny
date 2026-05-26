@@ -481,6 +481,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         {!posCollapsed && (p.slots || []).map((sub, subIdx) => (
                           <SubRow key={sub.id} code={`${code}.${subIdx + 1}`} sub={sub}
                             posComputed={r} defaults={defaults}
+                            posUnit={p.unit}
                             onLocalUpdate={updateLineLocal}
                             onDel={() => delSlot(sub.id)} />
                         ))}
@@ -598,7 +599,8 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
 };
 
 // iter95x: modal do wyboru pozycji z cennika (per kategoria materials/labor/equipment)
-const PriceBookPicker = ({ category, onPick, onClose }) => {
+// iter95z: jeśli posUnit jest podany - przelicza cenę na 1 jednostkę wyrobu (m²/m³/mb/...).
+const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
@@ -622,18 +624,41 @@ const PriceBookPicker = ({ category, onPick, onClose }) => {
     );
   }, [rows, q]);
 
-  // Wybor wlasciwej ceny do podstawienia
-  const getPrice = (it) => {
-    if (category === 'labor') return it.price_m2 || it.price_m3 || it.unit_price_netto || 0;
-    if (category === 'equipment') return it.price_hour || it.price_day || it.price_month || it.unit_price_netto || 0;
-    return it.unit_price_netto || 0;
+  // iter95z: oblicz "efektywna" cene + jednostke uwzgledniajaca posUnit
+  // Zwraca { price, unit, source } gdzie source = "computed" | "m2" | "m3" | "hour" | "day" | "month" | "raw"
+  const getEffective = (it) => {
+    // MATERIALS: jezeli posUnit pasuje do zap_unit → przelicz na cene za 1 jd. wyrobu
+    if (category === 'materials' && posUnit) {
+      const calc = computeMaterialPerWorkUnit(it, posUnit);
+      if (calc) return { price: calc.price, unit: calc.workUnit, source: 'computed' };
+    }
+    // LABOR: dobierz cene zgodna z posUnit
+    if (category === 'labor') {
+      if (posUnit === 'm²' && it.price_m2) return { price: it.price_m2, unit: 'm²', source: 'm2' };
+      if (posUnit === 'm³' && it.price_m3) return { price: it.price_m3, unit: 'm³', source: 'm3' };
+      const fallback = it.price_m2 || it.price_m3 || it.unit_price_netto || 0;
+      const fbUnit = it.price_m2 ? 'm²' : it.price_m3 ? 'm³' : (it.unit || '');
+      return { price: fallback, unit: fbUnit, source: 'raw' };
+    }
+    // EQUIPMENT: godz/dzień/m-c
+    if (category === 'equipment') {
+      if (posUnit === 'godz' && it.price_hour) return { price: it.price_hour, unit: 'godz', source: 'hour' };
+      if (posUnit === 'dzień' && it.price_day) return { price: it.price_day, unit: 'dzień', source: 'day' };
+      if (posUnit === 'm-c' && it.price_month) return { price: it.price_month, unit: 'm-c', source: 'month' };
+      const fallback = it.price_hour || it.price_day || it.price_month || it.unit_price_netto || 0;
+      const fbUnit = it.price_hour ? 'godz' : it.price_day ? 'dzień' : it.price_month ? 'm-c' : (it.unit || '');
+      return { price: fallback, unit: fbUnit, source: 'raw' };
+    }
+    return { price: it.unit_price_netto || 0, unit: it.unit || '', source: 'raw' };
   };
+
   const getExtraInfo = (it) => {
     if (category === 'materials') {
       const parts = [];
       if (it.sub_category) parts.push(it.sub_category);
       if (it.oferent) parts.push(it.oferent);
       if (it.opakowanie && it.pkg_qty) parts.push(`${it.opakowanie} ${it.pkg_qty}${it.pkg_unit || ''}`);
+      if (it.zapotrzebowanie && it.zap_unit) parts.push(`norma ${it.zapotrzebowanie} ${it.zap_unit}`);
       return parts.join(' • ');
     }
     if (category === 'labor') {
@@ -660,6 +685,11 @@ const PriceBookPicker = ({ category, onPick, onClose }) => {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
             <BookOpen className="h-5 w-5" /> Cennik: {TYPE_LABEL[category] || category}
+            {posUnit && (
+              <span className="text-xs text-[#9DBC85] font-normal">
+                — auto-przelicznik na <b>1 {posUnit}</b>
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-2 mb-2">
@@ -683,22 +713,32 @@ const PriceBookPicker = ({ category, onPick, onClose }) => {
                   <th className="text-left px-2 py-1.5">Nazwa</th>
                   <th className="text-left px-2 py-1.5">Info</th>
                   <th className="text-center px-2 py-1.5">Jedn.</th>
-                  <th className="text-right px-2 py-1.5">Cena</th>
+                  <th className="text-right px-2 py-1.5">{posUnit ? `Cena / ${posUnit}` : 'Cena'}</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((it) => (
-                  <tr key={it.id} onClick={() => onPick({ ...it, unit_price_netto: getPrice(it) })}
-                    className="hover:bg-[#3F5235]/30 cursor-pointer border-t border-[#2A3B59]"
-                    data-testid={`picker-row-${it.id}`}>
-                    <td className="px-2 py-1.5 text-white">{it.name}</td>
-                    <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
-                    <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{it.unit || '—'}</td>
-                    <td className="px-2 py-1.5 text-right text-[#D4AF37] tabular-nums font-semibold">
-                      {fmtPLN(getPrice(it))}
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map((it) => {
+                  const eff = getEffective(it);
+                  return (
+                    <tr key={it.id}
+                      onClick={() => onPick({ ...it, unit_price_netto: eff.price, unit: eff.unit || it.unit })}
+                      className="hover:bg-[#3F5235]/30 cursor-pointer border-t border-[#2A3B59]"
+                      data-testid={`picker-row-${it.id}`}>
+                      <td className="px-2 py-1.5 text-white">{it.name}</td>
+                      <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
+                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{eff.unit || '—'}</td>
+                      <td className="px-2 py-1.5 text-right tabular-nums">
+                        <span className={eff.source === 'computed' || (posUnit && eff.unit === posUnit)
+                          ? 'text-[#9DBC85] font-semibold' : 'text-[#D4AF37] font-semibold'}>
+                          {fmtPLN(eff.price)}
+                        </span>
+                        {eff.source === 'computed' && (
+                          <span className="ml-1 text-[10px] text-[#94A3B8]" title="Przeliczona z opakowania">⚙</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -712,7 +752,7 @@ const PriceBookPicker = ({ category, onPick, onClose }) => {
   );
 };
 
-const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel }) => {
+const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
   const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => { setEdit(sub); }, [sub]);
@@ -794,7 +834,7 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
             data-testid={`sub-price-${sub.id}`} />
         </div>
         {pickerOpen && (
-          <PriceBookPicker category={sub.type} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />
+          <PriceBookPicker category={sub.type} posUnit={posUnit} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />
         )}
       </Td>
       <Td right>
@@ -848,6 +888,24 @@ const ZAP_UNITS = [
   'szt/m²', 'szt/m³', 'szt/mb', 'szt/szt', 'szt/kpl',
   't/m³',
 ];
+
+// iter95z: ile kosztuje materiał na 1 jednostkę wyrobu (np. m² ściany).
+// Wzór: (cena_oferty + koszty_inne) × zapotrzebowanie / pkg_qty
+// Wymaga: zap_unit konczacy sie na "/" + workUnit (np. "kg/m²"), pkg_qty>0, zap>0.
+// Jezeli workUnit nie podany — uzyj sufiksu zap_unit jako workUnit (np. "kg/m²" → "m²").
+const computeMaterialPerWorkUnit = (it, workUnit = null) => {
+  if (!it) return null;
+  const zapUnit = it.zap_unit || '';
+  if (!zapUnit.includes('/')) return null;
+  const effectiveWorkUnit = workUnit || zapUnit.split('/')[1];
+  if (!effectiveWorkUnit) return null;
+  if (!zapUnit.endsWith('/' + effectiveWorkUnit)) return null;
+  const pkg = parseFloat(it.pkg_qty) || 0;
+  const zap = parseFloat(it.zapotrzebowanie) || 0;
+  if (pkg <= 0 || zap <= 0) return null;
+  const base = (parseFloat(it.unit_price_netto) || 0) + (parseFloat(it.koszty_inne_do_jd) || 0);
+  return { price: base * zap / pkg, workUnit: effectiveWorkUnit };
+};
 
 const MaterialsPriceBook = () => {
   const [rows, setRows] = useState([]);
@@ -905,7 +963,7 @@ const MaterialsPriceBook = () => {
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj produktu..."
           className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="materials-search" />
         <div className="text-xs text-[#94A3B8]">
-          {rows.length} pozycji · 11 kolumn (kategoria · nazwa produktu · cena · oferent · opakowanie · ilość · jd · zapotrzebowanie · jd. do jd. · warstw · uwagi)
+          {rows.length} pozycji · 13 kolumn (kategoria · nazwa · cena · oferent · opakowanie · ilość · jd · zapotrzebowanie · jd. do jd. · warstw · koszty inne · cena/jd. wyrobu · uwagi)
         </div>
       </div>
       {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : (
@@ -924,6 +982,7 @@ const MaterialsPriceBook = () => {
                 <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[90px]">jd. do jd.</th>
                 <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[90px]">warstw</th>
                 <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]" title="Koszty dodatkowe doliczane do każdej jednostki (np. transport)">koszty inne do jd</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[120px]" title="Cena materiału przeliczona na 1 jednostkę wyrobu (np. zł/m² ściany). Wymaga uzupełnienia: ilość w opakowaniu, zapotrzebowanie, jd. do jd.">cena/jd. wyrobu</th>
                 <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[140px]">uwagi</th>
                 <th className="p-2 border-b border-[#2A3B59] w-8"></th>
               </tr>
@@ -989,6 +1048,14 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
   };
 
   const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
+  // iter95aa: podswietl pola wymagane do przelicznika (cena/jd. wyrobu)
+  const calcReady = computeMaterialPerWorkUnit(edit);
+  const missing = !calcReady;
+  const pkgMissing = missing && (!edit.pkg_qty || parseFloat(edit.pkg_qty) <= 0);
+  const zapMissing = missing && (!edit.zapotrzebowanie || parseFloat(edit.zapotrzebowanie) <= 0);
+  const zapUnitMissing = missing && (!edit.zap_unit || !String(edit.zap_unit).includes('/'));
+  const hintCls = "bg-[#3F2F0A]/40 ring-1 ring-[#F59E0B]/60";
+  const hintTitle = "Uzupełnij aby aktywować przelicznik ceny na jd. wyrobu";
 
   return (
     <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`mat-row-${item.id}`}>
@@ -1018,10 +1085,12 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
           onBlur={save} placeholder="wiaderko/paleta..."
           className={`${inputCls} text-[#CBD5E1]`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40">
+      <td className={`border-r border-[#2A3B59]/40 ${pkgMissing ? hintCls : ''}`} title={pkgMissing ? hintTitle : undefined}>
         <input type="number" step="0.001" value={edit.pkg_qty ?? ''}
           onChange={(e) => setEdit({ ...edit, pkg_qty: e.target.value })}
-          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+          onBlur={save} placeholder={pkgMissing ? 'wpisz' : ''}
+          className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+          data-testid={`mat-pkg-qty-${item.id}`} />
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <select value={edit.pkg_unit || ''}
@@ -1030,12 +1099,14 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
           {PKG_UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
         </select>
       </td>
-      <td className="border-r border-[#2A3B59]/40">
+      <td className={`border-r border-[#2A3B59]/40 ${zapMissing ? hintCls : ''}`} title={zapMissing ? hintTitle : undefined}>
         <input type="number" step="0.001" value={edit.zapotrzebowanie ?? ''}
           onChange={(e) => setEdit({ ...edit, zapotrzebowanie: e.target.value })}
-          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+          onBlur={save} placeholder={zapMissing ? 'wpisz' : ''}
+          className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+          data-testid={`mat-zap-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40">
+      <td className={`border-r border-[#2A3B59]/40 ${zapUnitMissing ? hintCls : ''}`} title={zapUnitMissing ? hintTitle : undefined}>
         <select value={edit.zap_unit || ''}
           onChange={(e) => { const v = e.target.value; setEdit({ ...edit, zap_unit: v }); save({ zap_unit: v }); }}
           className={`${inputCls} text-[#94A3B8]`} data-testid={`mat-zap-unit-${item.id}`}>
@@ -1053,6 +1124,25 @@ const MaterialRow = ({ item, onLocalUpdate, onCategoryChange, onDel }) => {
           onBlur={save} placeholder="zł/jd"
           className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
           data-testid={`mat-koszty-inne-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40 px-2 py-1 text-right tabular-nums"
+          data-testid={`mat-per-work-${item.id}`}>
+        {(() => {
+          const r = computeMaterialPerWorkUnit(edit);
+          if (!r) {
+            const need = [];
+            if (pkgMissing) need.push('ilość');
+            if (zapMissing) need.push('zapotrzebowanie');
+            if (zapUnitMissing) need.push('jd./jd.');
+            const tip = need.length > 0 ? 'Brakuje: ' + need.join(', ') : hintTitle;
+            return <span className="text-[#F59E0B] text-[10px] italic" title={tip}>⚠ uzupełnij</span>;
+          }
+          return (
+            <span className="text-[#9DBC85] font-semibold" title={`${fmtPLN(r.price)} zł / 1 ${r.workUnit}`}>
+              {fmtPLN(r.price)} <span className="text-[10px] text-[#94A3B8]">/ {r.workUnit}</span>
+            </span>
+          );
+        })()}
       </td>
       <td className="border-r border-[#2A3B59]/40">
         <input value={edit.notes || ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
