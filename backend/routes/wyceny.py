@@ -84,6 +84,9 @@ class PriceBookCreate(BaseModel):
     zapotrzebowanie: Optional[float] = None  # norma zuzycia (np. 1.5)
     zap_unit: Optional[str] = None           # jd. do jd. (kg/m2, szt/m2, mb/mb)
     liczba_warstw: Optional[float] = None    # liczba warstw
+    # iter95m: pola dla LABOR (robocizna)
+    price_m2: Optional[float] = None         # cena za m2
+    price_m3: Optional[float] = None         # cena za m3
 
 
 class PriceBookUpdate(BaseModel):
@@ -100,6 +103,9 @@ class PriceBookUpdate(BaseModel):
     zapotrzebowanie: Optional[float] = None
     zap_unit: Optional[str] = None
     liczba_warstw: Optional[float] = None
+    # iter95m: labor
+    price_m2: Optional[float] = None
+    price_m3: Optional[float] = None
 
 
 VALID_CATEGORIES = {"materials", "labor", "equipment"}
@@ -355,6 +361,10 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         "zapotrzebowanie": payload.zapotrzebowanie,
         "zap_unit": payload.zap_unit,
         "liczba_warstw": payload.liczba_warstw,
+        # iter95m: labor
+        "price_m2": payload.price_m2,
+        "price_m3": payload.price_m3,
+        "price_history": [],  # iter95m: lista wpisow {date, field, old, new}
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -365,13 +375,34 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
 
 @router.patch("/wyceny/cennik/{item_id}")
 async def update_price_book(item_id: str, payload: PriceBookUpdate, _user: dict = Depends(get_current_admin)):
-    # iter95l: nie filtruj None - pozwol jawnie wyczyscic pole, ale exclude_unset
+    existing = await db.wyceny_price_book.find_one({"id": item_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Pozycja cennika nie istnieje")
     raw = payload.dict(exclude_unset=True)
     updates = dict(raw)
     updates["updated_at"] = datetime.now().isoformat()
-    res = await db.wyceny_price_book.update_one({"id": item_id}, {"$set": updates})
-    if res.matched_count == 0:
-        raise HTTPException(404, "Pozycja cennika nie istnieje")
+    # iter95m: dla labor - sledz zmiany price_m2/price_m3 w price_history
+    history_entries = []
+    if existing.get("category") == "labor":
+        for field in ("price_m2", "price_m3", "unit_price_netto"):
+            if field in raw:
+                old_val = existing.get(field)
+                new_val = raw[field]
+                if old_val != new_val and (old_val is not None or new_val is not None):
+                    history_entries.append({
+                        "date": datetime.now().isoformat(),
+                        "field": field,
+                        "old": old_val,
+                        "new": new_val,
+                    })
+    if history_entries:
+        # Append entries do price_history
+        await db.wyceny_price_book.update_one(
+            {"id": item_id},
+            {"$set": updates, "$push": {"price_history": {"$each": history_entries}}},
+        )
+    else:
+        await db.wyceny_price_book.update_one({"id": item_id}, {"$set": updates})
     return {"ok": True}
 
 
