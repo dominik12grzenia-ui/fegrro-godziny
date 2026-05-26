@@ -301,7 +301,11 @@ export const ResolveDefectModal = ({
                   return;
                 }
                 try {
-                  await api.post(`/equipment/defects/${resolveModal.id}/resolve`, {
+                  // iter92: tryb 'direct' uzywa /equipment/{id}/repair-action zamiast /defects/{id}/resolve
+                  const url = resolveModal.direct
+                    ? `/equipment/${resolveModal.equipment_id}/repair-action`
+                    : `/equipment/defects/${resolveModal.id}/resolve`;
+                  await api.post(url, {
                     disposition: 'repaired',
                     destination: resolveDest,
                     foreman_id: resolveDest === 'foreman' ? resolveForemanId : null,
@@ -316,7 +320,29 @@ export const ResolveDefectModal = ({
               className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white"
               data-testid="confirm-resolve-btn"
             >
-              Zatwierdz
+              Zatwierdz (naprawione)
+            </Button>
+            {/* iter92: przycisk Zlom obok Naprawione */}
+            <Button
+              onClick={async () => {
+                if (!window.confirm(`Zezłomować ${resolveModal.equipment_name} (1 szt.)? Sprzęt zostanie usunięty z stanu.`)) return;
+                try {
+                  const url = resolveModal.direct
+                    ? `/equipment/${resolveModal.equipment_id}/repair-action`
+                    : `/equipment/defects/${resolveModal.id}/resolve`;
+                  await api.post(url, { disposition: 'scrapped' });
+                  toast.success('Zezłomowano');
+                  setResolveModal(null);
+                  fetchAll();
+                } catch (err) {
+                  toast.error(err.response?.data?.detail || 'Błąd');
+                }
+              }}
+              variant="outline"
+              className="flex-1 border-[#9B2C2C] text-[#FCA5A5] hover:bg-[#9B2C2C]/20"
+              data-testid="confirm-scrap-btn"
+            >
+              Złom
             </Button>
             <Button
               onClick={() => setResolveModal(null)}

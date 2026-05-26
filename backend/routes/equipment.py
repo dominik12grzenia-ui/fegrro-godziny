@@ -1105,6 +1105,89 @@ async def resolve_defect(defect_id: str,
     return {"message": "Usterka oznaczona jako naprawiona"}
 
 
+@router.post("/equipment/{equipment_id}/repair-action")
+async def equipment_repair_action(equipment_id: str,
+                                    payload: ResolveDefect,
+                                    current_user: dict = Depends(get_current_admin)):
+    """iter92: Akcja naprawy/zlomu BEZPOSREDNIO na broken_quantity sprzetu (bez defectu).
+
+    Sluzy do rozpatrywania legacy 'w naprawie' kiedy nie ma pojedynczego defect doca.
+    Akcja zdejmuje 1 sztuke z broken_quantity i:
+      - 'repaired' + destination='warehouse' -> wraca do dostepnych
+      - 'repaired' + destination='foreman' -> przypisuje brygadziscie
+      - 'scrapped' -> usuwa z total_quantity
+    """
+    eq = await db.equipment.find_one({"id": equipment_id})
+    if not eq:
+        raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
+    cur_broken = int(eq.get("broken_quantity") or 0)
+    if cur_broken <= 0:
+        raise HTTPException(status_code=400, detail="Brak sprzetu w naprawie")
+
+    # Jezeli istnieje otwarte defect dla tego sprzetu, najpierw je rozpatrz
+    existing = await db.equipment_defects.find_one(
+        {"equipment_id": equipment_id, "status": "open"},
+        sort=[("created_at", 1)],
+    )
+    if existing:
+        defect_qty = min(int(existing.get("quantity") or 1), cur_broken)
+        await db.equipment_defects.update_one(
+            {"id": existing["id"]},
+            {"$set": {"quantity": defect_qty}},
+        )
+        return await resolve_defect(existing["id"], payload, current_user)
+
+    # Brak defectu - dzialamy bezposrednio na 1 sztuce
+    qty = 1
+    actor_name = await _get_user_name(current_user["sub"])
+    if payload.disposition == "scrapped":
+        new_broken = max(0, cur_broken - qty)
+        new_total = max(0, int(eq.get("total_quantity") or 0) - qty)
+        await db.equipment.update_one(
+            {"id": equipment_id},
+            {"$set": {"broken_quantity": new_broken, "total_quantity": new_total,
+                       "updated_at": datetime.now().isoformat()}},
+        )
+        await _add_history(equipment_id, "defect_scrapped", current_user["sub"], actor_name,
+                            {"quantity": qty, "equipment_name": eq.get("name")})
+        return {"message": "Sprzet przeniesiony na zlom"}
+
+    if payload.disposition != "repaired":
+        raise HTTPException(status_code=400, detail="Nieznana dyspozycja")
+
+    new_broken = max(0, cur_broken - qty)
+    await db.equipment.update_one(
+        {"id": equipment_id},
+        {"$set": {"broken_quantity": new_broken,
+                   "updated_at": datetime.now().isoformat()}},
+    )
+    if payload.destination == "foreman":
+        if not payload.foreman_id:
+            raise HTTPException(status_code=400, detail="Wybierz brygadziste")
+        target = await db.users.find_one({"id": payload.foreman_id, "role": "foreman"})
+        if not target:
+            raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
+        await db.equipment_assignments.update_one(
+            {"equipment_id": equipment_id, "foreman_id": payload.foreman_id},
+            {"$inc": {"quantity": qty},
+             "$setOnInsert": {
+                 "id": str(uuid.uuid4()),
+                 "equipment_id": equipment_id,
+                 "foreman_id": payload.foreman_id,
+                 "assigned_at": datetime.now().isoformat(),
+                 "assigned_by": current_user["sub"],
+             }},
+            upsert=True,
+        )
+        await _add_history(equipment_id, "defect_repaired_to_foreman", current_user["sub"], actor_name,
+                            {"quantity": qty, "equipment_name": eq.get("name"),
+                             "foreman_name": target["full_name"]})
+        return {"message": f"Naprawione i przekazane: {target['full_name']}"}
+    await _add_history(equipment_id, "defect_repaired_to_warehouse", current_user["sub"], actor_name,
+                        {"quantity": qty, "equipment_name": eq.get("name")})
+    return {"message": "Naprawione - wrocilo do magazynu"}
+
+
 @router.get("/equipment/scrapped")
 async def list_scrapped(category: Optional[str] = None,
                           current_user: dict = Depends(get_current_admin)):

@@ -589,13 +589,25 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                         </span>
                       </td>
                       <td className="border border-[#2A3B59] p-1 text-center">
-                        <span
-                          className={`font-semibold ${(eq.broken_quantity || 0) > 0 ? 'text-[#DC4A3A]' : 'text-[#64748B]'}`}
-                          data-testid={`broken-display-${eq.id}`}
-                          title="Wartość zmienia się przez zgłoszenie usterki lub przekierowanie zwrotu do naprawy"
-                        >
-                          {eq.broken_quantity || 0}
-                        </span>
+                        {(eq.broken_quantity || 0) > 0 ? (
+                          <button
+                            onClick={() => setResolveModal({
+                              id: `eq-${eq.id}`,
+                              equipment_id: eq.id,
+                              equipment_name: eq.name,
+                              quantity: 1,
+                              foreman_name: '—',
+                              direct: true,  // iter92: brak defectu, dzialamy bezposrednio na broken_quantity
+                            })}
+                            className="font-bold text-[#DC4A3A] underline decoration-dotted hover:text-[#FCA5A5]"
+                            data-testid={`broken-action-${eq.id}`}
+                            title="Kliknij aby rozpatrzyc - Naprawione / Złom"
+                          >
+                            {eq.broken_quantity}
+                          </button>
+                        ) : (
+                          <span className="text-[#64748B]" data-testid={`broken-display-${eq.id}`}>0</span>
+                        )}
                       </td>
                       <td className="border border-[#2A3B59] p-2 text-center">
                         <span
