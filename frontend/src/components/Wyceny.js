@@ -200,9 +200,14 @@ const computePosRow = (p, defaults = {}) => {
   const kaucjaDw = budzet * dwPct / 100;
   const kosztBudowy = budzet * kosztPct / 100;
   const budzetZwolniony = budzet - kaucjaGir - kaucjaDw - kosztBudowy;
-  const kosztPrognozowany = parseFloat(p.koszt_prognozowany ?? 0) || 0;
-  const prognozy = kosztPrognozowany > 0 ? (budzetZwolniony - kosztPrognozowany) : null;
-  return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy };
+  // iter95t: koszt prognozowany = ilosc * cena * (1+narzut) * (1+marza) * (1+koszt_budowy) + kaucjaGIR + kaucjaDW
+  //         (czyli budzet * (1 + koszt_budowy%) + kaucjaGIR + kaucjaDW)
+  const kosztPrognozowany = budzet * (1 + kosztPct / 100) + kaucjaGir + kaucjaDw;
+  // Zysk prognozowany = budzet zwolniony - koszt prognozowany (zawsze liczony)
+  const prognozy = budzetZwolniony - kosztPrognozowany;
+  // Zysk + kaucja DW (ile dostane gdy kaucja DW zostanie zwolniona)
+  const zyskPlusDw = prognozy + kaucjaDw;
+  return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
 };
 
 const Th = ({ children, w }) => (
@@ -295,15 +300,16 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   };
 
   const grandTotal = useMemo(() => {
-    if (!data) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0 };
-    let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0;
+    if (!data) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0 };
+    let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0;
     (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
       const r = computePosRow(p, defaults);
       qty += r.qty; budzet += r.budzet;
       kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
       kosztBudowy += r.kosztBudowy; budzetZwolniony += r.budzetZwolniony;
+      kosztPrognozowany += r.kosztPrognozowany; prognozy += r.prognozy; zyskPlusDw += r.zyskPlusDw;
     }));
-    return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony };
+    return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
   }, [data, defaults]);
 
   const addStage = async () => {
@@ -406,7 +412,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <Th w="100">KOSZT BUDOWY</Th>
               <Th w="110">BUDŻET ZWOLNIONY</Th>
               <Th w="110">KOSZT PROGNOZOWANY</Th>
-              <Th w="100">PROGNOZY / ZYSK</Th>
+              <Th w="100">ZYSK PROGNOZOWANY</Th>
+              <Th w="110">ZYSK + KAUCJA DW</Th>
               <Th w="70">AKCJE</Th>
             </tr>
             <tr className="bg-[#0B1120] text-[#D4AF37] font-bold">
@@ -422,8 +429,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold">{fmtPLN(grandTotal.budzetZwolniony)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztPrognozowany)}</td>
+              <td className={`border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.prognozy)}</td>
+              <td className={`border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.zyskPlusDw >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.zyskPlusDw)}</td>
               <td className="border border-[#2A3B59] px-2 py-2"></td>
             </tr>
           </thead>
@@ -433,7 +441,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               return (
                 <React.Fragment key={st.id}>
                   <tr className="bg-[#3F5235]/40 text-white font-semibold">
-                    <td colSpan={14} className="border border-[#2A3B59] px-2 py-1.5">
+                    <td colSpan={15} className="border border-[#2A3B59] px-2 py-1.5">
                       <button onClick={() => toggleStage(st.id)} className="mr-2 text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
                         {stCollapsed ? '▶' : '▼'}
                       </button>
@@ -466,7 +474,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         ))}
                         {!posCollapsed && (
                           <tr className="bg-[#0B1120]/40">
-                            <td colSpan={15} className="border border-[#2A3B59] px-2 py-1">
+                            <td colSpan={16} className="border border-[#2A3B59] px-2 py-1">
                               <div className="flex gap-2 items-center pl-12">
                                 <span className="text-[10px] text-[#64748B]">+ Dodaj podpozycję:</span>
                                 <button onClick={() => addSlot(p.id, st.id, 'labor')} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-2 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`add-sub-lab-${p.id}`}>+ Robocizna</button>
@@ -541,15 +549,16 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
       <Td right>{fmtPLN(row.kaucjaDw)}</Td>
       <Td right>{fmtPLN(row.kosztBudowy)}</Td>
       <Td right className="font-bold">{fmtPLN(row.budzetZwolniony)}</Td>
-      <Td right>
-        <input type="number" step="0.01" value={edit.koszt_prognozowany ?? ''}
-          onChange={(e) => setEdit({ ...edit, koszt_prognozowany: e.target.value })}
-          onBlur={() => save({ koszt_prognozowany: edit.koszt_prognozowany === '' ? null : parseFloat(edit.koszt_prognozowany) || 0 })}
-          placeholder="wpisz" className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
-          data-testid={`pos-prognoz-${position.id}`} />
+      <Td right className="text-[#D4AF37] tabular-nums" data-testid={`pos-koszt-progn-${position.id}`}>
+        {fmtPLN(row.kosztPrognozowany)}
       </Td>
-      <Td right className={row.prognozy == null ? 'text-[#64748B]' : row.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
-        {row.prognozy == null ? '—' : fmtPLN(row.prognozy)}
+      <Td right className={row.prognozy >= 0 ? 'text-[#9DBC85] font-semibold' : 'text-[#FCA5A5] font-semibold'}
+          data-testid={`pos-zysk-${position.id}`}>
+        {fmtPLN(row.prognozy)}
+      </Td>
+      <Td right className={row.zyskPlusDw >= 0 ? 'text-[#9DBC85] font-semibold' : 'text-[#FCA5A5] font-semibold'}
+          data-testid={`pos-zysk-dw-${position.id}`}>
+        {fmtPLN(row.zyskPlusDw)}
       </Td>
       <Td right>
         <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`pos-del-${position.id}`}>
@@ -630,8 +639,13 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
       <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.budzetZwolniony * ratio)}</Td>
-      <Td right className="text-[#64748B] italic">wpisz</Td>
-      <Td right className="text-[#64748B]">—</Td>
+      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztPrognozowany * ratio)}</Td>
+      <Td right className={(posComputed.prognozy * ratio) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
+        {fmtPLN(posComputed.prognozy * ratio)}
+      </Td>
+      <Td right className={(posComputed.zyskPlusDw * ratio) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
+        {fmtPLN(posComputed.zyskPlusDw * ratio)}
+      </Td>
       <Td right>
         <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`sub-del-${sub.id}`}>
           <Trash2 className="h-3 w-3" />
