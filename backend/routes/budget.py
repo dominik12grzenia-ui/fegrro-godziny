@@ -23,6 +23,7 @@ from urllib.parse import quote
 
 from database import db
 from auth import get_current_admin
+from routes.finance import _compute_sprzedaz_data
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -456,42 +457,55 @@ async def get_allocations(
     ):
         p_total_budowa += float(z.get("netto") or 0)
 
-    # iter84: ratio Q liczone wg sprzedazy (przychod = faktury is_income=true), nie wg wynagrodzen
-    # Sprzedaz firmy w okresie (income invoices lub PZS kody)
-    sprzedaz_q_firma = {
-        "date": date_q,
-        "$or": [{"is_income": True}, {"kod_id": {"$in": income_codes}}],
-    }
-    sprzedaz_total_firma = 0.0
-    async for z in db.finance_zapisy.find(sprzedaz_q_firma, {"_id": 0, "netto": 1}):
-        sprzedaz_total_firma += float(z.get("netto") or 0)
-
-    # Sprzedaz tej budowy
+    # iter95e: Q_pool = suma z dwoch zrodel:
+    # 1) Kategoryzowane (KP/KBB/KSP/PPE) - alokacja IDENTYCZNA jak w zakladce Sprzedaz
+    #    (kp_aloc + kbb_aloc + ksp_uklady_aloc + ksp_aloc + podatek_aloc)
+    # 2) Reszta firmowych kosztow bez budowy (KSB bez budowy, kod_id=null, inne) -
+    #    rozdzielane pro-rata wg sprzedazy (sprzedaz_budowa / sprzedaz_total_firma)
+    sprzedaz_data = await _compute_sprzedaz_data(year, month, date_start=start, date_end=end)
+    sprzedaz_row = next((r for r in sprzedaz_data["rows"] if r["budowa_id"] == budowa_id), None)
+    q_categorized = 0.0
     sprzedaz_budowa = 0.0
-    sprzedaz_q_budowa = {
-        "budowa_id": budowa_id,
-        "date": date_q,
-        "$or": [{"is_income": True}, {"kod_id": {"$in": income_codes}}],
-    }
-    async for z in db.finance_zapisy.find(sprzedaz_q_budowa, {"_id": 0, "netto": 1}):
-        sprzedaz_budowa += float(z.get("netto") or 0)
-
-    # Firmowe koszty bez budowy w okresie (wykluczamy income)
-    # iter95: dodatkowo lapiemy budowa_id = "" (pusty string) jako brak budowy
-    unassigned_company = 0.0
+    if sprzedaz_row:
+        d = sprzedaz_row["details"]
+        q_categorized = (
+            d.get("kp_aloc", 0) + d.get("kbb_aloc", 0)
+            + d.get("ksp_uklady_aloc", 0) + d.get("ksp_aloc", 0)
+            + d.get("podatek_aloc", 0)
+        )
+        sprzedaz_budowa = d.get("sprzedaz", 0)
+    helper = sprzedaz_data.get("helper", {})
+    sprzedaz_total_firma = helper.get("total_pzs", 0)
+    # Reszta firmowych kosztow bez budowy w okresie - to co NIE jest pokryte przez sprzedaz buckets
+    # (np. KSB bez budowy, kod_id=null, inne nietypowe kategorie)
+    # Pokryte przez sprzedaz: KP (kategoria), KSP (kategoria - cala), PPE (kategoria - cala)
+    covered_categories = ["KP", "KSP", "PPE"]
+    leftover_unassigned = 0.0
     async for z in db.finance_zapisy.find(
         {
             "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
             "date": date_q,
             "is_income": {"$ne": True},
+            "$nor": [{"kod_category": {"$in": covered_categories}}],
             "kod_id": {"$nin": income_codes},
         },
         {"_id": 0, "netto": 1},
     ):
-        unassigned_company += float(z.get("netto") or 0)
-
+        leftover_unassigned += float(z.get("netto") or 0)
     sprzedaz_ratio = (sprzedaz_budowa / sprzedaz_total_firma) if sprzedaz_total_firma > 0 else 0.0
-    q_pool = round(unassigned_company * sprzedaz_ratio, 2)
+    q_leftover = leftover_unassigned * sprzedaz_ratio
+    q_pool = round(q_categorized + q_leftover, 2)
+    # unassigned_company = laczna pula firmowa nieprzypisana (dla bannera diagnostycznego)
+    unassigned_company = (
+        helper.get("kp_stawki_unassigned", 0)
+        + helper.get("ksp_stawki_unassigned", 0)
+        + helper.get("ksp_uklady_unassigned", 0)
+        + helper.get("total_ppe", 0)
+        + max(0, helper.get("total_ksp", 0)
+              - helper.get("ksp_stawki_unassigned", 0)
+              - helper.get("ksp_uklady_unassigned", 0))
+        + leftover_unassigned
+    )
 
     # iter80: znajdz slot 'labor' (R) per pozycja - tam alokujemy P i Q (robocizna)
     labor_slot_by_pos: dict = {}
@@ -580,6 +594,8 @@ async def get_allocations(
             "O": round(o_pool, 2),
             "P": round(p_pool, 2),
             "Q": round(q_pool, 2),
+            "q_categorized": round(q_categorized, 2),  # iter95e: KP/KSP/PPE alokacje (jak Sprzedaz)
+            "q_leftover": round(q_leftover, 2),  # iter95e: KSB bez budowy, kod=null etc.
             "p_total_budowa": round(p_total_budowa, 2),
             "sprzedaz_total_firma": round(sprzedaz_total_firma, 2),
             "sprzedaz_budowa": round(sprzedaz_budowa, 2),

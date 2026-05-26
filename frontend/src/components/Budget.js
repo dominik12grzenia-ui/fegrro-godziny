@@ -594,6 +594,12 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
             <span>% sprzedaży = <b>{((allocations.pools.sprzedaz_ratio || 0) * 100).toFixed(2)}%</b></span>
             <span>Koszty firmowe nieprzyp. (bez budowy) = <b className={allocations.pools.unassigned_company > 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.unassigned_company)} zł</b></span>
           </div>
+          {(allocations.pools.q_categorized != null || allocations.pools.q_leftover != null) && (
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px] text-[#94A3B8]">
+              <span>Q skład: kategoryzowane (KP/KSP/PPE pro-rata jak Sprzedaż) = <b className="text-[#CBD5E1]">{fmtNum(allocations.pools.q_categorized)} zł</b></span>
+              <span>+ pozostałe (KSB bez budowy, kod=brak) × %sprzedaży = <b className="text-[#CBD5E1]">{fmtNum(allocations.pools.q_leftover)} zł</b></span>
+            </div>
+          )}
           {allocations.pools.Q === 0 && (
             <div className="mt-1 text-[10px] text-[#FCA5A5]">
               ⚠ Q = 0 bo:

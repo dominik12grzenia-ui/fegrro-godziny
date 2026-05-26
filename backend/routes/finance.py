@@ -1078,55 +1078,38 @@ async def toggle_invoice_paid(
 
 
 # ============= SPRZEDAZ per budowa =============
-@router.get("/finance/sprzedaz")
-async def sprzedaz(
-    year: int = Query(...),
-    month: Optional[int] = Query(None, ge=1, le=12),
-    current_user: dict = Depends(get_current_admin),
-):
-    """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż.
+async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
+                                  date_start: Optional[str] = None,
+                                  date_end: Optional[str] = None) -> dict:
+    """Wewnetrzna funkcja - liczy tabele Sprzedaz per budowa.
+    Uzywana przez endpoint /finance/sprzedaz oraz przez budget allocations
+    (zeby zachowac IDENTYCZNA logike rozdziau kosztow nieprzypisanych).
 
-    Kolumny per budowa:
-    - E: Sprzedaz (PZS)
-    - F: KP (Wynagrodzenia z budowy) | G: udzial F w sumie | H: alokacja KP "stawkowych" pro-rata
-    - I: KBB | J: udzial I+F w (sumie I+F) | K: alokacja KSP_STAWKI pro-rata
-    - L: Marza brutto (E - I - F - H - K) - uwaga: kolumny K, H to alokacje pomocniczne
-    - M: %
-    - N: KSB | O: alokacja KSP_UKLADY pro-rata
-    - P: Marza I (L - N - O)
-    - Q: %
-    - R: KSP allokacja pro-rata wg G
-    - S: Marza II (P - R)
-    - T: %
-    - U: Podatek allokacja pro-rata wg E
-    - V: Marza III (S - U)
-    - W: %
-    - Y: Przychod (= E)
-    - Z: Koszt (= F+H+I+K+N+O+R+U)
-    - AA: Kaucja GIR (= 2% * PZS dla GIR-budowy)
-    - AB: Kaucja DW (= 2% * PZS dla DW-budowy)
-    - AC: Roznica = Y + Z (Z jest ujemny w Z+ logice; tu sumujemy)
-    - AD: Zysk %
-    - AE: Ilosc godzin
-    - AF: Przychod / godziny
-    - AG: Zysk / godziny
-    - AH: Koszt / godziny
-    - AI: Koszt zmienny (= F+H+I+K) - bez stałych
+    `date_start`/`date_end` - opcjonalne, format YYYY-MM-DD - nadpisuja filtr year/month
+    (uzywane przez budget gdy ograniczamy zakres do aktywnosci budowy).
+
+    Zwraca: {year, rows, totals, helper}
+    helper zawiera surowe pule i sumy uzywane do alokacji.
     """
     await ensure_kody_seed()
     budowy = await db.finance_budowy.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
-    zap_filter = {"year": year}
-    if month is not None:
-        zap_filter["month"] = month
+    if date_start and date_end:
+        # Filtr po zakresie dat (uzywane przez budget)
+        date_q = {"$gte": date_start, "$lte": date_end}
+        zap_filter = {"date": date_q}
+        inv_filter = {"date": date_q}
+    else:
+        zap_filter = {"year": year}
+        if month is not None:
+            zap_filter["month"] = month
+        inv_filter = {"year": year}
+        if month is not None:
+            inv_filter["month"] = month
     zapisy = await db.finance_zapisy.find(
         zap_filter,
         {"_id": 0, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1,
          "parent_invoice_id": 1},
     ).to_list(length=None)
-    # Faktury - reszty
-    inv_filter = {"year": year}
-    if month is not None:
-        inv_filter["month"] = month
     invoices = await db.finance_invoices.find(
         inv_filter,
         {"_id": 0, "id": 1, "netto": 1, "kod_id": 1, "kod_category": 1, "budowa_id": 1},
@@ -1150,7 +1133,6 @@ async def sprzedaz(
             "budowa_id": inv.get("budowa_id"),
         })
 
-    # Sumaryczne kwoty z zapisow
     def sum_by_kod(kod_id, budowa_id=None):
         return sum(
             float(z.get("netto") or 0)
@@ -1165,13 +1147,9 @@ async def sprzedaz(
             if z.get("kod_category") == category and (budowa_id is None or z.get("budowa_id") == budowa_id)
         )
 
-    # SUMA - rok (dla alokacji pro-rata)
     total_pzs = sum_by_cat("PZS")
     total_ksp = sum_by_cat("KSP")
     total_ppe = sum_by_cat("PPE")
-    # "Slawkowe" - alokowane pro-rata: traktujemy je jako te bez budowa_id (czyli nieprzypisane)
-    # UWAGA: alokujemy WSZYSTKIE zapisy KP bez budowy (KP_STAWKI, KP_WYNAGRODZENIA z auto-sync, itd.),
-    # zeby Leszek (i inni pracownicy bez przypisanej budowy) nie wyciekal z rentownosci per budowa.
     kp_stawki_unassigned = sum(
         float(z.get("netto") or 0)
         for z in zapisy
@@ -1187,7 +1165,6 @@ async def sprzedaz(
         for z in zapisy
         if z.get("kod_id") == "KSP_UKLADY" and not z.get("budowa_id")
     )
-    # SUMA KP/KBB przypisane do budow (suma F i I w Excelu - to suma F23 i I23)
     assigned_kp_sum = sum(
         float(z.get("netto") or 0)
         for z in zapisy
@@ -1209,44 +1186,33 @@ async def sprzedaz(
         F = sum_by_cat("KP", bid)
         Ib = sum_by_cat("KBB", bid)
         N = sum_by_cat("KSB", bid)
-        # Alokacje pro-rata
-        # G = F / suma F (udzial w KP)
         G = safe_div(F, assigned_kp_sum)
-        # H = (KP_STAWKI niezprzypisane) * G - alokacja pro-rata
         H = kp_stawki_unassigned * G
-        # J = (F+I) / (suma F+I)
         J = safe_div(F + Ib, assigned_kbb_sum + assigned_kp_sum)
-        # K = (KSP_STAWKI niezprzypisane) * J
         K = ksp_stawki_unassigned * J
-        # Marza brutto = E - koszty zmienne (F+H+I+K). Konwencja: koszty dodatnie.
         L_brutto = E - (F + H + Ib + K)
         M_pct = safe_div(L_brutto, E)
-        O_aloc = ksp_uklady_unassigned * G  # alokacja KSP_UKLADY pro-rata G
+        O_aloc = ksp_uklady_unassigned * G
         P_marza1 = L_brutto - N - O_aloc
         Q_pct = safe_div(P_marza1, E)
-        # R = KSP (oprocz KSP_STAWKI i KSP_UKLADY ktore juz alokowane) * G
         ksp_other = total_ksp - ksp_stawki_unassigned - ksp_uklady_unassigned
         R_aloc = ksp_other * G
         S_marza2 = P_marza1 - R_aloc
         T_pct = safe_div(S_marza2, E)
-        U_aloc = total_ppe * safe_div(E, total_pzs)  # podatek pro-rata po sprzedazy
+        U_aloc = total_ppe * safe_div(E, total_pzs)
         V_marza3 = S_marza2 - U_aloc
         W_pct = safe_div(V_marza3, E)
-
-        # Y-AI (widoczne od razu)
         Y = E
         Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
         AA = E * (float(b.get("kaucja_gir_pct") or 2.0) / 100.0) if b.get("is_gir") else 0.0
         AB = E * (float(b.get("kaucja_dw_pct") or 2.0) / 100.0) if b.get("is_dw") else 0.0
-        AC = Y - Z - AA - AB  # zysk netto (Roznica)
+        AC = Y - Z - AA - AB
         AD_pct = safe_div(AC, Y)
-        # godziny z aplikacji - z hour_entries dla tej budowy (sites z finance_budowa_id=bid)
-        # tu liczymy z finance_zapisy kod G:
         AE = sum_by_kod("G", bid)
         AF = safe_div(Y, AE) if AE > 0 else 0
         AG = safe_div(AC, AE) if AE > 0 else 0
         AH = safe_div(Z, AE) if AE > 0 else 0
-        AI = F + H + Ib + K  # koszty zmienne
+        AI = F + H + Ib + K
 
         rows.append({
             "nr": idx,
@@ -1255,7 +1221,6 @@ async def sprzedaz(
             "is_archived": b.get("is_archived", False),
             "is_gir": b.get("is_gir", False),
             "is_dw": b.get("is_dw", False),
-            # hidden detail columns (E-X)
             "details": {
                 "sprzedaz": round(E, 2),
                 "kp": round(F, 2),
@@ -1277,7 +1242,6 @@ async def sprzedaz(
                 "marza3": round(V_marza3, 2),
                 "marza3_pct": round(W_pct, 4),
             },
-            # visible columns (Y-AI)
             "visible": {
                 "przychod": round(Y, 2),
                 "koszt": round(Z, 2),
@@ -1293,18 +1257,16 @@ async def sprzedaz(
             },
         })
 
-    # Suma (footer)
     sum_visible = {k: round(sum(r["visible"][k] for r in rows), 2) for k in
-                    ["przychod", "koszt", "kaucja_gir", "kaucja_dw", "roznica", "godziny", "koszt_zmienny"]}
+                   ["przychod", "koszt", "kaucja_gir", "kaucja_dw", "roznica", "godziny", "koszt_zmienny"]}
     sum_visible["zysk_pct"] = round(safe_div(sum_visible["roznica"], sum_visible["przychod"]), 4)
     sum_visible["przychod_rg"] = round(safe_div(sum_visible["przychod"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
     sum_visible["zysk_rg"] = round(safe_div(sum_visible["roznica"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
     sum_visible["koszt_rg"] = round(safe_div(sum_visible["koszt"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
 
-    # Suma kolumn szczegolowych (details). Procenty liczone z sumarycznych wartosci, NIE jako srednia.
     sum_details_keys = ["sprzedaz", "kp", "kp_aloc", "kbb", "kbb_aloc", "marza_brutto",
-                         "ksb", "ksp_uklady_aloc", "marza1", "ksp_aloc", "marza2",
-                         "podatek_aloc", "marza3"]
+                        "ksb", "ksp_uklady_aloc", "marza1", "ksp_aloc", "marza2",
+                        "podatek_aloc", "marza3"]
     sum_details = {k: round(sum(r["details"][k] for r in rows), 2) for k in sum_details_keys}
     sd_sprzedaz = sum_details["sprzedaz"]
     sum_details["marza_brutto_pct"] = round(safe_div(sum_details["marza_brutto"], sd_sprzedaz), 4)
@@ -1315,11 +1277,29 @@ async def sprzedaz(
     return {
         "year": year,
         "rows": rows,
-        "totals": {
-            "visible": sum_visible,
-            "details": sum_details,
+        "totals": {"visible": sum_visible, "details": sum_details},
+        "helper": {
+            "total_pzs": total_pzs,
+            "total_ksp": total_ksp,
+            "total_ppe": total_ppe,
+            "kp_stawki_unassigned": kp_stawki_unassigned,
+            "ksp_stawki_unassigned": ksp_stawki_unassigned,
+            "ksp_uklady_unassigned": ksp_uklady_unassigned,
+            "assigned_kp_sum": assigned_kp_sum,
+            "assigned_kbb_sum": assigned_kbb_sum,
         },
     }
+
+
+@router.get("/finance/sprzedaz")
+async def sprzedaz(
+    year: int = Query(...),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż."""
+    data = await _compute_sprzedaz_data(year, month)
+    return {"year": data["year"], "rows": data["rows"], "totals": data["totals"]}
 
 
 

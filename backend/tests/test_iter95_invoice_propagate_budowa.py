@@ -56,7 +56,7 @@ def _seed_invoice_with_positions(budowa_id_init=None):
                 "year": 2026, "month": 2,
                 "kontrahent": "TEST-PROPAGATE",
                 "netto": netto, "brutto": netto * 1.23,
-                "kod_id": None, "kod_category": None,
+                "kod_id": "PZS", "kod_category": "PZS",  # iter95e: PZS dla sprzedaz
                 "budowa_id": None,  # KLUCZOWE - pozycje bez budowa_id
                 "is_income": True,
                 "parent_invoice_id": inv_id,
