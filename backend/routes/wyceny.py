@@ -59,6 +59,8 @@ class PositionCreate(BaseModel):
     order: int = 0
     # iter95u: ilosc wpisywana recznie na poziomie pozycji glownej
     quantity: Optional[float] = None
+    # iter95x: jednostka miary (mb/m2/m3/szt/...)
+    unit: Optional[str] = None
     # iter95q: pola dla widoku Excel-style wyceny
     kaucja_gir_pct: Optional[float] = None    # %, domyslnie 2.0
     kaucja_dw_pct: Optional[float] = None     # %, domyslnie 2.0
@@ -70,6 +72,7 @@ class PositionUpdate(BaseModel):
     name: Optional[str] = None
     order: Optional[int] = None
     quantity: Optional[float] = None
+    unit: Optional[str] = None
     kaucja_gir_pct: Optional[float] = None
     kaucja_dw_pct: Optional[float] = None
     koszt_budowy_pct: Optional[float] = None
@@ -317,6 +320,7 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
         "id": pid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "name": payload.name, "order": payload.order,
         "quantity": payload.quantity,
+        "unit": payload.unit,
         "kaucja_gir_pct": payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0,
         "kaucja_dw_pct": payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0,
         "koszt_budowy_pct": payload.koszt_budowy_pct if payload.koszt_budowy_pct is not None else 2.0,

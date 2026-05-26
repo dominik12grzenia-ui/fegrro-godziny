@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../context/AuthContext';
 
@@ -20,6 +20,9 @@ const fmtPLN = (v) => new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2,
 
 const TYPE_LABEL = { materials: 'Materiał', labor: 'Robocizna', equipment: 'Sprzęt' };
 const TYPE_COLOR = { materials: '#CBD5E1', labor: '#9DBC85', equipment: '#D4AF37' };
+
+// iter95x: dostepne jednostki miary
+const UNITS = ['', 'mb', 'm²', 'm³', 'szt', 'kg', 't', 'godz', 'dzień', 'm-c', 'kpl'];
 
 export const Wyceny = () => {
   const [tab, setTab] = useState('list');
@@ -410,6 +413,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <Th w="110" tip="Typ pozycji: główna lub podpozycja (materiał / robocizna / sprzęt)">RODZAJ</Th>
               <Th w="240" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
               <Th w="80" tip="W pozycji głównej: wpisywane RĘCZNIE (kontraktowa ilość, np. m²). W podpozycjach: ilość zużytego materiału / godzin / m-go.">ILOŚĆ</Th>
+              <Th w="70" tip="Jednostka miary (mb / m² / m³ / szt / kg / godz / dzień ...)">JEDN.</Th>
               <Th w="70" tip="W pozycji głównej: BUDŻET ÷ ILOŚĆ (cena za jednostkę kontraktową). W podpozycji: cena jednostkowa netto.">CENA</Th>
               <Th w="80" tip="Narzut na zapas materiału (%) — % doliczany do ceny zakupu na pokrycie strat/odpadów. Wpisywany ręcznie per podpozycja, lub z domyślnego globalnego.">NARZUT %</Th>
               <Th w="80" tip="Marża materiałowa (%) — nasz zysk procentowy. Wpisywana ręcznie per podpozycja, lub z domyślnego globalnego.">MARŻA %</Th>
@@ -428,6 +432,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#2A3B59] px-2 py-2"></td>
               <td className="border border-[#2A3B59] px-2 py-2 text-[#CBD5E1]">Wszystkie pozycje wyceny</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums text-[#94A3B8]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
@@ -448,7 +453,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               return (
                 <React.Fragment key={st.id}>
                   <tr className="bg-[#3F5235]/40 text-white font-semibold">
-                    <td colSpan={15} className="border border-[#2A3B59] px-2 py-1.5">
+                    <td colSpan={16} className="border border-[#2A3B59] px-2 py-1.5">
                       <button onClick={() => toggleStage(st.id)} className="mr-2 text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
                         {stCollapsed ? '▶' : '▼'}
                       </button>
@@ -481,7 +486,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         ))}
                         {!posCollapsed && (
                           <tr className="bg-[#0B1120]/40">
-                            <td colSpan={16} className="border border-[#2A3B59] px-2 py-1">
+                            <td colSpan={17} className="border border-[#2A3B59] px-2 py-1">
                               <div className="flex gap-2 items-center pl-12">
                                 <span className="text-[10px] text-[#64748B]">+ Dodaj podpozycję:</span>
                                 <button onClick={() => addSlot(p.id, st.id, 'labor')} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-2 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`add-sub-lab-${p.id}`}>+ Robocizna</button>
@@ -556,6 +561,14 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
           className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-right tabular-nums text-[#D4AF37] font-bold px-2 outline-none focus:border-[#D4AF37] focus:bg-[#0B1120] hover:border-[#9DBC85]"
           data-testid={`pos-qty-${position.id}`} />
       </Td>
+      <Td>
+        <select value={edit.unit || ''}
+          onChange={(e) => { const v = e.target.value; setEdit({ ...edit, unit: v }); save({ unit: v || null }); }}
+          className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-center text-[#CBD5E1] px-1 outline-none focus:border-[#D4AF37]"
+          data-testid={`pos-unit-${position.id}`}>
+          {UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+        </select>
+      </Td>
       <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
       <Td right className="text-[#64748B]">—</Td>
       <Td right className="text-[#64748B]">—</Td>
@@ -584,24 +597,156 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
   );
 };
 
+// iter95x: modal do wyboru pozycji z cennika (per kategoria materials/labor/equipment)
+const PriceBookPicker = ({ category, onPick, onClose }) => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState('');
+
+  useEffect(() => {
+    setLoading(true);
+    api.get('/wyceny/cennik', { params: { category } })
+      .then((r) => setRows(r.data?.rows || []))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+      .finally(() => setLoading(false));
+  }, [category]);
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    if (!s) return rows;
+    return rows.filter((r) =>
+      (r.name || '').toLowerCase().includes(s) ||
+      (r.sub_category || '').toLowerCase().includes(s) ||
+      (r.oferent || '').toLowerCase().includes(s) ||
+      (r.wynajmujacy || '').toLowerCase().includes(s)
+    );
+  }, [rows, q]);
+
+  // Wybor wlasciwej ceny do podstawienia
+  const getPrice = (it) => {
+    if (category === 'labor') return it.price_m2 || it.price_m3 || it.unit_price_netto || 0;
+    if (category === 'equipment') return it.price_hour || it.price_day || it.price_month || it.unit_price_netto || 0;
+    return it.unit_price_netto || 0;
+  };
+  const getExtraInfo = (it) => {
+    if (category === 'materials') {
+      const parts = [];
+      if (it.sub_category) parts.push(it.sub_category);
+      if (it.oferent) parts.push(it.oferent);
+      if (it.opakowanie && it.pkg_qty) parts.push(`${it.opakowanie} ${it.pkg_qty}${it.pkg_unit || ''}`);
+      return parts.join(' • ');
+    }
+    if (category === 'labor') {
+      const parts = [];
+      if (it.price_m2) parts.push(`m²: ${fmtPLN(it.price_m2)}`);
+      if (it.price_m3) parts.push(`m³: ${fmtPLN(it.price_m3)}`);
+      return parts.join(' • ');
+    }
+    if (category === 'equipment') {
+      const parts = [];
+      if (it.wynajmujacy) parts.push(it.wynajmujacy);
+      if (it.price_hour) parts.push(`h: ${fmtPLN(it.price_hour)}`);
+      if (it.price_day) parts.push(`d: ${fmtPLN(it.price_day)}`);
+      if (it.price_month) parts.push(`m-c: ${fmtPLN(it.price_month)}`);
+      return parts.join(' • ');
+    }
+    return '';
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl"
+        data-testid={`price-picker-${category}`}>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
+            <BookOpen className="h-5 w-5" /> Cennik: {TYPE_LABEL[category] || category}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="flex items-center gap-2 mb-2">
+          <Search className="h-4 w-4 text-[#94A3B8]" />
+          <Input value={q} onChange={(e) => setQ(e.target.value)}
+            placeholder="Szukaj po nazwie, kategorii, oferencie..."
+            className="bg-[#0B1120] border-[#2A3B59] flex-1"
+            data-testid="picker-search" autoFocus />
+        </div>
+        <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
+          {loading ? (
+            <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-[#94A3B8] p-4 text-center text-sm">
+              {rows.length === 0 ? 'Brak pozycji w cenniku. Dodaj je w zakładce „Ceny ' + (TYPE_LABEL[category] || '').toLowerCase() + '".' : 'Brak wyników.'}
+            </div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-[#0B1120] sticky top-0">
+                <tr className="text-[#94A3B8] uppercase text-[10px]">
+                  <th className="text-left px-2 py-1.5">Nazwa</th>
+                  <th className="text-left px-2 py-1.5">Info</th>
+                  <th className="text-center px-2 py-1.5">Jedn.</th>
+                  <th className="text-right px-2 py-1.5">Cena</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((it) => (
+                  <tr key={it.id} onClick={() => onPick({ ...it, unit_price_netto: getPrice(it) })}
+                    className="hover:bg-[#3F5235]/30 cursor-pointer border-t border-[#2A3B59]"
+                    data-testid={`picker-row-${it.id}`}>
+                    <td className="px-2 py-1.5 text-white">{it.name}</td>
+                    <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
+                    <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{it.unit || '—'}</td>
+                    <td className="px-2 py-1.5 text-right text-[#D4AF37] tabular-nums font-semibold">
+                      {fmtPLN(getPrice(it))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+            data-testid="picker-close">Anuluj</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
+  const [pickerOpen, setPickerOpen] = useState(false);
   useEffect(() => { setEdit(sub); }, [sub]);
 
-  const save = async () => {
+  const save = async (override = null) => {
+    const src = override || edit;
     const payload = {
-      name: edit.name || '',
-      quantity: parseFloat(edit.quantity) || 0,
-      unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
-      narzut_zapas_pct: edit.narzut_zapas_pct === '' || edit.narzut_zapas_pct == null
-        ? null : parseFloat(edit.narzut_zapas_pct) || 0,
-      marza_pct: edit.marza_pct === '' || edit.marza_pct == null
-        ? null : parseFloat(edit.marza_pct) || 0,
+      name: src.name || '',
+      quantity: parseFloat(src.quantity) || 0,
+      unit: src.unit || null,
+      unit_price_netto: parseFloat(src.unit_price_netto) || 0,
+      narzut_zapas_pct: src.narzut_zapas_pct === '' || src.narzut_zapas_pct == null
+        ? null : parseFloat(src.narzut_zapas_pct) || 0,
+      marza_pct: src.marza_pct === '' || src.marza_pct == null
+        ? null : parseFloat(src.marza_pct) || 0,
     };
     try {
       await api.patch(`/wyceny/lines/${sub.id}`, payload);
       onLocalUpdate(sub.id, payload);
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  // iter95x: po wyborze pozycji z cennika - wypelnij nazwe, cene, jednostke
+  const pickFromBook = (item) => {
+    const next = {
+      ...edit,
+      name: item.name,
+      unit: item.unit || edit.unit,
+      unit_price_netto: item.unit_price_netto || 0,
+    };
+    setEdit(next);
+    save(next);
+    setPickerOpen(false);
+    toast.success(`Wybrano: ${item.name}`);
   };
 
   const r = computeSubRow(edit, defaults);
@@ -620,32 +765,49 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
       </Td>
       <Td>
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={save} className={`${inputCls} text-[#CBD5E1] pl-3`}
+          onBlur={() => save()} className={`${inputCls} text-[#CBD5E1] pl-3`}
           placeholder="↳ nazwa" data-testid={`sub-name-${sub.id}`} />
       </Td>
       <Td right>
         <input type="number" step="0.01" value={edit.quantity ?? ''}
           onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
-          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+          onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
           data-testid={`sub-qty-${sub.id}`} />
       </Td>
+      <Td>
+        <select value={edit.unit || ''}
+          onChange={(e) => { const v = e.target.value; const next = { ...edit, unit: v }; setEdit(next); save(next); }}
+          className={`${inputCls} text-center text-[#CBD5E1]`}
+          data-testid={`sub-unit-${sub.id}`}>
+          {UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+        </select>
+      </Td>
       <Td right>
-        <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
-          onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
-          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
-          data-testid={`sub-price-${sub.id}`} />
+        <div className="flex items-center gap-1">
+          <button onClick={() => setPickerOpen(true)} title="Wybierz z cennika"
+            className="text-[#D4AF37] hover:text-[#FCD34D]" data-testid={`sub-book-${sub.id}`}>
+            <BookOpen className="h-3.5 w-3.5" />
+          </button>
+          <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
+            onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
+            onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+            data-testid={`sub-price-${sub.id}`} />
+        </div>
+        {pickerOpen && (
+          <PriceBookPicker category={sub.type} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />
+        )}
       </Td>
       <Td right>
         <input type="number" step="0.1" min="0" value={edit.narzut_zapas_pct ?? ''}
           onChange={(e) => setEdit({ ...edit, narzut_zapas_pct: e.target.value })}
-          onBlur={save} placeholder={narzutPlaceholder}
+          onBlur={() => save()} placeholder={narzutPlaceholder}
           className={`${inputCls} text-right tabular-nums text-[#9DBC85]`}
           data-testid={`sub-narzut-${sub.id}`} />
       </Td>
       <Td right>
         <input type="number" step="0.1" min="0" value={edit.marza_pct ?? ''}
           onChange={(e) => setEdit({ ...edit, marza_pct: e.target.value })}
-          onBlur={save} placeholder={marzaPlaceholder}
+          onBlur={() => save()} placeholder={marzaPlaceholder}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
           data-testid={`sub-marza-${sub.id}`} />
       </Td>
@@ -1338,43 +1500,6 @@ const PriceBookAddModal = ({ category, onClose, onSaved }) => {
         <DialogFooter>
           <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
           <Button onClick={save} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="pricebook-modal-save">Zapisz</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
-
-const PriceBookPicker = ({ category, onPick, onClose }) => {
-  const [rows, setRows] = useState([]);
-  const [search, setSearch] = useState('');
-  useEffect(() => {
-    const params = { category };
-    if (search) params.q = search;
-    api.get('/wyceny/cennik', { params }).then((r) => setRows(r.data?.rows || [])).catch(() => setRows([]));
-  }, [category, search]);
-  return (
-    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="pricebook-picker">
-        <DialogHeader>
-          <DialogTitle>Wybierz z cennika ({TYPE_LABEL[category]})</DialogTitle>
-        </DialogHeader>
-        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..."
-          className="bg-[#0B1120] border-[#2A3B59] mb-2" autoFocus />
-        <div className="max-h-80 overflow-y-auto">
-          {rows.length === 0 ? <div className="text-[#94A3B8] text-sm py-4 text-center">Brak. Dodaj pozycje w zakładce „Ceny..."</div>
-            : rows.map((it) => (
-              <button key={it.id} onClick={() => onPick(it)}
-                className="block w-full text-left p-2 hover:bg-[#0B1120]/50 border-b border-[#2A3B59]/40"
-                data-testid={`picker-item-${it.id}`}>
-                <div className="text-[#CBD5E1] font-medium">{it.name}</div>
-                <div className="text-[10px] text-[#94A3B8]">
-                  {it.unit || '—'} · <span className="text-[#D4AF37]">{fmtPLN(it.unit_price_netto)} zł</span>
-                </div>
-              </button>
-            ))}
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
