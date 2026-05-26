@@ -479,6 +479,7 @@ async def get_allocations(
 
     # iter80: znajdz slot 'labor' (R) per pozycja - tam alokujemy P i Q (robocizna)
     labor_slot_by_pos: dict = {}
+    plan_per_pos: dict = {}  # iter94: dla fallback proporcjonalnego do planu G
     if position_ids:
         async for ln in db.budget_lines.find(
             {"budowa_id": budowa_id, "type": "labor", "parent_id": None,
@@ -486,14 +487,31 @@ async def get_allocations(
             {"_id": 0, "id": 1, "position_id": 1},
         ):
             labor_slot_by_pos[ln["position_id"]] = ln["id"]
+        # iter94: zbierz plan_netto_computed per pozycja (tylko liscie - bez podwojnego liczenia)
+        all_lines = await db.budget_lines.find(
+            {"budowa_id": budowa_id, "position_id": {"$in": list(position_ids)},
+             "is_income": {"$ne": True}},
+            {"_id": 0, "id": 1, "position_id": 1, "parent_id": 1,
+             "plan_netto_computed": 1, "quantity": 1, "unit_price_netto": 1, "plan_netto": 1},
+        ).to_list(length=5000)
+        children_parents = {ln.get("parent_id") for ln in all_lines if ln.get("parent_id")}
+        for ln in all_lines:
+            if ln.get("id") in children_parents:
+                continue
+            plan = _compute_plan(ln)
+            plan_per_pos[ln["position_id"]] = plan_per_pos.get(ln["position_id"], 0.0) + plan
+    total_plan = sum(plan_per_pos.values())
 
     # Dystrybucja
     # iter80: O alokowane na poziomie POZYCJI; P i Q alokowane na poziomie SLOTU labor (R)
+    # iter94: gdy brak protokolu, automatyczna dystrybucja proporcjonalna do planu G.
+    #         equal_distribution=true wymusza dystrybucje rowna (override).
     position_allocations: dict = {}  # {position_id: {O, progress_pct, share}}
     slot_allocations: dict = {}  # {labor_slot_id: {P, Q}}
-    p_undistributed_no_labor = 0.0  # P pozycji bez slotu R
+    p_undistributed_no_labor = 0.0
     q_undistributed_no_labor = 0.0
     distributed = total_progress > 0
+    fallback_mode = None  # None | 'plan' | 'equal'
     if distributed:
         for pos_id, pct in progress_by_pos.items():
             share = pct / total_progress
@@ -510,18 +528,26 @@ async def get_allocations(
             else:
                 p_undistributed_no_labor += p_amt
                 q_undistributed_no_labor += q_amt
-    elif equal_distribution and position_ids:
-        # Rownomierna dystrybucja gdy brak progresu (na zyczenie uzytkownika)
+    elif position_ids:
+        # iter94: dwa tryby fallback:
+        #   (A) equal_distribution=True -> rowna dystrybucja (override)
+        #   (B) total_plan > 0 -> proporcjonalna do planu G pozycji (auto)
+        #   (C) inaczej rowna (gdy plan = 0 dla wszystkich)
         n = len(position_ids)
-        share = 1.0 / n
+        use_equal = equal_distribution or total_plan <= 0
+        fallback_mode = 'equal' if use_equal else 'plan'
         for pos_id in position_ids:
+            if use_equal:
+                share = 1.0 / n
+            else:
+                share = (plan_per_pos.get(pos_id, 0.0) / total_plan) if total_plan > 0 else (1.0 / n)
             position_allocations[pos_id] = {
-                "O": round(o_pool / n, 2),
+                "O": round(o_pool * share, 2),
                 "progress_pct": 0.0,
                 "share": round(share, 4),
             }
-            p_amt = round(p_pool / n, 2)
-            q_amt = round(q_pool / n, 2)
+            p_amt = round(p_pool * share, 2)
+            q_amt = round(q_pool * share, 2)
             labor_slot_id = labor_slot_by_pos.get(pos_id)
             if labor_slot_id:
                 slot_allocations[labor_slot_id] = {"P": p_amt, "Q": q_amt}
@@ -553,6 +579,7 @@ async def get_allocations(
         "total_progress_pct": round(total_progress, 2),
         "positions_with_progress": len(position_allocations),
         "distributed": distributed,
+        "fallback_mode": fallback_mode,  # iter94: 'plan' | 'equal' | None
     }
 
 

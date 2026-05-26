@@ -123,7 +123,7 @@ def test_allocations_month(H, setup):
 
 
 def test_allocations_no_progress(H, setup):
-    """Brak progresu → distributed=False, positions=empty, pools nadal liczone."""
+    """Brak progresu -> auto fallback do dystrybucji proporcjonalnej do planu (iter94)."""
     # styczen - brak progresu wpisanego
     r = requests.get(f"{API}/budget/{setup['b1']}/allocations?year=2026&month=1", headers=H)
     assert r.status_code == 200
@@ -131,8 +131,10 @@ def test_allocations_no_progress(H, setup):
     # Pule O/P/Q dla stycznia = 0 (brak zapisow w styczniu)
     assert data["pools"]["O"] == 0.0
     assert data["pools"]["P"] == 0.0
-    assert data["distributed"] is False
-    assert data["positions"] == {}
+    # iter94: distributed=True bo fallback do planu, positions = {p1, p2}
+    assert data["distributed"] is True
+    assert data["fallback_mode"] == "plan"
+    assert len(data["positions"]) == 2
 
 
 def test_allocations_year(H, setup):

@@ -534,29 +534,35 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           </Button>
         </div>
       </CardHeader>
-      {/* iter79: Banner gdy sa pule O/P/Q ale brak progresu (niedystrybuowane) */}
-      {allocations && !allocations.distributed && (
+      {/* iter94: Banner gdy fallback dystrybucji (brak protokolu) - dystrybucja proporcjonalna do planu lub rowna */}
+      {allocations?.distributed && allocations.fallback_mode && (
         (allocations.pools?.O > 0 || allocations.pools?.P > 0 || allocations.pools?.Q > 0) && (
-          <div className="mx-4 mt-2 mb-1 rounded p-3 border border-[#D4AF37]/60 bg-[#D4AF37]/10" data-testid="alloc-undistributed-banner">
+          <div className="mx-4 mt-2 mb-1 rounded p-3 border border-[#D4AF37]/60 bg-[#D4AF37]/10" data-testid="alloc-fallback-banner">
             <div className="flex items-start justify-between gap-3 flex-wrap">
-              <div>
+              <div className="flex-1">
                 <div className="text-[#D4AF37] font-bold text-sm mb-1">
-                  ⚠ Kwoty nie zostały rozpisane na pozycje
+                  {allocations.fallback_mode === 'plan'
+                    ? 'ℹ Auto-dystrybucja proporcjonalna do BUDŻETU pozycji'
+                    : 'ℹ Dystrybucja równa na wszystkie pozycje'}
                 </div>
                 <div className="text-[#FCE99A] text-xs">
-                  Brak wpisów % zaawansowania pozycji w wybranym okresie. Pule:
+                  Brak wpisów % zaawansowania w wybranym okresie. Pule:
                   {' '}O = <b>{fmtNum(allocations.pools.O)} zł</b>,
                   {' '}P = <b>{fmtNum(allocations.pools.P)} zł</b>,
-                  {' '}Q = <b>{fmtNum(allocations.pools.Q)} zł</b>.
-                  {' '}Wpisz progresy w zakładce „% Protokół" lub rozłóż równo na wszystkie pozycje.
+                  {' '}Q = <b>{fmtNum(allocations.pools.Q)} zł</b>
+                  {' '}{allocations.fallback_mode === 'plan'
+                    ? '— rozdzielone proporcjonalnie do wartości planu G pozycji. Wpisz progresy w zakładce „% Protokół" aby użyć dystrybucji wg zaawansowania.'
+                    : '— wszystkie pozycje mają plan=0, więc rozdzielone równo.'}
                 </div>
               </div>
-              <Button size="sm"
-                onClick={() => setEqualDistribution && setEqualDistribution(true)}
-                className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-7 text-xs"
-                data-testid="alloc-equal-distribute-btn">
-                Rozłóż równo
-              </Button>
+              {allocations.fallback_mode === 'plan' && (
+                <Button size="sm"
+                  onClick={() => setEqualDistribution && setEqualDistribution(!equalDistribution)}
+                  className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-7 text-xs"
+                  data-testid="alloc-equal-distribute-btn">
+                  {equalDistribution ? 'Wg planu (G)' : 'Rozłóż równo'}
+                </Button>
+              )}
             </div>
           </div>
         )
@@ -568,12 +574,6 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
           {' '}<b>{fmtNum(allocations.undistributed_labor.P)} zł</b> (P) +
           {' '}<b>{fmtNum(allocations.undistributed_labor.Q)} zł</b> (Q)
           {' '}nie zostało przypisane do żadnej komórki (pozycje bez robocizny: {allocations.undistributed_labor.positions_without_labor?.length || 0}). Dodaj slot „robocizna" do tych pozycji aby koszty wynagrodzeń się rozpisały.
-        </div>
-      )}
-      {allocations && allocations.distributed && equalDistribution && (
-        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#5F7552]/60 bg-[#5F7552]/15 text-[#A7D29E] text-xs flex items-center justify-between" data-testid="alloc-equal-active">
-          <span>ℹ Pule O/P/Q rozdzielone <b>równo</b> na pozycje (tryb awaryjny, brak progresów w okresie).</span>
-          <button onClick={() => setEqualDistribution && setEqualDistribution(false)} className="text-[#A7D29E] underline hover:text-white" data-testid="alloc-equal-disable-btn">wyłącz</button>
         </div>
       )}
       <CardContent className="p-0">
