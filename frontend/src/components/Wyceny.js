@@ -165,11 +165,55 @@ const WycenyList = ({ onOpen }) => {
   );
 };
 
-// =============== EDYTOR WYCENY (stages -> positions -> R/M/S) ===============
+// =============== EDYTOR WYCENY (Excel-style: 13 kolumn jak budżet) ===============
+// Kolumny: KOD, RODZAJ, NAZWA, ILOŚĆ, CENA, BUDŻET, KAUCJA GIR, KAUCJA DW,
+//          KOSZT BUDOWY, BUDŻET ZWOLNIONY, KOSZT PROGNOZOWANY, PROGNOZY (ZYSK), AKCJE
+const SUB_TYPE_LABEL = { labor: 'robocizna', materials: 'Materiał', equipment: 'Sprzęt' };
+const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipment: '#7AB3D6' };
+
+const computePosRow = (p) => {
+  const subs = p.slots || [];
+  // ILOŚĆ = max z subs (typowo wszystkie maja te sama jednostke)
+  // BUDŻET = suma qty * cena z subs (lub pozycji jezeli brak subs)
+  let qty = 0, budzet = 0, cena = 0;
+  if (subs.length > 0) {
+    qty = Math.max(...subs.map((s) => parseFloat(s.quantity) || 0));
+    budzet = subs.reduce((acc, s) => acc + (parseFloat(s.quantity) || 0) * (parseFloat(s.unit_price_netto) || 0), 0);
+    cena = qty > 0 ? budzet / qty : 0;
+  }
+  const girPct = parseFloat(p.kaucja_gir_pct ?? 2);
+  const dwPct = parseFloat(p.kaucja_dw_pct ?? 2);
+  const kosztPct = parseFloat(p.koszt_budowy_pct ?? 2);
+  const kaucjaGir = budzet * girPct / 100;
+  const kaucjaDw = budzet * dwPct / 100;
+  const kosztBudowy = budzet * kosztPct / 100;
+  const budzetZwolniony = budzet - kaucjaGir - kaucjaDw - kosztBudowy;
+  const kosztPrognozowany = parseFloat(p.koszt_prognozowany ?? 0) || 0;
+  const prognozy = kosztPrognozowany > 0 ? (budzetZwolniony - kosztPrognozowany) : null;
+  return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy };
+};
+
+const computeSubRow = (sub) => {
+  const qty = parseFloat(sub.quantity) || 0;
+  const cena = parseFloat(sub.unit_price_netto) || 0;
+  const budzet = qty * cena;
+  // Subpozycje takze sa procentowane wzgledem pozycji nadrzednej (z domyslnym 2%)
+  // Ale w UI z screenshota - dla subs widac kaucje i koszty proporcjonalnie do budzet sub
+  return { qty, cena, budzet };
+};
+
+const Th = ({ children, w }) => (
+  <th className="bg-[#3F5235]/80 text-white font-semibold text-[10px] uppercase tracking-wide
+                  border border-[#2A3B59] px-2 py-2 text-center align-middle" style={w ? { minWidth: w } : null}>
+    {children}
+  </th>
+);
+
 const WycenaEditor = ({ wycenaId, onBack }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(() => new Set());
+  const [collapsedStages, setCollapsedStages] = useState(() => new Set());
+  const [collapsedPos, setCollapsedPos] = useState(() => new Set());
   const [newStageName, setNewStageName] = useState('');
 
   const fetchData = useCallback(() => {
@@ -182,53 +226,59 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // iter95p: lokalna aktualizacja konkretnej linii bez refetch calego template (zachowuje focus)
+  // Lokalne aktualizacje bez fetchu (utrzymanie focusu)
   const updateLineLocal = useCallback((lineId, patch) => {
     setData((prev) => {
       if (!prev) return prev;
-      const stages = (prev.stages || []).map((st) => ({
-        ...st,
-        positions: (st.positions || []).map((p) => ({
-          ...p,
-          slots: (p.slots || []).map((s) => s.id === lineId ? { ...s, ...patch } : s),
+      return {
+        ...prev,
+        stages: (prev.stages || []).map((st) => ({
+          ...st,
+          positions: (st.positions || []).map((p) => ({
+            ...p,
+            slots: (p.slots || []).map((s) => s.id === lineId ? { ...s, ...patch } : s),
+          })),
         })),
-      }));
-      return { ...prev, stages };
+      };
+    });
+  }, []);
+  const updatePosLocal = useCallback((posId, patch) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        stages: (prev.stages || []).map((st) => ({
+          ...st,
+          positions: (st.positions || []).map((p) => p.id === posId ? { ...p, ...patch } : p),
+        })),
+      };
     });
   }, []);
 
-  const totalNetto = useMemo(() => {
-    if (!data) return 0;
-    let total = 0;
-    (data.stages || []).forEach((s) => {
-      (s.positions || []).forEach((p) => {
-        (p.slots || []).forEach((slot) => {
-          if (slot.children?.length > 0) {
-            slot.children.forEach((ch) => { total += (ch.quantity || 0) * (ch.unit_price_netto || 0); });
-          } else {
-            total += (slot.quantity || 0) * (slot.unit_price_netto || 0);
-          }
-        });
-      });
-    });
-    return total;
+  const grandTotal = useMemo(() => {
+    if (!data) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0 };
+    let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0;
+    (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      const r = computePosRow(p);
+      qty += r.qty; budzet += r.budzet;
+      kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
+      kosztBudowy += r.kosztBudowy; budzetZwolniony += r.budzetZwolniony;
+    }));
+    return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony };
   }, [data]);
 
   const addStage = async () => {
     if (!newStageName.trim()) return;
     try {
       await api.post('/wyceny/stages', { wycena_id: wycenaId, name: newStageName.trim(), order: (data?.stages?.length || 0) });
-      setNewStageName('');
-      fetchData();
+      setNewStageName(''); fetchData();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
-
   const delStage = async (id) => {
-    if (!window.confirm('Usunąć etap? Wszystkie pozycje zostaną usunięte.')) return;
+    if (!window.confirm('Usunąć etap?')) return;
     try { await api.delete(`/wyceny/stages/${id}`); fetchData(); }
     catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
-
   const addPosition = async (stageId) => {
     const name = window.prompt('Nazwa pozycji:');
     if (!name) return;
@@ -237,20 +287,28 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       fetchData();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
-
   const delPosition = async (id) => {
-    if (!window.confirm('Usunąć pozycję? Wszystkie podpozycje zostaną usunięte.')) return;
+    if (!window.confirm('Usunąć pozycję?')) return;
     try { await api.delete(`/wyceny/positions/${id}`); fetchData(); }
     catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
-
-  const toggleExpand = (id) => {
-    setExpanded((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
+  const addSlot = async (posId, stageId, type) => {
+    try {
+      await api.post('/wyceny/lines', {
+        wycena_id: wycenaId, stage_id: stageId, position_id: posId,
+        type, name: SUB_TYPE_LABEL[type], quantity: 0, unit_price_netto: 0, order: 0,
+      });
+      fetchData();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
+  const delSlot = async (id) => {
+    if (!window.confirm('Usunąć podpozycję?')) return;
+    try { await api.delete(`/wyceny/lines/${id}`); fetchData(); }
+    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const toggleStage = (id) => { setCollapsedStages((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
+  const togglePos = (id) => { setCollapsedPos((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
   if (loading) return <div className="text-[#94A3B8]">Ładuję wycenę...</div>;
   if (!data) return null;
@@ -264,36 +322,114 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         </Button>
         <div className="flex-1">
           <div className="text-white text-lg font-semibold">{w.name}</div>
-          {w.notes && <div className="text-xs text-[#94A3B8]">{w.notes}</div>}
         </div>
         <div className="text-right">
-          <div className="text-[10px] text-[#94A3B8] uppercase">Suma netto</div>
+          <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
           <div className="text-[#D4AF37] text-xl font-bold tabular-nums" data-testid="wycena-total">
-            {fmtPLN(totalNetto)} zł
+            {fmtPLN(grandTotal.budzet)} zł
           </div>
         </div>
       </div>
 
-      {/* Lista etapow */}
-      <div className="space-y-2">
-        {(data.stages || []).map((st) => (
-          <StageBlock key={st.id} stage={st} wycenaId={wycenaId}
-            expanded={expanded} toggleExpand={toggleExpand}
-            onChange={fetchData} onLocalUpdate={updateLineLocal}
-            onAddPos={() => addPosition(st.id)}
-            onDelStage={() => delStage(st.id)}
-            onDelPos={delPosition} />
-        ))}
+      <div className="overflow-x-auto border border-[#2A3B59] rounded">
+        <table className="w-full text-xs border-collapse" data-testid="wycena-excel-table">
+          <thead className="sticky top-0 z-10">
+            <tr>
+              <Th w="60">KOD</Th>
+              <Th w="110">RODZAJ</Th>
+              <Th w="240">NAZWA</Th>
+              <Th w="80">ILOŚĆ</Th>
+              <Th w="70">CENA</Th>
+              <Th w="100">BUDŻET</Th>
+              <Th w="90">KAUCJA GIR</Th>
+              <Th w="90">KAUCJA DW</Th>
+              <Th w="100">KOSZT BUDOWY</Th>
+              <Th w="110">BUDŻET ZWOLNIONY</Th>
+              <Th w="110">KOSZT PROGNOZOWANY</Th>
+              <Th w="100">PROGNOZY / ZYSK</Th>
+              <Th w="70">AKCJE</Th>
+            </tr>
+            <tr className="bg-[#0B1120] text-[#D4AF37] font-bold">
+              <td className="border border-[#2A3B59] px-2 py-2 text-center">Σ SUMA</td>
+              <td className="border border-[#2A3B59] px-2 py-2"></td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#CBD5E1]">Wszystkie pozycje wyceny</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums text-[#94A3B8]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold">{fmtPLN(grandTotal.budzetZwolniony)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
+              <td className="border border-[#2A3B59] px-2 py-2"></td>
+            </tr>
+          </thead>
+          <tbody>
+            {(data.stages || []).map((st, sIdx) => {
+              const stCollapsed = collapsedStages.has(st.id);
+              return (
+                <React.Fragment key={st.id}>
+                  <tr className="bg-[#3F5235]/40 text-white font-semibold">
+                    <td colSpan={12} className="border border-[#2A3B59] px-2 py-1.5">
+                      <button onClick={() => toggleStage(st.id)} className="mr-2 text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
+                        {stCollapsed ? '▶' : '▼'}
+                      </button>
+                      📁 ETAP {sIdx + 1}: {st.name.toUpperCase()}
+                      <button onClick={() => addPosition(st.id)} className="ml-3 text-[10px] text-[#9DBC85] border border-[#5F7552] px-1.5 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`pos-add-${st.id}`}>
+                        + Pozycja
+                      </button>
+                    </td>
+                    <td className="border border-[#2A3B59] px-2 py-1.5 text-right">
+                      <button onClick={() => delStage(st.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`stage-del-${st.id}`}>
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                  {!stCollapsed && (st.positions || []).map((p, pIdx) => {
+                    const code = `${sIdx + 1}0${pIdx + 1}`;
+                    const r = computePosRow(p);
+                    const posCollapsed = collapsedPos.has(p.id);
+                    return (
+                      <React.Fragment key={p.id}>
+                        <PosRow code={code} position={p} row={r} collapsed={posCollapsed}
+                          onToggle={() => togglePos(p.id)}
+                          onLocalUpdate={updatePosLocal}
+                          onDel={() => delPosition(p.id)} />
+                        {!posCollapsed && (p.slots || []).map((sub, subIdx) => (
+                          <SubRow key={sub.id} code={`${code}.${subIdx + 1}`} sub={sub}
+                            posComputed={r}
+                            onLocalUpdate={updateLineLocal}
+                            onDel={() => delSlot(sub.id)} />
+                        ))}
+                        {!posCollapsed && (
+                          <tr className="bg-[#0B1120]/40">
+                            <td colSpan={13} className="border border-[#2A3B59] px-2 py-1">
+                              <div className="flex gap-2 items-center pl-12">
+                                <span className="text-[10px] text-[#64748B]">+ Dodaj podpozycję:</span>
+                                <button onClick={() => addSlot(p.id, st.id, 'labor')} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-2 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`add-sub-lab-${p.id}`}>+ Robocizna</button>
+                                <button onClick={() => addSlot(p.id, st.id, 'materials')} className="text-[10px] text-[#D4AF37] border border-[#D4AF37]/40 px-2 py-0.5 rounded hover:bg-[#D4AF37]/10" data-testid={`add-sub-mat-${p.id}`}>+ Materiał</button>
+                                <button onClick={() => addSlot(p.id, st.id, 'equipment')} className="text-[10px] text-[#7AB3D6] border border-[#7AB3D6]/40 px-2 py-0.5 rounded hover:bg-[#7AB3D6]/10" data-testid={`add-sub-equ-${p.id}`}>+ Sprzęt</button>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </React.Fragment>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
-      {/* Dodaj etap */}
       <div className="flex items-center gap-2 pt-2 border-t border-[#2A3B59]">
         <Input value={newStageName} onChange={(e) => setNewStageName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && addStage()}
           placeholder="Nazwa nowego etapu..." className="bg-[#0B1120] border-[#2A3B59]"
           data-testid="stage-new-name" />
-        <Button onClick={addStage} variant="outline" className="border-[#5F7552] text-[#9DBC85]"
-          data-testid="stage-add-btn">
+        <Button onClick={addStage} variant="outline" className="border-[#5F7552] text-[#9DBC85]" data-testid="stage-add-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj etap
         </Button>
       </div>
@@ -301,185 +437,121 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   );
 };
 
-const StageBlock = ({ stage, wycenaId, expanded, toggleExpand, onChange, onLocalUpdate, onAddPos, onDelStage, onDelPos }) => {
-  return (
-    <div className="border border-[#2A3B59] rounded bg-[#0B1120]/30">
-      <div className="flex items-center justify-between p-2 bg-[#131C2F] border-b border-[#2A3B59]">
-        <div className="font-semibold text-white">📁 {stage.name}</div>
-        <div className="flex gap-2">
-          <Button size="sm" onClick={onAddPos} variant="outline" className="border-[#2A3B59] text-[#CBD5E1] h-7"
-            data-testid={`pos-add-${stage.id}`}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Pozycja
-          </Button>
-          <button onClick={onDelStage} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`stage-del-${stage.id}`}>
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-      {(stage.positions || []).length === 0 ? (
-        <div className="text-[#64748B] text-xs p-3 text-center">Brak pozycji. Kliknij „Pozycja" aby dodać.</div>
-      ) : (
-        <div>
-          {(stage.positions || []).map((p) => (
-            <PositionBlock key={p.id} position={p} wycenaId={wycenaId} stageId={stage.id}
-              expanded={expanded} toggleExpand={toggleExpand} onChange={onChange} onLocalUpdate={onLocalUpdate}
-              onDel={() => onDelPos(p.id)} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-};
+const Td = ({ children, right = false, className = '' }) => (
+  <td className={`border border-[#2A3B59] px-2 py-1.5 ${right ? 'text-right tabular-nums' : ''} ${className}`}>
+    {children}
+  </td>
+);
 
-const PositionBlock = ({ position, wycenaId, stageId, expanded, toggleExpand, onChange, onLocalUpdate, onDel }) => {
-  const isOpen = expanded.has(position.id);
-  const slotsTotal = (position.slots || []).reduce((acc, s) => {
-    if (s.children?.length > 0) return acc + s.children.reduce((a, c) => a + (c.quantity || 0) * (c.unit_price_netto || 0), 0);
-    return acc + (s.quantity || 0) * (s.unit_price_netto || 0);
-  }, 0);
+const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel }) => {
+  const [edit, setEdit] = useState(position);
+  useEffect(() => { setEdit(position); }, [position]);
 
-  return (
-    <div className="border-b border-[#2A3B59]/40 last:border-b-0">
-      <div className="flex items-center justify-between p-2 hover:bg-[#0B1120]/40">
-        <button onClick={() => toggleExpand(position.id)} className="flex items-center gap-2 text-left flex-1"
-          data-testid={`pos-toggle-${position.id}`}>
-          {isOpen ? <ChevronDown className="h-4 w-4 text-[#D4AF37]" /> : <ChevronRight className="h-4 w-4 text-[#94A3B8]" />}
-          <span className="text-[#CBD5E1] font-medium">{position.name}</span>
-          <span className="text-[10px] text-[#94A3B8]">({(position.slots || []).length} podpoz.)</span>
-        </button>
-        <div className="text-[#D4AF37] tabular-nums font-semibold mr-3">{fmtPLN(slotsTotal)} zł</div>
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`pos-del-${position.id}`}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </button>
-      </div>
-      {isOpen && (
-        <SlotsTable position={position} wycenaId={wycenaId} stageId={stageId} onChange={onChange} onLocalUpdate={onLocalUpdate} />
-      )}
-    </div>
-  );
-};
-
-const SlotsTable = ({ position, wycenaId, stageId, onChange, onLocalUpdate }) => {
-  const [adding, setAdding] = useState(null);  // type to add
-
-  const addSlot = async (type) => {
+  const save = async (patch) => {
     try {
-      await api.post('/wyceny/lines', {
-        wycena_id: wycenaId, stage_id: stageId, position_id: position.id,
-        type, name: TYPE_LABEL[type], quantity: 0, unit_price_netto: 0, order: 0,
-      });
-      onChange();
+      await api.patch(`/wyceny/positions/${position.id}`, patch);
+      onLocalUpdate(position.id, patch);
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  const delLine = async (id) => {
-    if (!window.confirm('Usunąć linię?')) return;
-    try { await api.delete(`/wyceny/lines/${id}`); onChange(); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
-  };
+  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
 
   return (
-    <div className="bg-[#0B1120]/60 p-2">
-      <table className="w-full text-xs">
-        <thead className="text-[#94A3B8]">
-          <tr>
-            <th className="text-left p-1">Typ</th>
-            <th className="text-left p-1">Nazwa</th>
-            <th className="text-left p-1">J.m.</th>
-            <th className="text-right p-1">Ilość</th>
-            <th className="text-right p-1">Cena netto</th>
-            <th className="text-right p-1">Wartość</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {(position.slots || []).map((slot) => (
-            <SlotRow key={slot.id} slot={slot} onChange={onChange} onLocalUpdate={onLocalUpdate} onDel={() => delLine(slot.id)} />
-          ))}
-          {(position.slots || []).length === 0 && (
-            <tr><td colSpan="7" className="text-[#64748B] text-center p-2">Brak podpozycji</td></tr>
-          )}
-        </tbody>
-      </table>
-      <div className="flex gap-2 mt-2 pt-2 border-t border-[#2A3B59]">
-        <button onClick={() => addSlot('materials')} className="text-[#CBD5E1] text-xs px-2 py-1 rounded border border-[#2A3B59] hover:bg-[#131C2F]"
-          data-testid={`add-slot-mat-${position.id}`}>+ Materiał</button>
-        <button onClick={() => addSlot('labor')} className="text-[#9DBC85] text-xs px-2 py-1 rounded border border-[#5F7552] hover:bg-[#131C2F]"
-          data-testid={`add-slot-lab-${position.id}`}>+ Robocizna</button>
-        <button onClick={() => addSlot('equipment')} className="text-[#D4AF37] text-xs px-2 py-1 rounded border border-[#D4AF37]/40 hover:bg-[#131C2F]"
-          data-testid={`add-slot-equ-${position.id}`}>+ Sprzęt</button>
-      </div>
-    </div>
+    <tr className="bg-[#19243C] text-white font-semibold" data-testid={`pos-row-${position.id}`}>
+      <Td>
+        <button onClick={onToggle} className="text-[#D4AF37] mr-1 text-[10px]" data-testid={`pos-toggle-${position.id}`}>
+          {collapsed ? '▶' : '▼'}
+        </button>
+        <span className="tabular-nums">{code}</span>
+      </Td>
+      <Td><span className="text-[#D4AF37] text-[11px]">Pozycja Główna</span></Td>
+      <Td>
+        <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+          onBlur={() => save({ name: edit.name })} className={`${inputCls} text-white font-semibold`}
+          data-testid={`pos-name-${position.id}`} />
+      </Td>
+      <Td right>{row.qty ? row.qty.toFixed(1) : '—'}</Td>
+      <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(0) : '—'}</Td>
+      <Td right>{fmtPLN(row.budzet)}</Td>
+      <Td right>{fmtPLN(row.kaucjaGir)}</Td>
+      <Td right>{fmtPLN(row.kaucjaDw)}</Td>
+      <Td right>{fmtPLN(row.kosztBudowy)}</Td>
+      <Td right className="font-bold">{fmtPLN(row.budzetZwolniony)}</Td>
+      <Td right>
+        <input type="number" step="0.01" value={edit.koszt_prognozowany ?? ''}
+          onChange={(e) => setEdit({ ...edit, koszt_prognozowany: e.target.value })}
+          onBlur={() => save({ koszt_prognozowany: edit.koszt_prognozowany === '' ? null : parseFloat(edit.koszt_prognozowany) || 0 })}
+          placeholder="wpisz" className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
+          data-testid={`pos-prognoz-${position.id}`} />
+      </Td>
+      <Td right className={row.prognozy == null ? 'text-[#64748B]' : row.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
+        {row.prognozy == null ? '—' : fmtPLN(row.prognozy)}
+      </Td>
+      <Td right>
+        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`pos-del-${position.id}`}>
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </Td>
+    </tr>
   );
 };
 
-const SlotRow = ({ slot, onLocalUpdate, onChange, onDel }) => {
-  const [picker, setPicker] = useState(false);
-  const [edit, setEdit] = useState({ name: slot.name, unit: slot.unit || '', quantity: slot.quantity, unit_price_netto: slot.unit_price_netto });
+const SubRow = ({ code, sub, posComputed, onLocalUpdate, onDel }) => {
+  const [edit, setEdit] = useState(sub);
+  useEffect(() => { setEdit(sub); }, [sub]);
 
-  useEffect(() => {
-    setEdit({ name: slot.name, unit: slot.unit || '', quantity: slot.quantity, unit_price_netto: slot.unit_price_netto });
-  }, [slot]);
-
-  // iter95p: zapis lokalny - bez refetch wszystkiego (zachowuje focus)
   const save = async () => {
     const payload = {
-      name: edit.name, unit: edit.unit,
+      name: edit.name || '',
       quantity: parseFloat(edit.quantity) || 0,
       unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
     };
     try {
-      await api.patch(`/wyceny/lines/${slot.id}`, payload);
-      onLocalUpdate(slot.id, payload);
+      await api.patch(`/wyceny/lines/${sub.id}`, payload);
+      onLocalUpdate(sub.id, payload);
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  const value = (parseFloat(edit.quantity) || 0) * (parseFloat(edit.unit_price_netto) || 0);
+  const r = computeSubRow(edit);
+  // Proporcjonalne kaucje/koszty w stosunku do budzetu sub
+  const ratio = posComputed.budzet > 0 ? r.budzet / posComputed.budzet : 0;
+  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
 
   return (
-    <tr className="border-t border-[#2A3B59]/30" data-testid={`slot-row-${slot.id}`}>
-      <td className="p-1">
-        <span className="font-mono text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: '#2A3B59', color: TYPE_COLOR[slot.type] }}>
-          {TYPE_LABEL[slot.type]}
-        </span>
-      </td>
-      <td className="p-1">
-        <div className="flex gap-1 items-center">
-          <Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} onBlur={save}
-            className="bg-[#0B1120] border-[#2A3B59] h-7 text-xs" data-testid={`slot-name-${slot.id}`} />
-          <button onClick={() => setPicker(true)} className="text-[#D4AF37] hover:text-[#FCE99A] text-[10px] px-1 border border-[#D4AF37]/40 rounded"
-            title="Wybierz z cennika" data-testid={`slot-pick-${slot.id}`}>📖</button>
-        </div>
-      </td>
-      <td className="p-1">
-        <Input value={edit.unit} onChange={(e) => setEdit({ ...edit, unit: e.target.value })} onBlur={save}
-          className="bg-[#0B1120] border-[#2A3B59] h-7 text-xs w-20" />
-      </td>
-      <td className="p-1">
-        <Input type="number" value={edit.quantity} onChange={(e) => setEdit({ ...edit, quantity: e.target.value })} onBlur={save}
-          className="bg-[#0B1120] border-[#2A3B59] h-7 text-xs text-right tabular-nums" />
-      </td>
-      <td className="p-1">
-        <Input type="number" step="0.01" value={edit.unit_price_netto} onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })} onBlur={save}
-          className="bg-[#0B1120] border-[#2A3B59] h-7 text-xs text-right tabular-nums" />
-      </td>
-      <td className="p-1 text-right text-[#D4AF37] tabular-nums font-semibold">{fmtPLN(value)}</td>
-      <td className="p-1 text-right">
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`slot-del-${slot.id}`}>
-          <Trash2 className="h-3.5 w-3.5" />
+    <tr className="bg-[#0B1120]/30" data-testid={`sub-row-${sub.id}`}>
+      <Td className="text-[#94A3B8]">{code}</Td>
+      <Td>
+        <span className="text-[10px]" style={{ color: SUB_TYPE_COLOR[sub.type] }}>{SUB_TYPE_LABEL[sub.type]}</span>
+      </Td>
+      <Td>
+        <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+          onBlur={save} className={`${inputCls} text-[#CBD5E1] pl-3`}
+          placeholder="↳ nazwa" data-testid={`sub-name-${sub.id}`} />
+      </Td>
+      <Td right>
+        <input type="number" step="0.01" value={edit.quantity ?? ''}
+          onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
+          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+          data-testid={`sub-qty-${sub.id}`} />
+      </Td>
+      <Td right>
+        <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
+          onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
+          onBlur={save} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+          data-testid={`sub-price-${sub.id}`} />
+      </Td>
+      <Td right className="text-white font-semibold">{fmtPLN(r.budzet)}</Td>
+      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
+      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
+      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
+      <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.budzetZwolniony * ratio)}</Td>
+      <Td right className="text-[#64748B] italic">wpisz</Td>
+      <Td right className="text-[#64748B]">—</Td>
+      <Td right>
+        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`sub-del-${sub.id}`}>
+          <Trash2 className="h-3 w-3" />
         </button>
-      </td>
-      {picker && (
-        <td>
-          <PriceBookPicker category={slot.type} onPick={(item) => {
-            setEdit({ name: item.name, unit: item.unit || '', quantity: 1, unit_price_netto: item.unit_price_netto });
-            api.patch(`/wyceny/lines/${slot.id}`, {
-              name: item.name, unit: item.unit, quantity: 1, unit_price_netto: item.unit_price_netto,
-            }).then(onChange).catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)));
-            setPicker(false);
-          }} onClose={() => setPicker(false)} />
-        </td>
-      )}
+      </Td>
     </tr>
   );
 };

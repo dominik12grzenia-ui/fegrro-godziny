@@ -45,6 +45,20 @@ class PositionCreate(BaseModel):
     stage_id: str
     name: str
     order: int = 0
+    # iter95q: pola dla widoku Excel-style wyceny
+    kaucja_gir_pct: Optional[float] = None    # %, domyslnie 2.0
+    kaucja_dw_pct: Optional[float] = None     # %, domyslnie 2.0
+    koszt_budowy_pct: Optional[float] = None  # %, domyslnie 2.0
+    koszt_prognozowany: Optional[float] = None  # kwota wpisywana recznie
+
+
+class PositionUpdate(BaseModel):
+    name: Optional[str] = None
+    order: Optional[int] = None
+    kaucja_gir_pct: Optional[float] = None
+    kaucja_dw_pct: Optional[float] = None
+    koszt_budowy_pct: Optional[float] = None
+    koszt_prognozowany: Optional[float] = None
 
 
 class LineCreate(BaseModel):
@@ -276,6 +290,10 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
     doc = {
         "id": pid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "name": payload.name, "order": payload.order,
+        "kaucja_gir_pct": payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0,
+        "kaucja_dw_pct": payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0,
+        "koszt_budowy_pct": payload.koszt_budowy_pct if payload.koszt_budowy_pct is not None else 2.0,
+        "koszt_prognozowany": payload.koszt_prognozowany,
         "created_at": datetime.now().isoformat(),
     }
     await db.wyceny_positions.insert_one(doc)
@@ -284,8 +302,10 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
 
 
 @router.patch("/wyceny/positions/{position_id}")
-async def update_position(position_id: str, payload: PositionCreate, _user: dict = Depends(get_current_admin)):
-    updates = {"name": payload.name, "order": payload.order, "updated_at": datetime.now().isoformat()}
+async def update_position(position_id: str, payload: PositionUpdate, _user: dict = Depends(get_current_admin)):
+    raw = payload.dict(exclude_unset=True)
+    updates = dict(raw)
+    updates["updated_at"] = datetime.now().isoformat()
     res = await db.wyceny_positions.update_one({"id": position_id}, {"$set": updates})
     if res.matched_count == 0:
         raise HTTPException(404, "Pozycja nie istnieje")
