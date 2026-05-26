@@ -63,7 +63,7 @@ export const Wyceny = () => {
             )}
           </TabsContent>
           <TabsContent value="materials">
-            <PriceBook category="materials" />
+            <MaterialsPriceBook />
           </TabsContent>
           <TabsContent value="labor">
             <PriceBook category="labor" />
@@ -467,7 +467,203 @@ const SlotRow = ({ slot, onChange, onDel }) => {
   );
 };
 
-// =============== PRICE BOOK ===============
+// =============== PRICE BOOK (MATERIALS - Excel-style) ===============
+const MATERIAL_SUB_CATS = ['izolacje', 'betony', 'stal', 'murowane', 'drobnica', 'pozostałe'];
+
+const MaterialsPriceBook = () => {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+
+  const fetchRows = useCallback(() => {
+    setLoading(true);
+    const params = { category: 'materials' };
+    if (search) params.q = search;
+    api.get('/wyceny/cennik', { params })
+      .then((r) => setRows(r.data?.rows || []))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+      .finally(() => setLoading(false));
+  }, [search]);
+
+  useEffect(() => { fetchRows(); }, [fetchRows]);
+
+  const addRow = async (subCategory) => {
+    try {
+      await api.post('/wyceny/cennik', {
+        category: 'materials', sub_category: subCategory, name: '',
+        unit_price_netto: 0,
+      });
+      fetchRows();
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const remove = async (id) => {
+    if (!window.confirm('Usunąć pozycję?')) return;
+    try { await api.delete(`/wyceny/cennik/${id}`); fetchRows(); }
+    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  // Grupuj po sub_category - zachowaj zdefiniowana kolejnosc
+  const grouped = useMemo(() => {
+    const g = {};
+    MATERIAL_SUB_CATS.forEach((c) => { g[c] = []; });
+    rows.forEach((r) => {
+      const sc = (r.sub_category || 'pozostałe').toLowerCase();
+      const key = MATERIAL_SUB_CATS.includes(sc) ? sc : 'pozostałe';
+      g[key].push(r);
+    });
+    return g;
+  }, [rows]);
+
+  return (
+    <div className="space-y-2" data-testid="materials-pricebook">
+      <div className="flex items-center gap-2">
+        <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj produktu..."
+          className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="materials-search" />
+        <div className="text-xs text-[#94A3B8]">
+          {rows.length} pozycji · 11 kolumn (kategoria · nazwa produktu · cena · oferent · opakowanie · ilość · jd · zapotrzebowanie · jd. do jd. · warstw · uwagi)
+        </div>
+      </div>
+      {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : (
+        <div className="overflow-x-auto border border-[#2A3B59] rounded">
+          <table className="w-full text-xs" data-testid="materials-table">
+            <thead className="bg-[#0B1120] text-[#94A3B8] sticky top-0">
+              <tr>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[100px]">kategoria</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[160px]">nazwa produktu</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[100px]">cena oferty</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[120px]">oferent</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[100px]">opakowanie</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[70px]">ilość</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[60px]">jd</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">zapotrzebowanie</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[90px]">jd. do jd.</th>
+                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[90px]">warstw</th>
+                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[140px]">uwagi</th>
+                <th className="p-2 border-b border-[#2A3B59] w-8"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {MATERIAL_SUB_CATS.map((sc) => (
+                <React.Fragment key={sc}>
+                  <tr className="bg-[#131C2F]">
+                    <td colSpan="11" className="p-1.5 border-b border-[#2A3B59] text-[#D4AF37] font-semibold text-[11px] uppercase">
+                      📁 {sc}
+                    </td>
+                    <td className="p-1 border-b border-[#2A3B59] text-right">
+                      <button onClick={() => addRow(sc)} className="text-[#9DBC85] hover:text-[#C8E4B5] text-[11px]"
+                        title="Dodaj pozycję w kategorii" data-testid={`mat-add-${sc}`}>
+                        <Plus className="h-3.5 w-3.5" />
+                      </button>
+                    </td>
+                  </tr>
+                  {(grouped[sc] || []).length === 0 ? (
+                    <tr><td colSpan="12" className="p-2 text-[#64748B] text-center text-[10px]">— brak pozycji —</td></tr>
+                  ) : (
+                    grouped[sc].map((it) => (
+                      <MaterialRow key={it.id} item={it} onChange={fetchRows} onDel={() => remove(it.id)} />
+                    ))
+                  )}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const MaterialRow = ({ item, onChange, onDel }) => {
+  const [edit, setEdit] = useState(item);
+  useEffect(() => { setEdit(item); }, [item]);
+
+  const save = async (extra = {}) => {
+    const payload = {
+      name: edit.name || '',
+      unit_price_netto: parseFloat(edit.unit_price_netto) || 0,
+      oferent: edit.oferent || '',
+      opakowanie: edit.opakowanie || '',
+      pkg_qty: edit.pkg_qty === '' || edit.pkg_qty == null ? null : parseFloat(edit.pkg_qty),
+      pkg_unit: edit.pkg_unit || '',
+      zapotrzebowanie: edit.zapotrzebowanie === '' || edit.zapotrzebowanie == null ? null : parseFloat(edit.zapotrzebowanie),
+      zap_unit: edit.zap_unit || '',
+      liczba_warstw: edit.liczba_warstw === '' || edit.liczba_warstw == null ? null : parseFloat(edit.liczba_warstw),
+      notes: edit.notes || '',
+      sub_category: edit.sub_category || '',
+      ...extra,
+    };
+    try { await api.patch(`/wyceny/cennik/${item.id}`, payload); }
+    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
+
+  return (
+    <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`mat-row-${item.id}`}>
+      <td className="border-r border-[#2A3B59]/40">
+        <select value={edit.sub_category || ''}
+          onChange={(e) => { setEdit({ ...edit, sub_category: e.target.value }); save({ sub_category: e.target.value }).then(onChange); }}
+          className={`${inputCls} text-[#CBD5E1]`}>
+          {MATERIAL_SUB_CATS.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-white`} data-testid={`mat-name-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
+          onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
+          onBlur={() => save().then(onChange)}
+          className={`${inputCls} text-right text-[#D4AF37] tabular-nums`} data-testid={`mat-price-${item.id}`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.oferent || ''} onChange={(e) => setEdit({ ...edit, oferent: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.opakowanie || ''} onChange={(e) => setEdit({ ...edit, opakowanie: e.target.value })}
+          onBlur={() => save().then(onChange)} placeholder="wiaderko/paleta..."
+          className={`${inputCls} text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input type="number" step="0.001" value={edit.pkg_qty ?? ''}
+          onChange={(e) => setEdit({ ...edit, pkg_qty: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.pkg_unit || ''} onChange={(e) => setEdit({ ...edit, pkg_unit: e.target.value })}
+          onBlur={() => save().then(onChange)} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input type="number" step="0.001" value={edit.zapotrzebowanie ?? ''}
+          onChange={(e) => setEdit({ ...edit, zapotrzebowanie: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.zap_unit || ''} onChange={(e) => setEdit({ ...edit, zap_unit: e.target.value })}
+          onBlur={() => save().then(onChange)} placeholder="kg/m2..." className={`${inputCls} text-[#94A3B8]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input type="number" step="0.5" value={edit.liczba_warstw ?? ''}
+          onChange={(e) => setEdit({ ...edit, liczba_warstw: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`} />
+      </td>
+      <td className="border-r border-[#2A3B59]/40">
+        <input value={edit.notes || ''} onChange={(e) => setEdit({ ...edit, notes: e.target.value })}
+          onBlur={() => save().then(onChange)} className={`${inputCls} text-[#94A3B8]`} />
+      </td>
+      <td className="text-right pr-1">
+        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`mat-del-${item.id}`}>
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </td>
+    </tr>
+  );
+};
+
+// =============== PRICE BOOK (LABOR / EQUIPMENT - simple) ===============
 const PriceBook = ({ category }) => {
   const [rows, setRows] = useState([]);
   const [search, setSearch] = useState('');

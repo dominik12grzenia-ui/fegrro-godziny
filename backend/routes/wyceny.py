@@ -75,6 +75,15 @@ class PriceBookCreate(BaseModel):
     unit: Optional[str] = None
     unit_price_netto: float = 0
     notes: Optional[str] = None
+    # iter95l: dodatkowe pola dla materials (Excel-style)
+    sub_category: Optional[str] = None       # izolacje | betony | stal | murowane | drobnica | pozostale
+    oferent: Optional[str] = None            # dostawca / oferent
+    opakowanie: Optional[str] = None         # wiaderko / paleta / rolka...
+    pkg_qty: Optional[float] = None          # ilosc w opakowaniu (np. 20)
+    pkg_unit: Optional[str] = None           # jd opakowania (kg, m2, szt)
+    zapotrzebowanie: Optional[float] = None  # norma zuzycia (np. 1.5)
+    zap_unit: Optional[str] = None           # jd. do jd. (kg/m2, szt/m2, mb/mb)
+    liczba_warstw: Optional[float] = None    # liczba warstw
 
 
 class PriceBookUpdate(BaseModel):
@@ -82,6 +91,15 @@ class PriceBookUpdate(BaseModel):
     unit: Optional[str] = None
     unit_price_netto: Optional[float] = None
     notes: Optional[str] = None
+    # iter95l: dodatkowe pola dla materials
+    sub_category: Optional[str] = None
+    oferent: Optional[str] = None
+    opakowanie: Optional[str] = None
+    pkg_qty: Optional[float] = None
+    pkg_unit: Optional[str] = None
+    zapotrzebowanie: Optional[float] = None
+    zap_unit: Optional[str] = None
+    liczba_warstw: Optional[float] = None
 
 
 VALID_CATEGORIES = {"materials", "labor", "equipment"}
@@ -328,6 +346,15 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         "id": pid, "category": payload.category, "name": payload.name,
         "unit": payload.unit, "unit_price_netto": payload.unit_price_netto,
         "notes": payload.notes,
+        # iter95l: extended fields (materials)
+        "sub_category": payload.sub_category,
+        "oferent": payload.oferent,
+        "opakowanie": payload.opakowanie,
+        "pkg_qty": payload.pkg_qty,
+        "pkg_unit": payload.pkg_unit,
+        "zapotrzebowanie": payload.zapotrzebowanie,
+        "zap_unit": payload.zap_unit,
+        "liczba_warstw": payload.liczba_warstw,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -338,7 +365,9 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
 
 @router.patch("/wyceny/cennik/{item_id}")
 async def update_price_book(item_id: str, payload: PriceBookUpdate, _user: dict = Depends(get_current_admin)):
-    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    # iter95l: nie filtruj None - pozwol jawnie wyczyscic pole, ale exclude_unset
+    raw = payload.dict(exclude_unset=True)
+    updates = dict(raw)
     updates["updated_at"] = datetime.now().isoformat()
     res = await db.wyceny_price_book.update_one({"id": item_id}, {"$set": updates})
     if res.matched_count == 0:
