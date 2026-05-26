@@ -550,8 +550,9 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
         <input type="number" step="0.01" min="0" value={edit.quantity ?? ''}
           onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
           onBlur={() => save({ quantity: edit.quantity === '' || edit.quantity == null ? null : parseFloat(edit.quantity) || 0 })}
-          placeholder={row.qty ? row.qty.toFixed(1) : 'wpisz'}
-          className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
+          onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+          placeholder="wpisz"
+          className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-right tabular-nums text-[#D4AF37] font-bold px-2 outline-none focus:border-[#D4AF37] focus:bg-[#0B1120] hover:border-[#9DBC85]"
           data-testid={`pos-qty-${position.id}`} />
       </Td>
       <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
