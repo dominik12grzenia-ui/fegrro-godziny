@@ -216,10 +216,11 @@ const computePosRow = (p, defaults = {}) => {
   return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
 };
 
-const Th = ({ children, w }) => (
+const Th = ({ children, w, tip }) => (
   <th className="bg-[#3F5235]/80 text-white font-semibold text-[10px] uppercase tracking-wide
-                  border border-[#2A3B59] px-2 py-2 text-center align-middle" style={w ? { minWidth: w } : null}>
-    {children}
+                  border border-[#2A3B59] px-2 py-2 text-center align-middle cursor-help"
+      title={tip || undefined} style={w ? { minWidth: w } : null}>
+    {children}{tip ? <span className="ml-1 text-[#D4AF37]">ⓘ</span> : null}
   </th>
 );
 
@@ -405,21 +406,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         <table className="w-full text-xs border-collapse" data-testid="wycena-excel-table">
           <thead className="sticky top-0 z-10">
             <tr>
-              <Th w="60">KOD</Th>
-              <Th w="110">RODZAJ</Th>
-              <Th w="240">NAZWA</Th>
-              <Th w="80">ILOŚĆ</Th>
-              <Th w="70">CENA</Th>
-              <Th w="80">NARZUT %</Th>
-              <Th w="80">MARŻA %</Th>
-              <Th w="100">BUDŻET</Th>
-              <Th w="90">KAUCJA GIR</Th>
-              <Th w="90">KAUCJA DW</Th>
-              <Th w="100">KOSZT BUDOWY</Th>
-              <Th w="110">BUDŻET ZWOLNIONY</Th>
-              <Th w="110">KOSZT PROGNOZOWANY</Th>
-              <Th w="100">ZYSK PROGNOZOWANY</Th>
-              <Th w="110">ZYSK + KAUCJA DW</Th>
+              <Th w="60" tip="Numer pozycji (auto)">KOD</Th>
+              <Th w="110" tip="Typ pozycji: główna lub podpozycja (materiał / robocizna / sprzęt)">RODZAJ</Th>
+              <Th w="240" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
+              <Th w="80" tip="W pozycji głównej: wpisywane RĘCZNIE (kontraktowa ilość, np. m²). W podpozycjach: ilość zużytego materiału / godzin / m-go.">ILOŚĆ</Th>
+              <Th w="70" tip="W pozycji głównej: BUDŻET ÷ ILOŚĆ (cena za jednostkę kontraktową). W podpozycji: cena jednostkowa netto.">CENA</Th>
+              <Th w="80" tip="Narzut na zapas materiału (%) — % doliczany do ceny zakupu na pokrycie strat/odpadów. Wpisywany ręcznie per podpozycja, lub z domyślnego globalnego.">NARZUT %</Th>
+              <Th w="80" tip="Marża materiałowa (%) — nasz zysk procentowy. Wpisywana ręcznie per podpozycja, lub z domyślnego globalnego.">MARŻA %</Th>
+              <Th w="90" tip="KAUCJA GIR = BUDŻET ZWOLNIONY × kaucja GIR % (zatrzymywana przez klienta do końca gwarancji)">KAUCJA GIR</Th>
+              <Th w="90" tip="KAUCJA DW = BUDŻET ZWOLNIONY × kaucja DW % (Dobre Wykonanie — zwracana po odbiorach)">KAUCJA DW</Th>
+              <Th w="100" tip="KOSZT BUDOWY = BUDŻET ZWOLNIONY × koszt budowy % (narzut na koszty ogólne budowy)">KOSZT BUDOWY</Th>
+              <Th w="100" tip="BUDŻET (cena dla klienta) = BUDŻET ZWOLNIONY + KAUCJA GIR + KAUCJA DW + KOSZT BUDOWY">BUDŻET</Th>
+              <Th w="110" tip="BUDŻET ZWOLNIONY = ilość × cena × (1 + narzut% + marża%) — bazowa kwota, którą faktycznie dostajemy">BUDŻET ZWOLNIONY</Th>
+              <Th w="110" tip="KOSZT PROGNOZOWANY = ilość × cena × (1 + narzut%) — BEZ marży (marża to nasz zysk, nie koszt)">KOSZT PROGNOZOWANY</Th>
+              <Th w="100" tip="ZYSK PROGNOZOWANY = BUDŻET ZWOLNIONY − KOSZT PROGNOZOWANY">ZYSK PROGNOZOWANY</Th>
+              <Th w="110" tip="ZYSK + KAUCJA DW — ile finalnie zarobimy gdy KAUCJA DW zostanie zwolniona po odbiorach">ZYSK + KAUCJA DW</Th>
               <Th w="70">AKCJE</Th>
             </tr>
             <tr className="bg-[#0B1120] text-[#D4AF37] font-bold">
@@ -430,10 +431,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums text-[#94A3B8]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>
+              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold">{fmtPLN(grandTotal.budzetZwolniony)}</td>
               <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztPrognozowany)}</td>
               <td className={`border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.prognozy)}</td>
@@ -558,10 +559,10 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
       <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
       <Td right className="text-[#64748B]">—</Td>
       <Td right className="text-[#64748B]">—</Td>
-      <Td right>{fmtPLN(row.budzet)}</Td>
       <Td right>{fmtPLN(row.kaucjaGir)}</Td>
       <Td right>{fmtPLN(row.kaucjaDw)}</Td>
       <Td right>{fmtPLN(row.kosztBudowy)}</Td>
+      <Td right>{fmtPLN(row.budzet)}</Td>
       <Td right className="font-bold">{fmtPLN(row.budzetZwolniony)}</Td>
       <Td right className="text-[#D4AF37] tabular-nums" data-testid={`pos-koszt-progn-${position.id}`}>
         {fmtPLN(row.kosztPrognozowany)}
@@ -648,10 +649,10 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
           className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
           data-testid={`sub-marza-${sub.id}`} />
       </Td>
-      <Td right className="text-white font-semibold">{fmtPLN(posComputed.budzet * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
+      <Td right className="text-white font-semibold">{fmtPLN(posComputed.budzet * ratio)}</Td>
       <Td right className="text-[#CBD5E1]">{fmtPLN(r.budzetZwolniony)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(r.kosztPrognozowany)}</Td>
       <Td right className={(r.budzetZwolniony - r.kosztPrognozowany) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
