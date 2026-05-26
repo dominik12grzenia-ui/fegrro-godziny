@@ -171,41 +171,45 @@ const WycenyList = ({ onOpen }) => {
 const SUB_TYPE_LABEL = { labor: 'robocizna', materials: 'Materiał', equipment: 'Sprzęt' };
 const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipment: '#7AB3D6' };
 
-// iter95s: narzut na zapas materialu i marza - mnoza cene
-// Wzor: budzet = ilosc * cena * (1 + narzut/100) * (1 + marza/100)
+// iter95t: narzut na zapas materialu i marza - addytywne (mnoza cene)
+// Wzor: budzet_zwolniony_sub = ilosc * cena * (1 + narzut% + marza%)
+//       koszt_prognozowany_sub = ilosc * cena * (1 + narzut%)   [BEZ marzy]
 const computeSubRow = (sub, defaults = {}) => {
   const qty = parseFloat(sub.quantity) || 0;
   const cena = parseFloat(sub.unit_price_netto) || 0;
   const narzutPct = parseFloat(sub.narzut_zapas_pct ?? defaults.narzut ?? 0) || 0;
   const marzaPct = parseFloat(sub.marza_pct ?? defaults.marza ?? 0) || 0;
-  const budzetBazowy = qty * cena;
-  const budzet = budzetBazowy * (1 + narzutPct / 100) * (1 + marzaPct / 100);
-  return { qty, cena, budzet, budzetBazowy, narzutPct, marzaPct };
+  const budzetZwolniony = qty * cena * (1 + narzutPct / 100 + marzaPct / 100);
+  const kosztPrognozowany = qty * cena * (1 + narzutPct / 100);
+  return { qty, cena, budzetZwolniony, kosztPrognozowany, narzutPct, marzaPct };
 };
 
 const computePosRow = (p, defaults = {}) => {
   const subs = p.slots || [];
-  let qty = 0, budzet = 0, cena = 0;
+  let qty = 0, budzetZwolniony = 0, kosztPrognozowany = 0;
   if (subs.length > 0) {
     qty = Math.max(...subs.map((s) => parseFloat(s.quantity) || 0));
-    // budzet sumujemy juz po zastosowaniu narzutu i marzy per subpozycja
-    budzet = subs.reduce((acc, s) => acc + computeSubRow(s, defaults).budzet, 0);
-    cena = qty > 0 ? budzet / qty : 0;
+    // sumy z subpozycji
+    subs.forEach((s) => {
+      const r = computeSubRow(s, defaults);
+      budzetZwolniony += r.budzetZwolniony;
+      kosztPrognozowany += r.kosztPrognozowany;
+    });
   }
   // iter95r: jezeli pozycja nie ma wlasnych pct, uzyj domyslnych z wyceny
   const girPct = parseFloat(p.kaucja_gir_pct ?? defaults.gir ?? 2);
   const dwPct = parseFloat(p.kaucja_dw_pct ?? defaults.dw ?? 2);
   const kosztPct = parseFloat(p.koszt_budowy_pct ?? defaults.koszt ?? 2);
-  const kaucjaGir = budzet * girPct / 100;
-  const kaucjaDw = budzet * dwPct / 100;
-  const kosztBudowy = budzet * kosztPct / 100;
-  const budzetZwolniony = budzet - kaucjaGir - kaucjaDw - kosztBudowy;
-  // iter95t: koszt prognozowany = ilosc * cena * (1+narzut) * (1+marza) * (1+koszt_budowy) + kaucjaGIR + kaucjaDW
-  //         (czyli budzet * (1 + koszt_budowy%) + kaucjaGIR + kaucjaDW)
-  const kosztPrognozowany = budzet * (1 + kosztPct / 100) + kaucjaGir + kaucjaDw;
-  // Zysk prognozowany = budzet zwolniony - koszt prognozowany (zawsze liczony)
+  // Kaucje i koszt budowy sa LICZONE OD BUDZETU ZWOLNIONEGO (bazowej kwoty zwolnionej)
+  const kaucjaGir = budzetZwolniony * girPct / 100;
+  const kaucjaDw = budzetZwolniony * dwPct / 100;
+  const kosztBudowy = budzetZwolniony * kosztPct / 100;
+  // BUDZET (cena koncowa) = zwolniony + wszystkie naliczenia po stronie klienta
+  const budzet = budzetZwolniony + kaucjaGir + kaucjaDw + kosztBudowy;
+  const cena = qty > 0 ? budzet / qty : 0;
+  // Zysk prognozowany = budzet zwolniony - koszt prognozowany
   const prognozy = budzetZwolniony - kosztPrognozowany;
-  // Zysk + kaucja DW (ile dostane gdy kaucja DW zostanie zwolniona)
+  // Zysk + kaucja DW (ile dostane gdy DW zostanie zwolniona)
   const zyskPlusDw = prognozy + kaucjaDw;
   return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
 };
@@ -590,8 +594,8 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
   };
 
   const r = computeSubRow(edit, defaults);
-  // Proporcjonalne kaucje/koszty w stosunku do budzetu sub
-  const ratio = posComputed.budzet > 0 ? r.budzet / posComputed.budzet : 0;
+  // Proporcjonalne kaucje/koszty w stosunku do zwolnionego sub-pozycji
+  const ratio = posComputed.budzetZwolniony > 0 ? r.budzetZwolniony / posComputed.budzetZwolniony : 0;
   const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
   // placeholdery pokazuja domysla z poziomu wyceny
   const narzutPlaceholder = (defaults.narzut ?? 0) ? String(defaults.narzut) : '0';
@@ -634,17 +638,17 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, onLocalUpdate, onDel })
           className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
           data-testid={`sub-marza-${sub.id}`} />
       </Td>
-      <Td right className="text-white font-semibold">{fmtPLN(r.budzet)}</Td>
+      <Td right className="text-white font-semibold">{fmtPLN(posComputed.budzet * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
       <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
-      <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.budzetZwolniony * ratio)}</Td>
-      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztPrognozowany * ratio)}</Td>
-      <Td right className={(posComputed.prognozy * ratio) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
-        {fmtPLN(posComputed.prognozy * ratio)}
+      <Td right className="text-[#CBD5E1]">{fmtPLN(r.budzetZwolniony)}</Td>
+      <Td right className="text-[#94A3B8]">{fmtPLN(r.kosztPrognozowany)}</Td>
+      <Td right className={(r.budzetZwolniony - r.kosztPrognozowany) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
+        {fmtPLN(r.budzetZwolniony - r.kosztPrognozowany)}
       </Td>
-      <Td right className={(posComputed.zyskPlusDw * ratio) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
-        {fmtPLN(posComputed.zyskPlusDw * ratio)}
+      <Td right className={((r.budzetZwolniony - r.kosztPrognozowany) + posComputed.kaucjaDw * ratio) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
+        {fmtPLN((r.budzetZwolniony - r.kosztPrognozowany) + posComputed.kaucjaDw * ratio)}
       </Td>
       <Td right>
         <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`sub-del-${sub.id}`}>

@@ -2287,3 +2287,33 @@ BUDŻET = ilość × cena × (1 + narzut%/100) × (1 + marża%/100)
 
 ### Status
 DONE — czeka na weryfikację użytkownika.
+
+---
+
+## iter95t — Pełna logika kalkulacji w Wycenach (2026-05-26) — FINAL
+
+### Wzory (zatwierdzone przez użytkownika)
+```
+BUDŻET ZWOLNIONY = ilość × cena × (1 + narzut% + marża%)        [bazowa kwota dla nas]
+KAUCJA GIR        = BUDŻET ZWOLNIONY × kaucja_gir%
+KAUCJA DW         = BUDŻET ZWOLNIONY × kaucja_dw%
+KOSZT BUDOWY      = BUDŻET ZWOLNIONY × koszt_budowy%
+BUDŻET (cena dla klienta) = BUDŻET ZWOLNIONY + KAUCJA GIR + KAUCJA DW + KOSZT BUDOWY
+KOSZT PROGNOZOWANY = ilość × cena × (1 + narzut%)                [BEZ marży — marża to nasz zysk]
+ZYSK PROGNOZOWANY  = BUDŻET ZWOLNIONY − KOSZT PROGNOZOWANY
+ZYSK + KAUCJA DW   = ZYSK PROGNOZOWANY + KAUCJA DW
+```
+
+### Zmiany względem iter95s
+- BUDŻET liczony **addytywnie** (narzut + marża dodawane), nie multiplikatywnie.
+- KAUCJE liczone od **BUDŻETU ZWOLNIONEGO**, nie od BUDŻETU.
+- BUDŻET = zwolniony + kaucje (deductions dodawane do ceny klienta).
+- KOSZT PROGNOZOWANY teraz auto-liczony (bez marży) — usunięto ręczny input.
+- Nowa kolumna **ZYSK + KAUCJA DW** (zielona/czerwona).
+
+### Test
+- qty=10, cena=100, narzut=10%, marża=20%, gir/dw/kb=2%:
+  - ZWOLNIONY=1300, KAUCJE=26 każda, BUDŻET=1378, KOSZT PROG.=1100, ZYSK=+200, ZYSK+DW=+226 ✓
+
+### Pliki
+- `/app/frontend/src/components/Wyceny.js` — `computePosRow`, `computeSubRow`, PosRow, SubRow, total row.
