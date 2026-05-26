@@ -120,6 +120,10 @@ class BudgetTaskCreate(BaseModel):
     notes: Optional[str] = None
     dependencies: List[str] = []  # lista task_id zaleznosci
     order: int = 0
+    # iter95i: link do pozycji budzetu - jezeli ustawiony, progress_pct czytany z protokolu
+    position_id: Optional[str] = None
+    # iter95i: data faktycznego zakonczenia - tylko admin moze ustawic, gdy wczesniej niz end_date
+    actual_end_date: Optional[str] = None
 
 
 class BudgetTaskUpdate(BaseModel):
@@ -131,6 +135,10 @@ class BudgetTaskUpdate(BaseModel):
     notes: Optional[str] = None
     dependencies: Optional[List[str]] = None
     order: Optional[int] = None
+    position_id: Optional[str] = None  # iter95i
+    actual_end_date: Optional[str] = None  # iter95i
+    clear_actual_end_date: bool = False  # iter95i: pozwala wyczyscic
+    clear_position_id: bool = False  # iter95i: pozwala wyczyscic link
 
 
 # ============== HELPERS ==============
@@ -1117,11 +1125,37 @@ async def get_tasks(budowa_id: str, _user: dict = Depends(get_current_admin)):
     rows = await db.budget_tasks.find(
         {"budowa_id": budowa_id}, {"_id": 0}
     ).sort([("order", 1), ("start_date", 1)]).to_list(length=1000)
+    # iter95i: dla taskow powiazanych z pozycja - czytamy aktualny % z protokolu
+    # (suma wszystkich budget_progress.position_id do dzis). Pozycja ze subprogresami -
+    # weighted average z subprogresów. Position progress jest synced z subów przez frontend
+    # (iter95h), wiec wystarczy zsumowac budget_progress.position_id.
+    linked_pos_ids = list({r.get("position_id") for r in rows if r.get("position_id")})
+    auto_progress: dict = {}
+    if linked_pos_ids:
+        pipe = [
+            {"$match": {"position_id": {"$in": linked_pos_ids}}},
+            {"$group": {"_id": "$position_id", "total": {"$sum": "$progress_pct"}}},
+        ]
+        async for r in db.budget_progress.aggregate(pipe):
+            auto_progress[r["_id"]] = min(100.0, float(r["total"]))
+    for row in rows:
+        pid = row.get("position_id")
+        if pid:
+            row["progress_pct"] = round(auto_progress.get(pid, 0.0), 2)
+            row["progress_source"] = "auto"  # iter95i: wskaznik dla UI
+        else:
+            row["progress_source"] = "manual"
     return {"rows": rows}
 
 
 @router.post("/budget/tasks")
 async def create_task(payload: BudgetTaskCreate, current_user: dict = Depends(get_current_admin)):
+    # iter95i: walidacja position_id (jezeli podane)
+    if payload.position_id:
+        pos = await db.budget_positions.find_one({"id": payload.position_id}, {"_id": 0, "id": 1})
+        if not pos:
+            raise HTTPException(400, "Pozycja nie istnieje")
+    # iter95i: actual_end_date - tylko admin (juz wymuszone przez get_current_admin)
     task_id = str(uuid.uuid4())
     doc = {
         "id": task_id,
@@ -1129,11 +1163,13 @@ async def create_task(payload: BudgetTaskCreate, current_user: dict = Depends(ge
         "name": payload.name,
         "start_date": payload.start_date,
         "end_date": payload.end_date,
-        "progress_pct": payload.progress_pct,
+        "progress_pct": payload.progress_pct if not payload.position_id else 0.0,
         "color": payload.color or "#D4AF37",
         "notes": payload.notes,
         "dependencies": payload.dependencies,
         "order": payload.order,
+        "position_id": payload.position_id,
+        "actual_end_date": payload.actual_end_date,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -1148,7 +1184,23 @@ async def update_task(task_id: str, payload: BudgetTaskUpdate,
     existing = await db.budget_tasks.find_one({"id": task_id}, {"_id": 0})
     if not existing:
         raise HTTPException(404, "Zadanie nie istnieje")
-    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    # iter95i: walidacja position_id
+    if payload.position_id:
+        pos = await db.budget_positions.find_one({"id": payload.position_id}, {"_id": 0, "id": 1})
+        if not pos:
+            raise HTTPException(400, "Pozycja nie istnieje")
+    raw = payload.dict(exclude_unset=True)
+    updates: dict = {}
+    # Pola opcjonalne - przepisujemy tylko jezeli ustawione (None vs unset)
+    for k in ["name", "start_date", "end_date", "progress_pct", "color",
+              "notes", "dependencies", "order", "position_id", "actual_end_date"]:
+        if k in raw and raw[k] is not None:
+            updates[k] = raw[k]
+    # Specjalne flagi wyczysc-na-None
+    if raw.get("clear_actual_end_date"):
+        updates["actual_end_date"] = None
+    if raw.get("clear_position_id"):
+        updates["position_id"] = None
     updates["updated_at"] = datetime.now().isoformat()
     updates["updated_by"] = current_user["sub"]
     await db.budget_tasks.update_one({"id": task_id}, {"$set": updates})
