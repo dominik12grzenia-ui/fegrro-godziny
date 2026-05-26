@@ -27,11 +27,18 @@ router = APIRouter()
 class WycenaCreate(BaseModel):
     name: str
     notes: Optional[str] = None
+    # iter95r: domyslne % dla calej wyceny
+    default_gir_pct: Optional[float] = None
+    default_dw_pct: Optional[float] = None
+    default_koszt_pct: Optional[float] = None
 
 
 class WycenaUpdate(BaseModel):
     name: Optional[str] = None
     notes: Optional[str] = None
+    default_gir_pct: Optional[float] = None
+    default_dw_pct: Optional[float] = None
+    default_koszt_pct: Optional[float] = None
 
 
 class StageCreate(BaseModel):
@@ -176,6 +183,9 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
         "id": wid,
         "name": payload.name,
         "notes": payload.notes,
+        "default_gir_pct": payload.default_gir_pct if payload.default_gir_pct is not None else 2.0,
+        "default_dw_pct": payload.default_dw_pct if payload.default_dw_pct is not None else 2.0,
+        "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 2.0,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -187,7 +197,8 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
 @router.patch("/wyceny/{wycena_id}")
 async def update_wycena(wycena_id: str, payload: WycenaUpdate,
                          current_user: dict = Depends(get_current_admin)):
-    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    raw = payload.dict(exclude_unset=True)
+    updates = dict(raw)
     updates["updated_at"] = datetime.now().isoformat()
     res = await db.wyceny.update_one({"id": wycena_id}, {"$set": updates})
     if res.matched_count == 0:

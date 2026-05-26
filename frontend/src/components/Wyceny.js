@@ -171,19 +171,18 @@ const WycenyList = ({ onOpen }) => {
 const SUB_TYPE_LABEL = { labor: 'robocizna', materials: 'Materiał', equipment: 'Sprzęt' };
 const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipment: '#7AB3D6' };
 
-const computePosRow = (p) => {
+const computePosRow = (p, defaults = {}) => {
   const subs = p.slots || [];
-  // ILOŚĆ = max z subs (typowo wszystkie maja te sama jednostke)
-  // BUDŻET = suma qty * cena z subs (lub pozycji jezeli brak subs)
   let qty = 0, budzet = 0, cena = 0;
   if (subs.length > 0) {
     qty = Math.max(...subs.map((s) => parseFloat(s.quantity) || 0));
     budzet = subs.reduce((acc, s) => acc + (parseFloat(s.quantity) || 0) * (parseFloat(s.unit_price_netto) || 0), 0);
     cena = qty > 0 ? budzet / qty : 0;
   }
-  const girPct = parseFloat(p.kaucja_gir_pct ?? 2);
-  const dwPct = parseFloat(p.kaucja_dw_pct ?? 2);
-  const kosztPct = parseFloat(p.koszt_budowy_pct ?? 2);
+  // iter95r: jezeli pozycja nie ma wlasnych pct, uzyj domyslnych z wyceny
+  const girPct = parseFloat(p.kaucja_gir_pct ?? defaults.gir ?? 2);
+  const dwPct = parseFloat(p.kaucja_dw_pct ?? defaults.dw ?? 2);
+  const kosztPct = parseFloat(p.koszt_budowy_pct ?? defaults.koszt ?? 2);
   const kaucjaGir = budzet * girPct / 100;
   const kaucjaDw = budzet * dwPct / 100;
   const kosztBudowy = budzet * kosztPct / 100;
@@ -208,6 +207,26 @@ const Th = ({ children, w }) => (
     {children}
   </th>
 );
+
+const PctInput = ({ label, testId, value, onSave }) => {
+  const [v, setV] = useState(value ?? '');
+  useEffect(() => { setV(value ?? ''); }, [value]);
+  return (
+    <label className="flex items-center gap-1.5 text-xs text-[#CBD5E1]">
+      <span>{label}:</span>
+      <input
+        type="number" step="0.1" min="0" max="100"
+        value={v}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={() => onSave(v)}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+        className="w-16 bg-[#0B1120] border border-[#2A3B59] rounded text-[#D4AF37] text-right tabular-nums font-bold px-1.5 py-0.5 outline-none focus:border-[#D4AF37]"
+        data-testid={testId}
+      />
+      <span className="text-[#94A3B8]">%</span>
+    </label>
+  );
+};
 
 const WycenaEditor = ({ wycenaId, onBack }) => {
   const [data, setData] = useState(null);
@@ -255,17 +274,31 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     });
   }, []);
 
+  const defaults = useMemo(() => ({
+    gir: data?.wycena?.default_gir_pct ?? 2,
+    dw: data?.wycena?.default_dw_pct ?? 2,
+    koszt: data?.wycena?.default_koszt_pct ?? 2,
+  }), [data]);
+
+  const saveDefault = async (field, value) => {
+    const num = value === '' ? null : parseFloat(value);
+    try {
+      await api.patch(`/wyceny/${wycenaId}`, { [field]: num });
+      setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, [field]: num } } : prev);
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
   const grandTotal = useMemo(() => {
     if (!data) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0 };
     let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0;
     (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
-      const r = computePosRow(p);
+      const r = computePosRow(p, defaults);
       qty += r.qty; budzet += r.budzet;
       kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
       kosztBudowy += r.kosztBudowy; budzetZwolniony += r.budzetZwolniony;
     }));
     return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony };
-  }, [data]);
+  }, [data, defaults]);
 
   const addStage = async () => {
     if (!newStageName.trim()) return;
@@ -331,6 +364,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         </div>
       </div>
 
+      {/* iter95r: panel domyslnych % dla calej wyceny */}
+      <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 flex items-center gap-4 flex-wrap"
+           data-testid="wycena-defaults-panel">
+        <div className="text-[#9DBC85] text-xs uppercase font-semibold">⚙ Domyślne stawki dla całej wyceny:</div>
+        <PctInput label="Kaucja GIR" testId="default-gir" value={defaults.gir}
+          onSave={(v) => saveDefault('default_gir_pct', v)} />
+        <PctInput label="Kaucja DW" testId="default-dw" value={defaults.dw}
+          onSave={(v) => saveDefault('default_dw_pct', v)} />
+        <PctInput label="Koszt budowy" testId="default-koszt" value={defaults.koszt}
+          onSave={(v) => saveDefault('default_koszt_pct', v)} />
+        <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
+          Stosowane do wszystkich pozycji które nie mają własnych wartości
+        </div>
+      </div>
+
       <div className="overflow-x-auto border border-[#2A3B59] rounded">
         <table className="w-full text-xs border-collapse" data-testid="wycena-excel-table">
           <thead className="sticky top-0 z-10">
@@ -388,7 +436,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                   </tr>
                   {!stCollapsed && (st.positions || []).map((p, pIdx) => {
                     const code = `${sIdx + 1}0${pIdx + 1}`;
-                    const r = computePosRow(p);
+                    const r = computePosRow(p, defaults);
                     const posCollapsed = collapsedPos.has(p.id);
                     return (
                       <React.Fragment key={p.id}>
