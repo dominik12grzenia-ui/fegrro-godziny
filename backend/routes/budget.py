@@ -462,10 +462,11 @@ async def get_allocations(
         sprzedaz_budowa += float(z.get("netto") or 0)
 
     # Firmowe koszty bez budowy w okresie (wykluczamy income)
+    # iter95: dodatkowo lapiemy budowa_id = "" (pusty string) jako brak budowy
     unassigned_company = 0.0
     async for z in db.finance_zapisy.find(
         {
-            "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}],
+            "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
             "date": date_q,
             "is_income": {"$ne": True},
             "kod_id": {"$nin": income_codes},

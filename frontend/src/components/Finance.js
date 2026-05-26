@@ -1344,6 +1344,23 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     } finally { setSyncingPayroll(false); }
   };
 
+  // iter95: Propagacja przypisania budowa_id z naglowkow faktur do ich pozycji.
+  // Naprawia Kolumne Q w Budzecie - alokacje sprzedazy/kosztow patrza tylko na finance_zapisy.
+  const propagateBudowa = async () => {
+    if (!window.confirm(
+      'Propagowac przypisanie budowy z naglowkow faktur do pozycji?\n\n' +
+      'Dla kazdej faktury z budowa_id, ustawia budowa_id na jej pozycjach (tylko tam gdzie pozycja nie ma wlasnego przypisania).\n' +
+      'NAPRAWIA: brakujace alokacje sprzedazy/kosztow w kolumnach budzetu (m.in. Q).'
+    )) return;
+    try {
+      const r = await api.post('/finance/backfill-invoice-budowa-to-positions');
+      toast.success(`Propagacja OK: ${r.data.invoices_processed} faktur, ${r.data.positions_updated} pozycji zaktualizowanych`);
+      fetchData();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Błąd propagacji');
+    }
+  };
+
   // Suma KP auto-zapisanych w zapisach (dla porownania z payrollExpected)
   const actualKpSum = rows.reduce((s, r) => {
     if (r.is_invoice) return s;
@@ -1489,6 +1506,12 @@ const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
           <ActionButton onAction={syncCurrent} variant="outline"
             className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
             data-testid="finance-sync-current">Sync bieżący miesiąc</ActionButton>
+          <ActionButton onAction={propagateBudowa} variant="outline"
+            className="border-[#5F7552] text-[#5F7552] hover:bg-[#2A3B59] hover:text-[#9DBC85]"
+            data-testid="finance-propagate-budowa"
+            title="Propaguje budowa_id z naglowkow faktur na pozycje (naprawia alokacje w kolumnie Q)">
+            Propaguj budowy → pozycje
+          </ActionButton>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
             className="bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-zapisy-month">

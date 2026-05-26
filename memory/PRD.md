@@ -1,3 +1,49 @@
+## Iteration 95 (2026-02) — Fix Kolumny Q + S/T/U formuła
+
+### User request
+„dalej nawet po określeniu kategorii kilku faktur kosztowych nie widać zmian w tej tabeli a są koszty nieprzypisane do budowy i sprzedaż też sprawdź"
+
+### Root cause (Kolumna Q)
+- Budżet alokacje (O/P/Q + `sprzedaz_budowa`) odpytują WYŁĄCZNIE `finance_zapisy` (pozycje faktur).
+- `update_invoice` (`PUT /finance/invoices/{id}`) aktualizował tylko nagłówek (`finance_invoices.budowa_id`), bez propagacji do pozycji.
+- Skutek: przypisana budowa na nagłówku, pozycje z `budowa_id=None` → `sprzedaz_budowa=0` → `sprzedaz_ratio=0` → `Q=0` (`—`).
+
+### Backend fix (`/app/backend/routes/finance.py`)
+- `PUT /finance/invoices/{id}` propaguje `budowa_id` do `finance_zapisy.parent_invoice_id=invoice_id`, ale tylko gdzie pozycja nie ma własnego przypisania (`None` / brak / `""`). Per-pozycyjne overrides są zachowywane.
+- Nowy endpoint `POST /finance/backfill-invoice-budowa-to-positions` — jednorazowy backfill istniejących danych. Zwraca `{invoices_processed, positions_updated}`.
+
+### Backend fix (`/app/backend/routes/budget.py`)
+- `unassigned_company` query rozszerzony o `budowa_id=""` (pusty string) jako brak budowy (defensywnie).
+
+### Frontend fix (`/app/frontend/src/components/Finance.js`)
+- Nowy przycisk `finance-propagate-budowa` w nagłówku panelu Zapisy: „Propaguj budowy → pozycje" wywołuje backfill endpoint.
+
+### Frontend fix Column S formula (`/app/frontend/src/components/Budget.js`)
+- Zmiana formuły S z `R/N × 100` na `R/K × 100` (Koszty Razem / Budżet Zwolniony).
+- Powód: gdy N≈0 a P/Q duże, S osiągało np. 177832%. Nowa formuła pokazuje sensowne % wykorzystania budżetu.
+- Zmieniono: `computeRow` (slot), `computePositionRow` (agregacja), opis kolumny w `cols[]`, tooltip ostrzegawczy.
+
+### Testy
+- `/app/backend/tests/test_iter95_invoice_propagate_budowa.py` — 4 testy:
+  1. `test_update_invoice_propagates_budowa_to_positions` — PUT propaguje
+  2. `test_update_invoice_does_not_overwrite_explicit_position_budowa` — per-pozycyjne overrides chronione
+  3. `test_backfill_endpoint_propagates_budowa` — backfill działa
+  4. `test_q_column_after_propagation` — end-to-end: po backfill Q > 0
+- 4/4 PASSED + regresja test_iter79_allocations.py 4/4 PASSED.
+
+### Pliki zmienione
+- `/app/backend/routes/finance.py` — `update_invoice` + backfill endpoint
+- `/app/backend/routes/budget.py` — `unassigned_company` query robustness
+- `/app/frontend/src/components/Budget.js` — formuła S (3 miejsca)
+- `/app/frontend/src/components/Finance.js` — przycisk propagacji
+- `/app/backend/tests/test_iter95_invoice_propagate_budowa.py` — nowy
+
+### Akcja na produkcji
+Po deployu user musi kliknąć **„Propaguj budowy → pozycje"** w panelu Finanse → Zapisy raz, żeby naprawić istniejące faktury. Kolejne przypisania będą automatycznie propagowane.
+
+---
+
+
 ## Iteration 82b (2026-05-24) — Klikalne nagłówki kolumn + modal opisu
 
 ### User request

@@ -685,7 +685,52 @@ async def update_invoice(invoice_id: str, payload: InvoiceUpdate,
     upd["updated_at"] = datetime.now().isoformat()
     upd["updated_by"] = current_user["sub"]
     await db.finance_invoices.update_one({"id": invoice_id}, {"$set": upd})
+
+    # iter95: Propagacja budowa_id z naglowka faktury do jej pozycji (finance_zapisy).
+    # Budget allocations (kolumny N/O/P/Q i sprzedaz_budowa) odpytuja TYLKO finance_zapisy,
+    # wiec bez tego przypisanie budowy na poziomie naglowka nie wplywalo na budzet.
+    # Zasada: aktualizujemy TYLKO pozycje, ktore NIE maja wlasnego budowa_id
+    # (None lub brak pola) - per-pozycyjne przypisania pozostawiamy nienaruszone.
+    if "budowa_id" in upd:
+        new_bid = upd["budowa_id"]
+        await db.finance_zapisy.update_many(
+            {
+                "parent_invoice_id": invoice_id,
+                "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
+            },
+            {"$set": {"budowa_id": new_bid, "updated_at": datetime.now().isoformat()}},
+        )
     return {"message": "Zaktualizowano"}
+
+
+@router.post("/finance/backfill-invoice-budowa-to-positions")
+async def backfill_invoice_budowa_to_positions(
+    current_user: dict = Depends(get_current_admin),
+):
+    """iter95: Jednorazowy backfill - dla kazdej faktury (finance_invoices) z budowa_id,
+    propaguje budowa_id do jej pozycji (finance_zapisy) tam, gdzie pozycja nie ma
+    wlasnego budowa_id (None/brak/pusty string).
+
+    Zwraca: {invoices_processed, positions_updated}.
+    """
+    invoices = await db.finance_invoices.find(
+        {"budowa_id": {"$ne": None, "$exists": True}},
+        {"_id": 0, "id": 1, "budowa_id": 1},
+    ).to_list(length=None)
+    updated_total = 0
+    for inv in invoices:
+        bid = inv.get("budowa_id")
+        if not bid:
+            continue
+        res = await db.finance_zapisy.update_many(
+            {
+                "parent_invoice_id": inv["id"],
+                "$or": [{"budowa_id": None}, {"budowa_id": {"$exists": False}}, {"budowa_id": ""}],
+            },
+            {"$set": {"budowa_id": bid, "updated_at": datetime.now().isoformat()}},
+        )
+        updated_total += res.modified_count
+    return {"invoices_processed": len(invoices), "positions_updated": updated_total}
 
 
 @router.delete("/finance/invoices/{invoice_id}")

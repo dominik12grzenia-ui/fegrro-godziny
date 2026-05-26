@@ -341,7 +341,9 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     const P = slotAlloc?.P || 0;
     const Q = slotAlloc?.Q || 0;
     const R = O + P + Q + N;
-    const S = N > 0 ? (R / N) * 100 : 0;
+    // iter95: S = R/K × 100 (Koszty Razem / Budżet Zwolniony). Wczesniej R/N dawalo astronomiczne wartosci
+    // gdy N=0 a P/Q duze. R/K pokazuje % wykorzystania realnego budzetu.
+    const S = K > 0 ? (R / K) * 100 : 0;
     const T = (L != null) ? L - R : null;
     const U = K - R;
     const V = (M != null) ? M - U : null;
@@ -378,7 +380,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     aggregate.U = aggregate.K - aggregate.R;
     aggregate.hasL = hasL;
     aggregate.M = hasL ? aggregate.K - aggregate.L : null;
-    aggregate.S = aggregate.N > 0 ? (aggregate.R / aggregate.N) * 100 : 0;
+    aggregate.S = aggregate.K > 0 ? (aggregate.R / aggregate.K) * 100 : 0;
     aggregate.T = hasL ? aggregate.L - aggregate.R : null;
     aggregate.V = hasL ? aggregate.M - aggregate.U : null;
     aggregate.cena = aggregate.qty > 0 ? aggregate.G / aggregate.qty : 0;
@@ -414,7 +416,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
     { k: 'P', label: '% wynagrodzeń budowy → robocizna', w: 130, desc: 'Wynagrodzenia BEZ kodu pozycji rozproszone tylko na sloty robocizny (R) wg % zaawansowania.' },
     { k: 'Q', label: 'Koszty nieprzyp. × % sprzedaży → robocizna', w: 130, desc: 'Firmowe koszty BEZ budowy × (Sprzedaż tej budowy / Sprzedaż firmy) w wybranym miesiącu. Następnie rozproszone na sloty robocizny proporcjonalnie do % zaawansowania pozycji z protokołów.' },
     { k: 'R', label: 'KOSZTY RAZEM', w: 100, bg: EXEC_BG, formula: 'R = N + O + P + Q', desc: 'Suma wszystkich kosztów: bezpośrednich + alokowanych pośrednich.' },
-    { k: 'S', label: '% zrealizowanego', w: 90, formula: 'S = R / N × 100', desc: 'Stosunek kosztów razem do kosztów bezpośrednich. ≥100% = kosztów pośrednich (O/P/Q) jest więcej niż bezpośrednich — sygnał do sprawdzenia. ALERT: ≥100% czerwone, ≥80% żółte.' },
+    { k: 'S', label: '% zrealizowanego', w: 90, formula: 'S = R / K × 100', desc: 'Stosunek kosztów razem do Budżetu Zwolnionego (K). 100% = wykorzystano cały realny budżet. ALERT: ≥100% czerwone, ≥80% żółte.' },
     { k: 'T', label: 'POZOSTAŁO BUDŻETU', w: 110, formula: 'T = L − R', desc: 'Ile zostało z prognozowanego kosztu. Ujemne = przekroczono prognozę. ALERT: <0 czerwone, <5%·L żółte.' },
     { k: 'U', label: 'Zysk', w: 90, formula: 'U = K − R', desc: 'Faktyczny zysk z pozycji (Budżet Zwolniony − Koszty Razem). Ujemne = STRATA. ALERT: <0 czerwone, <5%·K żółte.' },
     { k: 'V', label: 'Różnica zysku', w: 100, formula: 'V = M − U', desc: 'Różnica między prognozowanym a faktycznym zyskiem. Ujemne = realizacja gorsza niż prognoza.' },
@@ -747,7 +749,7 @@ const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading
                                     <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.P)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.Q)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.R)}</td>
-                                    {renderAlertCell(r.S, null, { pct: true, warningTitle: 'Slot: przekroczono 100% kosztu (R/N)' })}
+                                    {renderAlertCell(r.S, null, { pct: true, warningTitle: 'Slot: przekroczono 100% kosztu (R/K)' })}
                                     {renderAlertCell(r.T, r.L, { warningTitle: 'Slot: przekroczono prognoze (T = L - R)' })}
                                     {renderAlertCell(r.U, r.K, { warningTitle: 'Slot: strata (U = K - R)' })}
                                     {renderAlertCell(r.V, null, { skipWarn: true })}
