@@ -186,16 +186,18 @@ const computeSubRow = (sub, defaults = {}) => {
 
 const computePosRow = (p, defaults = {}) => {
   const subs = p.slots || [];
-  let qty = 0, budzetZwolniony = 0, kosztPrognozowany = 0;
-  if (subs.length > 0) {
-    qty = Math.max(...subs.map((s) => parseFloat(s.quantity) || 0));
-    // sumy z subpozycji
-    subs.forEach((s) => {
-      const r = computeSubRow(s, defaults);
-      budzetZwolniony += r.budzetZwolniony;
-      kosztPrognozowany += r.kosztPrognozowany;
-    });
-  }
+  let budzetZwolniony = 0, kosztPrognozowany = 0;
+  subs.forEach((s) => {
+    const r = computeSubRow(s, defaults);
+    budzetZwolniony += r.budzetZwolniony;
+    kosztPrognozowany += r.kosztPrognozowany;
+  });
+  // iter95u: ILOSC pozycji glownej jest wpisywana RECZNIE przez uzytkownika.
+  // Jezeli nie wpisana - fallback do max z subs (zachowanie wsteczne).
+  const manualQty = parseFloat(p.quantity);
+  const qty = !isNaN(manualQty) && manualQty > 0
+    ? manualQty
+    : (subs.length > 0 ? Math.max(...subs.map((s) => parseFloat(s.quantity) || 0)) : 0);
   // iter95r: jezeli pozycja nie ma wlasnych pct, uzyj domyslnych z wyceny
   const girPct = parseFloat(p.kaucja_gir_pct ?? defaults.gir ?? 2);
   const dwPct = parseFloat(p.kaucja_dw_pct ?? defaults.dw ?? 2);
@@ -544,8 +546,15 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
           onBlur={() => save({ name: edit.name })} className={`${inputCls} text-white font-semibold`}
           data-testid={`pos-name-${position.id}`} />
       </Td>
-      <Td right>{row.qty ? row.qty.toFixed(1) : '—'}</Td>
-      <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(0) : '—'}</Td>
+      <Td right>
+        <input type="number" step="0.01" min="0" value={edit.quantity ?? ''}
+          onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
+          onBlur={() => save({ quantity: edit.quantity === '' || edit.quantity == null ? null : parseFloat(edit.quantity) || 0 })}
+          placeholder={row.qty ? row.qty.toFixed(1) : 'wpisz'}
+          className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
+          data-testid={`pos-qty-${position.id}`} />
+      </Td>
+      <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
       <Td right className="text-[#64748B]">—</Td>
       <Td right className="text-[#64748B]">—</Td>
       <Td right>{fmtPLN(row.budzet)}</Td>

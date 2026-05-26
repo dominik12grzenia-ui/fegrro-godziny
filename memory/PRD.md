@@ -2317,3 +2317,27 @@ ZYSK + KAUCJA DW   = ZYSK PROGNOZOWANY + KAUCJA DW
 
 ### Pliki
 - `/app/frontend/src/components/Wyceny.js` — `computePosRow`, `computeSubRow`, PosRow, SubRow, total row.
+
+---
+
+## iter95u — Ręczna ILOŚĆ w pozycji głównej (2026-05-26)
+
+### Zmiana
+- W PosRow (Pozycja Główna) pole **ILOŚĆ** jest teraz **edytowalne**.
+- **CENA** auto = BUDŻET pozycji / ILOŚĆ wpisana ręcznie.
+- Subpozycje mają własne ilości × ceny, suma podpozycji daje BUDŻET pozycji.
+- Fallback: jeśli pos.quantity nie wpisane → max z subs (wstecznie kompatybilne).
+
+### Backend
+- `PositionCreate/Update`: dodano `quantity: Optional[float]`.
+- `POST /wyceny/positions` zapisuje quantity.
+- `PATCH /wyceny/positions/{id}` zapisuje quantity (już działało przez exclude_unset).
+
+### Frontend
+- `Wyceny.js > computePosRow`: qty z `p.quantity` (fallback max subs).
+- `PosRow`: cell ILOŚĆ to `<input>` z onBlur save, placeholder z fallback qty.
+- CENA wyświetlana z 2 miejscami po przecinku.
+
+### Test
+- pos.quantity=50, subs: qty=10 × cena=100 × narzut=10% × marża=20% →
+  - BUDŻET ZWOLNIONY=1300, BUDŻET=1378, CENA=27.56 zł/jednostka ✓
