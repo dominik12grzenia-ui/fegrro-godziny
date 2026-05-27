@@ -93,6 +93,8 @@ class LineCreate(BaseModel):
     # iter95s: narzut na zapas + marza (procentowe - mnoza budzet)
     narzut_zapas_pct: Optional[float] = None
     marza_pct: Optional[float] = None
+    # iter95ae: formula obliczania ilosci (np. "=100 m² * 0,24 m")
+    quantity_formula: Optional[str] = None
 
 
 class LineUpdate(BaseModel):
@@ -104,6 +106,7 @@ class LineUpdate(BaseModel):
     order: Optional[int] = None
     narzut_zapas_pct: Optional[float] = None
     marza_pct: Optional[float] = None
+    quantity_formula: Optional[str] = None
 
 
 class PriceBookCreate(BaseModel):
@@ -368,6 +371,7 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         "unit_price_netto": payload.unit_price_netto,
         "narzut_zapas_pct": payload.narzut_zapas_pct,
         "marza_pct": payload.marza_pct,
+        "quantity_formula": payload.quantity_formula,
         "order": payload.order,
         "created_at": datetime.now().isoformat(),
     }

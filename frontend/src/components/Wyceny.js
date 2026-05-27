@@ -24,6 +24,93 @@ const TYPE_COLOR = { materials: '#CBD5E1', labor: '#9DBC85', equipment: '#D4AF37
 // iter95x: dostepne jednostki miary
 const UNITS = ['', 'mb', 'm²', 'm³', 'szt', 'kg', 't', 'godz', 'dzień', 'm-c', 'kpl'];
 
+// iter95ae: ewaluator formul typu "=100 m² × 0,24 m" -> { value: 24, unit: "m³" }
+// Wspiera: + - * / ( ), nawiasy, komentarze tekstowe (pomijane), jednostki budowlane.
+// Analiza wymiarowa: m × m = m², m² × m = m³, m³ / m² = m, itd.
+const UNIT_DIM = {
+  'm': { m: 1 }, 'cm': { m: 1, scale: 0.01 }, 'mm': { m: 1, scale: 0.001 },
+  'mb': { m: 1 }, 'm²': { m: 2 }, 'm³': { m: 3 },
+  'kg': { kg: 1 }, 't': { kg: 1, scale: 1000 },
+  'l': { l: 1 }, 'szt': { szt: 1 }, 'kpl': { kpl: 1 }, 'godz': { godz: 1 }, 'h': { godz: 1 },
+};
+
+const dimToUnit = (dim) => {
+  const keys = Object.keys(dim).filter((k) => dim[k] !== 0);
+  if (keys.length === 0) return '';
+  if (keys.length === 1) {
+    const k = keys[0], v = dim[k];
+    if (k === 'm') {
+      if (v === 1) return 'm';
+      if (v === 2) return 'm²';
+      if (v === 3) return 'm³';
+    }
+    if (v === 1) return k;
+  }
+  return '?'; // mieszane jednostki - niejednoznaczne
+};
+
+const evalFormula = (raw) => {
+  if (!raw || typeof raw !== 'string') return null;
+  let s = raw.trim();
+  if (!s.startsWith('=')) return null;
+  s = s.slice(1).trim();
+  if (!s) return { error: 'Pusta formuła' };
+  // Normalizuj
+  s = s.replace(/×/g, '*').replace(/÷/g, '/').replace(/,/g, '.');
+  // Wyciagnij jednostki przy liczbach; zapisz dimensions per liczba
+  const tokens = [];   // ciag tokenow: { type: 'num', val, dim } | { type: 'op', val }
+  let cleanExpr = '';
+  // Regex: liczba + opcjonalna jednostka. Pozostale znaki: operatory/nawiasy/spacje/tekst.
+  const re = /(\d+(?:\.\d+)?)\s*(m²|m³|cm|mm|mb|kg|l|szt|kpl|godz|t|h|m)?(?=\s|[+\-*/()]|$|[a-zA-ZąęóśłżźćńĄĘÓŚŁŻŹĆŃ])|([+\-*/()])|([a-zA-ZąęóśłżźćńĄĘÓŚŁŻŹĆŃ]+)/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    if (m[1]) {
+      let val = parseFloat(m[1]);
+      let dim = {};
+      let scale = 1;
+      if (m[2]) {
+        const u = m[2];
+        const d = UNIT_DIM[u] || {};
+        Object.keys(d).forEach((k) => { if (k !== 'scale') dim[k] = d[k]; });
+        if (d.scale) scale = d.scale;
+      }
+      tokens.push({ type: 'num', val: val * scale, dim });
+      cleanExpr += val * scale;
+    } else if (m[3]) {
+      tokens.push({ type: 'op', val: m[3] });
+      cleanExpr += m[3];
+    }
+    // m[4] = tekst (komentarz) -> ignoruj
+  }
+  if (!cleanExpr) return { error: 'Brak liczb' };
+  // Walidacja - tylko cyfry, kropka, operatory, nawiasy
+  if (!/^[\d.+\-*/()\s]+$/.test(cleanExpr)) return { error: 'Niepoprawna formuła' };
+  let value;
+  try {
+    // eslint-disable-next-line no-new-func
+    value = Function('"use strict"; return (' + cleanExpr + ')')();
+  } catch (e) { return { error: 'Błąd składni' }; }
+  if (typeof value !== 'number' || isNaN(value) || !isFinite(value)) return { error: 'Wynik niepoprawny' };
+  // Analiza wymiarowa: parsujemy tokeny przy operatorach * /
+  // Uproszczenie: bierzemy wszystkie '*' jako sumowanie wymiarow, '/' jako odejmowanie.
+  // Dla '+' i '-' wymagamy ze obie strony maja ten sam wymiar (bierzemy lewy).
+  const dim = {};
+  let lastOp = '*'; // pierwsza liczba traktowana jak mnozenie z 1
+  tokens.forEach((t) => {
+    if (t.type === 'op') {
+      lastOp = t.val;
+    } else if (t.type === 'num') {
+      const sign = lastOp === '/' ? -1 : 1;
+      if (lastOp === '*' || lastOp === '/') {
+        Object.keys(t.dim).forEach((k) => { dim[k] = (dim[k] || 0) + sign * t.dim[k]; });
+      }
+      // '+' i '-' nie zmieniaja wymiaru wyniku
+    }
+  });
+  const unit = dimToUnit(dim);
+  return { value: Math.round(value * 10000) / 10000, unit, error: null };
+};
+
 export const Wyceny = () => {
   const [tab, setTab] = useState('list');
   const [selectedId, setSelectedId] = useState(null);  // id otwartej wyceny
@@ -894,7 +981,12 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
 const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
   const [pickerOpen, setPickerOpen] = useState(false);
-  useEffect(() => { setEdit(sub); }, [sub]);
+  // iter95ae: tekst formuly (gdy input zaczyna sie od "=")
+  const [qtyInput, setQtyInput] = useState(sub.quantity_formula || (sub.quantity ?? ''));
+  useEffect(() => {
+    setEdit(sub);
+    setQtyInput(sub.quantity_formula || (sub.quantity ?? ''));
+  }, [sub]);
 
   const save = async (override = null) => {
     const src = override || edit;
@@ -907,6 +999,7 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
         ? null : parseFloat(src.narzut_zapas_pct) || 0,
       marza_pct: src.marza_pct === '' || src.marza_pct == null
         ? null : parseFloat(src.marza_pct) || 0,
+      quantity_formula: src.quantity_formula || null,
     };
     try {
       await api.patch(`/wyceny/lines/${sub.id}`, payload);
@@ -914,15 +1007,47 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  // iter95x: po wyborze pozycji z cennika - wypelnij nazwe, cene, jednostke
+  // iter95ae: ewaluuj formule przy edycji
+  const formulaPreview = useMemo(() => {
+    const v = String(qtyInput || '');
+    if (v.trim().startsWith('=')) return evalFormula(v);
+    return null;
+  }, [qtyInput]);
+
+  const saveQty = () => {
+    const v = String(qtyInput || '').trim();
+    if (v.startsWith('=')) {
+      const r = evalFormula(v);
+      if (r && !r.error) {
+        const next = {
+          ...edit,
+          quantity: r.value,
+          quantity_formula: v,
+          // jezeli formula zwrocila konkretna jednostke - ustaw ja
+          unit: r.unit && r.unit !== '?' ? r.unit : edit.unit,
+        };
+        setEdit(next); save(next);
+      } else {
+        toast.error('Formuła: ' + (r?.error || 'błąd'));
+      }
+    } else {
+      const num = parseFloat(v) || 0;
+      const next = { ...edit, quantity: num, quantity_formula: null };
+      setEdit(next); save(next);
+    }
+  };
+
+  // iter95x: po wyborze pozycji z cennika - wypelnij nazwe, cene, jednostke (czysc formule)
   const pickFromBook = (item) => {
     const next = {
       ...edit,
       name: item.name,
       unit: item.unit || edit.unit,
       unit_price_netto: item.unit_price_netto || 0,
+      quantity_formula: null,
     };
     setEdit(next);
+    setQtyInput(next.quantity ?? '');
     save(next);
     setPickerOpen(false);
     toast.success(`Wybrano: ${item.name}`);
@@ -948,10 +1073,32 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
           placeholder="↳ nazwa" data-testid={`sub-name-${sub.id}`} />
       </Td>
       <Td right>
-        <input type="number" step="0.01" value={edit.quantity ?? ''}
-          onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
-          onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
-          data-testid={`sub-qty-${sub.id}`} />
+        <div className="relative">
+          <input type="text" value={qtyInput}
+            onChange={(e) => setQtyInput(e.target.value)}
+            onBlur={saveQty}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            className={`${inputCls} text-right tabular-nums text-[#CBD5E1] ${String(qtyInput).startsWith('=') ? 'text-[#D4AF37] font-mono' : ''}`}
+            title={formulaPreview && !formulaPreview.error ? `= ${formulaPreview.value} ${formulaPreview.unit || ''}` : (formulaPreview?.error || 'Wpisz liczbę lub formułę zaczynającą się od "=" np. =100 m² * 0,24 m')}
+            data-testid={`sub-qty-${sub.id}`} />
+          {formulaPreview && !formulaPreview.error && (
+            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#9DBC85] whitespace-nowrap pointer-events-none"
+              data-testid={`sub-qty-preview-${sub.id}`}>
+              = {formulaPreview.value} {formulaPreview.unit || ''}
+            </div>
+          )}
+          {formulaPreview?.error && (
+            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#FCA5A5] whitespace-nowrap pointer-events-none">
+              ⚠ {formulaPreview.error}
+            </div>
+          )}
+          {!formulaPreview && sub.quantity_formula && (
+            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#94A3B8] font-mono whitespace-nowrap pointer-events-none"
+              title={`Formuła: ${sub.quantity_formula}`}>
+              fx
+            </div>
+          )}
+        </div>
       </Td>
       <Td>
         <select value={edit.unit || ''}
