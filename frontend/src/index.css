@@ -96,3 +96,13 @@ code, .font-mono {
     .finance-grid-table td:first-child { padding-left: 1rem; }
     .finance-grid-table tr:hover td { background-color: rgba(19, 28, 47, 0.8); }
 }
+/* iter95ad: ukryj strzalki spin w inputach type=number w module Wyceny */
+.wyceny-no-spin input[type="number"]::-webkit-inner-spin-button,
+.wyceny-no-spin input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.wyceny-no-spin input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}

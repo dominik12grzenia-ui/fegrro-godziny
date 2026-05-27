@@ -29,7 +29,7 @@ export const Wyceny = () => {
   const [selectedId, setSelectedId] = useState(null);  // id otwartej wyceny
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59]">
+    <Card className="bg-[#131C2F] border-[#2A3B59] wyceny-no-spin">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-base flex items-center gap-2">
@@ -788,7 +788,7 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl"
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl wyceny-no-spin"
         data-testid={`price-picker-${category}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
