@@ -598,20 +598,113 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
   );
 };
 
+// iter95ab: szybkie uzupelnienie 3 brakujacych pol (ilość, zapotrzebowanie, jd/jd) bez wychodzenia z pickera
+const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
+  const [pkgQty, setPkgQty] = useState(item.pkg_qty ?? '');
+  const [pkgUnit, setPkgUnit] = useState(item.pkg_unit || 'kg');
+  const [zap, setZap] = useState(item.zapotrzebowanie ?? '');
+  const [zapUnit, setZapUnit] = useState(item.zap_unit || (posUnit ? `kg/${posUnit}` : ''));
+  const [saving, setSaving] = useState(false);
+
+  // iter95ab: oblicz na zywo preview
+  const preview = computeMaterialPerWorkUnit({
+    ...item,
+    pkg_qty: pkgQty, zapotrzebowanie: zap, zap_unit: zapUnit,
+  }, posUnit);
+
+  const save = async () => {
+    if (!pkgQty || !zap || !zapUnit) { toast.error('Wszystkie 3 pola wymagane'); return; }
+    setSaving(true);
+    try {
+      await api.patch(`/wyceny/cennik/${item.id}`, {
+        pkg_qty: parseFloat(pkgQty) || 0,
+        pkg_unit: pkgUnit,
+        zapotrzebowanie: parseFloat(zap) || 0,
+        zap_unit: zapUnit,
+      });
+      onSaved({ ...item, pkg_qty: parseFloat(pkgQty), pkg_unit: pkgUnit, zapotrzebowanie: parseFloat(zap), zap_unit: zapUnit });
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    } finally { setSaving(false); }
+  };
+
+  // zap_unit musi konczyc sie na posUnit zeby przelicznik dzialal
+  const zapUnitOptions = posUnit
+    ? ZAP_UNITS.filter((u) => u === '' || u.endsWith('/' + posUnit))
+    : ZAP_UNITS;
+
+  return (
+    <tr className="bg-[#3F2F0A]/30 border-t border-[#F59E0B]/40">
+      <td colSpan={4} className="px-3 py-2">
+        <div className="text-[10px] text-[#F59E0B] mb-1.5 uppercase tracking-wide">
+          ⚙ Uzupełnij aby przeliczyć cenę na 1 {posUnit || 'jd. wyrobu'}
+        </div>
+        <div className="grid grid-cols-12 gap-2 items-center">
+          <label className="col-span-2 text-[10px] text-[#94A3B8]">Ilość w opak.</label>
+          <input type="number" step="0.01" value={pkgQty}
+            onChange={(e) => setPkgQty(e.target.value)} placeholder="np. 20"
+            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            data-testid={`qf-pkg-qty-${item.id}`} />
+          <select value={pkgUnit} onChange={(e) => setPkgUnit(e.target.value)}
+            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            data-testid={`qf-pkg-unit-${item.id}`}>
+            {PKG_UNITS.filter((u) => u).map((u) => <option key={u} value={u}>{u}</option>)}
+          </select>
+          <label className="col-span-1 text-[10px] text-[#94A3B8]">Zap.</label>
+          <input type="number" step="0.01" value={zap}
+            onChange={(e) => setZap(e.target.value)} placeholder="np. 0.3"
+            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            data-testid={`qf-zap-${item.id}`} />
+          <select value={zapUnit} onChange={(e) => setZapUnit(e.target.value)}
+            className="col-span-3 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            data-testid={`qf-zap-unit-${item.id}`}>
+            {zapUnitOptions.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center justify-between mt-2">
+          <div className="text-[10px] text-[#94A3B8]">
+            Wzór: (cena + koszty inne) × zap / ilość w opak.
+            {preview && (
+              <span className="ml-2 text-[#9DBC85] font-semibold">
+                = {fmtPLN(preview.price)} zł / 1 {preview.workUnit}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={onCancel} disabled={saving}
+              className="text-[10px] text-[#94A3B8] hover:text-white px-3 py-1 border border-[#2A3B59] rounded"
+              data-testid={`qf-cancel-${item.id}`}>
+              Anuluj
+            </button>
+            <button onClick={save} disabled={saving || !preview}
+              className="text-[10px] bg-[#D4AF37] text-[#0B1120] font-semibold px-3 py-1 rounded hover:bg-[#FCD34D] disabled:opacity-40"
+              data-testid={`qf-save-${item.id}`}>
+              {saving ? '...' : 'Zapisz i przelicz'}
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+};
+
 // iter95x: modal do wyboru pozycji z cennika (per kategoria materials/labor/equipment)
 // iter95z: jeśli posUnit jest podany - przelicza cenę na 1 jednostkę wyrobu (m²/m³/mb/...).
 const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
+  const [editRowId, setEditRowId] = useState(null); // iter95ab: szybkie uzupelnienie danych z poziomu pickera
 
-  useEffect(() => {
+  const reload = useCallback(() => {
     setLoading(true);
     api.get('/wyceny/cennik', { params: { category } })
       .then((r) => setRows(r.data?.rows || []))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
   }, [category]);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const filtered = useMemo(() => {
     const s = q.trim().toLowerCase();
@@ -719,24 +812,44 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
               <tbody>
                 {filtered.map((it) => {
                   const eff = getEffective(it);
+                  // iter95ab: oznacz materialy ktorych nie da sie przeliczyc na posUnit
+                  const needsCompletion = category === 'materials' && posUnit && eff.source !== 'computed';
+                  const isEditing = editRowId === it.id;
                   return (
-                    <tr key={it.id}
-                      onClick={() => onPick({ ...it, unit_price_netto: eff.price, unit: eff.unit || it.unit })}
-                      className="hover:bg-[#3F5235]/30 cursor-pointer border-t border-[#2A3B59]"
-                      data-testid={`picker-row-${it.id}`}>
-                      <td className="px-2 py-1.5 text-white">{it.name}</td>
-                      <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
-                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{eff.unit || '—'}</td>
-                      <td className="px-2 py-1.5 text-right tabular-nums">
-                        <span className={eff.source === 'computed' || (posUnit && eff.unit === posUnit)
-                          ? 'text-[#9DBC85] font-semibold' : 'text-[#D4AF37] font-semibold'}>
-                          {fmtPLN(eff.price)}
-                        </span>
-                        {eff.source === 'computed' && (
-                          <span className="ml-1 text-[10px] text-[#94A3B8]" title="Przeliczona z opakowania">⚙</span>
-                        )}
-                      </td>
-                    </tr>
+                    <React.Fragment key={it.id}>
+                      <tr
+                        onClick={() => { if (!needsCompletion && !isEditing) onPick({ ...it, unit_price_netto: eff.price, unit: eff.unit || it.unit }); }}
+                        className={`border-t border-[#2A3B59] ${needsCompletion ? 'opacity-70' : 'hover:bg-[#3F5235]/30 cursor-pointer'}`}
+                        data-testid={`picker-row-${it.id}`}>
+                        <td className="px-2 py-1.5 text-white">{it.name}</td>
+                        <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
+                        <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{eff.unit || '—'}</td>
+                        <td className="px-2 py-1.5 text-right tabular-nums">
+                          {needsCompletion ? (
+                            <button onClick={(e) => { e.stopPropagation(); setEditRowId(isEditing ? null : it.id); }}
+                              className="text-[#F59E0B] text-[10px] underline hover:text-[#FCD34D]"
+                              data-testid={`picker-fill-${it.id}`}>
+                              ⚠ uzupełnij dane
+                            </button>
+                          ) : (
+                            <>
+                              <span className={eff.source === 'computed' || (posUnit && eff.unit === posUnit)
+                                ? 'text-[#9DBC85] font-semibold' : 'text-[#D4AF37] font-semibold'}>
+                                {fmtPLN(eff.price)}
+                              </span>
+                              {eff.source === 'computed' && (
+                                <span className="ml-1 text-[10px] text-[#94A3B8]" title="Przeliczona z opakowania">⚙</span>
+                              )}
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                      {isEditing && (
+                        <QuickFillRow item={it} posUnit={posUnit}
+                          onSaved={(updated) => { setEditRowId(null); reload(); toast.success('Cennik zaktualizowany'); }}
+                          onCancel={() => setEditRowId(null)} />
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>
