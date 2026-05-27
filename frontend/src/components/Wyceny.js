@@ -606,11 +606,12 @@ const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
   const [zapUnit, setZapUnit] = useState(item.zap_unit || (posUnit ? `kg/${posUnit}` : ''));
   const [saving, setSaving] = useState(false);
 
-  // iter95ab: oblicz na zywo preview
+  // iter95ab/ac: oblicz na zywo preview - uzyj sufiksu zap_unit (nie posUnit), bo uzytkownik moze wybrac jednostke rozna od pozycji
   const preview = computeMaterialPerWorkUnit({
     ...item,
     pkg_qty: pkgQty, zapotrzebowanie: zap, zap_unit: zapUnit,
-  }, posUnit);
+  }, null);
+  const previewMismatch = preview && posUnit && preview.workUnit !== posUnit;
 
   const save = async () => {
     if (!pkgQty || !zap || !zapUnit) { toast.error('Wszystkie 3 pola wymagane'); return; }
@@ -628,10 +629,9 @@ const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
     } finally { setSaving(false); }
   };
 
-  // zap_unit musi konczyc sie na posUnit zeby przelicznik dzialal
-  const zapUnitOptions = posUnit
-    ? ZAP_UNITS.filter((u) => u === '' || u.endsWith('/' + posUnit))
-    : ZAP_UNITS;
+  // iter95ac: pokaz wszystkie warianty, ale wyrozij pasujace do posUnit (uzytkownik moze chciec uzyc kg/m² nawet gdy pozycja jest m³)
+  const isMatching = (u) => posUnit && u.endsWith('/' + posUnit);
+  const zapUnitOptions = ZAP_UNITS;
 
   return (
     <tr className="bg-[#3F2F0A]/30 border-t border-[#F59E0B]/40">
@@ -658,15 +658,20 @@ const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
           <select value={zapUnit} onChange={(e) => setZapUnit(e.target.value)}
             className="col-span-3 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
             data-testid={`qf-zap-unit-${item.id}`}>
-            {zapUnitOptions.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+            {zapUnitOptions.map((u) => (
+              <option key={u || 'empty'} value={u}>
+                {u || '—'}{isMatching(u) ? '  ★' : ''}
+              </option>
+            ))}
           </select>
         </div>
         <div className="flex items-center justify-between mt-2">
           <div className="text-[10px] text-[#94A3B8]">
             Wzór: (cena + koszty inne) × zap / ilość w opak.
             {preview && (
-              <span className="ml-2 text-[#9DBC85] font-semibold">
+              <span className={`ml-2 font-semibold ${previewMismatch ? 'text-[#F59E0B]' : 'text-[#9DBC85]'}`}>
                 = {fmtPLN(preview.price)} zł / 1 {preview.workUnit}
+                {previewMismatch && <span className="ml-1 text-[10px]" title={`Pozycja wyceny ma jednostkę ${posUnit}, a norma jest dla ${preview.workUnit}`}>≠{posUnit}</span>}
               </span>
             )}
           </div>
@@ -718,12 +723,22 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
   }, [rows, q]);
 
   // iter95z: oblicz "efektywna" cene + jednostke uwzgledniajaca posUnit
-  // Zwraca { price, unit, source } gdzie source = "computed" | "m2" | "m3" | "hour" | "day" | "month" | "raw"
+  // iter95ac: jezeli posUnit nie pasuje, ale material MA wlasna norme (np. kg/m²) - uzyj jej i pokaz ostrzezenie
+  // Zwraca { price, unit, source } gdzie source = "computed" | "computed-mismatch" | "m2"/"m3"/"hour"/.. | "raw"
   const getEffective = (it) => {
-    // MATERIALS: jezeli posUnit pasuje do zap_unit → przelicz na cene za 1 jd. wyrobu
-    if (category === 'materials' && posUnit) {
-      const calc = computeMaterialPerWorkUnit(it, posUnit);
-      if (calc) return { price: calc.price, unit: calc.workUnit, source: 'computed' };
+    // MATERIALS:
+    if (category === 'materials') {
+      // 1. Idealnie: posUnit pasuje do zap_unit
+      if (posUnit) {
+        const calc = computeMaterialPerWorkUnit(it, posUnit);
+        if (calc) return { price: calc.price, unit: calc.workUnit, source: 'computed' };
+      }
+      // 2. Material ma wlasna norme (zap_unit) ale inna niz posUnit - uzyj jej
+      const ownCalc = computeMaterialPerWorkUnit(it);
+      if (ownCalc) {
+        const mismatch = posUnit && ownCalc.workUnit !== posUnit;
+        return { price: ownCalc.price, unit: ownCalc.workUnit, source: mismatch ? 'computed-mismatch' : 'computed' };
+      }
     }
     // LABOR: dobierz cene zgodna z posUnit
     if (category === 'labor') {
@@ -812,8 +827,9 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
               <tbody>
                 {filtered.map((it) => {
                   const eff = getEffective(it);
-                  // iter95ab: oznacz materialy ktorych nie da sie przeliczyc na posUnit
-                  const needsCompletion = category === 'materials' && posUnit && eff.source !== 'computed';
+                  // iter95ab/ac: tylko gdy material nie ma ZADNEJ normy -> wymaga uzupelnienia
+                  const needsCompletion = category === 'materials' && posUnit && eff.source === 'raw';
+                  const mismatch = eff.source === 'computed-mismatch';
                   const isEditing = editRowId === it.id;
                   return (
                     <React.Fragment key={it.id}>
@@ -823,7 +839,15 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
                         data-testid={`picker-row-${it.id}`}>
                         <td className="px-2 py-1.5 text-white">{it.name}</td>
                         <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
-                        <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{eff.unit || '—'}</td>
+                        <td className="px-2 py-1.5 text-center text-[#CBD5E1]">
+                          {eff.unit || '—'}
+                          {mismatch && (
+                            <span className="ml-1 text-[10px] text-[#F59E0B]"
+                              title={`Norma w cenniku to ${eff.unit}, ale pozycja wyceny ma ${posUnit}. Cena zostanie wstawiona jako zł/${eff.unit}.`}>
+                              ≠{posUnit}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-2 py-1.5 text-right tabular-nums">
                           {needsCompletion ? (
                             <button onClick={(e) => { e.stopPropagation(); setEditRowId(isEditing ? null : it.id); }}
@@ -834,11 +858,13 @@ const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {
                           ) : (
                             <>
                               <span className={eff.source === 'computed' || (posUnit && eff.unit === posUnit)
-                                ? 'text-[#9DBC85] font-semibold' : 'text-[#D4AF37] font-semibold'}>
+                                ? 'text-[#9DBC85] font-semibold'
+                                : mismatch ? 'text-[#F59E0B] font-semibold' : 'text-[#D4AF37] font-semibold'}>
                                 {fmtPLN(eff.price)}
                               </span>
-                              {eff.source === 'computed' && (
-                                <span className="ml-1 text-[10px] text-[#94A3B8]" title="Przeliczona z opakowania">⚙</span>
+                              {(eff.source === 'computed' || mismatch) && (
+                                <span className="ml-1 text-[10px] text-[#94A3B8]"
+                                  title={mismatch ? `Przeliczona, ale jednostka różni się od pozycji (${eff.unit} vs ${posUnit})` : 'Przeliczona z opakowania'}>⚙</span>
                               )}
                             </>
                           )}
