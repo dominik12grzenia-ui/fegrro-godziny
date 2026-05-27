@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../context/AuthContext';
 
@@ -334,12 +334,131 @@ const PctInput = ({ label, testId, value, onSave }) => {
   );
 };
 
+
+// iter95af: dialog zestawienia materialow z eksportem PDF/XLSX
+const BomDialog = ({ wycenaId, onClose }) => {
+  const [bom, setBom] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
+
+  useEffect(() => {
+    api.get(`/wyceny/${wycenaId}/bom`)
+      .then((r) => setBom(r.data))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+      .finally(() => setLoading(false));
+  }, [wycenaId]);
+
+  const download = async (format) => {
+    setDownloading(true);
+    try {
+      const r = await api.get(`/wyceny/${wycenaId}/bom.${format}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      const ext = format === 'xlsx' ? 'xlsx' : 'pdf';
+      const safeName = (bom?.wycena_name || 'wycena').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
+      a.download = `BOM_${safeName}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`Pobrano ${ext.toUpperCase()}`);
+    } catch (e) {
+      toast.error('Błąd pobierania: ' + (e.response?.data?.detail || e.message));
+    } finally { setDownloading(false); }
+  };
+
+  const total = useMemo(() => {
+    if (!bom?.rows) return 0;
+    return bom.rows.reduce((acc, r) => acc + (r.quantity * r.unit_price_netto), 0);
+  }, [bom]);
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl wyceny-no-spin"
+        data-testid="bom-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
+            <Package className="h-5 w-5" /> Zestawienie materiałów do zapytania
+          </DialogTitle>
+          <div className="text-xs text-[#94A3B8]">
+            Lista zagregowanych materiałów ze wszystkich pozycji wyceny — gotowa do wysłania do hurtowni.
+          </div>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
+          {loading ? (
+            <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
+          ) : !bom?.rows || bom.rows.length === 0 ? (
+            <div className="text-[#94A3B8] p-4 text-center text-sm">
+              Brak materiałów w tej wycenie. Dodaj podpozycje typu „Materiał" w wycenie.
+            </div>
+          ) : (
+            <table className="w-full text-xs">
+              <thead className="bg-[#0B1120] sticky top-0">
+                <tr className="text-[#94A3B8] uppercase text-[10px]">
+                  <th className="text-center px-2 py-1.5 w-10">L.p.</th>
+                  <th className="text-left px-2 py-1.5">Nazwa materiału</th>
+                  <th className="text-right px-2 py-1.5 w-20">Ilość</th>
+                  <th className="text-center px-2 py-1.5 w-16">Jedn.</th>
+                  <th className="text-right px-2 py-1.5 w-28">Cena netto (PLN)</th>
+                  <th className="text-right px-2 py-1.5 w-28">Wartość (PLN)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {bom.rows.map((row, idx) => (
+                  <tr key={idx} className="border-t border-[#2A3B59]" data-testid={`bom-row-${idx}`}>
+                    <td className="px-2 py-1.5 text-center text-[#94A3B8]">{idx + 1}</td>
+                    <td className="px-2 py-1.5 text-white">
+                      {row.name}
+                      {row.occurrences > 1 && (
+                        <span className="ml-2 text-[10px] text-[#94A3B8]">({row.occurrences} pozycje)</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums">
+                      {row.quantity.toLocaleString('pl-PL', { maximumFractionDigits: 3 })}
+                    </td>
+                    <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{row.unit || '—'}</td>
+                    <td className="px-2 py-1.5 text-right text-[#D4AF37] tabular-nums">{fmtPLN(row.unit_price_netto)}</td>
+                    <td className="px-2 py-1.5 text-right text-white tabular-nums">{fmtPLN(row.quantity * row.unit_price_netto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-[#D4AF37]/40 bg-[#3F5235]/20">
+                  <td colSpan={5} className="px-2 py-2 text-right font-bold uppercase text-[#94A3B8]">RAZEM:</td>
+                  <td className="px-2 py-2 text-right text-[#D4AF37] font-bold tabular-nums" data-testid="bom-total">{fmtPLN(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+        <DialogFooter className="gap-2">
+          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+            data-testid="bom-close">Zamknij</Button>
+          <Button onClick={() => download('pdf')} disabled={downloading || !bom?.rows?.length}
+            className="bg-[#5F7552] hover:bg-[#3F5235] text-white"
+            data-testid="bom-pdf-btn">
+            <FileDown className="h-4 w-4 mr-1" /> PDF
+          </Button>
+          <Button onClick={() => download('xlsx')} disabled={downloading || !bom?.rows?.length}
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+            data-testid="bom-xlsx-btn">
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 const WycenaEditor = ({ wycenaId, onBack }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [collapsedStages, setCollapsedStages] = useState(() => new Set());
   const [collapsedPos, setCollapsedPos] = useState(() => new Set());
   const [newStageName, setNewStageName] = useState('');
+  // iter95af: dialog zestawienia materialow
+  const [bomOpen, setBomOpen] = useState(false);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -465,6 +584,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         <div className="flex-1">
           <div className="text-white text-lg font-semibold">{w.name}</div>
         </div>
+        <Button onClick={() => setBomOpen(true)} variant="outline"
+          className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+          data-testid="wycena-bom-btn">
+          <Package className="h-4 w-4 mr-1" /> Zestawienie materiałów
+        </Button>
         <div className="text-right">
           <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
           <div className="text-[#D4AF37] text-xl font-bold tabular-nums" data-testid="wycena-total">
@@ -603,6 +727,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           <Plus className="h-4 w-4 mr-1" /> Dodaj etap
         </Button>
       </div>
+      {bomOpen && <BomDialog wycenaId={wycenaId} onClose={() => setBomOpen(false)} />}
     </div>
   );
 };

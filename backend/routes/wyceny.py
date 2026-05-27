@@ -15,6 +15,7 @@ from datetime import datetime
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from database import db
@@ -493,3 +494,205 @@ async def delete_price_book(item_id: str, _user: dict = Depends(get_current_admi
     if res.deleted_count == 0:
         raise HTTPException(404, "Pozycja cennika nie istnieje")
     return {"ok": True}
+
+
+# iter95af: zestawienie potrzebnych materialow (Bill of Materials)
+async def _build_bom(wycena_id: str):
+    """Buduj zestawienie materialow: grupuj po (nazwa, jednostka), sumuj ilosci."""
+    wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
+    if not wycena:
+        raise HTTPException(404, "Wycena nie istnieje")
+    lines = await db.wyceny_lines.find(
+        {"wycena_id": wycena_id, "type": "materials"}, {"_id": 0}
+    ).to_list(length=None)
+    # Grupuj po (nazwa, jednostka)
+    grouped: dict = {}
+    for ln in lines:
+        name = (ln.get("name") or "").strip()
+        if not name:
+            continue
+        unit = (ln.get("unit") or "").strip()
+        qty = float(ln.get("quantity") or 0)
+        if qty <= 0:
+            continue
+        key = (name.lower(), unit.lower())
+        if key not in grouped:
+            grouped[key] = {
+                "name": name,
+                "unit": unit,
+                "quantity": 0.0,
+                "unit_price_netto": float(ln.get("unit_price_netto") or 0),
+                "occurrences": 0,
+            }
+        grouped[key]["quantity"] += qty
+        grouped[key]["occurrences"] += 1
+    rows = sorted(grouped.values(), key=lambda r: r["name"].lower())
+    return {"wycena_name": wycena.get("name", ""), "rows": rows}
+
+
+@router.get("/wyceny/{wycena_id}/bom")
+async def get_materials_bom(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    """JSON: zestawienie materialow do podgladu we frontendzie."""
+    return await _build_bom(wycena_id)
+
+
+@router.get("/wyceny/{wycena_id}/bom.xlsx")
+async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    data = await _build_bom(wycena_id)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Zestawienie materiałów"
+    # Naglowek
+    ws["A1"] = f"Zestawienie materiałów: {data['wycena_name']}"
+    ws["A1"].font = Font(bold=True, size=14, color="D4AF37")
+    ws.merge_cells("A1:E1")
+    ws["A2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws["A2"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("A2:E2")
+    # Naglowki kolumn
+    headers = ["L.p.", "Nazwa materiału", "Ilość", "Jednostka", "Cena jedn. netto (PLN)"]
+    header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    thin = Side(border_style="thin", color="999999")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for col, h in enumerate(headers, start=1):
+        c = ws.cell(row=4, column=col, value=h)
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = border
+    # Dane
+    total_value = 0.0
+    for idx, row in enumerate(data["rows"], start=1):
+        r_excel = 4 + idx
+        ws.cell(row=r_excel, column=1, value=idx).border = border
+        ws.cell(row=r_excel, column=2, value=row["name"]).border = border
+        ws.cell(row=r_excel, column=3, value=round(row["quantity"], 3)).border = border
+        ws.cell(row=r_excel, column=4, value=row["unit"]).border = border
+        ws.cell(row=r_excel, column=5, value=round(row["unit_price_netto"], 2)).border = border
+        ws.cell(row=r_excel, column=1).alignment = Alignment(horizontal="center")
+        ws.cell(row=r_excel, column=3).alignment = Alignment(horizontal="right")
+        ws.cell(row=r_excel, column=4).alignment = Alignment(horizontal="center")
+        ws.cell(row=r_excel, column=5).alignment = Alignment(horizontal="right")
+        total_value += row["quantity"] * row["unit_price_netto"]
+    # Suma
+    sum_row = 5 + len(data["rows"])
+    ws.cell(row=sum_row, column=2, value="RAZEM:").font = Font(bold=True)
+    ws.cell(row=sum_row, column=5, value=round(total_value, 2)).font = Font(bold=True, color="D4AF37")
+    ws.cell(row=sum_row, column=5).alignment = Alignment(horizontal="right")
+    # Szerokosci kolumn
+    ws.column_dimensions["A"].width = 6
+    ws.column_dimensions["B"].width = 45
+    ws.column_dimensions["C"].width = 12
+    ws.column_dimensions["D"].width = 12
+    ws.column_dimensions["E"].width = 18
+    # Stream
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe_name = (data["wycena_name"] or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"BOM_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/wyceny/{wycena_id}/bom.pdf")
+async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    import os
+    data = await _build_bom(wycena_id)
+    # Zarejestruj font UTF-8 (DejaVu)
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ]
+    font_bold_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ]
+    base_font, bold_font = "Helvetica", "Helvetica-Bold"
+    for fp in font_paths:
+        if os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVu", fp))
+                base_font = "DejaVu"
+                break
+            except Exception:
+                pass
+    for fp in font_bold_paths:
+        if os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVuBold", fp))
+                bold_font = "DejaVuBold"
+                break
+            except Exception:
+                pass
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
+                            topMargin=15 * mm, bottomMargin=15 * mm)
+    styles = getSampleStyleSheet()
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=16, textColor=colors.HexColor("#3F5235"))
+    sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9, textColor=colors.grey)
+    elements = []
+    elements.append(Paragraph(f"Zestawienie materiałów: {data['wycena_name']}", title_st))
+    elements.append(Paragraph(f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}", sub_st))
+    elements.append(Spacer(1, 6 * mm))
+    table_data = [["L.p.", "Nazwa materiału", "Ilość", "Jedn.", "Cena netto (PLN)"]]
+    total_value = 0.0
+    for idx, row in enumerate(data["rows"], start=1):
+        table_data.append([
+            str(idx),
+            row["name"],
+            f"{row['quantity']:.3f}".replace(",", " ").replace(".", ","),
+            row["unit"],
+            f"{row['unit_price_netto']:.2f}".replace(".", ","),
+        ])
+        total_value += row["quantity"] * row["unit_price_netto"]
+    table_data.append(["", "RAZEM:", "", "", f"{total_value:.2f}".replace(".", ",") + " zł"])
+    tbl = Table(table_data, colWidths=[14 * mm, 90 * mm, 22 * mm, 18 * mm, 36 * mm])
+    tbl.setStyle(TableStyle([
+        ("FONT", (0, 0), (-1, -1), base_font, 9),
+        ("FONT", (0, 0), (-1, 0), bold_font, 9),
+        ("FONT", (0, -1), (-1, -1), bold_font, 10),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 0), (2, -1), "RIGHT"),
+        ("ALIGN", (3, 0), (3, -1), "CENTER"),
+        ("ALIGN", (4, 0), (4, -1), "RIGHT"),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#999999")),
+        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F5F5DC")),
+        ("TEXTCOLOR", (4, -1), (4, -1), colors.HexColor("#B8860B")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F8F8F8")]),
+    ]))
+    elements.append(tbl)
+    elements.append(Spacer(1, 10 * mm))
+    elements.append(Paragraph(
+        "Wygenerowane z systemu FeGrro ERP. Proszę o przygotowanie oferty na powyższe pozycje.",
+        ParagraphStyle("foot", parent=styles["Normal"], fontName=base_font, fontSize=8, textColor=colors.grey)
+    ))
+    doc.build(elements)
+    buf.seek(0)
+    safe_name = (data["wycena_name"] or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"BOM_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
