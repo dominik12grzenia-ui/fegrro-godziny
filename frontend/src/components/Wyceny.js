@@ -1326,6 +1326,9 @@ const MaterialsPriceBook = () => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  // iter95ah: zwijanie kategorii + ukrywanie pustych
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const [hideEmpty, setHideEmpty] = useState(true);
 
   const fetchRows = useCallback(() => {
     setLoading(true);
@@ -1377,8 +1380,13 @@ const MaterialsPriceBook = () => {
       <div className="flex items-center gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj produktu..."
           className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="materials-search" />
+        <label className="text-[10px] text-[#94A3B8] flex items-center gap-1 cursor-pointer">
+          <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)}
+            data-testid="materials-hide-empty" />
+          Ukryj puste kategorie
+        </label>
         <div className="text-xs text-[#94A3B8]">
-          {rows.length} pozycji · 13 kolumn (kategoria · nazwa · cena · oferent · opakowanie · ilość · jd · zapotrzebowanie · jd. do jd. · warstw · koszty inne · cena/jd. wyrobu · uwagi)
+          {rows.length} pozycji
         </div>
       </div>
       {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : (
@@ -1403,28 +1411,50 @@ const MaterialsPriceBook = () => {
               </tr>
             </thead>
             <tbody>
-              {MATERIAL_SUB_CATS.map((sc) => (
-                <React.Fragment key={sc}>
-                  <tr className="bg-[#131C2F]">
-                    <td colSpan="11" className="p-1.5 border-b border-[#2A3B59] text-[#D4AF37] font-semibold text-[11px] uppercase">
-                      📁 {sc}
-                    </td>
-                    <td className="p-1 border-b border-[#2A3B59] text-right">
-                      <button onClick={() => addRow(sc)} className="text-[#9DBC85] hover:text-[#C8E4B5] text-[11px]"
-                        title="Dodaj pozycję w kategorii" data-testid={`mat-add-${sc}`}>
-                        <Plus className="h-3.5 w-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                  {(grouped[sc] || []).length === 0 ? (
-                    <tr><td colSpan="12" className="p-2 text-[#64748B] text-center text-[10px]">— brak pozycji —</td></tr>
-                  ) : (
-                    grouped[sc].map((it) => (
-                      <MaterialRow key={it.id} item={it} onLocalUpdate={updateLocal} onCategoryChange={fetchRows} onDel={() => remove(it.id)} />
-                    ))
-                  )}
-                </React.Fragment>
-              ))}
+              {MATERIAL_SUB_CATS.map((sc) => {
+                const items = grouped[sc] || [];
+                if (hideEmpty && items.length === 0) return null;
+                const isCollapsed = collapsed.has(sc);
+                const toggle = () => {
+                  setCollapsed((prev) => {
+                    const n = new Set(prev);
+                    if (n.has(sc)) n.delete(sc); else n.add(sc);
+                    return n;
+                  });
+                };
+                return (
+                  <React.Fragment key={sc}>
+                    <tr className="bg-[#131C2F]">
+                      <td colSpan="13" className="p-1.5 border-b border-[#2A3B59]">
+                        <button onClick={toggle}
+                          className="flex items-center gap-2 text-[#D4AF37] font-semibold text-[11px] uppercase hover:text-[#FCD34D]"
+                          data-testid={`mat-cat-toggle-${sc}`}>
+                          {isCollapsed
+                            ? <ChevronRight className="h-3.5 w-3.5" />
+                            : <ChevronDown className="h-3.5 w-3.5" />}
+                          📁 {sc}
+                          <span className="text-[10px] text-[#94A3B8] font-normal normal-case">
+                            ({items.length} {items.length === 1 ? 'pozycja' : items.length < 5 ? 'pozycje' : 'pozycji'})
+                          </span>
+                        </button>
+                      </td>
+                      <td className="p-1 border-b border-[#2A3B59] text-right">
+                        <button onClick={() => addRow(sc)} className="text-[#9DBC85] hover:text-[#C8E4B5] text-[11px]"
+                          title="Dodaj pozycję w kategorii" data-testid={`mat-add-${sc}`}>
+                          <Plus className="h-3.5 w-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                    {!isCollapsed && (items.length === 0 ? (
+                      <tr><td colSpan="14" className="p-2 text-[#64748B] text-center text-[10px]">— brak pozycji —</td></tr>
+                    ) : (
+                      items.map((it) => (
+                        <MaterialRow key={it.id} item={it} onLocalUpdate={updateLocal} onCategoryChange={fetchRows} onDel={() => remove(it.id)} />
+                      ))
+                    ))}
+                  </React.Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
