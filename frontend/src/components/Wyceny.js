@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package, Send, Mail } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../context/AuthContext';
 
@@ -335,18 +335,89 @@ const PctInput = ({ label, testId, value, onSave }) => {
 };
 
 
-// iter95af: dialog zestawienia materialow z eksportem PDF/XLSX
+// iter95ai: dialog zestawienia materialow z eksportem PDF/XLSX + WYSYLKA EMAIL
 const BomDialog = ({ wycenaId, onClose }) => {
   const [bom, setBom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  // iter95ai: mail + suppliers
+  const [suppliers, setSuppliers] = useState([]);
+  const [supplierId, setSupplierId] = useState('');
+  const [toEmail, setToEmail] = useState('');
+  const [subject, setSubject] = useState('');
+  const [body, setBody] = useState('');
+  const [sending, setSending] = useState(false);
+  const [showSendForm, setShowSendForm] = useState(false);
+  // dodawanie nowej hurtowni
+  const [newSupName, setNewSupName] = useState('');
+  const [newSupEmail, setNewSupEmail] = useState('');
+  const [newSupBranze, setNewSupBranze] = useState('');
 
   useEffect(() => {
     api.get(`/wyceny/${wycenaId}/bom`)
-      .then((r) => setBom(r.data))
+      .then((r) => {
+        setBom(r.data);
+        // pre-fill subject + body z szablonu
+        setSubject(`Zapytanie ofertowe — ${r.data?.wycena_name || ''}`);
+        setBody(
+          `Dzień dobry,\n\n` +
+          `W załączeniu przesyłam zestawienie materiałów do wyceny: „${r.data?.wycena_name || '—'}".\n` +
+          `Proszę o przygotowanie oferty cenowej (cena netto za opakowanie, termin dostawy).\n\n` +
+          `Termin oferty: 7 dni.\n\n` +
+          `Pozdrawiam,\nFeGrro`
+        );
+      })
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
+    // pobierz hurtownie
+    api.get('/wyceny/suppliers')
+      .then((r) => setSuppliers(r.data?.rows || []))
+      .catch(() => {});
   }, [wycenaId]);
+
+  const reloadSuppliers = () => api.get('/wyceny/suppliers').then((r) => setSuppliers(r.data?.rows || []));
+
+  const onPickSupplier = (sid) => {
+    setSupplierId(sid);
+    const s = suppliers.find((x) => x.id === sid);
+    if (s) setToEmail(s.email);
+  };
+
+  const addSupplier = async () => {
+    if (!newSupName.trim() || !newSupEmail.trim()) {
+      toast.error('Podaj nazwę i email'); return;
+    }
+    try {
+      const r = await api.post('/wyceny/suppliers', {
+        name: newSupName.trim(), email: newSupEmail.trim(),
+        branze: newSupBranze.trim() || null,
+      });
+      await reloadSuppliers();
+      setSupplierId(r.data.id);
+      setToEmail(newSupEmail.trim());
+      setNewSupName(''); setNewSupEmail(''); setNewSupBranze('');
+      toast.success('Hurtownia dodana');
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+  const sendEmail = async () => {
+    if (!toEmail.trim()) { toast.error('Podaj email odbiorcy'); return; }
+    setSending(true);
+    try {
+      const r = await api.post(`/wyceny/${wycenaId}/bom/send`, {
+        to_email: toEmail.trim(),
+        subject: subject.trim() || undefined,
+        body: body.trim() || undefined,
+        supplier_id: supplierId || undefined,
+      });
+      toast.success(`Wysłano! (ID: ${r.data.message_id?.slice(0, 8) || 'ok'}…)`);
+      setShowSendForm(false);
+    } catch (e) {
+      toast.error('Błąd wysyłki: ' + (e.response?.data?.detail || e.message));
+    } finally { setSending(false); }
+  };
 
   const download = async (format) => {
     setDownloading(true);
@@ -436,19 +507,88 @@ const BomDialog = ({ wycenaId, onClose }) => {
             </table>
           )}
         </div>
+        {showSendForm && (
+          <div className="mt-3 p-3 bg-[#0B1120] border border-[#5F7552]/60 rounded space-y-2">
+            <div className="text-[11px] text-[#9DBC85] font-semibold uppercase flex items-center gap-2">
+              <Mail className="h-4 w-4" /> Wyślij do hurtowni
+              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">Nadawca: biuro@fegrro.pl</span>
+            </div>
+            <div className="grid grid-cols-12 gap-2">
+              <div className="col-span-6">
+                <label className="text-[10px] text-[#94A3B8] uppercase">Hurtownia (z bazy)</label>
+                <select value={supplierId} onChange={(e) => onPickSupplier(e.target.value)}
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] rounded h-8 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+                  data-testid="bom-supplier-select">
+                  <option value="">— wybierz lub wpisz nowy email poniżej —</option>
+                  {suppliers.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name} ({s.email}) {s.branze ? `· ${s.branze}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-6">
+                <label className="text-[10px] text-[#94A3B8] uppercase">Email odbiorcy</label>
+                <Input value={toEmail} onChange={(e) => setToEmail(e.target.value)}
+                  placeholder="email@hurtownia.pl"
+                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs"
+                  data-testid="bom-to-email" />
+              </div>
+              <div className="col-span-12">
+                <label className="text-[10px] text-[#94A3B8] uppercase">Temat</label>
+                <Input value={subject} onChange={(e) => setSubject(e.target.value)}
+                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs"
+                  data-testid="bom-subject" />
+              </div>
+              <div className="col-span-12">
+                <label className="text-[10px] text-[#94A3B8] uppercase">Wiadomość</label>
+                <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] rounded p-2 text-xs text-[#CBD5E1] outline-none focus:border-[#D4AF37] resize-y"
+                  data-testid="bom-body" />
+              </div>
+            </div>
+            <div className="border-t border-[#2A3B59] pt-2 mt-2">
+              <div className="text-[10px] text-[#94A3B8] uppercase mb-1">Lub dodaj nową hurtownię do bazy</div>
+              <div className="grid grid-cols-12 gap-2">
+                <Input value={newSupName} onChange={(e) => setNewSupName(e.target.value)} placeholder="Nazwa"
+                  className="col-span-4 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-name" />
+                <Input value={newSupEmail} onChange={(e) => setNewSupEmail(e.target.value)} placeholder="email@hurtownia.pl"
+                  className="col-span-4 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-email" />
+                <Input value={newSupBranze} onChange={(e) => setNewSupBranze(e.target.value)} placeholder="branże (opcjonalnie)"
+                  className="col-span-3 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-branze" />
+                <button onClick={addSupplier}
+                  className="col-span-1 bg-[#5F7552] hover:bg-[#3F5235] text-white text-[10px] rounded"
+                  data-testid="bom-add-sup">+ dodaj</button>
+              </div>
+            </div>
+          </div>
+        )}
         <DialogFooter className="gap-2">
           <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
             data-testid="bom-close">Zamknij</Button>
           <Button onClick={() => download('pdf')} disabled={downloading || !bom?.rows?.length}
-            className="bg-[#5F7552] hover:bg-[#3F5235] text-white"
+            variant="outline" className="border-[#5F7552] text-[#9DBC85]"
             data-testid="bom-pdf-btn">
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
           <Button onClick={() => download('xlsx')} disabled={downloading || !bom?.rows?.length}
-            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+            variant="outline" className="border-[#5F7552] text-[#9DBC85]"
             data-testid="bom-xlsx-btn">
             <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
           </Button>
+          {!showSendForm ? (
+            <Button onClick={() => setShowSendForm(true)} disabled={!bom?.rows?.length}
+              className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+              data-testid="bom-send-form-btn">
+              <Mail className="h-4 w-4 mr-1" /> Wyślij do hurtowni
+            </Button>
+          ) : (
+            <Button onClick={sendEmail} disabled={sending || !toEmail || !bom?.rows?.length}
+              className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+              data-testid="bom-send-btn">
+              <Send className="h-4 w-4 mr-1" /> {sending ? 'Wysyłam...' : 'Wyślij teraz'}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

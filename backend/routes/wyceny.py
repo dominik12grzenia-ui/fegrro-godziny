@@ -11,17 +11,21 @@ Wycena NIE jest powiazana z budowa - to standalone narzedzie ofertowe.
 Struktura identyczna jak Budget: stages -> positions -> R/M/S slots -> children.
 """
 import uuid
-from datetime import datetime
+import os
+import logging
+from datetime import datetime, timezone
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, EmailStr, Field
+import io
 
 from database import db
 from auth import get_current_admin
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 # =========== MODELE ===========
@@ -583,21 +587,29 @@ async def get_materials_bom(wycena_id: str, _user: dict = Depends(get_current_ad
 
 @router.get("/wyceny/{wycena_id}/bom.xlsx")
 async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    data = await _build_bom(wycena_id)
+    content, filename = _generate_bom_xlsx_bytes(data)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _generate_bom_xlsx_bytes(data: dict):
+    """Refaktor iter95ah: generuj XLSX jako bytes - reuzywalne przez endpoint i wysylke maila."""
     from io import BytesIO
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    data = await _build_bom(wycena_id)
     wb = Workbook()
     ws = wb.active
     ws.title = "Zestawienie materiałów"
-    # Naglowek
     ws["A1"] = f"Zestawienie materiałów: {data['wycena_name']}"
     ws["A1"].font = Font(bold=True, size=14, color="D4AF37")
     ws.merge_cells("A1:E1")
     ws["A2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     ws["A2"].font = Font(italic=True, size=10, color="666666")
     ws.merge_cells("A2:E2")
-    # Naglowki kolumn (bez cen - zapytanie ofertowe dla hurtowni)
     headers = ["L.p.", "Nazwa materiału", "Ilość zużycia", "Jednostka",
                "Opakowanie", "Wielkość opak.", "Liczba opakowań",
                "Cena netto za opak. (PLN)", "Wartość netto (PLN)", "Termin dostawy", "Uwagi"]
@@ -607,17 +619,14 @@ async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admi
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
     for col, h in enumerate(headers, start=1):
         c = ws.cell(row=4, column=col, value=h)
-        c.fill = header_fill
-        c.font = header_font
+        c.fill = header_fill; c.font = header_font
         c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = border
     ws.row_dimensions[4].height = 28
-    # Dane
     for idx, row in enumerate(data["rows"], start=1):
         r_excel = 4 + idx
         ws.cell(row=r_excel, column=1, value=idx).border = border
         ws.cell(row=r_excel, column=2, value=row["name"]).border = border
-        # Ilosc w jd. opakowania (jezeli policzona) lub w jd. linii
         if row.get("qty_in_pkg_unit") is not None:
             ws.cell(row=r_excel, column=3, value=round(row["qty_in_pkg_unit"], 3)).border = border
             ws.cell(row=r_excel, column=4, value=row.get("pkg_unit") or "").border = border
@@ -625,51 +634,47 @@ async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admi
             ws.cell(row=r_excel, column=3, value=round(row["quantity"], 3)).border = border
             ws.cell(row=r_excel, column=4, value=row["unit"]).border = border
         ws.cell(row=r_excel, column=5, value=row.get("opakowanie") or "—").border = border
-        if row.get("pkg_qty"):
-            ws.cell(row=r_excel, column=6, value=f"{row['pkg_qty']} {row.get('pkg_unit') or ''}").border = border
-        else:
-            ws.cell(row=r_excel, column=6, value="—").border = border
-        # Liczba opakowan (zaokraglona w gore)
+        ws.cell(row=r_excel, column=6,
+                value=f"{row['pkg_qty']} {row.get('pkg_unit') or ''}" if row.get("pkg_qty") else "—").border = border
         if row.get("num_packages") is not None:
             cell_pkg = ws.cell(row=r_excel, column=7, value=row["num_packages"])
             cell_pkg.font = Font(bold=True, color="D4AF37")
         else:
             ws.cell(row=r_excel, column=7, value="—")
         ws.cell(row=r_excel, column=7).border = border
-        # Puste kolumny dla hurtowni
         for col in range(8, 12):
             ws.cell(row=r_excel, column=col, value="").border = border
-        # Alignment
         ws.cell(row=r_excel, column=1).alignment = Alignment(horizontal="center")
         ws.cell(row=r_excel, column=3).alignment = Alignment(horizontal="right")
-        ws.cell(row=r_excel, column=4).alignment = Alignment(horizontal="center")
-        ws.cell(row=r_excel, column=5).alignment = Alignment(horizontal="center")
-        ws.cell(row=r_excel, column=6).alignment = Alignment(horizontal="center")
-        ws.cell(row=r_excel, column=7).alignment = Alignment(horizontal="center")
-    # Stopka instrukcja dla hurtownika
+        for col in (4, 5, 6, 7):
+            ws.cell(row=r_excel, column=col).alignment = Alignment(horizontal="center")
     foot_row = 5 + len(data["rows"]) + 1
     ws.cell(row=foot_row, column=1,
             value="Prosimy o uzupełnienie kolumn: cena netto, wartość netto, termin dostawy i uwagi.").font = Font(italic=True, color="666666")
     ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=11)
-    # Szerokosci kolumn
     widths = {"A": 6, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 14, "K": 20}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
-    # Stream
     buf = BytesIO()
     wb.save(buf)
-    buf.seek(0)
     safe_name = (data["wycena_name"] or "wycena").replace("/", "_").replace(" ", "_")[:50]
     filename = f"BOM_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
-    return StreamingResponse(
-        buf,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    return buf.getvalue(), filename
 
 
 @router.get("/wyceny/{wycena_id}/bom.pdf")
 async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    data = await _build_bom(wycena_id)
+    content, filename = _generate_bom_pdf_bytes(data)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+def _generate_bom_pdf_bytes(data: dict):
+    """Refaktor iter95ah: generuj PDF jako bytes."""
     from io import BytesIO
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
@@ -678,9 +683,7 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.ttfonts import TTFont
-    import os
-    data = await _build_bom(wycena_id)
-    # Zarejestruj font UTF-8 (DejaVu)
+    import os as _os
     font_paths = [
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
         "/usr/share/fonts/dejavu/DejaVuSans.ttf",
@@ -693,19 +696,15 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
     ]
     base_font, bold_font = "Helvetica", "Helvetica-Bold"
     for fp in font_paths:
-        if os.path.exists(fp):
+        if _os.path.exists(fp):
             try:
-                pdfmetrics.registerFont(TTFont("DejaVu", fp))
-                base_font = "DejaVu"
-                break
+                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
             except Exception:
                 pass
     for fp in font_bold_paths:
-        if os.path.exists(fp):
+        if _os.path.exists(fp):
             try:
-                pdfmetrics.registerFont(TTFont("DejaVuBold", fp))
-                bold_font = "DejaVuBold"
-                break
+                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
             except Exception:
                 pass
     buf = BytesIO()
@@ -730,16 +729,8 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
         pkg_size = f"{row['pkg_qty']} {row.get('pkg_unit') or ''}" if row.get("pkg_qty") else "—"
         num_pkg = str(row["num_packages"]) if row.get("num_packages") is not None else "—"
         table_data.append([
-            str(idx),
-            row["name"],
-            qty_str,
-            unit_str,
-            row.get("opakowanie") or "—",
-            pkg_size,
-            num_pkg,
-            "",  # cena netto / opak - puste
-            "",  # termin
-            "",  # uwagi
+            str(idx), row["name"], qty_str, unit_str,
+            row.get("opakowanie") or "—", pkg_size, num_pkg, "", "", "",
         ])
     tbl = Table(table_data, colWidths=[10 * mm, 50 * mm, 16 * mm, 12 * mm, 18 * mm,
                                         18 * mm, 16 * mm, 22 * mm, 14 * mm, 24 * mm])
@@ -755,7 +746,6 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#999999")),
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
-        # Wyrozij kolumne "Liczba opak." (col 6) na zloto
         ("TEXTCOLOR", (6, 1), (6, -1), colors.HexColor("#B8860B")),
         ("FONT", (6, 1), (6, -1), bold_font, 8),
     ]))
@@ -767,11 +757,144 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
         ParagraphStyle("foot", parent=styles["Normal"], fontName=base_font, fontSize=8, textColor=colors.grey)
     ))
     doc.build(elements)
-    buf.seek(0)
     safe_name = (data["wycena_name"] or "wycena").replace("/", "_").replace(" ", "_")[:50]
     filename = f"BOM_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
-    return StreamingResponse(
-        buf,
-        media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    return buf.getvalue(), filename
+
+
+# ============================================================
+# iter95ai: Tabela hurtowni (suppliers) + wysylka BOM emailem
+# ============================================================
+
+class SupplierCreate(BaseModel):
+    name: str
+    email: EmailStr
+    branze: Optional[str] = None  # branze (np. "izolacje, betony")
+    notes: Optional[str] = None
+
+
+class SupplierUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    branze: Optional[str] = None
+    notes: Optional[str] = None
+
+
+@router.get("/wyceny/suppliers")
+async def list_suppliers(_user: dict = Depends(get_current_admin)):
+    rows = await db.wyceny_suppliers.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
+    return {"rows": rows}
+
+
+@router.post("/wyceny/suppliers")
+async def create_supplier(payload: SupplierCreate, _user: dict = Depends(get_current_admin)):
+    sid = str(uuid.uuid4())
+    doc = {
+        "id": sid, "name": payload.name, "email": payload.email,
+        "branze": payload.branze or "", "notes": payload.notes or "",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    await db.wyceny_suppliers.insert_one(doc)
+    return {"id": sid, "ok": True}
+
+
+@router.patch("/wyceny/suppliers/{sid}")
+async def update_supplier(sid: str, payload: SupplierUpdate, _user: dict = Depends(get_current_admin)):
+    update = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    if not update:
+        return {"ok": True}
+    r = await db.wyceny_suppliers.update_one({"id": sid}, {"$set": update})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Hurtownia nie istnieje")
+    return {"ok": True}
+
+
+@router.delete("/wyceny/suppliers/{sid}")
+async def delete_supplier(sid: str, _user: dict = Depends(get_current_admin)):
+    r = await db.wyceny_suppliers.delete_one({"id": sid})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Hurtownia nie istnieje")
+    return {"ok": True}
+
+
+class SendBomRequest(BaseModel):
+    to_email: EmailStr
+    subject: Optional[str] = None
+    body: Optional[str] = None
+    supplier_id: Optional[str] = None  # zapisz historie
+
+
+@router.post("/wyceny/{wycena_id}/bom/send")
+async def send_bom_email(wycena_id: str, payload: SendBomRequest, _user: dict = Depends(get_current_admin)):
+    """Wyslij zapytanie ofertowe (BOM) na maila hurtownika z zalacznikami PDF + XLSX."""
+    import base64
+    api_key = os.environ.get("RESEND_API_KEY")
+    if not api_key:
+        raise HTTPException(503, "Resend nie skonfigurowany (brak RESEND_API_KEY)")
+    # Z 4 ustaleń: nadawca = biuro@fegrro.pl
+    from_addr = "FeGrro <biuro@fegrro.pl>"
+    try:
+        import httpx
+    except ImportError:
+        raise HTTPException(500, "httpx not installed")
+    data = await _build_bom(wycena_id)
+    if not data.get("rows"):
+        raise HTTPException(400, "Wycena nie zawiera materiałów do wysłania")
+    xlsx_bytes, xlsx_name = _generate_bom_xlsx_bytes(data)
+    pdf_bytes, pdf_name = _generate_bom_pdf_bytes(data)
+    # Domyslny szablon
+    wycena_name = data["wycena_name"] or "—"
+    subject = payload.subject or f"Zapytanie ofertowe — {wycena_name}"
+    body_text = payload.body or (
+        f"Dzień dobry,\n\n"
+        f"W załączeniu przesyłam zestawienie materiałów do wyceny: \u201E{wycena_name}\u201D.\n"
+        f"Proszę o przygotowanie oferty cenowej (cena netto za opakowanie, termin dostawy).\n\n"
+        f"Termin oferty: 7 dni.\n\n"
+        f"Pozdrawiam,\nFeGrro"
     )
+    body_html = "<p>" + body_text.replace("\n", "<br>") + "</p>"
+    try:
+        async with httpx.AsyncClient(timeout=20) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "from": from_addr,
+                    "to": [payload.to_email],
+                    "reply_to": ["biuro@fegrro.pl"],
+                    "subject": subject,
+                    "html": body_html,
+                    "text": body_text,
+                    "attachments": [
+                        {"filename": xlsx_name, "content": base64.b64encode(xlsx_bytes).decode("ascii")},
+                        {"filename": pdf_name, "content": base64.b64encode(pdf_bytes).decode("ascii")},
+                    ],
+                },
+            )
+        if resp.status_code >= 300:
+            logger.warning(f"Resend BOM email returned {resp.status_code}: {resp.text}")
+            raise HTTPException(502, f"Resend: {resp.status_code} {resp.text}")
+        result = resp.json()
+    except httpx.HTTPError as e:
+        raise HTTPException(502, f"Network error: {e}")
+    # Zapisz w historii
+    history = {
+        "id": str(uuid.uuid4()),
+        "wycena_id": wycena_id,
+        "to_email": payload.to_email,
+        "supplier_id": payload.supplier_id,
+        "subject": subject,
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "message_id": result.get("id"),
+    }
+    await db.wyceny_bom_history.insert_one(history)
+    return {"ok": True, "message_id": result.get("id")}
+
+
+@router.get("/wyceny/{wycena_id}/bom/history")
+async def get_bom_history(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    rows = await db.wyceny_bom_history.find(
+        {"wycena_id": wycena_id}, {"_id": 0}
+    ).sort("sent_at", -1).to_list(length=100)
+    return {"rows": rows}
+
