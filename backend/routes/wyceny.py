@@ -496,16 +496,23 @@ async def delete_price_book(item_id: str, _user: dict = Depends(get_current_admi
     return {"ok": True}
 
 
-# iter95af: zestawienie potrzebnych materialow (Bill of Materials)
+# iter95af/ag: zestawienie potrzebnych materialow (Bill of Materials / RFQ)
 async def _build_bom(wycena_id: str):
-    """Buduj zestawienie materialow: grupuj po (nazwa, jednostka), sumuj ilosci."""
+    """Zestawienie: grupuj po nazwie, sumuj ilosci, dolicz liczbe opakowan (ceil)
+    na bazie cennika (pkg_qty + zapotrzebowanie + zap_unit)."""
+    import math
     wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
     if not wycena:
         raise HTTPException(404, "Wycena nie istnieje")
     lines = await db.wyceny_lines.find(
         {"wycena_id": wycena_id, "type": "materials"}, {"_id": 0}
     ).to_list(length=None)
-    # Grupuj po (nazwa, jednostka)
+    # Pobierz cennik materialow do dopasowania po nazwie
+    cennik = await db.wyceny_price_book.find(
+        {"category": "materials"}, {"_id": 0}
+    ).to_list(length=None)
+    cennik_by_name = {(c.get("name") or "").lower().strip(): c for c in cennik}
+
     grouped: dict = {}
     for ln in lines:
         name = (ln.get("name") or "").strip()
@@ -515,18 +522,56 @@ async def _build_bom(wycena_id: str):
         qty = float(ln.get("quantity") or 0)
         if qty <= 0:
             continue
+        # Grupuj po (nazwa, jednostka) - to samo co przedtem
         key = (name.lower(), unit.lower())
         if key not in grouped:
+            ce = cennik_by_name.get(name.lower(), {}) or {}
             grouped[key] = {
                 "name": name,
                 "unit": unit,
                 "quantity": 0.0,
-                "unit_price_netto": float(ln.get("unit_price_netto") or 0),
                 "occurrences": 0,
+                "opakowanie": ce.get("opakowanie") or "",
+                "pkg_qty": ce.get("pkg_qty"),
+                "pkg_unit": ce.get("pkg_unit") or "",
+                "zapotrzebowanie": ce.get("zapotrzebowanie"),
+                "zap_unit": ce.get("zap_unit") or "",
             }
         grouped[key]["quantity"] += qty
         grouped[key]["occurrences"] += 1
-    rows = sorted(grouped.values(), key=lambda r: r["name"].lower())
+
+    rows = []
+    for r in grouped.values():
+        # iter95ag: wylicz liczbe opakowan
+        qty_in_pkg_unit = None
+        num_packages = None
+        pkg_qty = r.get("pkg_qty")
+        zap = r.get("zapotrzebowanie")
+        zap_unit = r.get("zap_unit") or ""
+        pkg_unit = r.get("pkg_unit") or ""
+        if pkg_qty and pkg_qty > 0:
+            # Wariant 1: jednostka linii pasuje do mianownika zap_unit (np. line=m², zap=kg/m²)
+            if "/" in zap_unit and zap:
+                _num, denom = zap_unit.split("/", 1)
+                if denom.strip() == r["unit"]:
+                    qty_in_pkg_unit = r["quantity"] * zap
+            # Wariant 2: jednostka linii = jd. opakowania (np. line=kg, pkg=kg)
+            if qty_in_pkg_unit is None and r["unit"] and r["unit"] == pkg_unit:
+                qty_in_pkg_unit = r["quantity"]
+            if qty_in_pkg_unit is not None:
+                num_packages = math.ceil(qty_in_pkg_unit / pkg_qty)
+        rows.append({
+            "name": r["name"],
+            "unit": r["unit"],
+            "quantity": round(r["quantity"], 3),
+            "occurrences": r["occurrences"],
+            "opakowanie": r["opakowanie"],
+            "pkg_qty": r["pkg_qty"],
+            "pkg_unit": pkg_unit,
+            "qty_in_pkg_unit": round(qty_in_pkg_unit, 3) if qty_in_pkg_unit is not None else None,
+            "num_packages": num_packages,
+        })
+    rows.sort(key=lambda r: r["name"].lower())
     return {"wycena_name": wycena.get("name", ""), "rows": rows}
 
 
@@ -552,8 +597,10 @@ async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admi
     ws["A2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     ws["A2"].font = Font(italic=True, size=10, color="666666")
     ws.merge_cells("A2:E2")
-    # Naglowki kolumn
-    headers = ["L.p.", "Nazwa materiału", "Ilość", "Jednostka", "Cena jedn. netto (PLN)"]
+    # Naglowki kolumn (bez cen - zapytanie ofertowe dla hurtowni)
+    headers = ["L.p.", "Nazwa materiału", "Ilość zużycia", "Jednostka",
+               "Opakowanie", "Wielkość opak.", "Liczba opakowań",
+               "Cena netto za opak. (PLN)", "Wartość netto (PLN)", "Termin dostawy", "Uwagi"]
     header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     thin = Side(border_style="thin", color="999999")
@@ -562,33 +609,52 @@ async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admi
         c = ws.cell(row=4, column=col, value=h)
         c.fill = header_fill
         c.font = header_font
-        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         c.border = border
+    ws.row_dimensions[4].height = 28
     # Dane
-    total_value = 0.0
     for idx, row in enumerate(data["rows"], start=1):
         r_excel = 4 + idx
         ws.cell(row=r_excel, column=1, value=idx).border = border
         ws.cell(row=r_excel, column=2, value=row["name"]).border = border
-        ws.cell(row=r_excel, column=3, value=round(row["quantity"], 3)).border = border
-        ws.cell(row=r_excel, column=4, value=row["unit"]).border = border
-        ws.cell(row=r_excel, column=5, value=round(row["unit_price_netto"], 2)).border = border
+        # Ilosc w jd. opakowania (jezeli policzona) lub w jd. linii
+        if row.get("qty_in_pkg_unit") is not None:
+            ws.cell(row=r_excel, column=3, value=round(row["qty_in_pkg_unit"], 3)).border = border
+            ws.cell(row=r_excel, column=4, value=row.get("pkg_unit") or "").border = border
+        else:
+            ws.cell(row=r_excel, column=3, value=round(row["quantity"], 3)).border = border
+            ws.cell(row=r_excel, column=4, value=row["unit"]).border = border
+        ws.cell(row=r_excel, column=5, value=row.get("opakowanie") or "—").border = border
+        if row.get("pkg_qty"):
+            ws.cell(row=r_excel, column=6, value=f"{row['pkg_qty']} {row.get('pkg_unit') or ''}").border = border
+        else:
+            ws.cell(row=r_excel, column=6, value="—").border = border
+        # Liczba opakowan (zaokraglona w gore)
+        if row.get("num_packages") is not None:
+            cell_pkg = ws.cell(row=r_excel, column=7, value=row["num_packages"])
+            cell_pkg.font = Font(bold=True, color="D4AF37")
+        else:
+            ws.cell(row=r_excel, column=7, value="—")
+        ws.cell(row=r_excel, column=7).border = border
+        # Puste kolumny dla hurtowni
+        for col in range(8, 12):
+            ws.cell(row=r_excel, column=col, value="").border = border
+        # Alignment
         ws.cell(row=r_excel, column=1).alignment = Alignment(horizontal="center")
         ws.cell(row=r_excel, column=3).alignment = Alignment(horizontal="right")
         ws.cell(row=r_excel, column=4).alignment = Alignment(horizontal="center")
-        ws.cell(row=r_excel, column=5).alignment = Alignment(horizontal="right")
-        total_value += row["quantity"] * row["unit_price_netto"]
-    # Suma
-    sum_row = 5 + len(data["rows"])
-    ws.cell(row=sum_row, column=2, value="RAZEM:").font = Font(bold=True)
-    ws.cell(row=sum_row, column=5, value=round(total_value, 2)).font = Font(bold=True, color="D4AF37")
-    ws.cell(row=sum_row, column=5).alignment = Alignment(horizontal="right")
+        ws.cell(row=r_excel, column=5).alignment = Alignment(horizontal="center")
+        ws.cell(row=r_excel, column=6).alignment = Alignment(horizontal="center")
+        ws.cell(row=r_excel, column=7).alignment = Alignment(horizontal="center")
+    # Stopka instrukcja dla hurtownika
+    foot_row = 5 + len(data["rows"]) + 1
+    ws.cell(row=foot_row, column=1,
+            value="Prosimy o uzupełnienie kolumn: cena netto, wartość netto, termin dostawy i uwagi.").font = Font(italic=True, color="666666")
+    ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=11)
     # Szerokosci kolumn
-    ws.column_dimensions["A"].width = 6
-    ws.column_dimensions["B"].width = 45
-    ws.column_dimensions["C"].width = 12
-    ws.column_dimensions["D"].width = 12
-    ws.column_dimensions["E"].width = 18
+    widths = {"A": 6, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 14, "K": 20}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
     # Stream
     buf = BytesIO()
     wb.save(buf)
@@ -605,7 +671,7 @@ async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admi
 @router.get("/wyceny/{wycena_id}/bom.pdf")
 async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin)):
     from io import BytesIO
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.units import mm
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -643,48 +709,61 @@ async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin
             except Exception:
                 pass
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
-                            topMargin=15 * mm, bottomMargin=15 * mm)
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), rightMargin=12 * mm, leftMargin=12 * mm,
+                            topMargin=12 * mm, bottomMargin=12 * mm)
     styles = getSampleStyleSheet()
     title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=16, textColor=colors.HexColor("#3F5235"))
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9, textColor=colors.grey)
     elements = []
-    elements.append(Paragraph(f"Zestawienie materiałów: {data['wycena_name']}", title_st))
+    elements.append(Paragraph(f"Zapytanie ofertowe — Zestawienie materiałów: {data['wycena_name']}", title_st))
     elements.append(Paragraph(f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}", sub_st))
     elements.append(Spacer(1, 6 * mm))
-    table_data = [["L.p.", "Nazwa materiału", "Ilość", "Jedn.", "Cena netto (PLN)"]]
-    total_value = 0.0
+    table_data = [["L.p.", "Nazwa materiału", "Ilość", "Jedn.", "Opak.", "Wlk. opak.",
+                   "Liczba opak.", "Cena netto/opak.", "Termin", "Uwagi"]]
     for idx, row in enumerate(data["rows"], start=1):
+        if row.get("qty_in_pkg_unit") is not None:
+            qty_str = f"{row['qty_in_pkg_unit']:.3f}".replace(".", ",")
+            unit_str = row.get("pkg_unit") or ""
+        else:
+            qty_str = f"{row['quantity']:.3f}".replace(".", ",")
+            unit_str = row["unit"]
+        pkg_size = f"{row['pkg_qty']} {row.get('pkg_unit') or ''}" if row.get("pkg_qty") else "—"
+        num_pkg = str(row["num_packages"]) if row.get("num_packages") is not None else "—"
         table_data.append([
             str(idx),
             row["name"],
-            f"{row['quantity']:.3f}".replace(",", " ").replace(".", ","),
-            row["unit"],
-            f"{row['unit_price_netto']:.2f}".replace(".", ","),
+            qty_str,
+            unit_str,
+            row.get("opakowanie") or "—",
+            pkg_size,
+            num_pkg,
+            "",  # cena netto / opak - puste
+            "",  # termin
+            "",  # uwagi
         ])
-        total_value += row["quantity"] * row["unit_price_netto"]
-    table_data.append(["", "RAZEM:", "", "", f"{total_value:.2f}".replace(".", ",") + " zł"])
-    tbl = Table(table_data, colWidths=[14 * mm, 90 * mm, 22 * mm, 18 * mm, 36 * mm])
+    tbl = Table(table_data, colWidths=[10 * mm, 50 * mm, 16 * mm, 12 * mm, 18 * mm,
+                                        18 * mm, 16 * mm, 22 * mm, 14 * mm, 24 * mm])
     tbl.setStyle(TableStyle([
-        ("FONT", (0, 0), (-1, -1), base_font, 9),
-        ("FONT", (0, 0), (-1, 0), bold_font, 9),
-        ("FONT", (0, -1), (-1, -1), bold_font, 10),
+        ("FONT", (0, 0), (-1, -1), base_font, 8),
+        ("FONT", (0, 0), (-1, 0), bold_font, 8),
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("ALIGN", (0, 0), (0, -1), "CENTER"),
         ("ALIGN", (2, 0), (2, -1), "RIGHT"),
         ("ALIGN", (3, 0), (3, -1), "CENTER"),
-        ("ALIGN", (4, 0), (4, -1), "RIGHT"),
+        ("ALIGN", (4, 0), (6, -1), "CENTER"),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#999999")),
-        ("BACKGROUND", (0, -1), (-1, -1), colors.HexColor("#F5F5DC")),
-        ("TEXTCOLOR", (4, -1), (4, -1), colors.HexColor("#B8860B")),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F8F8F8")]),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
+        # Wyrozij kolumne "Liczba opak." (col 6) na zloto
+        ("TEXTCOLOR", (6, 1), (6, -1), colors.HexColor("#B8860B")),
+        ("FONT", (6, 1), (6, -1), bold_font, 8),
     ]))
     elements.append(tbl)
     elements.append(Spacer(1, 10 * mm))
     elements.append(Paragraph(
-        "Wygenerowane z systemu FeGrro ERP. Proszę o przygotowanie oferty na powyższe pozycje.",
+        "Prosimy o uzupełnienie kolumn: <b>cena netto za opakowanie</b>, <b>termin dostawy</b> oraz <b>uwagi</b>. "
+        "Liczby opakowań zostały zaokrąglone w górę do pełnych jednostek (paleta / wiaderko / rolka).",
         ParagraphStyle("foot", parent=styles["Normal"], fontName=base_font, fontSize=8, textColor=colors.grey)
     ))
     doc.build(elements)

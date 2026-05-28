@@ -368,21 +368,16 @@ const BomDialog = ({ wycenaId, onClose }) => {
     } finally { setDownloading(false); }
   };
 
-  const total = useMemo(() => {
-    if (!bom?.rows) return 0;
-    return bom.rows.reduce((acc, r) => acc + (r.quantity * r.unit_price_netto), 0);
-  }, [bom]);
-
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl wyceny-no-spin"
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-5xl wyceny-no-spin"
         data-testid="bom-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
-            <Package className="h-5 w-5" /> Zestawienie materiałów do zapytania
+            <Package className="h-5 w-5" /> Zapytanie ofertowe — Zestawienie materiałów
           </DialogTitle>
           <div className="text-xs text-[#94A3B8]">
-            Lista zagregowanych materiałów ze wszystkich pozycji wyceny — gotowa do wysłania do hurtowni.
+            Zagregowane materiały z całej wyceny. Liczba opakowań <b className="text-[#D4AF37]">zaokrąglona w górę</b> do pełnych palet / wiaderek / rolek.
           </div>
         </DialogHeader>
         <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
@@ -390,7 +385,7 @@ const BomDialog = ({ wycenaId, onClose }) => {
             <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
           ) : !bom?.rows || bom.rows.length === 0 ? (
             <div className="text-[#94A3B8] p-4 text-center text-sm">
-              Brak materiałów w tej wycenie. Dodaj podpozycje typu „Materiał" w wycenie.
+              Brak materiałów w tej wycenie. Dodaj podpozycje typu „Materiał".
             </div>
           ) : (
             <table className="w-full text-xs">
@@ -398,37 +393,46 @@ const BomDialog = ({ wycenaId, onClose }) => {
                 <tr className="text-[#94A3B8] uppercase text-[10px]">
                   <th className="text-center px-2 py-1.5 w-10">L.p.</th>
                   <th className="text-left px-2 py-1.5">Nazwa materiału</th>
-                  <th className="text-right px-2 py-1.5 w-20">Ilość</th>
+                  <th className="text-right px-2 py-1.5 w-24">Ilość zużycia</th>
                   <th className="text-center px-2 py-1.5 w-16">Jedn.</th>
-                  <th className="text-right px-2 py-1.5 w-28">Cena netto (PLN)</th>
-                  <th className="text-right px-2 py-1.5 w-28">Wartość (PLN)</th>
+                  <th className="text-center px-2 py-1.5 w-24">Opakowanie</th>
+                  <th className="text-center px-2 py-1.5 w-24">Wielkość opak.</th>
+                  <th className="text-center px-2 py-1.5 w-24">Liczba opak. <span className="text-[#D4AF37]">▲</span></th>
                 </tr>
               </thead>
               <tbody>
-                {bom.rows.map((row, idx) => (
-                  <tr key={idx} className="border-t border-[#2A3B59]" data-testid={`bom-row-${idx}`}>
-                    <td className="px-2 py-1.5 text-center text-[#94A3B8]">{idx + 1}</td>
-                    <td className="px-2 py-1.5 text-white">
-                      {row.name}
-                      {row.occurrences > 1 && (
-                        <span className="ml-2 text-[10px] text-[#94A3B8]">({row.occurrences} pozycje)</span>
-                      )}
-                    </td>
-                    <td className="px-2 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums">
-                      {row.quantity.toLocaleString('pl-PL', { maximumFractionDigits: 3 })}
-                    </td>
-                    <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{row.unit || '—'}</td>
-                    <td className="px-2 py-1.5 text-right text-[#D4AF37] tabular-nums">{fmtPLN(row.unit_price_netto)}</td>
-                    <td className="px-2 py-1.5 text-right text-white tabular-nums">{fmtPLN(row.quantity * row.unit_price_netto)}</td>
-                  </tr>
-                ))}
+                {bom.rows.map((row, idx) => {
+                  const showPkgQty = row.qty_in_pkg_unit != null;
+                  const qty = showPkgQty ? row.qty_in_pkg_unit : row.quantity;
+                  const unit = showPkgQty ? (row.pkg_unit || '') : row.unit;
+                  return (
+                    <tr key={idx} className="border-t border-[#2A3B59]" data-testid={`bom-row-${idx}`}>
+                      <td className="px-2 py-1.5 text-center text-[#94A3B8]">{idx + 1}</td>
+                      <td className="px-2 py-1.5 text-white">
+                        {row.name}
+                        {row.occurrences > 1 && (
+                          <span className="ml-2 text-[10px] text-[#94A3B8]">({row.occurrences} pozycje)</span>
+                        )}
+                      </td>
+                      <td className="px-2 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums">
+                        {qty.toLocaleString('pl-PL', { maximumFractionDigits: 3 })}
+                      </td>
+                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{unit || '—'}</td>
+                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{row.opakowanie || '—'}</td>
+                      <td className="px-2 py-1.5 text-center text-[#94A3B8]">
+                        {row.pkg_qty ? `${row.pkg_qty} ${row.pkg_unit || ''}` : '—'}
+                      </td>
+                      <td className="px-2 py-1.5 text-center font-bold tabular-nums">
+                        {row.num_packages != null ? (
+                          <span className="text-[#D4AF37] text-sm">{row.num_packages}</span>
+                        ) : (
+                          <span className="text-[#FCA5A5] text-[10px] italic" title="Brak danych w cenniku — uzupełnij ilość w opakowaniu i normę">brak danych</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-[#D4AF37]/40 bg-[#3F5235]/20">
-                  <td colSpan={5} className="px-2 py-2 text-right font-bold uppercase text-[#94A3B8]">RAZEM:</td>
-                  <td className="px-2 py-2 text-right text-[#D4AF37] font-bold tabular-nums" data-testid="bom-total">{fmtPLN(total)}</td>
-                </tr>
-              </tfoot>
             </table>
           )}
         </div>
