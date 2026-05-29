@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package, Send, Mail } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package, Send, Mail, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../context/AuthContext';
 
@@ -358,6 +358,26 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
     } finally { setDownloading(false); }
   };
 
+  // iter95al: podglad PDF w nowej karcie (inline)
+  const preview = async () => {
+    setDownloading(true);
+    try {
+      const r = await api.get(`/wyceny/${wycenaId}/export.pdf?detail=${detail}&inline=true`, {
+        responseType: 'blob',
+      });
+      const blob = new Blob([r.data], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (!win) {
+        toast.error('Wyłącz blokowanie wyskakujących okienek lub kliknij PDF aby pobrać');
+      }
+      // zwolnij URL po 60s — wystarczy na otwarcie
+      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+    } catch (e) {
+      toast.error('Błąd podglądu: ' + (e.response?.data?.detail || e.message));
+    } finally { setDownloading(false); }
+  };
+
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md wyceny-no-spin"
@@ -409,6 +429,12 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
         <DialogFooter className="gap-2">
           <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
             data-testid="export-close">Anuluj</Button>
+          <Button onClick={preview} disabled={downloading}
+            variant="outline" className="border-[#D4AF37]/60 text-[#D4AF37]"
+            data-testid="export-preview-btn"
+            title="Otwórz PDF w nowej karcie zamiast pobierać">
+            <Eye className="h-4 w-4 mr-1" /> Podgląd
+          </Button>
           <Button onClick={() => download('pdf')} disabled={downloading}
             variant="outline" className="border-[#5F7552] text-[#9DBC85]"
             data-testid="export-pdf-btn">
@@ -756,6 +782,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const [bomOpen, setBomOpen] = useState(false);
   // iter95aj: dialog eksportu pelnej wyceny
   const [exportOpen, setExportOpen] = useState(false);
+  // iter95al: panel danych klienta (rozwijany)
+  const [clientPanelOpen, setClientPanelOpen] = useState(false);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -809,6 +837,15 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     try {
       await api.patch(`/wyceny/${wycenaId}`, { [field]: num });
       setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, [field]: num } } : prev);
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+  };
+
+  // iter95al: zapis pol tekstowych (np. dane klienta)
+  const saveText = async (field, value) => {
+    const v = (value ?? '').toString();
+    try {
+      await api.patch(`/wyceny/${wycenaId}`, { [field]: v });
+      setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, [field]: v } } : prev);
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
@@ -916,6 +953,65 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
+      </div>
+
+      {/* iter95al: dane klienta dla PDF "Wersja dla klienta" */}
+      <div className="border border-[#2A3B59] bg-[#0B1120]/40 rounded" data-testid="wycena-client-panel">
+        <button
+          type="button"
+          onClick={() => setClientPanelOpen((v) => !v)}
+          className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-[#131C2F] rounded"
+          data-testid="wycena-client-toggle"
+        >
+          {clientPanelOpen ? <ChevronDown className="h-3.5 w-3.5 text-[#9DBC85]" />
+                           : <ChevronRight className="h-3.5 w-3.5 text-[#9DBC85]" />}
+          <span className="text-[#9DBC85] text-xs uppercase font-semibold">👤 Dane klienta</span>
+          {!clientPanelOpen && (w.client_name || w.client_nip || w.client_address) && (
+            <span className="text-[10px] text-[#94A3B8] truncate">
+              · {w.client_name || ''}{w.client_nip ? ` · NIP ${w.client_nip}` : ''}
+            </span>
+          )}
+          {!clientPanelOpen && !w.client_name && !w.client_nip && !w.client_address && (
+            <span className="text-[10px] text-[#94A3B8] italic">
+              · uzupełnij, jeśli chcesz wygenerować PDF „Wersja dla klienta" z blokiem adresata
+            </span>
+          )}
+        </button>
+        {clientPanelOpen && (
+          <div className="px-3 pb-3 grid grid-cols-12 gap-2">
+            <div className="col-span-6">
+              <label className="text-[10px] text-[#94A3B8] uppercase">Nazwa firmy / klienta</label>
+              <Input
+                defaultValue={w.client_name || ''}
+                onBlur={(e) => saveText('client_name', e.target.value)}
+                placeholder="np. Jan Kowalski / ACME Sp. z o.o."
+                className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white"
+                data-testid="wycena-client-name"
+              />
+            </div>
+            <div className="col-span-3">
+              <label className="text-[10px] text-[#94A3B8] uppercase">NIP</label>
+              <Input
+                defaultValue={w.client_nip || ''}
+                onBlur={(e) => saveText('client_nip', e.target.value)}
+                placeholder="1234567890"
+                className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white"
+                data-testid="wycena-client-nip"
+              />
+            </div>
+            <div className="col-span-12">
+              <label className="text-[10px] text-[#94A3B8] uppercase">Adres (wielolinijkowy)</label>
+              <textarea
+                defaultValue={w.client_address || ''}
+                onBlur={(e) => saveText('client_address', e.target.value)}
+                placeholder="ul. Przykładowa 12 / 5&#10;00-001 Warszawa"
+                rows={2}
+                className="w-full bg-[#131C2F] border border-[#2A3B59] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#9DBC85] resize-y"
+                data-testid="wycena-client-address"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto border border-[#2A3B59] rounded">

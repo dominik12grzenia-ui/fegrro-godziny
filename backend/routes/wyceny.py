@@ -49,6 +49,10 @@ class WycenaUpdate(BaseModel):
     default_koszt_pct: Optional[float] = None
     default_narzut_pct: Optional[float] = None
     default_marza_pct: Optional[float] = None
+    # iter95al: dane klienta dla PDF wersji dla klienta
+    client_name: Optional[str] = None
+    client_nip: Optional[str] = None
+    client_address: Optional[str] = None
 
 
 class StageCreate(BaseModel):
@@ -1279,6 +1283,37 @@ def _generate_wycena_client_pdf_bytes(data: dict):
     ))
     elements.append(Spacer(1, 6 * mm))
 
+    # iter95al: blok adresata (dane klienta) jezeli wypelnione
+    w_doc = data["wycena"]
+    client_name = (w_doc.get("client_name") or "").strip()
+    client_nip = (w_doc.get("client_nip") or "").strip()
+    client_address = (w_doc.get("client_address") or "").strip()
+    if client_name or client_nip or client_address:
+        addr_label = ParagraphStyle("addrlabel", parent=styles["Normal"], fontName=base_font, fontSize=7,
+                                    textColor=colors.HexColor("#94A3B8"), spaceAfter=2)
+        addr_body = ParagraphStyle("addrbody", parent=styles["Normal"], fontName=bold_font, fontSize=10,
+                                   textColor=colors.HexColor("#3F5235"), leading=13)
+        addr_body_sub = ParagraphStyle("addrbodysub", parent=styles["Normal"], fontName=base_font, fontSize=9,
+                                       textColor=colors.HexColor("#444444"), leading=12)
+        addr_inner = [Paragraph("ADRESAT", addr_label)]
+        if client_name:
+            addr_inner.append(Paragraph(client_name.replace("\n", "<br/>"), addr_body))
+        if client_nip:
+            addr_inner.append(Paragraph(f"NIP: {client_nip}", addr_body_sub))
+        if client_address:
+            addr_inner.append(Paragraph(client_address.replace("\n", "<br/>"), addr_body_sub))
+        addr_box = Table([[addr_inner]], colWidths=[85 * mm])
+        addr_box.setStyle(TableStyle([
+            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#3F5235")),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAF6")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        elements.append(addr_box)
+        elements.append(Spacer(1, 6 * mm))
+
     # Tabela: L.p. | Nazwa | Ilosc | Jedn. | Cena netto | Wartosc netto
     headers = ["L.p.", "Nazwa pozycji", "Ilość", "Jedn.", "Cena netto", "Wartość netto"]
     table_data = [headers]
@@ -1372,6 +1407,7 @@ def _generate_wycena_client_pdf_bytes(data: dict):
 async def export_wycena_pdf(
     wycena_id: str,
     detail: str = Query("positions", regex="^(positions|full|client)$"),
+    inline: bool = Query(False),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
@@ -1379,8 +1415,9 @@ async def export_wycena_pdf(
         content, filename = _generate_wycena_client_pdf_bytes(data)
     else:
         content, filename = _generate_wycena_pdf_bytes(data, detail)
+    disposition = "inline" if inline else "attachment"
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )

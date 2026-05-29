@@ -1,3 +1,33 @@
+## Iteration 95al (2026-02) — Dane klienta w PDF + Podgląd w przeglądarce
+
+### User request
+„Dodaj dane klienta (firma, NIP, adres) do PDF + przycisk Podgląd zamiast od razu pobierania."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `WycenaUpdate` rozszerzony o `client_name`, `client_nip`, `client_address` (Optional[str])
+- `_generate_wycena_client_pdf_bytes`: blok ADRESAT renderowany jeśli ≥1 z pól wypełnione — Table z `BOX` 0.6mm zielona ramka + tło `#F8FAF6`, etykieta „ADRESAT", nazwa firmy (bold), NIP, adres (wielolinijkowy `\n` → `<br/>`)
+- `GET /wyceny/{id}/export.pdf?inline=true` zwraca `Content-Disposition: inline` (domyślnie `attachment`)
+- Endpoint `update_wycena` używa `exclude_unset` — nowe pola działają bez modyfikacji
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- Nowy stan `clientPanelOpen` + funkcja `saveText(field, value)` (on-blur PATCH z wartością string)
+- Rozwijany panel **„DANE KLIENTA"** (`wycena-client-panel`) tuż pod panelem domyślnych stawek:
+  - Nazwa firmy / klienta, NIP, Adres (textarea 2 rows)
+  - Gdy zwinięty + dane są: podgląd „· ACME · NIP 123…"
+  - Gdy zwinięty + brak danych: prompt „uzupełnij, jeśli chcesz wygenerować PDF…"
+- `ExportWycenaDialog`: nowy przycisk **„Podgląd"** (`export-preview-btn`) z ikoną `Eye`. Funkcja `preview()` pobiera blob z `inline=true`, tworzy `URL.createObjectURL`, `window.open(_blank)`. URL zwalniany po 60s.
+
+### Test
+- Lint JS: ✅
+- Backend curl: PATCH `client_name/nip/address` zapisuje ✅, PDF generuje (`%PDF-1.4` 62KB) ✅, `inline=true` → `Content-Disposition: inline` ✅, default → `attachment` ✅
+- Frontend smoke: panel widoczny, pola pre-wypełnione zapisanymi danymi ✅, przycisk „Podgląd" w dialogu ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `WycenaUpdate` + blok adresata w PDF + `inline` query param
+- `/app/frontend/src/components/Wyceny.js` — panel klienta + `saveText` + `preview()` + przycisk
+
+---
+
 ## Iteration 95ak (2026-02) — Wersja dla klienta (PDF)
 
 ### User request
