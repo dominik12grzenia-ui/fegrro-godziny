@@ -1485,13 +1485,21 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
     if (v.startsWith('=')) {
       const r = evalFormula(v);
       if (r && !r.error) {
+        // iter95ax: SMART auto-detect jednostki z formuły.
+        // - jeśli pole 'unit' jest PUSTE → ustaw automatycznie (m × m → m², m² × m → m³, ...)
+        // - jeśli 'unit' już ustawiona i RÓŻNI się od wykrytej → NIE nadpisuj (user wie lepiej),
+        //   tylko zostaw — warning pokazuje preview poniżej inputa
+        const detectedUnit = r.unit && r.unit !== '?' ? r.unit : null;
+        const unitIsEmpty = !edit.unit;
         const next = {
           ...edit,
           quantity: r.value,
           quantity_formula: v,
-          // jezeli formula zwrocila konkretna jednostke - ustaw ja
-          unit: r.unit && r.unit !== '?' ? r.unit : edit.unit,
+          unit: unitIsEmpty && detectedUnit ? detectedUnit : edit.unit,
         };
+        if (unitIsEmpty && detectedUnit) {
+          toast.success(`Auto-jednostka: ${detectedUnit} (z analizy wymiarowej)`);
+        }
         setEdit(next); save(next);
       } else {
         toast.error('Formuła: ' + (r?.error || 'błąd'));
@@ -1501,6 +1509,14 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
       const next = { ...edit, quantity: num, quantity_formula: null };
       setEdit(next); save(next);
     }
+  };
+
+  // iter95ax: ręczne dopasowanie jednostki do tego co zwróciła formuła (po kliknięciu w badge ⚠)
+  const applyDetectedUnit = () => {
+    if (!formulaPreview || formulaPreview.error || !formulaPreview.unit || formulaPreview.unit === '?') return;
+    const next = { ...edit, unit: formulaPreview.unit };
+    setEdit(next); save(next);
+    toast.success(`Dopasowano jednostkę: ${formulaPreview.unit}`);
   };
 
   // iter95x: po wyborze pozycji z cennika - wypelnij nazwe, cene, jednostke (czysc formule)
@@ -1547,12 +1563,36 @@ const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocal
             className={`${inputCls} text-right tabular-nums text-[#CBD5E1] ${String(qtyInput).startsWith('=') ? 'text-[#D4AF37] font-mono' : ''}`}
             title={formulaPreview && !formulaPreview.error ? `= ${formulaPreview.value} ${formulaPreview.unit || ''}` : (formulaPreview?.error || 'Wpisz liczbę lub formułę zaczynającą się od "=" np. =100 m² * 0,24 m')}
             data-testid={`sub-qty-${sub.id}`} />
-          {formulaPreview && !formulaPreview.error && (
-            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#9DBC85] whitespace-nowrap pointer-events-none"
-              data-testid={`sub-qty-preview-${sub.id}`}>
-              = {formulaPreview.value} {formulaPreview.unit || ''}
-            </div>
-          )}
+          {formulaPreview && !formulaPreview.error && (() => {
+            // iter95ax: 3 stany badge'a dla jednostki z formuły
+            const detected = formulaPreview.unit && formulaPreview.unit !== '?' ? formulaPreview.unit : null;
+            const current = edit.unit || '';
+            const match = detected && current === detected;
+            const mismatch = detected && current && current !== detected;
+            const empty = detected && !current;
+            return (
+              <div className="absolute left-0 -bottom-3.5 text-[9px] whitespace-nowrap flex items-center gap-1"
+                   data-testid={`sub-qty-preview-${sub.id}`}>
+                <span className={match ? 'text-[#9DBC85]' : mismatch ? 'text-[#F59E0B]' : 'text-[#9DBC85]'}>
+                  = {formulaPreview.value} {formulaPreview.unit || ''}
+                </span>
+                {match && <span className="text-[#9DBC85]" title="Jednostka pozycji zgadza się z analizą wymiarową">✓</span>}
+                {empty && (
+                  <span className="text-[#94A3B8] italic">
+                    (auto-przypisze {detected} po wyjściu z pola)
+                  </span>
+                )}
+                {mismatch && (
+                  <button type="button" onClick={applyDetectedUnit}
+                    className="text-[#F59E0B] font-bold hover:underline pointer-events-auto"
+                    title={`Formuła zwraca ${detected}, ale wybrałeś ${current}. Kliknij aby dopasować.`}
+                    data-testid={`sub-qty-fix-unit-${sub.id}`}>
+                    ⚠ użyj {detected}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           {formulaPreview?.error && (
             <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#FCA5A5] whitespace-nowrap pointer-events-none">
               ⚠ {formulaPreview.error}

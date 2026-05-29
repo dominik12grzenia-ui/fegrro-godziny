@@ -1,0 +1,38 @@
+{
+  "summary": "iter95ax smart auto-detect (Wyceny SubRow) — testing BLOCKED. Login + navigation to wycena 'iter95aj export' editor succeeded, but expanding the FUNDAMENTY stage (single stage-toggle found and force-clicked) does NOT reveal any pos-toggle elements in the DOM. Without expandable positions there are no sub-qty/sub-unit inputs to drive TEST A–F. Tests A–F could NOT be executed. Backend regression (TEST G) partially executed via API (GUS endpoint).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "Wyceny editor — stage expansion", "issue": "Clicking [data-testid=stage-toggle-029de1d1-...] (single FUNDAMENTY stage) on wycena 'iter95aj export' does not produce any pos-toggle children in DOM. Verified with both normal and force=True click (3 attempts). Screenshot shows stage row still rendered as ▶ collapsed. Either (a) the wycena has no positions seeded (data/seed issue) or (b) stage toggle handler is broken on this version.", "selector": "[data-testid^='stage-toggle-']", "priority": "HIGH"}
+    ],
+    "integration_issues": [
+      {"flow": "TEST A/B/C/D/E/F sub-qty smart auto-detect", "issue": "Could not run — no sub-qty input rendered because positions cannot be expanded under FUNDAMENTY stage of 'iter95aj export'. Code review of /app/frontend/src/components/Wyceny.js (lines 1483-1620) confirms the smart-auto-detect logic (saveQty + applyDetectedUnit, 3-state badge match/mismatch/empty, fix-unit button testid='sub-qty-fix-unit-{subId}') is implemented as described and matches the spec.", "affected_selectors": ["[data-testid^='sub-qty-']","[data-testid^='sub-unit-']","[data-testid^='sub-qty-fix-unit-']","[data-testid^='sub-qty-preview-']"]}
+    ],
+    "design_issues": [
+      {"screen": "Push permission gate", "issues": ["Modal data-testid='push-permission-gate' intercepts pointer events with z-[9999] right after admin login. Must be dismissed via 'Przypomnij mi jutro' before any tab/button is clickable — adds friction to QA automation. Consider auto-skip when admin session active or expose data-testid on dismiss button."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Verify wycena 'iter95aj export' actually contains stage FUNDAMENTY with positions+sub-positions seeded. If not, create/restore seed data so this regression-test wycena has at least one position with one sub-position so iter95ax flow can be validated end-to-end.",
+    "If data exists, debug toggleStage handler on this wycena — pos-toggle elements are not mounted after stage-toggle click on its single stage.",
+    "Add data-testid to PushPermissionGate dismiss buttons (e.g. push-gate-snooze-btn) and consider not showing the gate for admin sessions in test/preview env.",
+    "After data fix, re-run TESTS A–F (smart auto-detect happy paths + mismatch/fix/invalid/plain-number)."
+  ],
+  "critical_code_review_comments": [
+    "Wyceny.js is 2453 lines — well above 700-line guideline; split SubRow + PositionRow + StageRow into separate files for maintainability.",
+    "Smart auto-detect logic (lines 1483-1620) looks clean: empty→auto+toast, mismatch→non-destructive badge, match→✓ preview, plain number→no preview, invalid→toast.error. data-testid coverage for all 4 elements present (sub-qty, sub-unit, sub-qty-preview, sub-qty-fix-unit).",
+    "PushPermissionGate is a global blocking overlay at z-[9999] that intercepts every interaction in /admin/dashboard until manually dismissed — significant UX friction and breaks any automated/manual smoke test."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "GUS endpoint OK (200, found=true)", "frontend": "0% (TESTS A-F not executed due to data/expansion blocker)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via /login form (token stored in localStorage 'token')",
+  "seed_data_creation": "None. Used existing wycena 'iter95aj export' from list. Discovered: editor opens, single stage FUNDAMENTY visible, but no positions expand.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login flow: go to /login, fill input[0]=admin@fegrro.pl, input[1]=Admin123!, click 'Zaloguj', then wait for /admin/dashboard, IMMEDIATELY click 'Przypomnij mi jutro' to dismiss push gate (intercepts all clicks). Click [data-testid='wyceny-tab']. Click first 'iter95aj export' text occurrence. Editor opens inline (URL stays at /admin/dashboard, no /wyceny/{id} route). Stage-toggle found, but pos-toggles missing — data issue suspected. Use page.request.get('/api/wyceny') with Bearer token to enumerate wyceny if you need wycena_id for BOM PDF/XLSX endpoints.",
+  "rca of the issue": "Root cause: 'iter95aj export' wycena's FUNDAMENTY stage either has 0 positions persisted OR toggleStage handler is broken specifically for this wycena. Repro: login → wyceny tab → open 'iter95aj export' → click stage-toggle → query [data-testid^='pos-toggle-'] returns []. Mitigation: main agent should (1) check wycena data in MongoDB for positions array under stage 029de1d1-774c-4539-85e9-0b404d785427, (2) if empty, add seed positions+sub-positions OR point test to a different wycena name in the spec, (3) if non-empty, debug toggleStage state update / re-render."
+}
