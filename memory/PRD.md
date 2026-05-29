@@ -1,3 +1,59 @@
+## Iteration 95aw (2026-05) — GUS integracja + logo w eksportach + fix bugów wizualnych
+
+### User request
+„Fix nakładających się tekstów / nieczytelnych jednostek w UI i eksportach PDF/Excel (5 screenshotów z 29.05.2026), dodaj integrację GUS auto-pobierania danych firmy po NIP, dodaj logo firmy do WSZYSTKICH eksportów PDF i Excel."
+
+### Wybory usera
+- GUS: użyj darmowej alternatywy / scrapera → zaimplementowano **publiczne MF Biała Lista API** (`https://wl-api.mf.gov.pl/api/search/nip/{nip}`, bez klucza)
+- Logo: `/app/frontend/public/icon-192x192.png` (FeGrro)
+- Realizacja: wszystko równolegle w jednym pushu
+
+### Backend
+**`/app/backend/routes/gus.py` (NOWY)**
+- `GET /api/gus/{nip}` z auth admina
+- Walidacja: 10 cyfr (400 jeśli nie), 404/found:false jeśli MF nie zna NIPu
+- `httpx.AsyncClient(timeout=10, follow_redirects=True)` + custom `User-Agent: FeGrro-ERP/1.0` (Imperva CDN MF zwraca 302 dla domyślnego httpx UA — fix dodany w testowaniu)
+- Zwraca: `{found, nip, name, address, regon, krs, status, raw}`
+
+**`/app/backend/routes/wyceny.py`**
+- Nowe helpery `_get_logo_path()` i `_xlsx_add_logo(ws, anchor, width, height)` (linia ~681)
+- **BOM PDF**: nagłówek z logo (22mm) + Paragraph w wierszach nagłówków (zawijanie „Wielk.<br/>opak.", „Liczba<br/>opak.", „Cena netto<br/>za opak."), padding 6/3
+- **BOM XLSX**: logo w A1 (90×90px), wiersz 1 wysokość 50, kolumna A szerokość 14
+- **Wycena pełna PDF (landscape A4)**: logo + Paragraph headers z zawijaniem („Kaucja<br/>GIR", „Kaucja<br/>DW", „Koszt<br/>budowy", „Budżet<br/>zwolniony"), szerokości kolumn przesunięte (Uwagi 65→50mm, Budżet 18→22mm, Bud. zwol. 18→22mm)
+- **Wycena pełna XLSX**: logo + szerokości kolumn poszerzone (A=12, E=12, H/I=13)
+- **Wycena Client XLSX**: logo (był tylko tekst „FeGrro"), kolumna A=14
+
+**`/app/backend/server.py`**
+- Rejestracja `gus_router`
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- **`NewWycenaDialog`**: przycisk `🏛 Pobierz z GUS` obok pola NIP (`data-testid="new-wycena-gus-btn"`), funkcja `fetchFromGus()` woła `/gus/{nip}`, auto-fill `clientName` i `clientAddress`
+- **`WycenaEditor` panel klienta**: przycisk `🏛 GUS` (`data-testid="wycena-client-gus-btn"`) obok NIP, funkcja `fetchGusForClient()` z PATCH do bazy + lokalny update
+- **Stage-bulk chipy**: dodano `flex-wrap` na kontenerze + `whitespace-nowrap` na chipach + etykiecie „Zastosuj na etap:" → koniec nakładania się tekstu
+
+### Test
+- Lint JS/Python ✅
+- Backend curl: GUS dla NIP 5260250274 → `name="MINISTERSTWO FINANSÓW", address="ŚWIĘTOKRZYSKA 12, 00-916 WARSZAWA"` ✅
+- BOM/Wycena PDF i XLSX wszystkie HTTP 200 ✅
+- Wszystkie 3 XLSX (BOM, wycena full, wycena client) zawierają `xl/media/image1.png` (logo embedded) ✅
+- Testing agent: **12/12 backend testów PASS**, frontend smoke z Playwright: GUS auto-fill „Nowa wycena" wypełnia MF + adres OK; chipy stage-bulk renderują się inline bez nakładania OK
+
+### Pliki zmienione / utworzone
+- `/app/backend/routes/gus.py` — NOWY (~80 linii)
+- `/app/backend/server.py` — import + register
+- `/app/backend/routes/wyceny.py` — helpery + 6 funkcji eksportu (logo, Paragraph headers, szerokości)
+- `/app/frontend/src/components/Wyceny.js` — GUS button w 2 miejscach, fetchGusForClient, fetchFromGus, flex-wrap na chipach
+- `/app/backend/tests/test_iter95av_gus_logo_exports.py` — NOWY (12 testów PASS)
+
+### Znana uwaga
+Panel „DANE KLIENTA" w otwartej wycenie jest domyślnie collapsed — `wycena-client-gus-btn` widoczny po rozwinięciu (UX OK; do rozważenia: default expanded jeśli `client_nip` jest puste).
+
+### Działanie na produkcji
+GUS API MF Biała Lista jest publiczne, bez limitu uwierzytelnienia. Brak dodatkowych zmiennych środowiskowych.
+
+---
+
+
 ## Iteration 95av (2026-02) — Tryb negocjacji + wersjonowanie wyceny
 
 ### User request
