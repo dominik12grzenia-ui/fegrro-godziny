@@ -158,45 +158,72 @@ async def list_budowy_budgets(_user: dict = Depends(get_current_admin)):
     """Lista budow z podsumowaniem budzetu (czy ma pozycje, suma planu i wykonania).
 
     iter93: pomija budowy z has_budget=False (admin moze odznaczyc je w panelu Finanse > Budowy).
+    iter95bj: BIG perf fix - bylo 3 zapytania per budowa (154+ budow = ~462 round-trips).
+    Teraz 4 zapytania calkowicie:
+      1) lista budow
+      2) wszystkie budget_lines naraz (grupowane w Pythonie)
+      3) aggregate finance_zapisy grupowany po budget_line_id
+      4) aggregate budget_tasks count grupowany po budowa_id
     """
     # has_budget != False (default True dla starszych rekordow bez flagi)
     q = {"$or": [{"has_budget": {"$ne": False}}]}
     budowy = await db.finance_budowy.find(q, {"_id": 0, "id": 1, "name": 1, "code": 1}).to_list(length=1000)
+    if not budowy:
+        return {"rows": []}
+    budowa_ids = [b["id"] for b in budowy]
+
+    # 1 zapytanie - wszystkie linie naraz, grupujemy po budowa_id
+    all_lines = await db.budget_lines.find(
+        {"budowa_id": {"$in": budowa_ids}}, {"_id": 0},
+    ).to_list(length=None)
+    lines_by_budowa = {}
+    for ln in all_lines:
+        lines_by_budowa.setdefault(ln.get("budowa_id"), []).append(ln)
+
+    # 1 aggregate - finance_zapisy po budget_line_id
+    all_line_ids = [ln["id"] for ln in all_lines]
+    line_to_budowa = {ln["id"]: ln.get("budowa_id") for ln in all_lines}
+    exec_by_budowa = {bid: {"netto": 0.0, "brutto": 0.0} for bid in budowa_ids}
+    if all_line_ids:
+        pipe = [
+            {"$match": {"budget_line_id": {"$in": all_line_ids}}},
+            {"$group": {"_id": "$budget_line_id",
+                        "netto": {"$sum": "$netto"},
+                        "brutto": {"$sum": "$brutto"}}},
+        ]
+        async for r in db.finance_zapisy.aggregate(pipe):
+            bid = line_to_budowa.get(r["_id"])
+            if bid in exec_by_budowa:
+                exec_by_budowa[bid]["netto"] += float(r.get("netto") or 0)
+                exec_by_budowa[bid]["brutto"] += float(r.get("brutto") or 0)
+
+    # 1 aggregate - tasks count per budowa
+    tasks_by_budowa = {bid: 0 for bid in budowa_ids}
+    pipe = [
+        {"$match": {"budowa_id": {"$in": budowa_ids}}},
+        {"$group": {"_id": "$budowa_id", "count": {"$sum": 1}}},
+    ]
+    async for r in db.budget_tasks.aggregate(pipe):
+        tasks_by_budowa[r["_id"]] = int(r.get("count") or 0)
+
     result = []
     for b in budowy:
         bid = b["id"]
-        lines = await db.budget_lines.find({"budowa_id": bid}, {"_id": 0}).to_list(length=2000)
-        # Wykonanie - suma netto z finance_zapisy gdzie budget_line_id IN lines
-        line_ids = [ln["id"] for ln in lines]
-        execution_netto = 0.0
-        execution_brutto = 0.0
-        if line_ids:
-            pipe = [
-                {"$match": {"budget_line_id": {"$in": line_ids}}},
-                {"$group": {"_id": None,
-                             "netto": {"$sum": "$netto"},
-                             "brutto": {"$sum": "$brutto"}}},
-            ]
-            async for r in db.finance_zapisy.aggregate(pipe):
-                execution_netto = float(r.get("netto") or 0)
-                execution_brutto = float(r.get("brutto") or 0)
-
-        # iter87: BUGFIX podwojnego liczenia - liczymy plan tylko z linii bez dzieci
+        lines = lines_by_budowa.get(bid, [])
         children_parents = {ln.get("parent_id") for ln in lines if ln.get("parent_id")}
         plan_netto = sum(_compute_plan(ln) for ln in lines if not ln.get("is_income") and ln.get("id") not in children_parents)
         plan_income = sum(_compute_plan(ln) for ln in lines if ln.get("is_income") and ln.get("id") not in children_parents)
-        # Zadania harmonogramu
-        tasks_count = await db.budget_tasks.count_documents({"budowa_id": bid})
+        exec_data = exec_by_budowa.get(bid, {"netto": 0.0, "brutto": 0.0})
         result.append({
             "budowa_id": bid,
             "name": b.get("name") or "",
             "code": b.get("code") or "",
             "lines_count": len(lines),
-            "tasks_count": tasks_count,
+            "tasks_count": tasks_by_budowa.get(bid, 0),
             "plan_costs_netto": round(plan_netto, 2),
             "plan_income_netto": round(plan_income, 2),
-            "execution_netto": round(execution_netto, 2),
-            "execution_brutto": round(execution_brutto, 2),
+            "execution_netto": round(exec_data["netto"], 2),
+            "execution_brutto": round(exec_data["brutto"], 2),
         })
     return {"rows": result}
 

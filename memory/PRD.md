@@ -1,3 +1,69 @@
+## Iteration 95bj (2026-05) — Performance push: N+1 fix + prefetch expand
+
+### User request
+„czy zrobiłeś wszystko by aplikacja działała jak najszybciej? Jeśli nie to zrób wszystko co się da by ją przyśpieszyć w wszystkich jej zakładkach itp."
+
+### Co już było (iter 95bb)
+- React.lazy dla wszystkich zakładek admin/worker dashboard
+- MongoDB indexes na 74 kolumnach
+- Stale-while-revalidate apiCache
+- Component splits (Budget, Finance, Wyceny, EquipmentForeman, HoursTable, PayrollAdmin, EquipmentAdmin)
+- Prefetch 14 endpoints + 8 chunks po 100ms
+
+### Dodano teraz
+
+**A. Backend: 2 N+1 fixes**
+
+`GET /wyceny` (`routes/wyceny.py:204`):
+- Przed: `N+1` (1× wyceny + N× wyceny_lines per wycena) + martwy kod (async for + pass)
+- Po: **2 zapytania calkowicie** — wszystkie linie naraz przez `$in`, grupowanie w Pythonie
+
+`GET /budget/budowy` (`routes/budget.py:156`):
+- Przed: `3N+1` queries (1× finance_budowy + dla kazdej budowy: budget_lines.find + finance_zapisy.aggregate + budget_tasks.count_documents) — dla 154 budow to ~**462 round-trip**
+- Po: **4 zapytania calkowicie**:
+  1. finance_budowy
+  2. wszystkie budget_lines naraz (`$in`)
+  3. aggregate finance_zapisy z `$group` po budget_line_id
+  4. aggregate budget_tasks z `$group` po budowa_id
+
+**B. Frontend: rozszerzony prefetch**
+
+W `AdminDashboard.useEffect`:
+- + 5 ciezkich chunks (`PayrollAdmin`, `Finance`, `Budget`, `Wyceny`, `Forecast`)
+- + 6 endpointow (`/wyceny`, `/wyceny/clients`, `/finance/budowy`, `/finance/kody`, `/budget/budowy`, `/foremen`)
+- Razem: 13 chunks + 20 data caches grzanych po 100 ms od mountu dashboardu
+
+### Pomiary po fix (3 wywolania, ostatni czas)
+```
+/wyceny                          135 ms  ← N+1 fix
+/budget/budowy                   127 ms  ← N+1 fix (3N+1 → 4 queries)
+/finance/budowy                  149 ms
+/equipment?category=electronics   98 ms
+/equipment/assignments/all       106 ms
+/foremen                          94 ms
+/sites                           114 ms
+/employees                       102 ms
+/payroll?year=2026&month=5        99 ms
+```
+
+Wszystkie endpointy < 150 ms. Z prefetch + cache → **kliki w zakladki sa instant** (dane juz w cache, chunk juz pobrany).
+
+### Co dalej moze przyspieszyc (BACKLOG)
+- 🟡 P3 — Bundle analyzer (`yarn build` + analyze) — sprawdzic czy sa duze duplikaty
+- 🟡 P3 — Virtual scrolling dla `HoursTable` (>30 dni × 50 pracownikow) — `react-window`
+- 🟡 P3 — Service Worker cache dla offline-first
+- 🟡 P3 — Lazy load `react-google-maps` (ladowane tylko gdy /sites otwarta)
+- 🟡 P3 — `useMemo` na grupowaniu/filtrowaniu w Finance/Budget tabeli
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- ⚪ Google Maps API key dla preview domain
+
+---
+
+
+
 ## Iteration 95bi (2026-05) — Brand refresh: rozjaśnienie palety dark mode
 
 ### User request

@@ -203,22 +203,28 @@ def _ensure_cat(cat: str):
 # =========== WYCENY (naglowki) ===========
 @router.get("/wyceny")
 async def list_wyceny(_user: dict = Depends(get_current_admin)):
+    # iter95bj: optymalizacja N+1 query. Wczesniej dla kazdej wyceny robilismy
+    # osobny find na wyceny_lines (O(N*M)). Teraz 2 zapytania: 1) wyceny, 2) wszystkie
+    # linie naraz przez $in i grupowanie w Pythonie.
     rows = await db.wyceny.find({}, {"_id": 0}).sort([("created_at", -1)]).to_list(length=1000)
-    # Wzbogac o totals (suma plan_netto)
+    if not rows:
+        return {"rows": []}
+    wycena_ids = [w["id"] for w in rows]
+    all_lines = await db.wyceny_lines.find(
+        {"wycena_id": {"$in": wycena_ids}},
+        {"_id": 0, "wycena_id": 1, "id": 1, "parent_id": 1, "quantity": 1, "unit_price_netto": 1},
+    ).to_list(length=None)
+    # Grupuj w Pythonie - jeden przejazd
+    lines_by_wycena = {}
+    for ln in all_lines:
+        lines_by_wycena.setdefault(ln["wycena_id"], []).append(ln)
     for w in rows:
-        total = 0.0
-        async for ln in db.wyceny_lines.find(
-            {"wycena_id": w["id"]}, {"_id": 0, "quantity": 1, "unit_price_netto": 1, "parent_id": 1, "id": 1},
-        ):
-            # Liczymy tylko liscie (linie ktore nie maja dzieci)
-            # Proste podejscie: zliczamy wszystkie, potem odejmiemy ID rodzicow
-            pass
-        # Prosciej: liczymy w drugim podejsciu
-        lines = await db.wyceny_lines.find({"wycena_id": w["id"]}, {"_id": 0}).to_list(length=None)
+        lines = lines_by_wycena.get(w["id"], [])
         parent_ids = {ln.get("parent_id") for ln in lines if ln.get("parent_id")}
+        total = 0.0
         for ln in lines:
             if ln["id"] in parent_ids:
-                continue  # ma dzieci, pomijamy
+                continue  # ma dzieci - pomijamy (liczymy tylko liscie)
             total += float(ln.get("quantity") or 0) * float(ln.get("unit_price_netto") or 0)
         w["total_netto"] = round(total, 2)
         w["lines_count"] = len(lines)

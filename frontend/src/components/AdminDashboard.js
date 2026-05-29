@@ -281,6 +281,12 @@ export const AdminDashboard = () => {
       warehouseAdminImport().catch(() => {});
       clothingAdminImport().catch(() => {});
       bhpAdminImport().catch(() => {});
+      // iter95bj: warm wszystkie pozostale duze chunki
+      payrollAdminImport().catch(() => {});
+      financeImport().catch(() => {});
+      budgetImport().catch(() => {});
+      wycenyImport().catch(() => {});
+      forecastImport().catch(() => {});
       // Warm data caches for equipment-heavy tabs (most common destinations)
       prefetch('/equipment?category=electronics');
       prefetch('/equipment?category=accessories');
@@ -296,6 +302,13 @@ export const AdminDashboard = () => {
       prefetch('/settings/warehouse-keeper');
       prefetch('/warehouse/materials');
       prefetch('/warehouse/orders');
+      // iter95bj: warm data dla Wyceny/Budget/Finance/Forecast/Payroll
+      prefetch('/wyceny');
+      prefetch('/wyceny/clients');
+      prefetch('/finance/budowy');
+      prefetch('/finance/kody');
+      prefetch('/budget/budowy');
+      prefetch('/foremen');
     }, 100); // small delay so primary render isn't blocked
     return () => clearTimeout(handle);
   }, [user]);
