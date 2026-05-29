@@ -1,3 +1,64 @@
+## Iteration 95bc (2026-05) — Wielki refaktor split — 3 największe pliki rozbite na 40 modułów
+
+### User request
+„Zrób te splity wszędzie gdzie to możliwe w aplikacji."
+
+### Wykonane
+**Automatyzacja Python skryptem:** wyszukiwanie wszystkich `const NazwaKomponentu = ...` na poziomie 0, znajdowanie pasującego `};` i wycinanie bloku do osobnego pliku z auto-importami.
+
+### Rezultaty redukcji rozmiaru
+
+| Plik | Przed | Po | Redukcja |
+|---|---|---|---|
+| **Budget.js** | 3498 | **364** | **-90%** |
+| **Finance.js** | 2248 | **334** | **-85%** |
+| **Wyceny.js** | 2454 | **1133** | **-54%** (już wcześniej iter95aw zrobił -35%) |
+| **Łącznie** | 8200 | **1831** | **-78%** |
+
+### Wydzielone komponenty
+
+**`/app/frontend/src/components/budget/` (19 plików)**
+- `_shared.js` — helpery (fmtPLN, fmtNum, MONTHS_PL, BUDGET_TYPES, TYPE_ORDER, SUB_TYPE_LABEL, ActionButton re-export)
+- `BudgetExcelTemplateView.js` (770l!), `BudgetExcelView.js`, `BudgetCostingView.js`, `PositionCard.js`
+- `BudgetLinesPanel.js`, `ProgressPanel.js`, `SchedulePanel.js`, `GanttView.js`, `ScheduleTaskModal.js`, `GenerateScheduleModal.js`
+- `SubpositionModal.js`, `PositionModal.js`, `CategoryStageManager.js`, `BudgetLineModal.js`
+- `BudgetNipLookup.js`, `ContractDataModal.js`, `ProtokolControls.js`, `ProtokolDownloaderInline.js`
+
+**`/app/frontend/src/components/finance/` (10 plików)**
+- `_shared.js` — helpery (fmt, fmtPLN, fmtNum, fmtPct, PL_MONTHS_SHORT, SPRZEDAZ_COL_INFO, SUBTABS, InfoHeader, ActionButton re-export)
+- `NipLookup.js`, `FakturowniaSyncWarning.js`, `QuickAddZapis.js`, `PaymentSummaryPanel.js`, `DiscrepancyDetailsModal.js`
+- `BudowyPanel.js`, `ZapisyPanel.js` (789l!), `RachunekWynikowPanel.js`, `SprzedazPanel.js`
+
+**`/app/frontend/src/components/wyceny/` (20 plików — po obu falach split iter95aw + 95bc)**
+- z poprzedniej fali: `_shared.js`, `NewWycenaDialog`, `ExportWycenaDialog`, `ConvertToBudgetDialog`, `SuppliersManagerDialog`, `BomDialog`, `NegotiationPanel`
+- dodane teraz: `PosRow.js`, `SubRow.js`, `QuickFillRow.js`, `PriceBookPicker.js`, `MaterialsPriceBook.js` + `MaterialRow.js`, `LaborPriceBook.js` + `LaborRow.js`, `EquipmentPriceBook.js` + `EquipmentRow.js`, `PriceBook.js` + `PriceBookRow.js` + `PriceBookAddModal.js`
+
+### Bugi runtime znalezione i naprawione iteracyjnie
+1. **`ActionButton is not defined`** w finance/budget split files → dodano `_shared.js` z re-exportem
+2. **`PaymentSummaryPanel is not defined`** w `RachunekWynikowPanel` → cross-import między split files (skrypt znajdujący JSX usage `<Name>` i auto-dodający `import`)
+3. **`FolderTree is not defined`** lucide-react ikon → automatyczne wykrycie i dodanie brakujących ikon z listy 280+ znanych z lucide-react
+4. **`MONTHS_PL is not defined`** → dodanie wszystkich stałych Budget.js (MONTHS_PL, BUDGET_TYPES, TYPE_ORDER, SUB_TYPE_*, helpery fmt*) do `_shared.js`
+
+### Testy
+- Lint czysty (wszystkie 3 główne pliki + folder budget/, finance/, wyceny/)
+- Webpack: 7+ kompilacji successful w trakcie iteracyjnego fixu
+- Browser smoke test: **6 tabów + edytor wyceny + budżet otwarte → 0 fatal errors w konsoli**
+- Pre-existing: Google Maps API key warning (preview domain, niezwiązane) + hydration warning `<span>` w `<option>` (minor)
+
+### Korzyści
+- **Łatwiejsza praca AI/Twoja**: edycja jednego dialogu = przeczytanie 100-300 linii zamiast 3498
+- **Code splitting Webpack**: każdy split file może być teraz lazy-loaded w przyszłości
+- **Lepszy git diff**: zmiana w jednym dialogu nie zaśmieca historii innego
+- **Reuse**: każdy split komponent można teraz użyć w innym module
+
+### Backlog
+- 🟡 **P3** — HoursTable.js (1433l), EquipmentForeman.js (1258l), EquipmentAdmin.js (1289l), PayrollAdmin.js (1004l), WorkerDashboard.js (978l) — kolejne kandydaci na split
+- 🟡 **P2** — Wykres „Top 3 kosztów" w Finanse
+- ⚪ Drobiazg hydration warning `<span>` w `<option>` w AdminDashboard.js
+
+---
+
+
 ## Iteration 95bb (2026-05) — Audyt całej aplikacji + maksymalna optymalizacja
 
 ### User request
