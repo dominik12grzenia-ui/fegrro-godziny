@@ -3,7 +3,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { api } from '../context/AuthContext';
 import { toast } from 'sonner';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
-import { TrendingUp, TrendingDown, Building2, Wallet, BarChart3 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Button } from './ui/button';
+import { TrendingUp, TrendingDown, Building2, Wallet, BarChart3, Search } from 'lucide-react';
 
 const fmtPLN = (v) => {
   const n = Number(v || 0);
@@ -15,23 +17,187 @@ const monthName = (y, m) => {
   return `${names[m - 1]} ${y}`;
 };
 
-const Stat = ({ label, value, sub, accent = '#9DBC85', icon: Icon, testId }) => (
-  <div className="border border-[#2A3B59] bg-[#131C2F] rounded-lg p-4 space-y-1" data-testid={testId}>
+const Stat = ({ label, value, sub, accent = '#9DBC85', icon: Icon, testId, onClick }) => (
+  <button
+    type="button"
+    onClick={onClick}
+    className={`text-left border border-[#2A3B59] bg-[#131C2F] rounded-lg p-4 space-y-1 transition w-full ${
+      onClick ? 'hover:border-[#9DBC85]/60 hover:bg-[#131C2F]/80 cursor-pointer' : 'cursor-default'
+    }`}
+    data-testid={testId}
+  >
     <div className="text-[10px] uppercase tracking-wider text-[#94A3B8] flex items-center gap-1.5">
       {Icon && <Icon className="h-3.5 w-3.5" />} {label}
+      {onClick && <Search className="h-3 w-3 ml-auto text-[#5F7552]" />}
     </div>
     <div className="text-2xl font-bold tabular-nums" style={{ color: accent }}>
       {value} <span className="text-sm font-normal text-[#94A3B8]">zł</span>
     </div>
     {sub && <div className="text-[10px] text-[#64748B]">{sub}</div>}
-  </div>
+  </button>
 );
+
+// iter95au: drill-down modal pokazujacy szczegoly KPI
+const DetailsModal = ({ kind, code, back, forward, onClose }) => {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const params = new URLSearchParams({ kind, back, forward });
+    if (code) params.set('code', code);
+    setLoading(true);
+    api.get(`/finance/forecast/details?${params.toString()}`)
+      .then((r) => setData(r.data))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
+      .finally(() => setLoading(false));
+  }, [kind, code, back, forward]);
+
+  const titles = {
+    company: 'Koszty utrzymania firmy — wszystkie zapisy',
+    company_category: `Koszty kategorii: ${code || ''} — szczegóły`,
+    building: 'Koszty budów (z harmonogramów) — rozbicie pozycji',
+    income: 'Przychody z budów (z harmonogramów)',
+  };
+  const monthName = (y, m) => {
+    const names = ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'];
+    return `${names[m - 1]} ${y}`;
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-5xl"
+                     data-testid="forecast-details-modal">
+        <DialogHeader>
+          <DialogTitle className="text-[#D4AF37]">{titles[kind] || 'Szczegóły'}</DialogTitle>
+          {data && (
+            <div className="text-xs text-[#94A3B8]">
+              {kind.startsWith('company') ? (
+                <>Okres: <b className="text-white">{data.range?.start} → {data.range?.end}</b> · {data.count} zapisów · suma <b className="text-[#9DBC85]">{fmtPLN(data.total)} zł</b>{kind === 'company' && data.avg_monthly !== undefined && <> · śr. <b className="text-[#9DBC85]">{fmtPLN(data.avg_monthly)} zł/msc</b></>}</>
+              ) : (
+                <>{data.count} pozycji budżetu w prognozie · suma w oknie <b className="text-[#9DBC85]">{fmtPLN(data.total)} zł</b></>
+              )}
+            </div>
+          )}
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
+          {loading ? (
+            <div className="p-6 text-center text-[#94A3B8] text-sm">Ładuję…</div>
+          ) : !data || data.rows.length === 0 ? (
+            <div className="p-6 text-center text-[#94A3B8] text-sm italic">Brak danych w wybranym okresie.</div>
+          ) : kind.startsWith('company') ? (
+            <table className="w-full text-xs" data-testid="details-company-table">
+              <thead className="bg-[#0B1120] sticky top-0 text-[#94A3B8] uppercase text-[10px]">
+                <tr>
+                  <th className="text-left px-3 py-2">Data</th>
+                  <th className="text-left px-3 py-2">Kategoria / Kod</th>
+                  <th className="text-left px-3 py-2">Nazwa</th>
+                  <th className="text-left px-3 py-2">Budowa / komentarz</th>
+                  <th className="text-right px-3 py-2">Kwota netto</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.id} className="border-t border-[#2A3B59] hover:bg-[#0B1120]/60"
+                      data-testid={`details-row-${r.id}`}>
+                    <td className="px-3 py-1.5 text-[#CBD5E1] tabular-nums whitespace-nowrap">{r.date}</td>
+                    <td className="px-3 py-1.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded mr-1"
+                        style={{
+                          background: r.category === 'KP' ? '#3F5235' : r.category === 'KSB' ? '#5F4E20' : '#2D4D5C',
+                          color: 'white',
+                        }}>{r.category}</span>
+                      <span className="text-[10px] text-[#64748B]">{r.kod_id}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-white">{r.kod_name}</td>
+                    <td className="px-3 py-1.5 text-[#94A3B8] text-[11px]">
+                      {r.budowa_name && <span className="text-[#9DBC85]">{r.budowa_name}</span>}
+                      {r.budowa_name && r.comment && ' · '}
+                      {r.comment}
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums">{fmtPLN(r.netto)} zł</td>
+                  </tr>
+                ))}
+                <tr className="bg-[#D4AF37]/10 border-t-2 border-[#D4AF37]/40 font-bold">
+                  <td colSpan={4} className="px-3 py-2 text-white">RAZEM ({data.count} zapisów)</td>
+                  <td className="px-3 py-2 text-right text-[#D4AF37] tabular-nums">{fmtPLN(data.total)} zł</td>
+                </tr>
+              </tbody>
+            </table>
+          ) : (
+            <table className="w-full text-xs" data-testid="details-building-table">
+              <thead className="bg-[#0B1120] sticky top-0 text-[#94A3B8] uppercase text-[10px]">
+                <tr>
+                  <th className="text-left px-3 py-2">Budowa</th>
+                  <th className="text-left px-3 py-2">Etap (daty)</th>
+                  <th className="text-left px-3 py-2">Pozycja</th>
+                  <th className="text-left px-3 py-2">Typ</th>
+                  <th className="text-right px-3 py-2">Plan netto</th>
+                  {(data.months || []).map((mo) => (
+                    <th key={`${mo.y}-${mo.m}`} className="text-right px-3 py-2 whitespace-nowrap">{monthName(mo.y, mo.m)}</th>
+                  ))}
+                  <th className="text-right px-3 py-2 bg-[#3F5235]/30">W oknie</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.rows.map((r) => (
+                  <tr key={r.id} className="border-t border-[#2A3B59] hover:bg-[#0B1120]/60"
+                      data-testid={`details-row-${r.id}`}>
+                    <td className="px-3 py-1.5 text-white">{r.budowa_name}</td>
+                    <td className="px-3 py-1.5 text-[#94A3B8] text-[11px]">
+                      <div className="text-[#CBD5E1]">{r.stage_name}</div>
+                      <div className="text-[10px]">{r.start_date} → {r.end_date}</div>
+                    </td>
+                    <td className="px-3 py-1.5 text-[#CBD5E1]">
+                      {r.name}
+                      {r.quantity > 0 && (
+                        <div className="text-[10px] text-[#64748B]">
+                          {r.quantity} {r.unit} × {fmtPLN(r.unit_price_netto)} zł
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-1.5">
+                      <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
+                        style={{
+                          background: r.type === 'materials' ? '#5F7552' : r.type === 'labor' ? '#5F4E20' : r.type === 'equipment' ? '#2D4D5C' : '#475569',
+                          color: 'white',
+                        }}>{r.type || '—'}</span>
+                    </td>
+                    <td className="px-3 py-1.5 text-right text-[#94A3B8] tabular-nums">{fmtPLN(r.plan_netto)} zł</td>
+                    {(data.months || []).map((mo) => {
+                      const found = (r.per_month || []).find((p) => p.y === mo.y && p.m === mo.m);
+                      return (
+                        <td key={`${mo.y}-${mo.m}`} className="px-3 py-1.5 text-right tabular-nums text-[#CBD5E1]">
+                          {found ? `${fmtPLN(found.value)}` : '—'}
+                        </td>
+                      );
+                    })}
+                    <td className="px-3 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums bg-[#3F5235]/20">{fmtPLN(r.in_window)} zł</td>
+                  </tr>
+                ))}
+                <tr className="bg-[#D4AF37]/10 border-t-2 border-[#D4AF37]/40 font-bold">
+                  <td colSpan={5 + (data.months || []).length} className="px-3 py-2 text-white">RAZEM w oknie prognozy ({data.count} pozycji)</td>
+                  <td className="px-3 py-2 text-right text-[#D4AF37] tabular-nums">{fmtPLN(data.total)} zł</td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+        </div>
+        <DialogFooter>
+          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+            data-testid="details-close">Zamknij</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
 
 export const Forecast = () => {
   const [back, setBack] = useState(6);
   const [forward, setForward] = useState(3);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  // iter95au: modal drill-down
+  const [details, setDetails] = useState(null); // {kind, code?}
 
   const load = useCallback(() => {
     setLoading(true);
@@ -86,11 +252,14 @@ export const Forecast = () => {
       {/* KPI top row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3" data-testid="forecast-kpi">
         <Stat label="Średnie koszty firmowe / msc" value={fmtPLN(cc.total_avg_monthly)} accent="#D4AF37"
-          sub={`${cc.categories.length} kategorii kosztowych`} icon={Wallet} testId="kpi-company-avg" />
+          sub={`${cc.categories.length} kategorii kosztowych — kliknij by zobaczyć zapisy`} icon={Wallet} testId="kpi-company-avg"
+          onClick={() => setDetails({ kind: 'company' })} />
         <Stat label={`Koszty budów (${forward} msc)`} value={fmtPLN(bc.totals.total)} accent="#9DBC85"
-          sub="Z harmonogramów aktywnych budów" icon={Building2} testId="kpi-building-costs" />
+          sub="Z harmonogramów aktywnych budów — kliknij by zobaczyć pozycje" icon={Building2} testId="kpi-building-costs"
+          onClick={() => setDetails({ kind: 'building' })} />
         <Stat label={`Przychody budów (${forward} msc)`} value={fmtPLN(bi.total)} accent="#22C55E"
-          sub="Pozycje przychodowe budżetu" icon={TrendingUp} testId="kpi-building-income" />
+          sub="Pozycje przychodowe budżetu — kliknij by zobaczyć" icon={TrendingUp} testId="kpi-building-income"
+          onClick={() => setDetails({ kind: 'income' })} />
         <Stat label={`Bilans P&L (${forward} msc)`} value={fmtPLN(bal.totals.profit)}
           accent={bal.totals.profit >= 0 ? '#22C55E' : '#FCA5A5'}
           sub={`Przychody − koszty (firma + budowy)`}
@@ -125,7 +294,10 @@ export const Forecast = () => {
                 </thead>
                 <tbody>
                   {cc.categories.map((c) => (
-                    <tr key={c.code} className="border-t border-[#2A3B59]" data-testid={`company-row-${c.code}`}>
+                    <tr key={c.code} className="border-t border-[#2A3B59] hover:bg-[#D4AF37]/5 cursor-pointer"
+                        data-testid={`company-row-${c.code}`}
+                        onClick={() => setDetails({ kind: 'company_category', code: c.code })}
+                        title="Kliknij aby zobaczyć wszystkie zapisy w tej kategorii">
                       <td className="px-3 py-1.5">
                         <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
                           style={{
@@ -134,7 +306,10 @@ export const Forecast = () => {
                           }}>{c.category}</span>
                       </td>
                       <td className="px-3 py-1.5 text-[#CBD5E1]">
-                        <div className="font-semibold">{c.name}</div>
+                        <div className="font-semibold flex items-center gap-1">
+                          {c.name}
+                          <Search className="h-3 w-3 text-[#5F7552]" />
+                        </div>
                         <div className="text-[9px] text-[#64748B]">{c.code} · {c.count} wpisów</div>
                       </td>
                       <td className="px-3 py-1.5 text-right text-[#94A3B8] tabular-nums">{fmtPLN(c.total_back)} zł</td>
@@ -270,6 +445,17 @@ export const Forecast = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* iter95au: drill-down modal */}
+      {details && (
+        <DetailsModal
+          kind={details.kind}
+          code={details.code}
+          back={back}
+          forward={forward}
+          onClose={() => setDetails(null)}
+        />
+      )}
     </div>
   );
 };

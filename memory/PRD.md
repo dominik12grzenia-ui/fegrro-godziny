@@ -1,3 +1,46 @@
+## Iteration 95au (2026-02) — Drill-down szczegółów Panelu Prognoz
+
+### User request
+„Po kliknięciu w ikonkę średnie koszty firmowe zobaczę co się składa na prognozowane koszty."
+
+### Backend (`/app/backend/routes/finance.py`)
+- **Nowy endpoint** `GET /finance/forecast/details?kind=...&back=6&forward=3&code=...`
+  - `kind=company` → wszystkie zapisy KP/KSB/KSP z `finance_zapisy` za okres back (z budowa_name jeśli linkowany)
+  - `kind=company_category&code=KSB_ODZIEZ` → tylko zapisy konkretnej kategorii (404 jeśli brak code)
+  - `kind=building` → pozycje budżetu kosztowe (is_income=False) z rozbiciem per miesiąc prognozy
+  - `kind=income` → pozycje przychodowe (is_income=True) z rozbiciem per miesiąc
+- Walidacja `kind` regex (422 dla niedozwolonego), 400 dla missing `code`
+- Sortowanie: zapisy po dacie desc, pozycje budżetu po `in_window` desc
+
+### Frontend (`/app/frontend/src/components/Forecast.js`)
+- **Stat KPI** rozszerzony o `onClick` → przycisk z hover-stanem + ikona Search
+- 3 z 4 KPI klikalne: `company-avg`, `building-costs`, `building-income` (Balance pozostaje statyczny)
+- **Wiersze tabeli kosztów firmowych** klikalne → modal z zapisami danej kategorii
+- **Nowy komponent** `DetailsModal({ kind, code, back, forward, onClose })`:
+  - Pobiera dane z `/finance/forecast/details`
+  - Dla `company*`: tabela `Data | Kat./Kod | Nazwa | Budowa/komentarz | Kwota`
+  - Dla `building/income`: tabela `Budowa | Etap+daty | Pozycja (qty×price) | Typ badge | Plan netto | kolumny per miesiąc | W oknie`
+  - Sticky header, hover-row, footer z sumą RAZEM
+  - Loading + empty state
+
+### Test
+- Lint JS: ✅
+- Backend curl:
+  - `kind=company` → `count=31 total=150220 avg=25036.67` ✅
+  - `kind=company_category&code=KSB_ODZIEZ` → `count=30 total=150000` ✅
+  - `kind=building` → 0 (brak harmonogramów) ✅
+  - `kind=bad` → 422; `kind=company_category` bez code → 400 ✅
+- E2E smoke:
+  - Klik KPI „Średnie koszty firmowe" → modal z 31 wierszami ✅
+  - Klik wiersza KSB_ODZIEZ → modal filtruje do 30 ✅
+  - Klik KPI „Koszty budów" → modal (pusty bo brak harmonogramów) ✅
+
+### Pliki zmienione
+- `/app/backend/routes/finance.py` — endpoint `/finance/forecast/details` (~100 linii)
+- `/app/frontend/src/components/Forecast.js` — `DetailsModal` (~150 linii), klikalne `Stat` + wiersze kategorii
+
+---
+
 ## Iteration 95at (2026-02) — Panel Prognoz przyszłych kosztów / zysków
 
 ### User request

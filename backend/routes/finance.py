@@ -3018,4 +3018,158 @@ async def get_finance_forecast(
     }
 
 
+@router.get("/finance/forecast/details")
+async def get_forecast_details(
+    kind: str = Query(..., regex="^(company|company_category|building|income)$"),
+    back: int = Query(6, ge=1, le=24),
+    forward: int = Query(3, ge=1, le=24),
+    code: Optional[str] = Query(None),  # kod_id dla company_category
+    _user: dict = Depends(get_current_admin),
+):
+    """Szczegoly per typ KPI:
+    - company: wszystkie zapisy firmowe (KP/KSB/KSP) za okres back
+    - company_category: zapisy konkretnej kategorii (z code=kod_id)
+    - building: pozycje budzetu kosztowe rozlozone na miesiace prognozy
+    - income: pozycje budzetu przychodowe (is_income=True) rozlozone na miesiace
+    """
+    from calendar import monthrange as _mr
+    today = datetime.now()
+    cur_y, cur_m = today.year, today.month
+    start_y, start_m = cur_y, cur_m
+    for _ in range(back - 1):
+        start_m -= 1
+        if start_m < 1:
+            start_m = 12
+            start_y -= 1
+    start_date = f"{start_y:04d}-{start_m:02d}-01"
+    end_last_day = _mr(cur_y, cur_m)[1]
+    end_date = f"{cur_y:04d}-{cur_m:02d}-{end_last_day:02d}"
+
+    if kind in ("company", "company_category"):
+        kody = await db.finance_kody.find({}, {"_id": 0}).to_list(length=None)
+        kod_by_id = {k["id"]: k for k in kody}
+        company_cats = ("KP", "KSB", "KSP")
+        q = {"date": {"$gte": start_date, "$lte": end_date}, "is_income": {"$ne": True}}
+        if kind == "company_category":
+            if not code:
+                raise HTTPException(400, "Wymagany parametr 'code' dla company_category")
+            q["kod_id"] = code
+        zapisy = await db.finance_zapisy.find(q, {"_id": 0}).sort("date", -1).to_list(length=2000)
+        # filtruj po firmowych kategoriach (kind=company - wszystkie firmowe; company_category - tylko ten code)
+        budowy = await db.finance_budowy.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(length=None)
+        budowa_name_by_id = {b["id"]: b.get("name", "—") for b in budowy}
+        rows = []
+        for z in zapisy:
+            kid = z.get("kod_id")
+            kod = kod_by_id.get(kid) if kid else None
+            if not kod:
+                continue
+            if kind == "company" and kod.get("category") not in company_cats:
+                continue
+            rows.append({
+                "id": z.get("id"),
+                "date": z.get("date"),
+                "kod_id": kid,
+                "kod_name": kod.get("name", kid),
+                "category": kod.get("category", ""),
+                "netto": float(z.get("netto") or 0),
+                "comment": z.get("comment") or "",
+                "budowa_id": z.get("budowa_id") or "",
+                "budowa_name": budowa_name_by_id.get(z.get("budowa_id") or "", ""),
+            })
+        total = round(sum(r["netto"] for r in rows), 2)
+        return {
+            "rows": rows,
+            "total": total,
+            "avg_monthly": round(total / back, 2) if back else 0,
+            "count": len(rows),
+            "range": {"start": start_date, "end": end_date},
+        }
+
+    # building / income: rozloz po miesiacach prognozy
+    budowy = await db.finance_budowy.find(
+        {"$or": [{"archived": {"$ne": True}}, {"archived": False}]},
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(length=None)
+    budowa_name_by_id = {b["id"]: b["name"] for b in budowy}
+    active_ids = list(budowa_name_by_id.keys())
+    stages_raw = await db.budget_stages.find(
+        {"budowa_id": {"$in": active_ids}}, {"_id": 0},
+    ).to_list(length=None)
+    stage_info = {}
+    stage_name_by_id = {}
+    for st in stages_raw:
+        sd = _parse_date_any(st.get("start_date") or "")
+        ed = _parse_date_any(st.get("end_date") or "")
+        stage_name_by_id[st["id"]] = st.get("name", "—")
+        if not sd or not ed or ed < sd:
+            continue
+        stage_info[st["id"]] = (sd, ed, st["budowa_id"])
+    lines = await db.budget_lines.find(
+        {"budowa_id": {"$in": active_ids}, "stage_id": {"$in": list(stage_info.keys())}},
+        {"_id": 0},
+    ).to_list(length=None) if stage_info else []
+    parent_ids = {ln.get("parent_id") for ln in lines if ln.get("parent_id")}
+    forward_months = list(_month_iter(cur_y, cur_m, forward))
+
+    want_income = (kind == "income")
+    rows = []
+    for ln in lines:
+        if ln.get("id") in parent_ids:
+            continue
+        is_inc = bool(ln.get("is_income"))
+        if is_inc != want_income:
+            continue
+        sid = ln.get("stage_id")
+        info = stage_info.get(sid)
+        if not info:
+            continue
+        sd, ed, bid = info
+        plan = float(ln.get("plan_netto") or 0) or (
+            float(ln.get("quantity") or 0) * float(ln.get("unit_price_netto") or 0)
+        )
+        if plan == 0:
+            continue
+        total_days = (ed - sd).days + 1
+        if total_days <= 0:
+            continue
+        # rozloz na miesiace
+        per_month = []
+        in_window_total = 0.0
+        for (y, m) in forward_months:
+            overlap = _month_overlap_days(sd, ed, y, m)
+            if overlap <= 0:
+                continue
+            portion = plan * (overlap / total_days)
+            per_month.append({"y": y, "m": m, "value": round(portion, 2)})
+            in_window_total += portion
+        if not per_month:
+            continue
+        rows.append({
+            "id": ln.get("id"),
+            "budowa_name": budowa_name_by_id.get(bid, "—"),
+            "stage_name": stage_name_by_id.get(sid, "—"),
+            "start_date": sd.strftime("%Y-%m-%d"),
+            "end_date": ed.strftime("%Y-%m-%d"),
+            "category": ln.get("category", ""),
+            "type": ln.get("type", ""),
+            "name": ln.get("name", ""),
+            "unit": ln.get("unit", ""),
+            "quantity": float(ln.get("quantity") or 0),
+            "unit_price_netto": float(ln.get("unit_price_netto") or 0),
+            "plan_netto": round(plan, 2),
+            "in_window": round(in_window_total, 2),
+            "per_month": per_month,
+        })
+    # sortuj malejaco po in_window
+    rows.sort(key=lambda r: -r["in_window"])
+    total = round(sum(r["in_window"] for r in rows), 2)
+    return {
+        "rows": rows,
+        "total": total,
+        "count": len(rows),
+        "months": [{"y": y, "m": m} for (y, m) in forward_months],
+    }
+
+
 
