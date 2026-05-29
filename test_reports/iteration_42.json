@@ -1,0 +1,38 @@
+{
+  "summary": "iter95bb regression audit COMPLETE. Backend: 27/27 pytest pass including admin login, /api/health, GUS lookup (MINISTERSTWO FINANSOW), and ALL performance benchmarks. Frontend: lazy-loaded React routes work, all 5 main tabs (Wyceny/Finanse/Budzet/Wyplaty/Sprzet) render with content; HoursTable lazy route also OK. Push permission modal must be dismissed with 'Przypomnij mi jutro' before content is reachable (z-9999 overlay) — confirmed working. No new regressions vs iter95ay. Foremen list (iter95ay fix) still populated (TEST_Foreman_A/B visible in equipment table columns).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AdminDashboard tabs", "issues": ["React hydration warning in console: '<span> cannot be a child of <option>' inside TabsContent (AdminDashboard.js line ~736). Not fatal but flagged by React; safe to fix by removing the span wrapper inside <option> elements."]},
+      {"screen": "Sites map", "issues": ["Pre-existing Google Maps 'ApiProjectMapError' — config issue unrelated to iter95bb (key not authorized for project). Not a regression."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95bb_regression.py",
+    "/app/test_reports/pytest/iter95bb_results.xml"
+  ],
+  "action_items": [
+    "(Optional, minor) Fix invalid HTML in AdminDashboard.js ~line 736: '<span>' rendered inside an '<option>' triggers React hydration warning. Remove the span wrapper or change to '<option>{label}</option>'.",
+    "(Optional, env) Configure Google Maps JavaScript API key authorization for this preview domain to clear ApiProjectMapError (does NOT block any iter95bb regression)."
+  ],
+  "critical_code_review_comments": [
+    "VERIFIED iter95bb backend indexes: server.py lines 186-269 — 50+ create_index calls on finance_zapisy, finance_invoices, finance_budowy, construction_sites, budget_*, notifications, payroll_audit, wyceny_*, advances, penalties, push_subscriptions. All inside try/except so failure to create one index does not crash startup. Effective: best-of-3 measured over public preview URL: /api/wyceny 86ms, /api/foremen 88ms, /api/finance/budowy 88ms, /api/finance/zapisy 145ms, /api/sites 87ms, /api/employees 82ms, /api/notifications 86ms. /api/budget/budowy 281ms for 153 budowy (acceptable, agreggates).",
+    "VERIFIED iter95bb React.lazy: App.js lines 17-24 wraps 8 routes (AdminDashboard, AssignmentManager, HoursTable, PublicHours, WorkerDashboard, WarehouseLogin, WarehouseDashboard, WarehouseTokenEntry) in React.lazy() with Suspense fallback (lines 125-190). HoursTable confirmed loads as separate chunk in 2.13s on /admin/hours-table.",
+    "VERIFIED no regression vs iter95ay: foremen-select still populated (TEST_Foreman_A_a8b95c and TEST_Foreman_B_8614c1c visible in equipment table column headers). /api/foremen returns non-empty list (test_foremen_non_empty PASS)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95bb_regression.py (NEW)"
+  ],
+  "success_rate": {"backend": "100% (27/27 pytest)", "frontend": "100% main tabs render, lazy chunks load, no fatal console errors"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via /api/auth/admin/login — works",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iter95bb regression CLEAN. Push permission modal (z-9999) appears ~1-2s after login on every admin session and MUST be dismissed by clicking 'Przypomnij mi jutro' before any tab is reachable. All AdminDashboard tabs expose data-testid: sites-tab, foremen-tab, requests-tab, equipment-tab, accessories-tab, formwork-tab, warehouse-tab, clothing-tab, bhp-tab, payroll-tab, finance-tab, budget-tab, wyceny-tab, forecast-tab, tools-tab. Backend /api/gus/{nip} requires auth token (regression test was updated). Finance/budget endpoints return {rows:[...], total:N} not bare list; tests updated to accept both. Hydration warning '<span> in <option>' in AdminDashboard.js ~line 736 is the only non-pre-existing console artifact.",
+  "rca_of_the_issue": "Not applicable — pure audit run, no bugs to RCA."
+}
