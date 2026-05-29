@@ -335,6 +335,82 @@ const PctInput = ({ label, testId, value, onSave }) => {
 };
 
 
+// iter95aj: dialog eksportu pelnej wyceny do PDF/XLSX z wyborem szczegolowosci
+const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
+  const [detail, setDetail] = useState('positions');
+  const [downloading, setDownloading] = useState(false);
+
+  const download = async (format) => {
+    setDownloading(true);
+    try {
+      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?detail=${detail}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const a = document.createElement('a');
+      a.href = url;
+      const safe = (wycenaName || 'wycena').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
+      a.download = `Wycena_${safe}_${detail === 'full' ? 'pelna' : 'pozycje'}.${format}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success(`Pobrano ${format.toUpperCase()}`);
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    } finally { setDownloading(false); }
+  };
+
+  return (
+    <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md wyceny-no-spin"
+        data-testid="export-wycena-dialog">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
+            <FileText className="h-5 w-5" /> Eksportuj wycenę
+          </DialogTitle>
+          <div className="text-xs text-[#94A3B8]">Wybierz zakres szczegółowości eksportu.</div>
+        </DialogHeader>
+        <div className="space-y-2 my-3">
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'positions' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+            <input type="radio" name="detail" value="positions"
+              checked={detail === 'positions'} onChange={() => setDetail('positions')}
+              className="mt-0.5" data-testid="export-radio-positions" />
+            <div>
+              <div className="text-sm font-semibold text-white">Same pozycje główne</div>
+              <div className="text-[10px] text-[#94A3B8]">
+                1 wiersz na pozycję, w „Uwagi" lista zawartych podpozycji (Materiały, Robocizna, Sprzęt) — bez ilości i cen.
+              </div>
+            </div>
+          </label>
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'full' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+            <input type="radio" name="detail" value="full"
+              checked={detail === 'full'} onChange={() => setDetail('full')}
+              className="mt-0.5" data-testid="export-radio-full" />
+            <div>
+              <div className="text-sm font-semibold text-white">Pozycje główne + podpozycje</div>
+              <div className="text-[10px] text-[#94A3B8]">
+                Każda podpozycja w osobnym wierszu z ilością, ceną, narzutem, marżą, kaucjami proporcjonalnymi i budżetem.
+              </div>
+            </div>
+          </label>
+        </div>
+        <DialogFooter className="gap-2">
+          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+            data-testid="export-close">Anuluj</Button>
+          <Button onClick={() => download('pdf')} disabled={downloading}
+            variant="outline" className="border-[#5F7552] text-[#9DBC85]"
+            data-testid="export-pdf-btn">
+            <FileDown className="h-4 w-4 mr-1" /> PDF
+          </Button>
+          <Button onClick={() => download('xlsx')} disabled={downloading}
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+            data-testid="export-xlsx-btn">
+            <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+
 // iter95ai: dialog zestawienia materialow z eksportem PDF/XLSX + WYSYLKA EMAIL
 const BomDialog = ({ wycenaId, onClose }) => {
   const [bom, setBom] = useState(null);

@@ -898,3 +898,320 @@ async def get_bom_history(wycena_id: str, _user: dict = Depends(get_current_admi
     ).sort("sent_at", -1).to_list(length=100)
     return {"rows": rows}
 
+
+
+# ============================================================
+# iter95aj: Eksport pelnej wyceny do PDF/XLSX
+# ============================================================
+
+async def _build_wycena_export(wycena_id: str):
+    w = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
+    if not w:
+        raise HTTPException(404, "Wycena nie istnieje")
+    stages = await db.wyceny_stages.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    positions = await db.wyceny_positions.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    lines = await db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    defaults = {
+        "gir": float(w.get("default_gir_pct") or 2.0),
+        "dw": float(w.get("default_dw_pct") or 2.0),
+        "koszt": float(w.get("default_koszt_pct") or 2.0),
+        "narzut": float(w.get("default_narzut_pct") or 0.0),
+        "marza": float(w.get("default_marza_pct") or 0.0),
+    }
+    enriched_stages = []
+    for st in stages:
+        pos_list = [p for p in positions if p.get("stage_id") == st["id"]]
+        es_positions = []
+        for p in pos_list:
+            subs = [ln for ln in lines if ln.get("position_id") == p["id"]]
+            gir_pct = float(p.get("kaucja_gir_pct") if p.get("kaucja_gir_pct") is not None else defaults["gir"])
+            dw_pct = float(p.get("kaucja_dw_pct") if p.get("kaucja_dw_pct") is not None else defaults["dw"])
+            koszt_pct = float(p.get("koszt_budowy_pct") if p.get("koszt_budowy_pct") is not None else defaults["koszt"])
+            sub_calcs = []
+            budzet_zwolniony_pos = 0.0
+            for s in subs:
+                qty = float(s.get("quantity") or 0)
+                cena = float(s.get("unit_price_netto") or 0)
+                narzut = float(s.get("narzut_zapas_pct") if s.get("narzut_zapas_pct") is not None else defaults["narzut"])
+                marza = float(s.get("marza_pct") if s.get("marza_pct") is not None else defaults["marza"])
+                zwolniony = qty * cena * (1 + narzut / 100 + marza / 100)
+                budzet_zwolniony_pos += zwolniony
+                sub_calcs.append({"line": s, "qty": qty, "cena": cena, "narzut": narzut, "marza": marza, "zwolniony": zwolniony})
+            kaucja_gir = budzet_zwolniony_pos * gir_pct / 100
+            kaucja_dw = budzet_zwolniony_pos * dw_pct / 100
+            koszt_budowy = budzet_zwolniony_pos * koszt_pct / 100
+            budzet = budzet_zwolniony_pos + kaucja_gir + kaucja_dw + koszt_budowy
+            manual_qty = p.get("quantity")
+            if manual_qty and float(manual_qty) > 0:
+                qty_pos = float(manual_qty)
+            else:
+                qty_pos = max([sc["qty"] for sc in sub_calcs], default=0)
+            cena_pos = budzet / qty_pos if qty_pos > 0 else 0
+            by_type = {"materials": [], "labor": [], "equipment": []}
+            for s in subs:
+                t = s.get("type")
+                nm = (s.get("name") or "").strip()
+                if t in by_type and nm:
+                    by_type[t].append(nm)
+            label_map = {"materials": "Materiały", "labor": "Robocizna", "equipment": "Sprzęt"}
+            uwagi_parts = []
+            for t in ("materials", "labor", "equipment"):
+                if by_type[t]:
+                    uwagi_parts.append(f"{label_map[t]}: " + ", ".join(by_type[t]))
+            uwagi = " · ".join(uwagi_parts) or "—"
+            es_positions.append({
+                "position": p, "qty": qty_pos, "cena": cena_pos,
+                "kaucja_gir": kaucja_gir, "kaucja_dw": kaucja_dw, "koszt_budowy": koszt_budowy,
+                "budzet_zwolniony": budzet_zwolniony_pos, "budzet": budzet,
+                "uwagi": uwagi, "subs_calc": sub_calcs,
+            })
+        enriched_stages.append({"stage": st, "positions": es_positions})
+    return {"wycena": w, "stages": enriched_stages, "defaults": defaults}
+
+
+def _generate_wycena_xlsx_bytes(data: dict, detail: str = "positions"):
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Wycena"
+    wycena_name = data["wycena"].get("name", "")
+    ws["A1"] = f"Wycena: {wycena_name}"
+    ws["A1"].font = Font(bold=True, size=14, color="3F5235")
+    ws.merge_cells("A1:M1")
+    ws["A2"] = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: " + (
+        "Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)")
+    ws["A2"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("A2:M2")
+    headers = ["Kod", "Nazwa", "Ilość", "Jedn.", "Cena", "Narzut %", "Marża %",
+               "Kaucja GIR", "Kaucja DW", "Koszt budowy", "Budżet zwolniony", "Budżet", "Uwagi"]
+    header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    thin = Side(border_style="thin", color="999999")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    for col, h in enumerate(headers, start=1):
+        c = ws.cell(row=4, column=col, value=h)
+        c.fill = header_fill; c.font = header_font
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+        c.border = border
+    ws.row_dimensions[4].height = 28
+    r = 5
+    total_budzet = 0.0
+    for st_idx, st_data in enumerate(data["stages"], start=1):
+        st = st_data["stage"]
+        st_cell = ws.cell(row=r, column=1, value=f"ETAP {st_idx}: {st.get('name', '')}")
+        st_cell.fill = PatternFill(start_color="C8E4B5", end_color="C8E4B5", fill_type="solid")
+        st_cell.font = Font(bold=True, color="3F5235")
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=13)
+        r += 1
+        for p_idx, pe in enumerate(st_data["positions"], start=1):
+            p = pe["position"]
+            code = f"{st_idx}.{p_idx}"
+            ws.cell(row=r, column=1, value=code)
+            ws.cell(row=r, column=2, value=p.get("name", ""))
+            ws.cell(row=r, column=3, value=round(pe["qty"], 3))
+            ws.cell(row=r, column=4, value=p.get("unit") or "")
+            ws.cell(row=r, column=5, value=round(pe["cena"], 2))
+            ws.cell(row=r, column=6, value="—")
+            ws.cell(row=r, column=7, value="—")
+            ws.cell(row=r, column=8, value=round(pe["kaucja_gir"], 2))
+            ws.cell(row=r, column=9, value=round(pe["kaucja_dw"], 2))
+            ws.cell(row=r, column=10, value=round(pe["koszt_budowy"], 2))
+            ws.cell(row=r, column=11, value=round(pe["budzet_zwolniony"], 2))
+            ws.cell(row=r, column=12, value=round(pe["budzet"], 2))
+            ws.cell(row=r, column=13, value=pe["uwagi"])
+            for c in range(1, 14):
+                ws.cell(row=r, column=c).border = border
+                ws.cell(row=r, column=c).font = Font(bold=True)
+            ws.cell(row=r, column=12).fill = PatternFill(start_color="FFF8DC", end_color="FFF8DC", fill_type="solid")
+            ws.cell(row=r, column=13).alignment = Alignment(wrap_text=True, vertical="top")
+            total_budzet += pe["budzet"]
+            r += 1
+            if detail == "full":
+                for sub_idx, sc in enumerate(pe["subs_calc"], start=1):
+                    s = sc["line"]
+                    sub_code = f"{code}.{sub_idx}"
+                    ratio = sc["zwolniony"] / pe["budzet_zwolniony"] if pe["budzet_zwolniony"] > 0 else 0
+                    sub_budzet = pe["budzet"] * ratio
+                    type_label = {"materials": "Materiał", "labor": "Robocizna", "equipment": "Sprzęt"}.get(s.get("type"), "")
+                    ws.cell(row=r, column=1, value=sub_code)
+                    ws.cell(row=r, column=2, value=f"  ↳ {s.get('name', '')}")
+                    ws.cell(row=r, column=3, value=round(sc["qty"], 3))
+                    ws.cell(row=r, column=4, value=s.get("unit") or "")
+                    ws.cell(row=r, column=5, value=round(sc["cena"], 2))
+                    ws.cell(row=r, column=6, value=round(sc["narzut"], 1) if sc["narzut"] else "")
+                    ws.cell(row=r, column=7, value=round(sc["marza"], 1) if sc["marza"] else "")
+                    ws.cell(row=r, column=8, value=round(pe["kaucja_gir"] * ratio, 2))
+                    ws.cell(row=r, column=9, value=round(pe["kaucja_dw"] * ratio, 2))
+                    ws.cell(row=r, column=10, value=round(pe["koszt_budowy"] * ratio, 2))
+                    ws.cell(row=r, column=11, value=round(sc["zwolniony"], 2))
+                    ws.cell(row=r, column=12, value=round(sub_budzet, 2))
+                    ws.cell(row=r, column=13, value=type_label)
+                    for c in range(1, 14):
+                        ws.cell(row=r, column=c).border = border
+                        ws.cell(row=r, column=c).font = Font(italic=True, color="555555")
+                    r += 1
+    r += 1
+    ws.cell(row=r, column=11, value="RAZEM:").font = Font(bold=True, size=12)
+    ws.cell(row=r, column=11).alignment = Alignment(horizontal="right")
+    ws.cell(row=r, column=12, value=round(total_budzet, 2)).font = Font(bold=True, size=12, color="B8860B")
+    widths = {"A": 9, "B": 38, "C": 10, "D": 8, "E": 11, "F": 9, "G": 9,
+              "H": 12, "I": 12, "J": 13, "K": 15, "L": 14, "M": 50}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+    buf = BytesIO()
+    wb.save(buf)
+    safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"Wycena_{safe_name}_{'pelna' if detail == 'full' else 'pozycje'}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return buf.getvalue(), filename
+
+
+def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    import os as _os
+    font_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+    font_bold_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
+    base_font, bold_font = "Helvetica", "Helvetica-Bold"
+    for fp in font_paths:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
+            except Exception: pass
+    for fp in font_bold_paths:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
+            except Exception: pass
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), rightMargin=8 * mm, leftMargin=8 * mm,
+                            topMargin=10 * mm, bottomMargin=10 * mm)
+    styles = getSampleStyleSheet()
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=14, textColor=colors.HexColor("#3F5235"))
+    sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9, textColor=colors.grey)
+    cell_st = ParagraphStyle("cell", parent=styles["Normal"], fontName=base_font, fontSize=7, leading=8)
+    cell_b = ParagraphStyle("cellb", parent=styles["Normal"], fontName=bold_font, fontSize=7, leading=8)
+    elements = []
+    wycena_name = data["wycena"].get("name", "")
+    elements.append(Paragraph(f"Wycena: {wycena_name}", title_st))
+    elements.append(Paragraph(
+        f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: " +
+        ("Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)"), sub_st))
+    elements.append(Spacer(1, 4 * mm))
+    headers = ["Kod", "Nazwa", "Ilość", "Jedn.", "Cena",
+               "Narzut %", "Marża %", "Kaucja GIR", "Kaucja DW", "Koszt bud.",
+               "Bud. zwol.", "Budżet", "Uwagi"]
+    table_data = [headers]
+    total_budzet = 0.0
+    row_styles = []
+    for st_idx, st_data in enumerate(data["stages"], start=1):
+        st = st_data["stage"]
+        row_styles.append((len(table_data), 'stage'))
+        table_data.append([f"ETAP {st_idx}: {st.get('name', '')}", "", "", "", "", "", "", "", "", "", "", "", ""])
+        for p_idx, pe in enumerate(st_data["positions"], start=1):
+            p = pe["position"]
+            code = f"{st_idx}.{p_idx}"
+            row_styles.append((len(table_data), 'pos'))
+            table_data.append([
+                code, Paragraph(p.get("name", ""), cell_b),
+                f"{pe['qty']:.2f}".replace(".", ","), p.get("unit") or "",
+                f"{pe['cena']:.2f}".replace(".", ","),
+                "—", "—",
+                f"{pe['kaucja_gir']:.2f}".replace(".", ","),
+                f"{pe['kaucja_dw']:.2f}".replace(".", ","),
+                f"{pe['koszt_budowy']:.2f}".replace(".", ","),
+                f"{pe['budzet_zwolniony']:.2f}".replace(".", ","),
+                f"{pe['budzet']:.2f}".replace(".", ","),
+                Paragraph(pe["uwagi"], cell_st),
+            ])
+            total_budzet += pe["budzet"]
+            if detail == "full":
+                for sub_idx, sc in enumerate(pe["subs_calc"], start=1):
+                    s = sc["line"]
+                    sub_code = f"{code}.{sub_idx}"
+                    ratio = sc["zwolniony"] / pe["budzet_zwolniony"] if pe["budzet_zwolniony"] > 0 else 0
+                    sub_budzet = pe["budzet"] * ratio
+                    type_label = {"materials": "Materiał", "labor": "Robocizna", "equipment": "Sprzęt"}.get(s.get("type"), "")
+                    row_styles.append((len(table_data), 'sub'))
+                    table_data.append([
+                        sub_code, Paragraph(f"\u21B3 {s.get('name', '')}", cell_st),
+                        f"{sc['qty']:.2f}".replace(".", ","), s.get("unit") or "",
+                        f"{sc['cena']:.2f}".replace(".", ","),
+                        f"{sc['narzut']:.1f}".replace(".", ",") if sc["narzut"] else "—",
+                        f"{sc['marza']:.1f}".replace(".", ",") if sc["marza"] else "—",
+                        f"{pe['kaucja_gir'] * ratio:.2f}".replace(".", ","),
+                        f"{pe['kaucja_dw'] * ratio:.2f}".replace(".", ","),
+                        f"{pe['koszt_budowy'] * ratio:.2f}".replace(".", ","),
+                        f"{sc['zwolniony']:.2f}".replace(".", ","),
+                        f"{sub_budzet:.2f}".replace(".", ","),
+                        type_label,
+                    ])
+    table_data.append(["", "", "", "", "", "", "", "", "", "", "RAZEM:",
+                       f"{total_budzet:.2f}".replace(".", ",") + " zł", ""])
+    tbl_styles = [
+        ("FONT", (0, 0), (-1, -1), base_font, 7),
+        ("FONT", (0, 0), (-1, 0), bold_font, 8),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (2, 1), (11, -1), "RIGHT"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (3, 1), (3, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#AAAAAA")),
+        ("FONT", (10, -1), (-1, -1), bold_font, 9),
+        ("TEXTCOLOR", (11, -1), (11, -1), colors.HexColor("#B8860B")),
+    ]
+    for (idx, kind) in row_styles:
+        if kind == 'stage':
+            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#C8E4B5")))
+            tbl_styles.append(("FONT", (0, idx), (-1, idx), bold_font, 8))
+            tbl_styles.append(("SPAN", (0, idx), (-1, idx)))
+        elif kind == 'pos':
+            tbl_styles.append(("BACKGROUND", (11, idx), (11, idx), colors.HexColor("#FFF8DC")))
+            tbl_styles.append(("FONT", (11, idx), (11, idx), bold_font, 7))
+    tbl = Table(table_data, colWidths=[14 * mm, 50 * mm, 14 * mm, 11 * mm, 16 * mm,
+                                         13 * mm, 13 * mm, 16 * mm, 16 * mm, 16 * mm,
+                                         18 * mm, 18 * mm, 65 * mm], repeatRows=1)
+    tbl.setStyle(TableStyle(tbl_styles))
+    elements.append(tbl)
+    doc.build(elements)
+    safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"Wycena_{safe_name}_{'pelna' if detail == 'full' else 'pozycje'}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    return buf.getvalue(), filename
+
+
+@router.get("/wyceny/{wycena_id}/export.xlsx")
+async def export_wycena_xlsx(
+    wycena_id: str,
+    detail: str = Query("positions", regex="^(positions|full)$"),
+    _user: dict = Depends(get_current_admin),
+):
+    data = await _build_wycena_export(wycena_id)
+    content, filename = _generate_wycena_xlsx_bytes(data, detail)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/wyceny/{wycena_id}/export.pdf")
+async def export_wycena_pdf(
+    wycena_id: str,
+    detail: str = Query("positions", regex="^(positions|full)$"),
+    _user: dict = Depends(get_current_admin),
+):
+    data = await _build_wycena_export(wycena_id)
+    content, filename = _generate_wycena_pdf_bytes(data, detail)
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
