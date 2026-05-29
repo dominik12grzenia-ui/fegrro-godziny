@@ -1,0 +1,29 @@
+{
+  "summary": "iter95ax smart auto-detect (Wyceny SubRow) — 5/6 tests PASS. TEST A (empty unit auto-fill m³), TEST B (mismatch warning + fix button), TEST C (fix-unit click), TEST D (✓ match badge), TEST F (plain number PATCH with quantity_formula:null) all pass. TEST E (invalid formula =abc + 5) FAILS: evalFormula in _shared.js silently strips unknown identifiers via regex group m[4] without adding to cleanExpr, so '=abc + 5' is accepted as '+5' = 5 with empty unit instead of raising 'Niepoprawna formuła'. No toast.error fires, badge logic just silently does nothing.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "TEST E — invalid formula '=abc + 5'", "issue": "Expected toast.error('Formuła: ...') but none fires. evalFormula() in /app/frontend/src/components/wyceny/_shared.js (line 47-67) regex captures the unknown identifier 'abc' in capture group m[4], but the if/else if chain only handles m[1] (number) / m[3] (operator) — m[4] is silently consumed and dropped. Resulting cleanExpr becomes '+5' → evaluates to 5 with empty unit. No error returned, so saveQty stores quantity=5 + unit unchanged and no warning is shown to user. Should add `else if (m[4]) return { error: 'Niepoprawna formuła: nieznany identyfikator ' + m[4] }` (or push token causing cleanExpr validation to fail).", "affected_selectors": ["[data-testid^='sub-qty-']"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [
+    "Fix evalFormula in /app/frontend/src/components/wyceny/_shared.js so unknown identifiers (m[4]) produce an error result instead of being silently dropped. Easiest patch: after the while-loop, also reject if the original 's' contains residual letters not consumed as units, e.g. `if (/[a-zA-ZąęóśłżźćńĄĘÓŚŁŻŹĆŃ]/.test(s.replace(/m²|m³|cm|mm|mb|kg|l|szt|kpl|godz|h|m|t/g,'').replace(/[a-zA-Z]/g,''))) return { error: 'Niepoprawna formuła' }`. Or simply add `else if (m[4]) return { error: 'Niepoprawna formuła: ' + m[4] }` inside the while loop."
+  ],
+  "critical_code_review_comments": [
+    "evalFormula silently accepts garbage tokens (variables / function names) by dropping the m[4] capture group → user can type formulas that look invalid but quietly evaluate to a partial sum. Recommend explicit reject.",
+    "saveQty correctly differentiates empty/mismatch/match for unit auto-detect, but relies entirely on evalFormula's error reporting for invalid input. The bug above hides errors from the user.",
+    "Wyceny.js is still 2453 lines — split SubRow / PositionRow / StageRow into separate files as suggested last round.",
+    "data-testid coverage for SubRow auto-detect is complete: sub-qty, sub-unit, sub-qty-preview, sub-qty-fix-unit all present and reachable without expanding stages/positions (collapsedStages/collapsedPos default to empty Set as expected)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only run)", "frontend": "83% (5/6 TESTS A-F)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via /login form",
+  "seed_data_creation": "None. Used existing wycena id=52438c80-a55c-488b-9868-d5969c5b0402 (iter95aj export) with 3 sub-rows. All 3 sub-qty/sub-unit inputs immediately visible without clicking any toggle (collapsedStages/collapsedPos default empty Set as code review confirmed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Login: /login, fill admin@fegrro.pl / Admin123!, click Zaloguj. Push gate: click button containing 'Przypomnij' / 'jutro'. Click [data-testid='wyceny-tab']. Click text 'iter95aj export'. WAIT 3s for editor render. DO NOT click stage-toggle or pos-toggle (default open). Sub inputs at [data-testid^='sub-qty-'], [data-testid^='sub-unit-']. First sub_id=c353a3ec-e841-4de6-b29a-332334340b88 (Beton C20/25 materials). For TEST F PATCH capture: page.on('request', ...) filtering method==PATCH and url contains '/api/wyceny/lines/'+sub_id.",
+  "rca_of_the_issue": "TEST E root cause: evalFormula regex in /app/frontend/src/components/wyceny/_shared.js line 47 has 4 capture groups (number+unit / number / operator / identifier). The while loop body only handles m[1] and m[3], so m[4] (free identifier like 'abc') is silently consumed and lost. cleanExpr for '=abc + 5' becomes '+5' (valid JS, evals to 5). evalFormula returns {value:5, unit:'', error:null}. saveQty therefore treats it as a valid formula and PATCHes quantity=5; no toast.error is emitted; no warning visible to the user. Fix: either return {error:'Niepoprawna formuła'} when m[4] matches, or post-validate that s has no leftover letters."
+}
