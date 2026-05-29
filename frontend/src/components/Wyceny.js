@@ -348,7 +348,8 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
       const a = document.createElement('a');
       a.href = url;
       const safe = (wycenaName || 'wycena').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
-      a.download = `Wycena_${safe}_${detail === 'full' ? 'pelna' : 'pozycje'}.${format}`;
+      const suffix = detail === 'client' ? 'oferta_klient' : (detail === 'full' ? 'pelna' : 'pozycje');
+      a.download = `${detail === 'client' ? 'Oferta' : 'Wycena'}_${safe}_${suffix}.${format}`;
       document.body.appendChild(a); a.click(); a.remove();
       window.URL.revokeObjectURL(url);
       toast.success(`Pobrano ${format.toUpperCase()}`);
@@ -390,6 +391,20 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
               </div>
             </div>
           </label>
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'client' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+            <input type="radio" name="detail" value="client"
+              checked={detail === 'client'} onChange={() => setDetail('client')}
+              className="mt-0.5" data-testid="export-radio-client" />
+            <div>
+              <div className="text-sm font-semibold text-white flex items-center gap-2">
+                Wersja dla klienta
+                <span className="text-[9px] bg-[#5F7552] text-white px-1.5 py-0.5 rounded uppercase">PDF</span>
+              </div>
+              <div className="text-[10px] text-[#94A3B8]">
+                Schludny dokument z logo: nazwa pozycji, ilość, cena netto, wartość netto. <b className="text-[#9DBC85]">Bez</b> marży, narzutu, kaucji i zysku — gotowy do wysłania klientowi.
+              </div>
+            </div>
+          </label>
         </div>
         <DialogFooter className="gap-2">
           <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
@@ -399,9 +414,10 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
             data-testid="export-pdf-btn">
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
-          <Button onClick={() => download('xlsx')} disabled={downloading}
-            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
-            data-testid="export-xlsx-btn">
+          <Button onClick={() => download('xlsx')} disabled={downloading || detail === 'client'}
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold disabled:opacity-40"
+            data-testid="export-xlsx-btn"
+            title={detail === 'client' ? 'Wersja dla klienta dostępna tylko jako PDF' : ''}>
             <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
           </Button>
         </DialogFooter>

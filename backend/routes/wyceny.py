@@ -1202,14 +1202,183 @@ async def export_wycena_xlsx(
     )
 
 
+# iter95ak: PDF dla klienta - tylko nazwa, ilosc, cena, wartosc - bez wewnetrznych kalkulacji
+def _generate_wycena_client_pdf_bytes(data: dict):
+    from io import BytesIO
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    import os as _os
+    font_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
+    font_bold_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
+    base_font, bold_font = "Helvetica", "Helvetica-Bold"
+    for fp in font_paths:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
+            except Exception: pass
+    for fp in font_bold_paths:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
+            except Exception: pass
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
+                            topMargin=15 * mm, bottomMargin=15 * mm)
+    styles = getSampleStyleSheet()
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=18,
+                              textColor=colors.HexColor("#3F5235"), alignment=0, spaceAfter=2)
+    company_st = ParagraphStyle("company", parent=styles["Normal"], fontName=bold_font, fontSize=11,
+                                textColor=colors.HexColor("#3F5235"), alignment=2)
+    sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9,
+                            textColor=colors.grey)
+    name_st = ParagraphStyle("name", parent=styles["Normal"], fontName=base_font, fontSize=9, leading=11)
+    stage_st = ParagraphStyle("stage", parent=styles["Normal"], fontName=bold_font, fontSize=10,
+                              textColor=colors.HexColor("#3F5235"))
+
+    elements = []
+    wycena_name = data["wycena"].get("name", "")
+
+    # Naglowek: logo + dane firmy (jezeli logo dostepne)
+    logo_paths = [
+        "/app/frontend/public/icon-192x192.png",
+        "/app/frontend/public/apple-touch-icon.png",
+    ]
+    logo_path = next((p for p in logo_paths if _os.path.exists(p)), None)
+    header_cells = []
+    if logo_path:
+        try:
+            img = Image(logo_path, width=22 * mm, height=22 * mm)
+            header_cells.append(img)
+        except Exception:
+            header_cells.append("")
+    else:
+        header_cells.append("")
+    header_cells.append(Paragraph(
+        "FeGrro<br/>"
+        "<font size=8 color='#666666'>biuro@fegrro.pl</font>",
+        company_st,
+    ))
+    header_tbl = Table([header_cells], colWidths=[30 * mm, 150 * mm])
+    header_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (1, 0), (1, 0), "RIGHT"),
+    ]))
+    elements.append(header_tbl)
+    elements.append(Spacer(1, 6 * mm))
+
+    elements.append(Paragraph(f"Oferta: {wycena_name}", title_st))
+    elements.append(Paragraph(
+        f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}",
+        sub_st,
+    ))
+    elements.append(Spacer(1, 6 * mm))
+
+    # Tabela: L.p. | Nazwa | Ilosc | Jedn. | Cena netto | Wartosc netto
+    headers = ["L.p.", "Nazwa pozycji", "Ilość", "Jedn.", "Cena netto", "Wartość netto"]
+    table_data = [headers]
+    total_netto = 0.0
+    row_styles = []
+    lp_counter = 0
+    for st_idx, st_data in enumerate(data["stages"], start=1):
+        st = st_data["stage"]
+        if not st_data["positions"]:
+            continue
+        row_styles.append((len(table_data), 'stage'))
+        table_data.append([Paragraph(f"<b>Etap {st_idx}: {st.get('name', '')}</b>", stage_st),
+                           "", "", "", "", ""])
+        for pe in st_data["positions"]:
+            p = pe["position"]
+            lp_counter += 1
+            qty = pe["qty"]
+            # iter95ak: dla klienta uzywamy budzet (cena koncowa zawiera marze + kaucje)
+            wartosc = pe["budzet"]
+            cena = wartosc / qty if qty > 0 else 0
+            row_styles.append((len(table_data), 'pos'))
+            table_data.append([
+                str(lp_counter),
+                Paragraph(p.get("name", ""), name_st),
+                f"{qty:.2f}".replace(".", ","),
+                p.get("unit") or "",
+                f"{cena:,.2f}".replace(",", " ").replace(".", ",") + " zł",
+                f"{wartosc:,.2f}".replace(",", " ").replace(".", ",") + " zł",
+            ])
+            total_netto += wartosc
+
+    # wiersz sumy
+    row_styles.append((len(table_data), 'total'))
+    table_data.append(["", "", "", "", "RAZEM netto:",
+                       f"{total_netto:,.2f}".replace(",", " ").replace(".", ",") + " zł"])
+
+    tbl_styles = [
+        ("FONT", (0, 0), (-1, -1), base_font, 9),
+        ("FONT", (0, 0), (-1, 0), bold_font, 9),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("ALIGN", (0, 0), (0, -1), "CENTER"),
+        ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+        ("ALIGN", (3, 1), (3, -1), "CENTER"),
+        ("ALIGN", (4, 1), (5, -1), "RIGHT"),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F8FAF6")]),
+        ("TOPPADDING", (0, 0), (-1, -1), 4),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+    ]
+    for (idx, kind) in row_styles:
+        if kind == 'stage':
+            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#E8F0E0")))
+            tbl_styles.append(("SPAN", (0, idx), (-1, idx)))
+            tbl_styles.append(("LEFTPADDING", (0, idx), (0, idx), 6))
+        elif kind == 'total':
+            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFF8DC")))
+            tbl_styles.append(("FONT", (4, idx), (-1, idx), bold_font, 11))
+            tbl_styles.append(("TEXTCOLOR", (5, idx), (5, idx), colors.HexColor("#B8860B")))
+            tbl_styles.append(("TOPPADDING", (0, idx), (-1, idx), 8))
+            tbl_styles.append(("BOTTOMPADDING", (0, idx), (-1, idx), 8))
+
+    tbl = Table(
+        table_data,
+        colWidths=[12 * mm, 92 * mm, 18 * mm, 14 * mm, 27 * mm, 27 * mm],
+        repeatRows=1,
+    )
+    tbl.setStyle(TableStyle(tbl_styles))
+    elements.append(tbl)
+
+    elements.append(Spacer(1, 8 * mm))
+    notice_st = ParagraphStyle(
+        "notice", parent=styles["Normal"], fontName=base_font, fontSize=8,
+        textColor=colors.grey, leading=10,
+    )
+    notice = data["wycena"].get("notes") or (
+        "Oferta ważna 30 dni od daty wystawienia. "
+        "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
+        "Zakres prac i warunki realizacji do uzgodnienia."
+    )
+    elements.append(Paragraph(f"<b>Uwagi:</b> {notice}", notice_st))
+
+    doc.build(elements)
+    safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"Oferta_{safe_name}_{datetime.now().strftime('%Y%m%d')}.pdf"
+    return buf.getvalue(), filename
+
+
 @router.get("/wyceny/{wycena_id}/export.pdf")
 async def export_wycena_pdf(
     wycena_id: str,
-    detail: str = Query("positions", regex="^(positions|full)$"),
+    detail: str = Query("positions", regex="^(positions|full|client)$"),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
-    content, filename = _generate_wycena_pdf_bytes(data, detail)
+    if detail == "client":
+        content, filename = _generate_wycena_client_pdf_bytes(data)
+    else:
+        content, filename = _generate_wycena_pdf_bytes(data, detail)
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/pdf",

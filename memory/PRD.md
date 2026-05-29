@@ -1,3 +1,38 @@
+## Iteration 95ak (2026-02) — Wersja dla klienta (PDF)
+
+### User request
+„Dodaj opcję 'Wersja dla klienta' — PDF z logo, bez marży/zysku/kaucji, tylko pozycje + ilości + cena netto + suma."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- Nowa funkcja `_generate_wycena_client_pdf_bytes(data)`:
+  - A4 portrait, marginesy 15 mm
+  - Nagłówek: logo FeGrro (`/app/frontend/public/icon-192x192.png`) + dane firmy w prawym rogu
+  - Tytuł „Oferta: {nazwa}" + data wystawienia
+  - Tabela 6 kolumn: L.p. | Nazwa pozycji | Ilość | Jedn. | Cena netto | Wartość netto (cena = budzet/qty, wartość = pe.budzet zawiera już marżę + kaucje)
+  - Etapy jako pogrubione sekcje z tłem `#E8F0E0`
+  - Zebra stripes na wierszach, suma RAZEM netto w stopce
+  - Stopka „Uwagi" (z `wycena.notes` lub default: „Oferta ważna 30 dni…")
+- Endpoint `/wyceny/{id}/export.pdf?detail=client` (regex rozszerzony o `client`)
+- `export.xlsx` zostaje na `^(positions|full)$` — `client` zwraca 422
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- Trzecia opcja radio `export-radio-client` w `ExportWycenaDialog` z badge `PDF` i opisem
+- Excel button auto-disabled gdy `detail === 'client'` (tooltip wyjaśnia)
+- Nazwa pliku przy pobieraniu: `Oferta_{name}_oferta_klient.pdf`
+
+### Test
+- Lint: ✅ (Python F841 fixed, JS clean)
+- Backend curl: PDF client = 62KB, magic `%PDF-1.4`, 200 OK
+- Regresja: `positions` + `full` nadal 200 OK
+- XLSX odrzuca `client` → 422 (Pydantic validation)
+- Frontend smoke: radio widoczne ✅, Excel disabled gdy client ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `_generate_wycena_client_pdf_bytes` + regex
+- `/app/frontend/src/components/Wyceny.js` — radio + disabled excel + nazwa pliku
+
+---
+
 ## Iteration 95aj (2026-02) — Eksport pełnej wyceny + Historia BOM (UI)
 
 ### User request
