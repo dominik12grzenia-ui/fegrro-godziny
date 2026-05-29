@@ -1,3 +1,50 @@
+## Iteration 95bg (2026-05) — Fix: przeładowanie strony po klikach Add/Save
+
+### User report
+„Po kliknięciu przycisków zatwierdzania/dodania nowych elementów część z nich powoduje przeładowanie całej strony. Po zatwierdzeniu czynności dane powinny się automatycznie zaktualizować bez przeładowywania strony."
+
+### Root cause
+**`/app/frontend/src/components/ui/button.jsx`** — shadcn `<Button>` (forwardRef do native `<button>`) NIE miał `type="button"` jako default. HTML default to **`type="submit"`** dla `<button>` w `<form>`. 
+
+Skutek: jeśli `<Button>` z `onClick={...}` znajdował się gdziekolwiek wewnątrz `<form>` (login screens lub potencjalnie w dialogu zagnieżdżonym w formularzu), klik powodował submit formularza → **pełne przeładowanie strony** (browser zachowanie domyślne dla GET form submit).
+
+### Fix (1 plik, 2 linie)
+```jsx
+const Button = React.forwardRef(({ className, variant, size, asChild = false, type = "button", ...props }, ref) => {
+  const Comp = asChild ? Slot : "button"
+  return (
+    <Comp
+      type={asChild ? undefined : type}   // ← nowe: explicit type
+      className={cn(buttonVariants({ variant, size, className }))}
+      ref={ref}
+      {...props} />
+  );
+})
+```
+
+- Default `type="button"` → bezpieczny we wszystkich kontekstach (nie wywołuje submit formularza)
+- Login screens używają explicit `type="submit"` → override defaultu działa nadal
+- `asChild` (Radix Slot) skip `type` → Slot przekazuje do dziecka, które ma własny type
+
+### Testy
+**Testing agent (iteration_44.json) + self-test marker-token (Playwright):**
+- 8 przycisków przetestowanych w 5 modułach (Lokalizacje, Brygadziści, Elektronarzędzia, Budżetowanie, Push gate)
+- **0/8 reload events** wykryte przy użyciu `page.on('load')` + `window.__marker` injection
+- Self-test deeper buttons: PayrollAdmin → Dodaj pracownika modal open + submit + HoursTable → Linki pracowników → **wszystkie marker INTACT, 0 dodatkowych page load events**
+- Login form `type="submit"` nadal poprawnie loguje admina i przekierowuje do `/admin/dashboard`
+
+### Wpływ
+**Globalnie** — wszystkie `<Button>` w aplikacji (setki użyć) są teraz bezpieczne nawet jeśli zostaną zagnieżdżone w formularzach. Zero regresji na istniejących formularzach z explicit `type="submit"`.
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Migracja Google Maps Marker → AdvancedMarkerElement
+- ⚪ Hydration warning `<span>` w `<option>` (Radix UI Select)
+
+---
+
+
+
 ## Iteration 95bf (2026-05) — Split P3 finalizacja: HoursTable + PayrollAdmin + EquipmentAdmin
 
 ### User request
