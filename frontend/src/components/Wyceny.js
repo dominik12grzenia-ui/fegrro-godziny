@@ -862,6 +862,23 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
   }, [data, defaults]);
 
+  // iter95am: wskazniki kosztu na m2 PC/PUM
+  const wskazniki = useMemo(() => {
+    const pc_m2 = parseFloat(data?.wycena?.pc_m2) || 0;
+    const pum_m2 = parseFloat(data?.wycena?.pum_m2) || 0;
+    let sumPC = 0, sumPUM = 0;
+    (data?.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      const r = computePosRow(p, defaults);
+      if (p.include_in_pc) sumPC += r.budzet;
+      if (p.include_in_pum) sumPUM += r.budzet;
+    }));
+    return {
+      pc_m2, pum_m2, sumPC, sumPUM,
+      pcRatio: pc_m2 > 0 ? sumPC / pc_m2 : null,
+      pumRatio: pum_m2 > 0 ? sumPUM / pum_m2 : null,
+    };
+  }, [data, defaults]);
+
   const addStage = async () => {
     if (!newStageName.trim()) return;
     try {
@@ -954,6 +971,64 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
       </div>
+
+      {/* iter95am: panel powierzchni PC/PUM + wskazniki zl/m2 */}
+      <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 flex items-center gap-4 flex-wrap"
+           data-testid="wycena-surface-panel">
+        <div className="text-[#9DBC85] text-xs uppercase font-semibold">📐 Powierzchnie budynku:</div>
+        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+          <span title="Powierzchnia Całkowita" className="font-semibold text-[#9DBC85]">PC</span>
+          <input type="number" step="0.01" min="0" defaultValue={w.pc_m2 ?? ''}
+            onBlur={(e) => saveDefault('pc_m2', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            placeholder="—"
+            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            data-testid="surface-pc" />
+          <span className="text-[#94A3B8]">m²</span>
+        </label>
+        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+          <span title="Powierzchnia Użytkowa Mieszkalna" className="font-semibold text-[#9DBC85]">PUM</span>
+          <input type="number" step="0.01" min="0" defaultValue={w.pum_m2 ?? ''}
+            onBlur={(e) => saveDefault('pum_m2', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            placeholder="—"
+            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            data-testid="surface-pum" />
+          <span className="text-[#94A3B8]">m²</span>
+        </label>
+        <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
+          Zaznacz w pozycjach głównych chipy <b className="text-[#9DBC85]">PC</b> / <b className="text-[#9DBC85]">PUM</b> aby je wliczyć do wskaźników poniżej
+        </div>
+      </div>
+
+      {(wskazniki.pcRatio != null || wskazniki.pumRatio != null) && (
+        <div className="flex items-stretch gap-3 flex-wrap" data-testid="wskazniki-bar">
+          {wskazniki.pcRatio != null && (
+            <div className="flex-1 min-w-[220px] border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+                 data-testid="wskaznik-pc">
+              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PC (zł/m²)</div>
+              <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
+                {fmtPLN(wskazniki.pcRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+              </div>
+              <div className="text-[10px] text-[#64748B] tabular-nums">
+                {fmtPLN(wskazniki.sumPC)} zł ÷ {wskazniki.pc_m2.toLocaleString('pl-PL')} m²
+              </div>
+            </div>
+          )}
+          {wskazniki.pumRatio != null && (
+            <div className="flex-1 min-w-[220px] border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+                 data-testid="wskaznik-pum">
+              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PUM (zł/m²)</div>
+              <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
+                {fmtPLN(wskazniki.pumRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+              </div>
+              <div className="text-[10px] text-[#64748B] tabular-nums">
+                {fmtPLN(wskazniki.sumPUM)} zł ÷ {wskazniki.pum_m2.toLocaleString('pl-PL')} m²
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* iter95al: dane klienta dla PDF "Wersja dla klienta" */}
       <div className="border border-[#2A3B59] bg-[#0B1120]/40 rounded" data-testid="wycena-client-panel">
@@ -1158,7 +1233,33 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
         </button>
         <span className="tabular-nums">{code}</span>
       </Td>
-      <Td><span className="text-[#D4AF37] text-[11px]">Pozycja Główna</span></Td>
+      <Td><span className="text-[#D4AF37] text-[11px]">Pozycja Główna</span>
+        {/* iter95am: chipy PC/PUM - kliknij aby wliczyc budzet pozycji do wskaznika zl/m2 */}
+        <div className="flex gap-1 mt-1" data-testid={`pos-divisor-${position.id}`}>
+          <button
+            type="button"
+            onClick={() => save({ include_in_pc: !edit.include_in_pc })}
+            title={edit.include_in_pc ? 'Usuń z sumy PC' : 'Wlicz do wskaźnika PC (zł/m² PC)'}
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+              edit.include_in_pc
+                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+            }`}
+            data-testid={`pos-pc-${position.id}`}
+          >PC</button>
+          <button
+            type="button"
+            onClick={() => save({ include_in_pum: !edit.include_in_pum })}
+            title={edit.include_in_pum ? 'Usuń z sumy PUM' : 'Wlicz do wskaźnika PUM (zł/m² PUM)'}
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+              edit.include_in_pum
+                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+            }`}
+            data-testid={`pos-pum-${position.id}`}
+          >PUM</button>
+        </div>
+      </Td>
       <Td>
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
           onBlur={() => save({ name: edit.name })} className={`${inputCls} text-white font-semibold`}

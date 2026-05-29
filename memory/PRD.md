@@ -1,3 +1,34 @@
+## Iteration 95am (2026-02) — Powierzchnie PC/PUM + wskaźniki zł/m²
+
+### User request
+„Dodaj możliwość wpisania PC i PUM (powierzchnia całkowita / użytkowa mieszkalna) i oznaczania pozycji głównych chipami żeby je sumować i dzielić przez te powierzchnie."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `WycenaUpdate`: `pc_m2`, `pum_m2` (Optional[float]) — powierzchnie w m²
+- `PositionUpdate`: `include_in_pc`, `include_in_pum` (Optional[bool]) — flagi niezależne (pozycja może być w PC, PUM, obu albo żadnej)
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- Nowy panel **„📐 Powierzchnie budynku"** (`wycena-surface-panel`) z dwoma inputami: `surface-pc`, `surface-pum` (m², on-blur PATCH przez `saveDefault`)
+- Memo `wskazniki`: agreguje budżet pozycji z flagami, dzieli przez PC/PUM
+- Wskaźniki **WSKAŹNIK PC / WSKAŹNIK PUM (zł/m²)** — duże karty w obwódkach, widoczne tylko gdy odpowiednie PC/PUM > 0
+  - Wyświetlają: `XXX,XX zł/m²` + helper „suma zł ÷ powierzchnia m²"
+- W `PosRow` w komórce RODZAJ poniżej etykiety „Pozycja Główna" — dwa chipy toggle `PC` i `PUM`:
+  - Aktywne = zielone tło `#9DBC85` + ciemny tekst
+  - Nieaktywne = obwódka, hover podświetla
+  - Klik wywołuje `save({ include_in_pc/pum: !... })` z natychmiastową lokalną aktualizacją UI
+
+### Test
+- Lint JS: ✅
+- Backend curl: PATCH wyceny `{pc_m2:150.5, pum_m2:110}` zwraca `pc=150.5 pum=110.0` ✅
+- PATCH pozycji `{include_in_pc:true, include_in_pum:false}` — verify w `/template` potwierdza `include_pc=True include_pum=False` ✅
+- E2E smoke: panel widoczny, inputy pre-wypełnione (150.5, 110), chipy widoczne i klikalne, wskaźniki PC 196,15 zł/m² i PUM 268,37 zł/m² wyliczone poprawnie ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `WycenaUpdate` + `PositionUpdate`
+- `/app/frontend/src/components/Wyceny.js` — panel powierzchni, memo `wskazniki`, karty wskaźników, chipy w `PosRow`
+
+---
+
 ## Iteration 95al (2026-02) — Dane klienta w PDF + Podgląd w przeglądarce
 
 ### User request

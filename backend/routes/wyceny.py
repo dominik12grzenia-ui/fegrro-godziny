@@ -53,6 +53,9 @@ class WycenaUpdate(BaseModel):
     client_name: Optional[str] = None
     client_nip: Optional[str] = None
     client_address: Optional[str] = None
+    # iter95am: powierzchnie budynku (PC = pow. calkowita, PUM = pow. uzytkowa mieszkalna)
+    pc_m2: Optional[float] = None
+    pum_m2: Optional[float] = None
 
 
 class StageCreate(BaseModel):
@@ -86,6 +89,9 @@ class PositionUpdate(BaseModel):
     kaucja_dw_pct: Optional[float] = None
     koszt_budowy_pct: Optional[float] = None
     koszt_prognozowany: Optional[float] = None
+    # iter95am: flagi wliczania budzetu pozycji do wskaznika PC / PUM (zl/m2)
+    include_in_pc: Optional[bool] = None
+    include_in_pum: Optional[bool] = None
 
 
 class LineCreate(BaseModel):
