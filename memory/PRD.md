@@ -1,3 +1,38 @@
+## Iteration 95bd (2026-05) — Split P3: status + pokazowy BulkTransferModal
+
+### User request
+„P3 — HoursTable (1433l), EquipmentForeman (1258l), EquipmentAdmin (1289l), PayrollAdmin (1004l), WorkerDashboard (978l) — kolejne pliki do splitu + drobiazg hydration warning `<span>` w `<option>`."
+
+### Co się okazało po analizie
+Te 5 plików to **prawdziwe monolity** (1 duży `export const NazwaKomponentu = ()` + 0-2 helpery na top-level). Modale są inline w JSX rodzica i używają lokalnego state (`transferTo`, `transferQty`, `bulkSending` itp.). Mój automatyczny skrypt z iter95bc nie zadziała — nie ma `const ModalName = ()` do wyciągnięcia.
+
+**Wydzielenie modala wymaga ręcznego liftowania state przez props (5-10 props/modal), ~30-60 min pracy na plik. To NIE jest automatyzowalne tym samym skryptem.**
+
+### Wykonane: 1 pokazowy split
+**`/app/frontend/src/components/equipment-foreman/BulkTransferModal.js`** (110l) — wydzielony Bulk Transfer Modal z iter95ay jako props-driven komponent. Parent przekazuje `open`, `bulkItems`, `setBulkItems`, `bulkTo`, `setBulkTo`, `bulkSending`, `foremen`, `onClose`, `onConfirm`.
+
+EquipmentForeman.js: **1259 → 1181 (-78l, -6%)**
+
+### Hydration warning `<span>` w `<option>` — nie znaleziony
+Przeszukałem **wszystkie pliki** w `/app/frontend/src/components/**` — żaden `<option>` nie zawiera `<span>` jako child. Wszystkie zawierają tylko tekst / interpolacje JSX (`{x.name}`, `{x.label}`, template stringi). To pochodzi prawdopodobnie z biblioteki Radix UI Select (built-in indicator span) lub testing agent dał błędną lokalizację. Brak akcji.
+
+### Pozostała praca dla kolejnych splitów P3
+| Plik | Linie | Modale do wyciągnięcia | Szacowany czas |
+|---|---|---|---|
+| `HoursTable.js` | 1433 | showAdvanceModal, showPenaltyModal, showLinksModal | ~30-45 min |
+| `EquipmentForeman.js` | 1181 | transferModal, returnModal, defectModal, historyModal, warehouseModal, contestModal (5 pozostałe) | ~60 min |
+| `EquipmentAdmin.js` | 1289 | scrappedPanel, addDialog inline | ~30 min |
+| `PayrollAdmin.js` | 1004 | showAdd Dialog, breakdown panel | ~30 min |
+| `WorkerDashboard.js` | 978 | główny komponent — minimal split potential | skip |
+
+### Backlog
+- 🟡 P3 — kontynuacja ręcznego splitu jak wyżej (priorytet wg ROI: EquipmentForeman > HoursTable > EquipmentAdmin > PayrollAdmin)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- ⚪ Hydration warning — minor z biblioteki Radix UI Select, nie naprawialne bez zmiany komponentu Select
+
+---
+
+
 ## Iteration 95bc (2026-05) — Wielki refaktor split — 3 największe pliki rozbite na 40 modułów
 
 ### User request
