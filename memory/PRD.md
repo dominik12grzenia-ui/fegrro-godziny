@@ -1,3 +1,51 @@
+## Iteration 95bf (2026-05) — Split P3 finalizacja: HoursTable + PayrollAdmin + EquipmentAdmin
+
+### User request
+„a) dokończ HoursTable, potem b) EquipmentAdmin + PayrollAdmin"
+
+### Wykonane
+
+**HoursTable.js: 1433 → 1170 (-263, -18%)**
+- Podpięto wcześniej stworzone modale: `EmployeeLinksModal`, `AdvanceModal`, `PenaltyModal` (folder `/components/hours/`)
+- Wszystkie 3 modale dostarczone jako props-driven (state liftowany do parenta)
+- Usunięto nieużywane importy `Copy`, `Wallet`, `AlertTriangle` (Link2 zachowany — używany w toolbarze)
+
+**PayrollAdmin.js: 1004 → 862 (-142, -14%)**
+Nowy folder `/components/payroll/`:
+- `AddEmployeeModal.js` (55l) — modal dodawania pracownika (UserPlus)
+- `AuditHistoryModal.js` (47l) — historia zmian audytu (przyjmuje `fieldLabels`, `fmtVal` przez props)
+- `DiagnosticsModal.js` (104l) — weryfikacja godzin + akcje napraw duplikaty / usuń osierocone
+
+**EquipmentAdmin.js: 1289 → 1188 (-101, -8%)**
+Nowy folder `/components/equipment-admin/`:
+- `TransferFromWarehouseModal.js` (87l) — modal przekazywania sprzętu z magazynu
+- `ScrappedEquipmentPanel.js` (49l) — panel złom/zaginiecia z toggle widoczności
+
+### Testy (iteration_43.json)
+**8/8 testów frontendowych PASS (100%)**:
+- HoursTable: EmployeeLinksModal (7 linków, copy), AdvanceModal (advance-total, form), PenaltyModal (penalty-total, image-lightbox path)
+- PayrollAdmin: AddEmployeeModal (fields fill), AuditHistoryModal (13 history triggers), DiagnosticsModal (diagnostics-ok, close)
+- EquipmentAdmin: TransferFromWarehouseModal (5 foreman options, qty, submit), ScrappedEquipmentPanel (2 scrap-* items, toggle)
+
+**Brak regresji.** Lint czysty, webpack compile clean, zero console page errors.
+
+### Łączna redukcja w tej iteracji
+**3726 → 3220 linii (-506, -14%)** w głównych plikach + 6 nowych modułów (342 linii w split files).
+
+### Krytyczne uwagi z testing agenta (informacyjne)
+- HoursTable.js (1170l), EquipmentAdmin.js (1188l), PayrollAdmin.js (862l) — nadal duże, ale modale wyciągnięte. Dalsza redukcja wymaga ekstrakcji panelów (Defects, Pending transfers, Disputes, Shortages) z EquipmentAdmin oraz głównej tabeli grid z HoursTable. Nie krytyczne.
+- Google Maps API key error nadal w konsoli (preview env, niezwiązane)
+
+### Backlog
+- 🟡 P3 — dalsze splity (kolejne panele w EquipmentAdmin/HoursTable, jeśli user zechce)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Migracja Google Maps Marker → AdvancedMarkerElement
+- ⚪ Hydration `<span>` w `<option>` — z Radix UI Select, niemarsh
+
+---
+
+
+
 ## Iteration 95bd (2026-05) — Split P3: status + pokazowy BulkTransferModal
 
 ### User request
