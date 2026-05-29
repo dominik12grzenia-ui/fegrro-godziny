@@ -1,3 +1,32 @@
+## Iteration 95aj (2026-02) — Eksport pełnej wyceny + Historia BOM (UI)
+
+### User request
+„Możliwość pobrania całej wyceny do PDF/Excel z wyborem (same pozycje główne / pozycje + podpozycje) oraz historia wysłanych zapytań ofertowych do hurtowni."
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- `ExportWycenaDialog` podpięty do `WycenaEditor`: nowy przycisk **„Pobierz wycenę"** (`wycena-export-btn`) obok „Zestawienie materiałów". Otwiera dialog z dwoma radio: `positions` / `full` i przyciskami PDF / XLSX.
+- `BomDialog` rozszerzony o:
+  - przycisk **„Historia (N)"** (`bom-history-toggle`) w stopce
+  - panel **Historia wysłanych zapytań ofertowych** (`bom-history-panel`) z tabelą: data, email odbiorcy (+ nazwa hurtowni jeśli `supplier_id` jest dopasowane), temat
+  - automatyczne przeładowanie historii po wysłaniu maila (`reloadHistory` w `sendEmail`)
+
+### Backend (już istniało — przetestowane curl-em)
+- `GET /api/wyceny/{id}/export.pdf?detail=positions|full` → 200, content-type `application/pdf`
+- `GET /api/wyceny/{id}/export.xlsx?detail=positions|full` → 200, content-type spreadsheetml
+- `GET /api/wyceny/{id}/bom/history` → `{rows: [...]}` (sortowane desc po `sent_at`)
+- `POST /api/wyceny/{id}/bom/send` zapisuje wpis do `wyceny_bom_history` po udanej wysyłce Resend
+
+### Test
+- Lint JS: OK
+- Smoke screenshot E2E: edytor → przycisk „Pobierz wycenę" → dialog OK (radio + PDF/Excel); BOM → „Historia" → panel OK (puste „Brak wysłanych zapytań…")
+- curl: PDF/XLSX `200`, historia BOM `{rows:[]}`
+
+### Pliki zmienione
+- `/app/frontend/src/components/Wyceny.js` — podpięcie `ExportWycenaDialog`, historia BOM w `BomDialog`
+
+---
+
+
 ## Iteration 95 (2026-02) — Fix Kolumny Q + S/T/U formuła
 
 ### User request

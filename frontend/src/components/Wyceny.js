@@ -428,6 +428,15 @@ const BomDialog = ({ wycenaId, onClose }) => {
   const [newSupName, setNewSupName] = useState('');
   const [newSupEmail, setNewSupEmail] = useState('');
   const [newSupBranze, setNewSupBranze] = useState('');
+  // iter95ak: historia wyslanych zapytan
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const reloadHistory = useCallback(() => {
+    api.get(`/wyceny/${wycenaId}/bom/history`)
+      .then((r) => setHistory(r.data?.rows || []))
+      .catch(() => {});
+  }, [wycenaId]);
 
   useEffect(() => {
     api.get(`/wyceny/${wycenaId}/bom`)
@@ -449,7 +458,9 @@ const BomDialog = ({ wycenaId, onClose }) => {
     api.get('/wyceny/suppliers')
       .then((r) => setSuppliers(r.data?.rows || []))
       .catch(() => {});
-  }, [wycenaId]);
+    // pobierz historie wyslek
+    reloadHistory();
+  }, [wycenaId, reloadHistory]);
 
   const reloadSuppliers = () => api.get('/wyceny/suppliers').then((r) => setSuppliers(r.data?.rows || []));
 
@@ -490,6 +501,7 @@ const BomDialog = ({ wycenaId, onClose }) => {
       });
       toast.success(`Wysłano! (ID: ${r.data.message_id?.slice(0, 8) || 'ok'}…)`);
       setShowSendForm(false);
+      reloadHistory();
     } catch (e) {
       toast.error('Błąd wysyłki: ' + (e.response?.data?.detail || e.message));
     } finally { setSending(false); }
@@ -583,6 +595,48 @@ const BomDialog = ({ wycenaId, onClose }) => {
             </table>
           )}
         </div>
+        {showHistory && (
+          <div className="mt-3 p-3 bg-[#0B1120] border border-[#2A3B59] rounded space-y-2"
+               data-testid="bom-history-panel">
+            <div className="text-[11px] text-[#9DBC85] font-semibold uppercase flex items-center gap-2">
+              <Send className="h-4 w-4" /> Historia wysłanych zapytań ofertowych
+              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">{history.length} {history.length === 1 ? 'wysyłka' : 'wysyłek'}</span>
+            </div>
+            {history.length === 0 ? (
+              <div className="text-[11px] text-[#94A3B8] italic">Brak wysłanych zapytań dla tej wyceny.</div>
+            ) : (
+              <div className="max-h-48 overflow-y-auto border border-[#2A3B59] rounded">
+                <table className="w-full text-xs">
+                  <thead className="bg-[#131C2F] sticky top-0">
+                    <tr className="text-[#94A3B8] uppercase text-[10px]">
+                      <th className="text-left px-2 py-1.5">Data</th>
+                      <th className="text-left px-2 py-1.5">Email odbiorcy</th>
+                      <th className="text-left px-2 py-1.5">Temat</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {history.map((h, i) => {
+                      const d = h.sent_at ? new Date(h.sent_at) : null;
+                      const dateStr = d ? d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+                      const supplier = suppliers.find((s) => s.id === h.supplier_id);
+                      return (
+                        <tr key={h.id || i} className="border-t border-[#2A3B59]"
+                            data-testid={`bom-history-row-${i}`}>
+                          <td className="px-2 py-1.5 text-[#CBD5E1] tabular-nums whitespace-nowrap">{dateStr}</td>
+                          <td className="px-2 py-1.5 text-[#9DBC85]">
+                            {h.to_email}
+                            {supplier && <span className="ml-1 text-[10px] text-[#94A3B8]">({supplier.name})</span>}
+                          </td>
+                          <td className="px-2 py-1.5 text-[#94A3B8] truncate max-w-md" title={h.subject}>{h.subject || '—'}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
         {showSendForm && (
           <div className="mt-3 p-3 bg-[#0B1120] border border-[#5F7552]/60 rounded space-y-2">
             <div className="text-[11px] text-[#9DBC85] font-semibold uppercase flex items-center gap-2">
@@ -642,6 +696,11 @@ const BomDialog = ({ wycenaId, onClose }) => {
         <DialogFooter className="gap-2">
           <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
             data-testid="bom-close">Zamknij</Button>
+          <Button onClick={() => setShowHistory((v) => !v)} variant="outline"
+            className={`border-[#2A3B59] ${showHistory ? 'text-[#D4AF37] border-[#D4AF37]/60' : 'text-[#CBD5E1]'}`}
+            data-testid="bom-history-toggle">
+            <Send className="h-4 w-4 mr-1" /> Historia{history.length > 0 ? ` (${history.length})` : ''}
+          </Button>
           <Button onClick={() => download('pdf')} disabled={downloading || !bom?.rows?.length}
             variant="outline" className="border-[#5F7552] text-[#9DBC85]"
             data-testid="bom-pdf-btn">
@@ -679,6 +738,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const [newStageName, setNewStageName] = useState('');
   // iter95af: dialog zestawienia materialow
   const [bomOpen, setBomOpen] = useState(false);
+  // iter95aj: dialog eksportu pelnej wyceny
+  const [exportOpen, setExportOpen] = useState(false);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -808,6 +869,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10"
           data-testid="wycena-bom-btn">
           <Package className="h-4 w-4 mr-1" /> Zestawienie materiałów
+        </Button>
+        <Button onClick={() => setExportOpen(true)} variant="outline"
+          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10"
+          data-testid="wycena-export-btn">
+          <FileDown className="h-4 w-4 mr-1" /> Pobierz wycenę
         </Button>
         <div className="text-right">
           <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
@@ -948,6 +1014,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         </Button>
       </div>
       {bomOpen && <BomDialog wycenaId={wycenaId} onClose={() => setBomOpen(false)} />}
+      {exportOpen && <ExportWycenaDialog wycenaId={wycenaId} wycenaName={w?.name} onClose={() => setExportOpen(false)} />}
     </div>
   );
 };
