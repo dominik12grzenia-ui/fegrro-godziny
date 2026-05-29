@@ -1,3 +1,39 @@
+## Iteration 95ao (2026-02) — Quick-apply flag na cały etap + liczniki
+
+### User request
+„Dodaj 'Quick-apply' na cały etap + podsumowanie ile pozycji oznaczone vs nieoznaczone w nagłówku etapu."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- Nowy model `StageBulkFlag(flag: str, value: bool)`
+- Endpoint `POST /wyceny/stages/{stage_id}/bulk-flag`:
+  - whitelist `ALLOWED_BULK_FLAGS` = `{include_in_pc, include_in_pc_podziemie, include_in_pc_nadziemie, include_in_pum}`
+  - `update_many` po `stage_id` ustawia wybraną flagę
+  - zwraca `{ok:true, modified:N}` lub 400 przy nieprawidłowej fladze
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- Funkcja `stageBulkFlag(stageId, flag, value)` woła backend i lokalnie aktualizuje state (bez refetchu — utrzymanie focusu)
+- W nagłówku każdego etapu dodano panel po `+ Pozycja`:
+  - Etykieta „Zastosuj na etap:" (uppercase 9px)
+  - 4 chipy: **PC X/Y**, **PC↓ X/Y**, **PC↑ X/Y**, **PUM X/Y**
+  - 3 stany: `allOn` (zielone tło) / `someOn` (półprzezroczyste zielone) / `none` (obwódka)
+  - Klik toggluje: jeśli wszystkie ON → wszystkie OFF; inaczej → wszystkie ON
+  - tooltip pokazuje aktualny stan
+- `data-testid`: `stage-bulk-{flagKey}-{stageId}` dla testów
+
+### Test
+- Lint JS: ✅ (Python E702 to istniejące style issues, nie dotyczą zmiany)
+- Backend curl:
+  - `POST bulk-flag {include_in_pc_podziemie:true}` → `{ok:true, modified:1}` ✅
+  - Invalid flag `{bad}` → 400 ✅
+  - Verify w `/template` potwierdza pole zaktualizowane ✅
+- E2E smoke: 4 chipy widoczne w nagłówku z licznikami `1/1`, klik PUM zmienia na `0/1`, lokalna aktualizacja działa ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `StageBulkFlag` + endpoint `bulk-flag`
+- `/app/frontend/src/components/Wyceny.js` — `stageBulkFlag` + UI chipów w nagłówku etapu
+
+---
+
 ## Iteration 95an (2026-02) — Podział PC na podziemie/nadziemie
 
 ### User request

@@ -926,6 +926,28 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
+  // iter95ao: bulk apply flagi PC/PC↓/PC↑/PUM na wszystkie pozycje w etapie
+  const stageBulkFlag = async (stageId, flag, value) => {
+    try {
+      await api.post(`/wyceny/stages/${stageId}/bulk-flag`, { flag, value });
+      // Lokalna aktualizacja: ustaw flage na wszystkich pozycjach tego etapu bez refetchu
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stages: (prev.stages || []).map((st) => (
+            st.id === stageId
+              ? { ...st, positions: (st.positions || []).map((p) => ({ ...p, [flag]: value })) }
+              : st
+          )),
+        };
+      });
+      toast.success(value ? 'Zaznaczono' : 'Odznaczono');
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
   const toggleStage = (id) => { setCollapsedStages((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const togglePos = (id) => { setCollapsedPos((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
@@ -1185,17 +1207,64 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           <tbody>
             {(data.stages || []).map((st, sIdx) => {
               const stCollapsed = collapsedStages.has(st.id);
+              // iter95ao: liczniki PC/PC↓/PC↑/PUM dla etapu
+              const posList = st.positions || [];
+              const total = posList.length;
+              const cnt = {
+                pc: posList.filter((p) => p.include_in_pc).length,
+                pcPod: posList.filter((p) => p.include_in_pc_podziemie).length,
+                pcNad: posList.filter((p) => p.include_in_pc_nadziemie).length,
+                pum: posList.filter((p) => p.include_in_pum).length,
+              };
               return (
                 <React.Fragment key={st.id}>
                   <tr className="bg-[#3F5235]/40 text-white font-semibold">
                     <td colSpan={16} className="border border-[#2A3B59] px-2 py-1.5">
-                      <button onClick={() => toggleStage(st.id)} className="mr-2 text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
-                        {stCollapsed ? '▶' : '▼'}
-                      </button>
-                      📁 ETAP {sIdx + 1}: {st.name.toUpperCase()}
-                      <button onClick={() => addPosition(st.id)} className="ml-3 text-[10px] text-[#9DBC85] border border-[#5F7552] px-1.5 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`pos-add-${st.id}`}>
-                        + Pozycja
-                      </button>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <button onClick={() => toggleStage(st.id)} className="text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
+                          {stCollapsed ? '▶' : '▼'}
+                        </button>
+                        <span>📁 ETAP {sIdx + 1}: {st.name.toUpperCase()}</span>
+                        <button onClick={() => addPosition(st.id)} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-1.5 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`pos-add-${st.id}`}>
+                          + Pozycja
+                        </button>
+                        {/* iter95ao: quick-apply chipy z licznikiem */}
+                        {total > 0 && (
+                          <div className="flex items-center gap-1 ml-3 pl-3 border-l border-[#5F7552]/40" data-testid={`stage-bulk-${st.id}`}>
+                            <span className="text-[9px] text-[#94A3B8] uppercase mr-1">Zastosuj na etap:</span>
+                            {[
+                              { key: 'pc', flag: 'include_in_pc', label: 'PC', count: cnt.pc },
+                              { key: 'pcPod', flag: 'include_in_pc_podziemie', label: 'PC↓', count: cnt.pcPod },
+                              { key: 'pcNad', flag: 'include_in_pc_nadziemie', label: 'PC↑', count: cnt.pcNad },
+                              { key: 'pum', flag: 'include_in_pum', label: 'PUM', count: cnt.pum },
+                            ].map((it) => {
+                              const allOn = total > 0 && it.count === total;
+                              const someOn = it.count > 0 && it.count < total;
+                              return (
+                                <button
+                                  key={it.key}
+                                  type="button"
+                                  onClick={() => stageBulkFlag(st.id, it.flag, !allOn)}
+                                  title={
+                                    allOn ? `Odznacz ${it.label} we wszystkich pozycjach etapu`
+                                          : `Zaznacz ${it.label} we wszystkich pozycjach etapu (${it.count}/${total} obecnie)`
+                                  }
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition ${
+                                    allOn
+                                      ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                                      : someOn
+                                        ? 'bg-[#9DBC85]/20 text-[#9DBC85] border-[#9DBC85]/60'
+                                        : 'border-[#5F7552]/50 text-[#94A3B8] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+                                  }`}
+                                  data-testid={`stage-bulk-${it.key}-${st.id}`}
+                                >
+                                  {it.label} <span className="opacity-70 font-normal">{it.count}/{total}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="border border-[#2A3B59] px-2 py-1.5 text-right">
                       <button onClick={() => delStage(st.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`stage-del-${st.id}`}>

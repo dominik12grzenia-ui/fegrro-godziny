@@ -378,6 +378,29 @@ async def delete_position(position_id: str, _user: dict = Depends(get_current_ad
     return {"ok": True}
 
 
+# iter95ao: bulk apply flagi PC/PC_pod/PC_nad/PUM na wszystkie pozycje w etapie
+class StageBulkFlag(BaseModel):
+    flag: str  # 'include_in_pc' | 'include_in_pc_podziemie' | 'include_in_pc_nadziemie' | 'include_in_pum'
+    value: bool
+
+
+ALLOWED_BULK_FLAGS = {
+    "include_in_pc", "include_in_pc_podziemie", "include_in_pc_nadziemie", "include_in_pum"
+}
+
+
+@router.post("/wyceny/stages/{stage_id}/bulk-flag")
+async def stage_bulk_flag(stage_id: str, payload: StageBulkFlag,
+                          _user: dict = Depends(get_current_admin)):
+    if payload.flag not in ALLOWED_BULK_FLAGS:
+        raise HTTPException(400, "Nieprawidlowa flaga")
+    res = await db.wyceny_positions.update_many(
+        {"stage_id": stage_id},
+        {"$set": {payload.flag: payload.value, "updated_at": datetime.now().isoformat()}},
+    )
+    return {"ok": True, "modified": res.modified_count}
+
+
 # =========== LINES (slots R/M/S + children) ===========
 @router.post("/wyceny/lines")
 async def create_line(payload: LineCreate, _user: dict = Depends(get_current_admin)):
