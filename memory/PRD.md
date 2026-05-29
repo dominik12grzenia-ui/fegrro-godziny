@@ -1,3 +1,53 @@
+## Iteration 95av (2026-02) — Tryb negocjacji + wersjonowanie wyceny
+
+### User request
+„Obniżanie podczas negocjacji na bieżąco (stawki robocizny, narzutu materiału) z live preview zysku i zł/m². Bez zmiany głównej wyceny. Po akceptacji `Przyjmij na stałe`. Możliwość cofnięcia do pierwszej wersji."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- Nowa kolekcja `wyceny_snapshots` z polami: `id, wycena_id, label, created_at, created_by, data: {wycena, stages, positions, lines}, stats: {stages, positions, lines}`
+- Helper `_create_wycena_snapshot(wycena_id, label, user_id)` kopiuje 4 kolekcje 1:1
+- 4 endpointy:
+  - `GET /wyceny/{id}/snapshots` — lista (bez data, tylko metadane)
+  - `POST /wyceny/{id}/snapshots` — ręczny snapshot z labelką
+  - `POST /wyceny/{id}/snapshots/{sid}/restore` — przywraca wycenę (PRZED tym auto-snapshot bieżącego stanu)
+  - `DELETE /wyceny/{id}/snapshots/{sid}`
+- **Nowy endpoint** `POST /wyceny/{id}/negotiation/apply`:
+  - Auto-snapshot bieżącego stanu z labelką (default: „Przed negocjacją {datetime}")
+  - Update defaults wyceny: `default_narzut_pct`, `default_marza_pct` (opcjonalne)
+  - **Bulk update** `wyceny_lines.unit_price_netto *= factor` dla każdego `type` (labor/materials/equipment) używając Mongo `$mul`
+  - Zwraca `{ok, snapshot_id, snapshot_label, lines_modified}`
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- **Stan negocjacji** w `WycenaEditor`: `negotiationOn`, `neg: {labor, materials, equipment, narzutOverride, marzaOverride}`
+- Memo `negFactors`: `{labor: 1 + labor%/100, ...}`
+- Memo `displayData`: kopia z przemnożonymi `unit_price_netto` w slotach + override defaults (renderuje grandTotal i wskaźniki z `displayData` zamiast `data`)
+- Memo `grandTotalOriginal`: bazowy stan dla obliczenia delty
+- **Panel negocjacji** sticky pod nagłówkiem (pomarańczowy):
+  - 5 inputów: 👷 Robocizna ±%, 🧱 Materiały ±%, 🚜 Sprzęt ±%, Narzut materiał override, Marża materiał override
+  - 4 karty live preview: Budżet | Zysk + DW | zł/m² PC | zł/m² PUM (każda pokazuje orig (line-through) → curr + delta zł i % w zielono/czerwono)
+  - Przyciski: Wyzeruj | Anuluj | ✓ Przyjmij na stałe (z confirm + lista zmian)
+- **Dialog wersji** z tabelą snapshotów (data | etykieta | rozmiar | Przywróć) + confirm przy restore
+- Przyciski w nagłówku WycenaEditor: **🤝 Tryb negocjacji** (animate-pulse gdy aktywny) + **🕒 Wersje (N)**
+- Po klik „Przyjmij na stałe" → confirm z listą zmian → POST applyNegotiation → toast „N linii zmodyfikowano" + reload snapshotów
+
+### Test
+- Lint JS: ✅
+- Backend curl:
+  - POST snapshot zwraca id ✅
+  - GET snapshots zwraca listę z metadanymi ✅
+  - POST `apply {labor_factor:0.98, material_factor:0.95}` zwraca `lines_modified=1`, cena 380→361 zł ✅
+  - POST `restore` cofa cenę do oryginału ✅
+- E2E smoke:
+  - Klik przycisk Tryb negocjacji → panel widoczny ✅
+  - Wpisanie -5% robocizny + -3% materiałów → live preview pokazuje budżet 28 362,95 → 27 490,86 zł (−872,09 −3,1%), zysk 2 340,15 → 2 269,55 zł (−70,60 −3%), zł/m² PC 188,15 → 182,66 ✅
+  - Klik Wersje → dialog z 4 snapshotami (test data) + Przywróć ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — 4 endpointy snapshotów + endpoint negotiation/apply + helper (~150 linii)
+- `/app/frontend/src/components/Wyceny.js` — `displayData` memo, panel negocjacji, dialog wersji, funkcje `applyNegotiation`, `restoreSnapshot`, `loadSnapshots`
+
+---
+
 ## Iteration 95au (2026-02) — Drill-down szczegółów Panelu Prognoz
 
 ### User request

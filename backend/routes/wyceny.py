@@ -1819,6 +1819,163 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     return buf.getvalue(), filename
 
 
+# ============================================================
+# iter95av: SNAPSHOTY + TRYB NEGOCJACJI
+# ============================================================
+
+async def _create_wycena_snapshot(wycena_id: str, label: str, user_id: str) -> str:
+    """Skopiuj pelna strukture wyceny do wyceny_snapshots. Zwraca snapshot_id."""
+    wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
+    if not wycena:
+        raise HTTPException(404, "Wycena nie istnieje")
+    stages = await db.wyceny_stages.find({"wycena_id": wycena_id}, {"_id": 0}).to_list(length=None)
+    positions = await db.wyceny_positions.find({"wycena_id": wycena_id}, {"_id": 0}).to_list(length=None)
+    lines = await db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0}).to_list(length=None)
+    snapshot_id = str(uuid.uuid4())
+    await db.wyceny_snapshots.insert_one({
+        "id": snapshot_id,
+        "wycena_id": wycena_id,
+        "label": label,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": user_id,
+        "data": {
+            "wycena": wycena,
+            "stages": stages,
+            "positions": positions,
+            "lines": lines,
+        },
+        "stats": {
+            "stages": len(stages),
+            "positions": len(positions),
+            "lines": len(lines),
+        },
+    })
+    return snapshot_id
+
+
+@router.get("/wyceny/{wycena_id}/snapshots")
+async def list_snapshots(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    rows = await db.wyceny_snapshots.find(
+        {"wycena_id": wycena_id},
+        {"_id": 0, "id": 1, "label": 1, "created_at": 1, "created_by": 1, "stats": 1},
+    ).sort("created_at", -1).to_list(length=200)
+    return {"rows": rows}
+
+
+class SnapshotCreateRequest(BaseModel):
+    label: str
+
+
+@router.post("/wyceny/{wycena_id}/snapshots")
+async def create_snapshot(
+    wycena_id: str, payload: SnapshotCreateRequest,
+    current_user: dict = Depends(get_current_admin),
+):
+    sid = await _create_wycena_snapshot(wycena_id, payload.label.strip() or "Wersja", current_user["sub"])
+    return {"ok": True, "id": sid}
+
+
+@router.post("/wyceny/{wycena_id}/snapshots/{snapshot_id}/restore")
+async def restore_snapshot(
+    wycena_id: str, snapshot_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    snap = await db.wyceny_snapshots.find_one(
+        {"id": snapshot_id, "wycena_id": wycena_id}, {"_id": 0}
+    )
+    if not snap:
+        raise HTTPException(404, "Snapshot nie istnieje")
+    # Auto-snapshot biezacego stanu przed nadpisaniem
+    await _create_wycena_snapshot(
+        wycena_id,
+        f"Auto: stan przed przywróceniem '{snap['label']}'",
+        current_user["sub"],
+    )
+    # Wyczysc i wpisz dane ze snapshota
+    data = snap["data"]
+    await db.wyceny.update_one({"id": wycena_id}, {"$set": data["wycena"]})
+    await db.wyceny_stages.delete_many({"wycena_id": wycena_id})
+    if data["stages"]:
+        await db.wyceny_stages.insert_many(data["stages"])
+    await db.wyceny_positions.delete_many({"wycena_id": wycena_id})
+    if data["positions"]:
+        await db.wyceny_positions.insert_many(data["positions"])
+    await db.wyceny_lines.delete_many({"wycena_id": wycena_id})
+    if data["lines"]:
+        await db.wyceny_lines.insert_many(data["lines"])
+    return {"ok": True}
+
+
+@router.delete("/wyceny/{wycena_id}/snapshots/{snapshot_id}")
+async def delete_snapshot(
+    wycena_id: str, snapshot_id: str, _user: dict = Depends(get_current_admin),
+):
+    r = await db.wyceny_snapshots.delete_one({"id": snapshot_id, "wycena_id": wycena_id})
+    if r.deleted_count == 0:
+        raise HTTPException(404, "Snapshot nie istnieje")
+    return {"ok": True}
+
+
+class NegotiationApplyRequest(BaseModel):
+    """Trwale zastosowanie wynikow negocjacji."""
+    labor_factor: float = 1.0  # mnoznik ceny robocizny (0.98 = -2%)
+    material_factor: float = 1.0  # mnoznik ceny materialow
+    equipment_factor: float = 1.0  # mnoznik ceny sprzetu
+    narzut_pct: Optional[float] = None  # nowy default_narzut_pct (lub None = bez zmian)
+    marza_pct: Optional[float] = None
+    snapshot_label: Optional[str] = None  # etykieta auto-snapshota
+
+
+@router.post("/wyceny/{wycena_id}/negotiation/apply")
+async def apply_negotiation(
+    wycena_id: str,
+    payload: NegotiationApplyRequest,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Trwale zaakceptuj wyniki negocjacji.
+
+    Kroki:
+      1. Auto-snapshot biezacego stanu z labelka (default: "Przed negocjacja {data}")
+      2. Aktualizuj defaults wyceny (narzut/marza)
+      3. Bulk update unit_price_netto we wszystkich liniach wedlug category factor
+    """
+    # 1. Snapshot
+    snap_label = payload.snapshot_label or f"Przed negocjacją ({datetime.now().strftime('%Y-%m-%d %H:%M')})"
+    sid = await _create_wycena_snapshot(wycena_id, snap_label, current_user["sub"])
+
+    # 2. Update defaults wyceny
+    update = {}
+    if payload.narzut_pct is not None:
+        update["default_narzut_pct"] = float(payload.narzut_pct)
+    if payload.marza_pct is not None:
+        update["default_marza_pct"] = float(payload.marza_pct)
+    if update:
+        await db.wyceny.update_one({"id": wycena_id}, {"$set": update})
+
+    # 3. Bulk update lines per type (materials/labor/equipment)
+    factor_by_type = {
+        "labor": payload.labor_factor,
+        "materials": payload.material_factor,
+        "equipment": payload.equipment_factor,
+    }
+    modified_total = 0
+    for typ, factor in factor_by_type.items():
+        if factor == 1.0:
+            continue
+        r = await db.wyceny_lines.update_many(
+            {"wycena_id": wycena_id, "type": typ},
+            {"$mul": {"unit_price_netto": float(factor)}},
+        )
+        modified_total += r.modified_count
+
+    return {
+        "ok": True,
+        "snapshot_id": sid,
+        "snapshot_label": snap_label,
+        "lines_modified": modified_total,
+    }
+
+
 # iter95as: konwersja wyceny do budowy + budzetu (kopiuje pelna strukture)
 class ConvertToBudgetRequest(BaseModel):
     budowa_name: str

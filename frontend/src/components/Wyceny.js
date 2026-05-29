@@ -1413,13 +1413,72 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     });
   }, []);
 
-  const defaults = useMemo(() => ({
-    gir: data?.wycena?.default_gir_pct ?? 2,
-    dw: data?.wycena?.default_dw_pct ?? 2,
-    koszt: data?.wycena?.default_koszt_pct ?? 2,
-    narzut: data?.wycena?.default_narzut_pct ?? 0,
-    marza: data?.wycena?.default_marza_pct ?? 0,
-  }), [data]);
+  // iter95av: tryb negocjacji - lokalne mnozniki bez zapisu w bazie
+  const [negotiationOn, setNegotiationOn] = useState(false);
+  const [neg, setNeg] = useState({
+    labor: -2,       // % zmiany ceny robocizny (-2 = obniz o 2%)
+    materials: 0,
+    equipment: 0,
+    narzutOverride: '',  // pusty = bez zmian, inaczej nowa wartosc default narzutu
+    marzaOverride: '',
+  });
+  const [versionsOpen, setVersionsOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState([]);
+
+  const negFactors = useMemo(() => ({
+    labor: 1 + (parseFloat(neg.labor) || 0) / 100,
+    materials: 1 + (parseFloat(neg.materials) || 0) / 100,
+    equipment: 1 + (parseFloat(neg.equipment) || 0) / 100,
+  }), [neg.labor, neg.materials, neg.equipment]);
+
+  // Pre-fill negOverrides z wartosci defaults przy uruchomieniu trybu
+  const openNegotiation = () => {
+    setNeg((n) => ({
+      ...n,
+      narzutOverride: data?.wycena?.default_narzut_pct ?? '',
+      marzaOverride: data?.wycena?.default_marza_pct ?? '',
+    }));
+    setNegotiationOn(true);
+  };
+
+  // Czyzn lista zmian aktywna?
+  const negHasChanges =
+    negFactors.labor !== 1 || negFactors.materials !== 1 || negFactors.equipment !== 1 ||
+    (neg.narzutOverride !== '' && parseFloat(neg.narzutOverride) !== (data?.wycena?.default_narzut_pct ?? 0)) ||
+    (neg.marzaOverride !== '' && parseFloat(neg.marzaOverride) !== (data?.wycena?.default_marza_pct ?? 0));
+
+  const defaults = useMemo(() => {
+    const base = {
+      gir: data?.wycena?.default_gir_pct ?? 2,
+      dw: data?.wycena?.default_dw_pct ?? 2,
+      koszt: data?.wycena?.default_koszt_pct ?? 2,
+      narzut: data?.wycena?.default_narzut_pct ?? 0,
+      marza: data?.wycena?.default_marza_pct ?? 0,
+    };
+    if (negotiationOn) {
+      if (neg.narzutOverride !== '') base.narzut = parseFloat(neg.narzutOverride) || 0;
+      if (neg.marzaOverride !== '') base.marza = parseFloat(neg.marzaOverride) || 0;
+    }
+    return base;
+  }, [data, negotiationOn, neg.narzutOverride, neg.marzaOverride]);
+
+  // displayData: kopia z przemnozonymi cenami w slotach (jezeli tryb negocjacji aktywny)
+  const displayData = useMemo(() => {
+    if (!data || !negotiationOn) return data;
+    return {
+      ...data,
+      stages: (data.stages || []).map((st) => ({
+        ...st,
+        positions: (st.positions || []).map((p) => ({
+          ...p,
+          slots: (p.slots || []).map((s) => ({
+            ...s,
+            unit_price_netto: (parseFloat(s.unit_price_netto) || 0) * (negFactors[s.type] ?? 1),
+          })),
+        })),
+      })),
+    };
+  }, [data, negotiationOn, negFactors]);
 
   const saveDefault = async (field, value) => {
     const num = value === '' ? null : parseFloat(value);
@@ -1439,9 +1498,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   };
 
   const grandTotal = useMemo(() => {
-    if (!data) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0 };
+    if (!displayData) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0 };
     let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0;
-    (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+    (displayData.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
       const r = computePosRow(p, defaults);
       qty += r.qty; budzet += r.budzet;
       kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
@@ -1449,16 +1508,16 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       kosztPrognozowany += r.kosztPrognozowany; prognozy += r.prognozy; zyskPlusDw += r.zyskPlusDw;
     }));
     return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
-  }, [data, defaults]);
+  }, [displayData, defaults]);
 
   // iter95am/an: wskazniki kosztu na m2 PC/PUM + podzial PC na podziemie/nadziemie
   const wskazniki = useMemo(() => {
-    const pc_m2 = parseFloat(data?.wycena?.pc_m2) || 0;
-    const pum_m2 = parseFloat(data?.wycena?.pum_m2) || 0;
-    const pc_pod_m2 = parseFloat(data?.wycena?.pc_podziemie_m2) || 0;
-    const pc_nad_m2 = parseFloat(data?.wycena?.pc_nadziemie_m2) || 0;
+    const pc_m2 = parseFloat(displayData?.wycena?.pc_m2) || 0;
+    const pum_m2 = parseFloat(displayData?.wycena?.pum_m2) || 0;
+    const pc_pod_m2 = parseFloat(displayData?.wycena?.pc_podziemie_m2) || 0;
+    const pc_nad_m2 = parseFloat(displayData?.wycena?.pc_nadziemie_m2) || 0;
     let sumPC = 0, sumPUM = 0, sumPCpod = 0, sumPCnad = 0;
-    (data?.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+    (displayData?.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
       const r = computePosRow(p, defaults);
       if (p.include_in_pc) sumPC += r.budzet;
       if (p.include_in_pum) sumPUM += r.budzet;
@@ -1473,7 +1532,83 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       pcPodRatio: pc_pod_m2 > 0 ? sumPCpod / pc_pod_m2 : null,
       pcNadRatio: pc_nad_m2 > 0 ? sumPCnad / pc_nad_m2 : null,
     };
-  }, [data, defaults]);
+  }, [displayData, defaults]);
+
+  // iter95av: oryginalny grandTotal (bez negocjacji) do porownania delty
+  const grandTotalOriginal = useMemo(() => {
+    if (!data || !negotiationOn) return null;
+    let budzet = 0, zyskPlusDw = 0;
+    const baseDefaults = {
+      gir: data.wycena?.default_gir_pct ?? 2,
+      dw: data.wycena?.default_dw_pct ?? 2,
+      koszt: data.wycena?.default_koszt_pct ?? 2,
+      narzut: data.wycena?.default_narzut_pct ?? 0,
+      marza: data.wycena?.default_marza_pct ?? 0,
+    };
+    (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      const r = computePosRow(p, baseDefaults);
+      budzet += r.budzet;
+      zyskPlusDw += r.zyskPlusDw;
+    }));
+    return { budzet, zyskPlusDw };
+  }, [data, negotiationOn]);
+
+  // iter95av: snapshoty - ladowanie + akcje
+  const loadSnapshots = useCallback(() => {
+    api.get(`/wyceny/${wycenaId}/snapshots`)
+      .then((r) => setSnapshots(r.data?.rows || []))
+      .catch(() => {});
+  }, [wycenaId]);
+
+  useEffect(() => { loadSnapshots(); }, [loadSnapshots]);
+
+  const applyNegotiation = async () => {
+    if (!negHasChanges) { toast.error('Brak zmian do zastosowania'); return; }
+    if (!window.confirm(
+      `Przyjąć negocjację na stałe?\n\n` +
+      `Aktualny stan wyceny zostanie zapisany jako wersja "Przed negocjacją" — w każdej chwili możesz wrócić.\n\n` +
+      `Zmiany:\n` +
+      (neg.labor !== 0 ? `  • Robocizna: ${neg.labor > 0 ? '+' : ''}${neg.labor}%\n` : '') +
+      (neg.materials !== 0 ? `  • Materiały: ${neg.materials > 0 ? '+' : ''}${neg.materials}%\n` : '') +
+      (neg.equipment !== 0 ? `  • Sprzęt: ${neg.equipment > 0 ? '+' : ''}${neg.equipment}%\n` : '') +
+      (neg.narzutOverride !== '' ? `  • Narzut materiału → ${neg.narzutOverride}%\n` : '') +
+      (neg.marzaOverride !== '' ? `  • Marża materiału → ${neg.marzaOverride}%\n` : '')
+    )) return;
+    try {
+      const body = {
+        labor_factor: negFactors.labor,
+        material_factor: negFactors.materials,
+        equipment_factor: negFactors.equipment,
+        snapshot_label: `Przed negocjacją (${new Date().toLocaleString('pl-PL')})`,
+      };
+      if (neg.narzutOverride !== '') body.narzut_pct = parseFloat(neg.narzutOverride);
+      if (neg.marzaOverride !== '') body.marza_pct = parseFloat(neg.marzaOverride);
+      const r = await api.post(`/wyceny/${wycenaId}/negotiation/apply`, body);
+      toast.success(`Negocjacja przyjęta! Zapisano wersję, ${r.data.lines_modified} linii zmodyfikowano`);
+      setNegotiationOn(false);
+      setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' });
+      fetchData();
+      loadSnapshots();
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
+  const restoreSnapshot = async (snap) => {
+    if (!window.confirm(
+      `Przywrócić wycenę do wersji:\n"${snap.label}"\n\n` +
+      `Bieżący stan zostanie automatycznie zapisany jako kolejna wersja.`
+    )) return;
+    try {
+      await api.post(`/wyceny/${wycenaId}/snapshots/${snap.id}/restore`);
+      toast.success('Przywrócono wersję');
+      setVersionsOpen(false);
+      fetchData();
+      loadSnapshots();
+    } catch (e) {
+      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+    }
+  };
 
   const addStage = async () => {
     if (!newStageName.trim()) return;
@@ -1574,6 +1709,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           data-testid="wycena-convert-btn">
           <FileText className="h-4 w-4 mr-1" /> Zaciągnij do budżetu
         </Button>
+        {/* iter95av: tryb negocjacji + wersje */}
+        <Button onClick={negotiationOn ? () => setNegotiationOn(false) : openNegotiation} variant="outline"
+          className={negotiationOn
+            ? 'border-[#F59E0B] text-[#F59E0B] bg-[#F59E0B]/10 font-semibold animate-pulse'
+            : 'border-[#F59E0B]/60 text-[#F59E0B] hover:bg-[#F59E0B]/10'}
+          title="Lokalne obniżki cen z live preview — bez zapisu w bazie"
+          data-testid="wycena-negotiation-btn">
+          🤝 {negotiationOn ? 'Wyjdź z negocjacji' : 'Tryb negocjacji'}
+        </Button>
+        <Button onClick={() => setVersionsOpen(true)} variant="outline"
+          className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+          title="Historia wersji wyceny — przywróć poprzednią"
+          data-testid="wycena-versions-btn">
+          🕒 Wersje{snapshots.length > 0 ? ` (${snapshots.length})` : ''}
+        </Button>
         <div className="text-right">
           <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
           <div className="text-[#D4AF37] text-xl font-bold tabular-nums" data-testid="wycena-total">
@@ -1600,6 +1750,143 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
       </div>
+
+      {/* iter95av: panel trybu negocjacji - sticky pod nagłowkiem */}
+      {negotiationOn && (
+        <div className="border-2 border-[#F59E0B]/60 bg-[#F59E0B]/5 rounded-lg p-4 space-y-3 sticky top-0 z-20 backdrop-blur"
+             data-testid="negotiation-panel">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="text-sm font-bold text-[#F59E0B] uppercase tracking-wide flex items-center gap-1">
+              🤝 Tryb negocjacji — symulacja na żywo
+            </div>
+            <div className="text-[10px] text-[#94A3B8] flex-1">
+              Zmiany NIE są zapisywane — pełna wycena nietknięta. Kliknij <b className="text-[#F59E0B]">Przyjmij na stałe</b> aby zaakceptować po negocjacji z klientem.
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+            {/* mnozniki cen */}
+            {[
+              { key: 'labor', label: '👷 Robocizna', cls: 'border-[#5F4E20]' },
+              { key: 'materials', label: '🧱 Materiały', cls: 'border-[#5F7552]' },
+              { key: 'equipment', label: '🚜 Sprzęt', cls: 'border-[#2D4D5C]' },
+            ].map((it) => (
+              <div key={it.key} className={`border ${it.cls} bg-[#0B1120]/60 rounded p-2`}>
+                <div className="text-[10px] uppercase text-[#94A3B8] mb-1">{it.label}</div>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number" step="0.5"
+                    value={neg[it.key]}
+                    onChange={(e) => setNeg({ ...neg, [it.key]: e.target.value })}
+                    className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+                    data-testid={`neg-${it.key}-input`}
+                  />
+                  <span className="text-sm text-[#94A3B8]">%</span>
+                </div>
+                <div className="text-[9px] text-[#64748B] mt-0.5">
+                  {parseFloat(neg[it.key]) > 0 ? '↑ podwyżka' : parseFloat(neg[it.key]) < 0 ? '↓ obniżka' : 'bez zmian'}
+                </div>
+              </div>
+            ))}
+            {/* narzut / marza overrides */}
+            <div className="border border-[#D4AF37]/40 bg-[#0B1120]/60 rounded p-2">
+              <div className="text-[10px] uppercase text-[#94A3B8] mb-1">Narzut materiał</div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number" step="0.5"
+                  value={neg.narzutOverride}
+                  onChange={(e) => setNeg({ ...neg, narzutOverride: e.target.value })}
+                  placeholder={`${data?.wycena?.default_narzut_pct ?? 0}`}
+                  className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+                  data-testid="neg-narzut-input"
+                />
+                <span className="text-sm text-[#94A3B8]">%</span>
+              </div>
+              <div className="text-[9px] text-[#64748B] mt-0.5">orig: {data?.wycena?.default_narzut_pct ?? 0}%</div>
+            </div>
+            <div className="border border-[#D4AF37]/40 bg-[#0B1120]/60 rounded p-2">
+              <div className="text-[10px] uppercase text-[#94A3B8] mb-1">Marża materiał</div>
+              <div className="flex items-center gap-1">
+                <input
+                  type="number" step="0.5"
+                  value={neg.marzaOverride}
+                  onChange={(e) => setNeg({ ...neg, marzaOverride: e.target.value })}
+                  placeholder={`${data?.wycena?.default_marza_pct ?? 0}`}
+                  className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+                  data-testid="neg-marza-input"
+                />
+                <span className="text-sm text-[#94A3B8]">%</span>
+              </div>
+              <div className="text-[9px] text-[#64748B] mt-0.5">orig: {data?.wycena?.default_marza_pct ?? 0}%</div>
+            </div>
+          </div>
+
+          {/* Live preview porownania */}
+          {grandTotalOriginal && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 text-xs" data-testid="negotiation-preview">
+              {[
+                {
+                  lbl: 'Budżet (cena dla klienta)',
+                  orig: grandTotalOriginal.budzet,
+                  curr: grandTotal.budzet,
+                },
+                {
+                  lbl: 'Twój zysk + DW',
+                  orig: grandTotalOriginal.zyskPlusDw,
+                  curr: grandTotal.zyskPlusDw,
+                },
+                {
+                  lbl: 'zł/m² PC',
+                  orig: wskazniki.pc_m2 > 0 ? grandTotalOriginal.budzet / wskazniki.pc_m2 : null,
+                  curr: wskazniki.pcRatio,
+                },
+                {
+                  lbl: 'zł/m² PUM',
+                  orig: wskazniki.pum_m2 > 0 ? grandTotalOriginal.budzet / wskazniki.pum_m2 : null,
+                  curr: wskazniki.pumRatio,
+                },
+              ].map((cmp, i) => {
+                if (cmp.orig == null && cmp.curr == null) return null;
+                const delta = (cmp.curr || 0) - (cmp.orig || 0);
+                const pct = cmp.orig ? (delta / cmp.orig) * 100 : 0;
+                const isProfit = cmp.lbl.includes('zysk');
+                const goodDelta = isProfit ? delta >= 0 : delta <= 0;
+                return (
+                  <div key={i} className="border border-[#2A3B59] bg-[#131C2F] rounded p-2">
+                    <div className="text-[10px] uppercase text-[#94A3B8]">{cmp.lbl}</div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[#64748B] line-through tabular-nums text-[11px]">{fmtPLN(cmp.orig)}</span>
+                      <span className="text-[#F59E0B]">→</span>
+                      <span className="font-bold tabular-nums">{fmtPLN(cmp.curr)}</span>
+                    </div>
+                    <div className={`text-[10px] tabular-nums ${goodDelta ? 'text-[#22C55E]' : 'text-[#FCA5A5]'}`}>
+                      {delta >= 0 ? '+' : ''}{fmtPLN(delta)} ({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="flex gap-2 justify-end pt-1 border-t border-[#F59E0B]/20">
+            <Button onClick={() => { setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' }); }}
+              variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+              data-testid="neg-reset">
+              Wyzeruj
+            </Button>
+            <Button onClick={() => setNegotiationOn(false)} variant="outline"
+              className="border-[#2A3B59] text-[#CBD5E1]"
+              data-testid="neg-cancel">
+              Anuluj (powrót do oryginału)
+            </Button>
+            <Button onClick={applyNegotiation} disabled={!negHasChanges}
+              className="bg-[#F59E0B] hover:bg-[#D97706] text-[#0B1120] font-semibold disabled:opacity-40"
+              data-testid="neg-apply">
+              ✓ Przyjmij na stałe (zapisze wersję)
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* iter95am: panel powierzchni PC/PUM + wskazniki zl/m2 */}
       <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 flex items-center gap-4 flex-wrap"
@@ -1931,6 +2218,68 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           clientNip={w?.client_nip}
           onClose={() => setConvertOpen(false)}
         />
+      )}
+
+      {/* iter95av: dialog wersji wyceny */}
+      {versionsOpen && (
+        <Dialog open={true} onOpenChange={(o) => !o && setVersionsOpen(false)}>
+          <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-2xl"
+                         data-testid="versions-dialog">
+            <DialogHeader>
+              <DialogTitle className="text-[#D4AF37]">🕒 Historia wersji wyceny</DialogTitle>
+              <div className="text-xs text-[#94A3B8]">
+                Snapshoty tworzone automatycznie przy „Przyjmij na stałe" (negocjacja) oraz przy przywróceniu starej wersji.
+              </div>
+            </DialogHeader>
+            <div className="max-h-[50vh] overflow-y-auto border border-[#2A3B59] rounded">
+              {snapshots.length === 0 ? (
+                <div className="p-4 text-center text-[#94A3B8] text-sm italic">
+                  Brak zapisanych wersji. Pierwsza wersja zostanie zapisana automatycznie przy zaakceptowaniu negocjacji.
+                </div>
+              ) : (
+                <table className="w-full text-xs">
+                  <thead className="bg-[#0B1120] sticky top-0 text-[#94A3B8] uppercase text-[10px]">
+                    <tr>
+                      <th className="text-left px-3 py-2">Data utworzenia</th>
+                      <th className="text-left px-3 py-2">Etykieta</th>
+                      <th className="text-right px-3 py-2">Rozmiar</th>
+                      <th className="text-right px-3 py-2">Akcje</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {snapshots.map((s) => {
+                      const d = new Date(s.created_at);
+                      return (
+                        <tr key={s.id} className="border-t border-[#2A3B59] hover:bg-[#0B1120]/60"
+                            data-testid={`snapshot-row-${s.id}`}>
+                          <td className="px-3 py-2 text-[#CBD5E1] tabular-nums whitespace-nowrap">
+                            {d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
+                          </td>
+                          <td className="px-3 py-2 text-white">{s.label}</td>
+                          <td className="px-3 py-2 text-right text-[10px] text-[#64748B]">
+                            {s.stats?.stages || 0}E · {s.stats?.positions || 0}P · {s.stats?.lines || 0}L
+                          </td>
+                          <td className="px-3 py-2 text-right">
+                            <button onClick={() => restoreSnapshot(s)}
+                              className="text-[10px] bg-[#5F7552] hover:bg-[#3F5235] text-white px-2 py-1 rounded"
+                              data-testid={`snapshot-restore-${s.id}`}>
+                              Przywróć
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setVersionsOpen(false)} variant="outline"
+                className="border-[#2A3B59] text-[#CBD5E1]"
+                data-testid="versions-close">Zamknij</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
