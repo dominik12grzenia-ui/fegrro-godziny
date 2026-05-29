@@ -8,6 +8,7 @@ import { ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, Che
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import { BUDGET_TYPES, MONTHS_PL, SUB_TYPE_LABEL, SUB_TYPE_ORDER, fmtCellNum, fmtNum, num } from './_shared';
+import { ForecastCell } from './ForecastCell';
 
 export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, loading, year, allocMonth, setAllocMonth, allocations, equalDistribution, setEqualDistribution, onAddPosition, onEditPosition, onDeletePosition, onAddSubposition, onEditLine, onAddChildLine, onDeleteLine, onSaveLine }) => {
   // iter82: stan modalu z opisem kolumny po klikniciu w naglowek

@@ -10,7 +10,7 @@ import { api } from '../../context/AuthContext';
 import { PriceBookPicker } from './PriceBookPicker';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
-  UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput,
+  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
 } from './_shared';
 
 export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocalUpdate, onDel }) => {

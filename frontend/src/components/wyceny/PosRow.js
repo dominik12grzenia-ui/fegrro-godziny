@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
-  UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput,
+  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
 } from './_shared';
 
 export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel }) => {

@@ -134,6 +134,14 @@ export const Th = ({ children, w, tip }) => (
   </th>
 );
 
+// iter95bk: Td (wraper na <td>) zostal zgubiony przy refaktoryzacji Wyceny.js → wyceny/*. 
+// Przywrocony zgodnie z oryginalna implementacja (kolory zaktualizowane do nowej palety #3D5378).
+export const Td = ({ children, right = false, className = '' }) => (
+  <td className={`border border-[#3D5378] px-2 py-1.5 ${right ? 'text-right tabular-nums' : ''} ${className}`}>
+    {children}
+  </td>
+);
+
 export const PctInput = ({ label, testId, value, onSave }) => {
   const [v, setV] = useState(value ?? '');
   useEffect(() => { setV(value ?? ''); }, [value]);

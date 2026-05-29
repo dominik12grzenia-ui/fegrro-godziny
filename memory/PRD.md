@@ -1,3 +1,50 @@
+## Iteration 95bk (2026-05) — Bug fix: zgubione komponenty po refaktoryzacji
+
+### User report (screenshot)
+Po deploy'u Error Boundary łapie błąd: **„Can't find variable: Td"**
+
+### Root cause analysis
+Statyczny audit kapitalizowanych JSX tagów w 7 folderach split'ów wykrył **3 brakujące importy** — wszystkie konsekwencje wcześniejszych refaktoryzacji `Wyceny.js`/`Budget.js`/`Finance.js`:
+
+| Plik | Brakujący komponent | Źródło |
+|---|---|---|
+| `wyceny/PosRow.js` + `SubRow.js` | `<Td>` (wrapper na `<td>`) | Zgubiony przy split (Th był eksportowany z `_shared.js`, ale Td zapomniany) |
+| `budget/BudgetExcelTemplateView.js` | `<ForecastCell>` (inline-edit „Koszt prognozowany") | Pozostał wewnątrz `Budget.js`, nie wyciągnięty do osobnego pliku |
+| `finance/BudowyPanel.js` | `<Archive>` icon | Lucide-react import obejmował `ArchiveRestore` ale nie `Archive` |
+
+### Fix
+
+1. **Dodano `Td` do `wyceny/_shared.js`** (eksport, kolor `#3D5378` zgodnie z nową paletą iter95bi)
+2. **Importy `Td`** w `wyceny/PosRow.js` + `wyceny/SubRow.js`
+3. **Nowy plik `budget/ForecastCell.js`** — wyciągnięty z `Budget.js` (130 linii), import w `BudgetExcelTemplateView.js`
+4. **Dodano `Archive`** do importów `lucide-react` w `finance/BudowyPanel.js`
+
+### Defensywny audit (post-fix)
+Sprawdzono wszystkie 7 split folderów (budget, finance, wyceny, equipment-foreman, hours, payroll, equipment-admin) — **0 brakujących importów** po fix.
+
+### Empiryczna weryfikacja (Playwright)
+Po login admin → screenshot 4 widoków:
+- ✅ Tabela godzin (HoursTable) — pełna siatka 154 budów × pracowników
+- ✅ Wyceny — lista 3 wycen renderuje (TEST_REFAKTOR_iter95aw, iter95aj export, Test Narzut Marża)
+- ✅ Budżetowanie — pełna tabela kosztorysowa renderuje (ForecastCell pracuje)
+- ✅ Finanse — rachunek wyników wyświetla się (Archive icon pracuje w panelu Budowy)
+- **`pageerror` listener: 0 błędów**
+
+### Wniosek
+Błąd Td wystąpił tylko po wejściu w **edytor konkretnej wyceny** (gdzie renderują się PosRow/SubRow z `<Td>`). Lista wycen sama nie używała Td, więc bug był niewidoczny dotąd. Identyczna sytuacja z ForecastCell — wymaga wejścia w tabelę kosztorysową.
+
+### Lekcja
+Po dużych refaktoryzacjach (split monolitów) trzeba **systematycznie weryfikować JSX tags vs imports** — eslint nie wyłapuje błędów typu „komponent nazwany przez zmienną, której nie ma w scope" w czasie kompilacji (dopiero runtime).
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- 🟡 P3 — Virtual scrolling dla HoursTable (>30 dni × 50 pracowników)
+
+---
+
+
+
 ## Iteration 95bj (2026-05) — Performance push: N+1 fix + prefetch expand
 
 ### User request
