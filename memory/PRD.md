@@ -1,3 +1,55 @@
+## Iteration 95as (2026-02) — Zaciąganie wyceny do budżetu + auto-fill klienta przy tworzeniu
+
+### User request
+„Zaciągnij wycenę do budżetowania (automatycznie pyta o stworzenie budowy). Komórki i układ są takie same. Przy tworzeniu wyceny zaciągnij dane zamawiającego + nazwa budowy."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `WycenaCreate` rozszerzony o `client_name/nip/address` — pre-fill przy tworzeniu (oprócz PATCH)
+- `create_wycena` zapisuje pola klienta od początku
+- **Nowy endpoint** `GET /wyceny/clients` — zwraca unikalnych klientów z istniejących wycen (deduplikacja po lower-case name), sortowane alfabetycznie. Format: `{rows: [{name, nip, address}, ...]}`
+- **Nowy model** `ConvertToBudgetRequest(budowa_name, code, zamawiajacy, umowa_nr, umowa_data)`
+- **Nowy endpoint** `POST /wyceny/{id}/convert-to-budget`:
+  - Sprawdza unikalność nazwy budowy → 400 jeśli duplikat
+  - Tworzy `finance_budowy` z kaucjami/koszt_budowy_pct skopiowanymi z `default_*_pct` wyceny
+  - Auto-fill `zamawiajacy` z `client_name + NIP` jeśli `payload.zamawiajacy` jest pusty
+  - Mapowanie 1:1:
+    - `wyceny_stages` → `budget_stages` (z `stage_map`)
+    - `wyceny_positions` → `budget_positions` (z FK do nowego stage_id)
+    - `wyceny_lines` → `budget_lines` (z `position_id`, `type=materials|labor|equipment`, `category` jako label „Materiały"/"Robocizna"/"Sprzęt", `plan_netto = qty*price`)
+  - Pole `source_wycena_id` w budowie do śledzenia pochodzenia
+  - Zwraca `{ok, budowa_id, budowa_name, stats: {stages, positions, lines}}`
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- **Nowy komponent** `NewWycenaDialog`:
+  - Zastępuje inline input listy wycen pełnym dialogiem
+  - Pole „Nazwa wyceny" + sekcja „Dane zamawiającego (opcjonalnie)"
+  - Pole klienta z `<datalist>` — autouzupełnianie z `/wyceny/clients`
+  - `onPickClient(val)` auto-fillu NIP i adres gdy nazwa pasuje do listy
+- **Nowy komponent** `ConvertToBudgetDialog`:
+  - Pre-fill `budowa_name` z `wycena.name`
+  - Pre-fill `zamawiajacy` z `client_name [+ NIP: nip]`
+  - Pola opcjonalne: Kod budowy, Nr umowy, Data umowy
+  - Po sukcesie pokazuje statystyki (etapy/pozycje/linie) + instrukcję przejścia do modułu Finanse/Budżet
+- W `WycenaEditor` nowy przycisk **„Zaciągnij do budżetu"** w nagłówku (zielony) + stan `convertOpen`
+
+### Test
+- Lint JS: ✅
+- Backend curl:
+  - `/wyceny/clients` zwraca `{rows: [{name:'ACME Sp. z o.o.', nip:'1234567890', address:'...'}]}` ✅
+  - `convert-to-budget` z `budowa_name` zwraca `{ok:true, stats:{stages:1, positions:1, lines:3}}` ✅
+  - `zamawiajacy` auto-fillowany jako „ACME Sp. z o.o. NIP: 1234567890" gdy nie podany w payloadzie ✅
+  - Duplikat nazwy → 400 ✅
+- Frontend E2E smoke:
+  - Klik „Utwórz wycenę" → dialog z polami klienta widoczny ✅
+  - Wpisanie „ACME Sp. z o.o." → auto-fill NIP `1234567890` + adres `ul. Testowa 12/5 / 00-001 Warszawa` ✅
+  - Klik „Zaciągnij do budżetu" w edytorze → dialog z pre-fillowaną nazwą budowy „iter95aj export" i zamawiającym „ACME Sp. z o.o. NIP: 1234567890" ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `WycenaCreate` z polami klienta, GET `/wyceny/clients`, POST `/wyceny/{id}/convert-to-budget`
+- `/app/frontend/src/components/Wyceny.js` — `NewWycenaDialog`, `ConvertToBudgetDialog`, przycisk + stan w `WycenaEditor`
+
+---
+
 ## Iteration 95ar (2026-02) — Edytowalny szablon emaila + filtr kategorii + PDF portrait
 
 ### User request

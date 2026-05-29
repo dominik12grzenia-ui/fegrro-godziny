@@ -39,6 +39,10 @@ class WycenaCreate(BaseModel):
     # iter95s: domyslne narzuty dla subpozycji
     default_narzut_pct: Optional[float] = None
     default_marza_pct: Optional[float] = None
+    # iter95as: dane klienta pre-fill przy tworzeniu
+    client_name: Optional[str] = None
+    client_nip: Optional[str] = None
+    client_address: Optional[str] = None
 
 
 class WycenaUpdate(BaseModel):
@@ -221,6 +225,29 @@ async def list_wyceny(_user: dict = Depends(get_current_admin)):
     return {"rows": rows}
 
 
+# iter95as: lista unikalnych klientow z istniejacych wycen (do autouzupelniania)
+@router.get("/wyceny/clients")
+async def list_wycena_clients(_user: dict = Depends(get_current_admin)):
+    """Zwroc unikalnych klientow (po nazwie) z poprzednich wycen + ich dane (nip, adres)."""
+    rows = await db.wyceny.find(
+        {"client_name": {"$exists": True, "$ne": ""}},
+        {"_id": 0, "client_name": 1, "client_nip": 1, "client_address": 1, "created_at": 1},
+    ).sort("created_at", -1).to_list(length=500)
+    seen = {}
+    for r in rows:
+        cname = (r.get("client_name") or "").strip()
+        if not cname:
+            continue
+        key = cname.lower()
+        if key not in seen:
+            seen[key] = {
+                "name": cname,
+                "nip": (r.get("client_nip") or "").strip(),
+                "address": (r.get("client_address") or "").strip(),
+            }
+    return {"rows": sorted(seen.values(), key=lambda x: x["name"].lower())}
+
+
 @router.post("/wyceny")
 async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_current_admin)):
     wid = str(uuid.uuid4())
@@ -233,6 +260,10 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
         "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 2.0,
         "default_narzut_pct": payload.default_narzut_pct if payload.default_narzut_pct is not None else 0.0,
         "default_marza_pct": payload.default_marza_pct if payload.default_marza_pct is not None else 0.0,
+        # iter95as: dane klienta pre-fill
+        "client_name": payload.client_name or "",
+        "client_nip": payload.client_nip or "",
+        "client_address": payload.client_address or "",
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
     }
@@ -1786,3 +1817,154 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
     filename = f"Oferta_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
     return buf.getvalue(), filename
+
+
+# iter95as: konwersja wyceny do budowy + budzetu (kopiuje pelna strukture)
+class ConvertToBudgetRequest(BaseModel):
+    budowa_name: str
+    code: Optional[str] = None
+    zamawiajacy: Optional[str] = None
+    umowa_nr: Optional[str] = None
+    umowa_data: Optional[str] = None
+
+
+@router.post("/wyceny/{wycena_id}/convert-to-budget")
+async def convert_wycena_to_budget(
+    wycena_id: str,
+    payload: ConvertToBudgetRequest,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Stworz nowa budowe (finance_budowy) + skopiowana pelna strukture wyceny do budzetu:
+    - wyceny -> finance_budowy (z kaucjami/koszt budowy z defaults wyceny)
+    - wyceny_stages -> budget_stages
+    - wyceny_positions -> budget_positions
+    - wyceny_lines -> budget_lines (z position_id)
+    Zwraca {budowa_id, budowa_name, stats}.
+    """
+    wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
+    if not wycena:
+        raise HTTPException(404, "Wycena nie istnieje")
+
+    # 1. Sprawdz czy budowa o tej nazwie juz istnieje
+    exists = await db.finance_budowy.find_one({"name": payload.budowa_name}, {"_id": 0, "id": 1})
+    if exists:
+        raise HTTPException(400, f"Budowa o nazwie '{payload.budowa_name}' już istnieje")
+
+    # 2. Stworz budowe
+    budowa_id = str(uuid.uuid4())
+    zamawiajacy = (payload.zamawiajacy or "").strip()
+    # Pre-fill zamawiajacy z client_name wyceny jezeli puste
+    if not zamawiajacy:
+        cname = (wycena.get("client_name") or "").strip()
+        cnip = (wycena.get("client_nip") or "").strip()
+        if cname:
+            zamawiajacy = f"{cname}" + (f" NIP: {cnip}" if cnip else "")
+    budowa_doc = {
+        "id": budowa_id,
+        "name": payload.budowa_name,
+        "code": payload.code or "",
+        "show_in_hours": True,
+        "has_budget": True,
+        "is_gir": False,
+        "is_dw": False,
+        "kaucja_gir_pct": float(wycena.get("default_gir_pct") or 2.0),
+        "kaucja_dw_pct": float(wycena.get("default_dw_pct") or 2.0),
+        "koszt_budowy_pct": float(wycena.get("default_koszt_pct") or 0.0),
+        "notes": wycena.get("notes") or "",
+        "zamawiajacy": zamawiajacy,
+        "umowa_nr": payload.umowa_nr or "",
+        "umowa_data": payload.umowa_data or "",
+        "wykonawca": "FEGRRO SP. Z O.O. NIP: 589-206-61-74",
+        "archived": False,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_by": current_user["sub"],
+        # link wsteczny do wyceny zrodlowej
+        "source_wycena_id": wycena_id,
+    }
+    await db.finance_budowy.insert_one(budowa_doc)
+
+    # 3. Skopiuj etapy
+    src_stages = await db.wyceny_stages.find(
+        {"wycena_id": wycena_id}, {"_id": 0}
+    ).sort("order", 1).to_list(length=None)
+    stage_map = {}  # old_stage_id -> new_stage_id
+    for st in src_stages:
+        new_sid = str(uuid.uuid4())
+        stage_map[st["id"]] = new_sid
+        await db.budget_stages.insert_one({
+            "id": new_sid,
+            "budowa_id": budowa_id,
+            "name": st.get("name") or "Etap",
+            "start_date": None,
+            "end_date": None,
+            "order": int(st.get("order") or 0),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+
+    # 4. Skopiuj pozycje glowne + ich subpozycje (lines)
+    src_positions = await db.wyceny_positions.find(
+        {"wycena_id": wycena_id}, {"_id": 0}
+    ).sort("order", 1).to_list(length=None)
+    pos_count = 0
+    line_count = 0
+    for p in src_positions:
+        new_pid = str(uuid.uuid4())
+        new_sid = stage_map.get(p.get("stage_id"))
+        if not new_sid:
+            continue  # bez etapu nie da sie utworzyc pozycji
+        await db.budget_positions.insert_one({
+            "id": new_pid,
+            "budowa_id": budowa_id,
+            "stage_id": new_sid,
+            "name": p.get("name") or "Pozycja",
+            "notes": p.get("notes") or "",
+            "order": int(p.get("order") or 0),
+            "include_in_protocol": True,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        pos_count += 1
+        # subpozycje (lines) tej pozycji
+        src_lines = await db.wyceny_lines.find(
+            {"wycena_id": wycena_id, "position_id": p["id"]}, {"_id": 0}
+        ).sort("order", 1).to_list(length=None)
+        # Mapowanie wyceny.category (materials/labor/equipment) -> budget.type
+        # Plus wyznaczenie czytelnej kategorii (w budgecie to label, nie enum)
+        type_to_cat = {"materials": "Materiały", "labor": "Robocizna", "equipment": "Sprzęt"}
+        for ln in src_lines:
+            qty = float(ln.get("quantity") or 0)
+            price = float(ln.get("unit_price_netto") or 0)
+            t = ln.get("category") or "materials"
+            await db.budget_lines.insert_one({
+                "id": str(uuid.uuid4()),
+                "budowa_id": budowa_id,
+                "category": type_to_cat.get(t, "Materiały"),
+                "name": ln.get("name") or "—",
+                "type": t,
+                "unit": ln.get("unit") or "",
+                "quantity": qty,
+                "unit_price_netto": price,
+                "plan_netto": round(qty * price, 2),
+                "kaucja_gir_pct": None,  # dziedziczy z budowa
+                "kaucja_dw_pct": None,
+                "stage_id": new_sid,
+                "position_id": new_pid,
+                "parent_id": None,
+                "is_income": False,
+                "forecast_cost": None,
+                "forecast_note": None,
+                "notes": ln.get("notes") or "",
+                "order": int(ln.get("order") or 0),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            line_count += 1
+
+    return {
+        "ok": True,
+        "budowa_id": budowa_id,
+        "budowa_name": payload.budowa_name,
+        "stats": {
+            "stages": len(src_stages),
+            "positions": pos_count,
+            "lines": line_count,
+        },
+    }
