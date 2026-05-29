@@ -1,3 +1,44 @@
+## Iteration 95aw (2026-05) — Refaktor Wyceny.js (P3) — rozbicie na podkomponenty
+
+### Cel
+Wyceny.js (3744 linii) stał się trudny do utrzymania i przekroczył limity kontekstu. Rozbity na 7 plików w `/app/frontend/src/components/wyceny/` z czystym podziałem odpowiedzialności.
+
+### Struktura po refaktorze
+```
+/app/frontend/src/components/
+├── Wyceny.js                         (2412 linii — WycenyList + WycenaEditor + pomocnicze)
+└── wyceny/
+    ├── _shared.js                    (152) — fmtPLN, TYPE_*, UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput
+    ├── NewWycenaDialog.js            (157) — Nowa wycena z auto-fill GUS
+    ├── ExportWycenaDialog.js         (161) — Eksport PDF/XLSX (3 tryby: positions/full/client)
+    ├── ConvertToBudgetDialog.js      (129) — Zaciąganie wyceny do budowy (Finanse)
+    ├── SuppliersManagerDialog.js     (202) — CRUD hurtowni
+    ├── BomDialog.js                  (435) — Zestawienie materiałów + wysyłka emaila + historia
+    └── NegotiationPanel.js           (140) — Tryb negocjacji (props-driven)
+```
+
+**Redukcja `Wyceny.js`: 3744 → 2412 linii (-35%, -1332 linie wydzielone).**
+
+### Zmiany
+- Wydzielono 5 dialogów (Dialog komponenty były całkowicie self-contained → bezstratny ekstrakt)
+- `NegotiationPanel` jako props-driven sub-component (przyjmuje `data, neg, setNeg, setNegotiationOn, negHasChanges, grandTotal, grandTotalOriginal, wskazniki, applyNegotiation` od `WycenaEditor`)
+- Helpery (`fmtPLN`, `TYPE_LABEL`, `TYPE_COLOR`, `SUB_TYPE_LABEL`, `SUB_TYPE_COLOR`, `UNITS`, `evalFormula`, `computeSubRow`, `computePosRow`, `Th`, `PctInput`) w `_shared.js` — re-importowane do `Wyceny.js`
+- Zachowano wszystkie `data-testid` 1:1 (testing continuity)
+
+### Test
+- Lint JS: ✅ czysty (Wyceny.js + cały folder wyceny/)
+- Compile Webpack: ✅ successful
+- Testing agent (iteration_38.json): **9/10 testów frontendu PASS**, 1 niekonkluzywny (timing Suppliers — kod OK, data-testid obecny)
+- Verified flows: lista wycen, NewWycenaDialog + GUS auto-fill (MINISTERSTWO FINANSÓW), ExportDialog, ConvertToBudget, BomDialog, NegotiationPanel z live preview (1.5%, +0.3%, zł/m² delta), Stage bulk chipy (flex-wrap), Client GUS button w edytorze
+
+### Backlog (po refaktorze)
+- 🟡 Dalej rozważyć rozbicie `Wyceny.js` (2412 linii nadal > 700-linijkowego idealnego limitu) — można wydzielić `StageRow`, `PositionRow`, `SnapshotsPanel`
+- 🟡 P2 — Wykres „Top 3 kosztów" w module Finanse
+- 🟡 P3 — Migracja Google Maps Marker → AdvancedMarkerElement
+
+---
+
+
 ## Iteration 95aw (2026-05) — GUS integracja + logo w eksportach + fix bugów wizualnych
 
 ### User request
