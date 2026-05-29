@@ -1,3 +1,29 @@
+## Iteration 95ba (2026-05) — Kompaktowy wiersz pozycji głównej na mobile
+
+### User report
+„Pozycje główne wiersze są za wysokie — tabela robi się nieczytelna. Zmniejsz tak, by była niższa."
+
+### Root cause
+W `PosRow` (Wyceny.js linia 1056) kolumna „Pozycja Główna" miała:
+- Tekst „Pozycja Główna" (11px) ZAWSZE widoczny
+- 4 chipy PC/PC↓/PC↑/PUM w `flex flex-wrap gap-1` z text-9px + px-1.5 py-0.5
+
+Na mobile (kolumna ~70px) chipy nie mieszczą się w jednej linii → `flex-wrap` rozkłada je na 4 osobne wiersze → wiersz tabeli rośnie do ~8 linii.
+
+### Fix
+- Tekst „Pozycja Główna" → `hidden sm:inline` (widoczny tylko ≥640px)
+- Układ chipów: `grid grid-cols-2 gap-0.5 max-w-[64px]` — zawsze 2×2 niezależnie od szerokości
+- Chipy: text-8px (z 9px), px-1 py-px (z 1.5/0.5), dodane `leading-tight`
+
+### Efekt
+Wysokość komórki kolumny „Pozycja Główna" na mobile: **~8 linii → ~2 linie** (~75% redukcji). Wiersz tabeli znacznie kompaktowy bez utraty informacji (wszystkie 4 chipy nadal klikalne).
+
+### Test
+Lint czysty + webpack compiled. Wizualnie zmiana czysto CSS, ryzyko regresji znikome.
+
+---
+
+
 ## Iteration 95az (2026-05) — Fix horyzontalnego scrolla w edytorze wyceny (mobile + laptop)
 
 ### User report (mobile screenshot)

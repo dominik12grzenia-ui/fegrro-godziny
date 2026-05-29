@@ -1053,14 +1053,14 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
         </button>
         <span className="tabular-nums">{code}</span>
       </Td>
-      <Td><span className="text-[#D4AF37] text-[11px]">Pozycja Główna</span>
-        {/* iter95am/an: chipy PC/PC↓/PC↑/PUM - kliknij aby wliczyc budzet pozycji do wskaznika zl/m2 */}
-        <div className="flex gap-1 mt-1 flex-wrap" data-testid={`pos-divisor-${position.id}`}>
+      <Td><span className="text-[#D4AF37] text-[10px] hidden sm:inline">Pozycja Główna</span>
+        {/* iter95am/an + iter95ba: chipy PC/PC↓/PC↑/PUM w kompaktowym grid 2×2 — niska wysokość wiersza na mobile */}
+        <div className="grid grid-cols-2 gap-0.5 sm:mt-1 max-w-[64px]" data-testid={`pos-divisor-${position.id}`}>
           <button
             type="button"
             onClick={() => save({ include_in_pc: !edit.include_in_pc })}
             title={edit.include_in_pc ? 'Usuń z sumy PC' : 'Wlicz do wskaźnika PC (zł/m² PC)'}
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+            className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc
                 ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
@@ -1071,7 +1071,7 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
             type="button"
             onClick={() => save({ include_in_pc_podziemie: !edit.include_in_pc_podziemie })}
             title={edit.include_in_pc_podziemie ? 'Usuń z sumy PC podziemie' : 'Wlicz do wskaźnika PC podziemie (zł/m²)'}
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+            className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc_podziemie
                 ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
@@ -1082,7 +1082,7 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
             type="button"
             onClick={() => save({ include_in_pc_nadziemie: !edit.include_in_pc_nadziemie })}
             title={edit.include_in_pc_nadziemie ? 'Usuń z sumy PC nadziemie' : 'Wlicz do wskaźnika PC nadziemie (zł/m²)'}
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+            className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc_nadziemie
                 ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
@@ -1093,7 +1093,7 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
             type="button"
             onClick={() => save({ include_in_pum: !edit.include_in_pum })}
             title={edit.include_in_pum ? 'Usuń z sumy PUM' : 'Wlicz do wskaźnika PUM (zł/m² PUM)'}
-            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+            className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pum
                 ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
