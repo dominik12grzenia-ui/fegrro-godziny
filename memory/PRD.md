@@ -1,3 +1,41 @@
+## Iteration 95aq (2026-02) — Pełny CRUD hurtowni + numer telefonu
+
+### User request
+„Edycja hurtowni — dodać, usunąć, zmienić dane + numer telefonu."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `SupplierCreate` i `SupplierUpdate` rozszerzone o `phone: Optional[str]`
+- `create_supplier`: `doc["phone"] = payload.phone or ""`
+- `update_supplier`: zmienione z `filter v is not None` na `exclude_unset` — pozwala czyścić pola wpisując pusty string
+- Endpointy GET/POST/PATCH/DELETE już istniały — przetestowane curl-em (wszystkie 200)
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- **Nowy komponent** `SuppliersManagerDialog`:
+  - Tabela 5 kolumn (Nazwa | Email | Telefon | Branże | Akcje)
+  - Inline-edit: klik ikony `Pencil` zamienia wiersz na inputy, klik `Pencil` w innym wierszu zablokowany (tylko 1 edycja naraz)
+  - Inline-add: przycisk **„+ Dodaj hurtownię"** w stopce — wstawia wiersz z pustymi inputami na górze tabeli
+  - Akcje per wiersz: edytuj (`Pencil`, gold) / usuń (`Trash2`, red) z `window.confirm`
+  - Walidacja: wymagana nazwa + email (toast error)
+  - Reload listy po każdej operacji
+- W `WycenaEditor` dodany stan `suppliersOpen` + przycisk **„Hurtownie"** w nagłówku (obok „Zestawienie materiałów")
+- W `BomDialog` select hurtowni teraz pokazuje `phone` z ☎ symbolem: `{name} ({email}) · ☎ {phone} · {branze}`
+
+### Test
+- Lint JS: ✅
+- Backend curl: CREATE z telefonem (zwraca id), LIST pokazuje phone, PATCH (200) zmienia phone i branze, DELETE 200, verify deleted ✅
+- Frontend E2E smoke:
+  - Dialog otwiera się z przycisku ✓
+  - Tabela renderuje 1 istniejącą hurtownię ✓
+  - Dodanie „UI Test Hurt" przez form → liczba wierszy +1 ✓
+  - Edycja: klik Pencil otwiera tryb edycji, Anuluj wraca ✓
+  - Usunięcie z `window.confirm` (auto-accept) → toast „Usunięto" widoczny, hurtownia zniknęła ✓
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `phone` w modelach, exclude_unset w PATCH
+- `/app/frontend/src/components/Wyceny.js` — `SuppliersManagerDialog`, przycisk + stan w `WycenaEditor`, telefon w select hurtowni
+
+---
+
 ## Iteration 95ap (2026-02) — Aktywny Excel dla klienta + opcje załączania PC/PUM
 
 ### User request

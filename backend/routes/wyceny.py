@@ -808,6 +808,7 @@ def _generate_bom_pdf_bytes(data: dict):
 class SupplierCreate(BaseModel):
     name: str
     email: EmailStr
+    phone: Optional[str] = None  # iter95aq: numer telefonu
     branze: Optional[str] = None  # branze (np. "izolacje, betony")
     notes: Optional[str] = None
 
@@ -815,6 +816,7 @@ class SupplierCreate(BaseModel):
 class SupplierUpdate(BaseModel):
     name: Optional[str] = None
     email: Optional[EmailStr] = None
+    phone: Optional[str] = None
     branze: Optional[str] = None
     notes: Optional[str] = None
 
@@ -830,6 +832,7 @@ async def create_supplier(payload: SupplierCreate, _user: dict = Depends(get_cur
     sid = str(uuid.uuid4())
     doc = {
         "id": sid, "name": payload.name, "email": payload.email,
+        "phone": payload.phone or "",
         "branze": payload.branze or "", "notes": payload.notes or "",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -839,7 +842,7 @@ async def create_supplier(payload: SupplierCreate, _user: dict = Depends(get_cur
 
 @router.patch("/wyceny/suppliers/{sid}")
 async def update_supplier(sid: str, payload: SupplierUpdate, _user: dict = Depends(get_current_admin)):
-    update = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+    update = payload.dict(exclude_unset=True)
     if not update:
         return {"ok": True}
     r = await db.wyceny_suppliers.update_one({"id": sid}, {"$set": update})
