@@ -56,6 +56,9 @@ class WycenaUpdate(BaseModel):
     # iter95am: powierzchnie budynku (PC = pow. calkowita, PUM = pow. uzytkowa mieszkalna)
     pc_m2: Optional[float] = None
     pum_m2: Optional[float] = None
+    # iter95an: podzial PC na podziemie/nadziemie
+    pc_podziemie_m2: Optional[float] = None
+    pc_nadziemie_m2: Optional[float] = None
 
 
 class StageCreate(BaseModel):
@@ -92,6 +95,9 @@ class PositionUpdate(BaseModel):
     # iter95am: flagi wliczania budzetu pozycji do wskaznika PC / PUM (zl/m2)
     include_in_pc: Optional[bool] = None
     include_in_pum: Optional[bool] = None
+    # iter95an: podzial PC na podziemie / nadziemie
+    include_in_pc_podziemie: Optional[bool] = None
+    include_in_pc_nadziemie: Optional[bool] = None
 
 
 class LineCreate(BaseModel):

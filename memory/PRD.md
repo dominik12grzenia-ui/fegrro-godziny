@@ -1,3 +1,31 @@
+## Iteration 95an (2026-02) — Podział PC na podziemie/nadziemie
+
+### User request
+„Zrób mi możliwość podziału PC na podziemie i nadziemie."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `WycenaUpdate`: `pc_podziemie_m2`, `pc_nadziemie_m2` (Optional[float]) — niezależne od głównego `pc_m2`
+- `PositionUpdate`: `include_in_pc_podziemie`, `include_in_pc_nadziemie` (Optional[bool]) — niezależne flagi
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- Panel powierzchni rozszerzony o 2 nowe inputy: `surface-pc-podziemie`, `surface-pc-nadziemie` z etykietami **PC↓ podziemie** / **PC↑ nadziemie**
+- Memo `wskazniki` agreguje 4 sumy (sumPC, sumPCpod, sumPCnad, sumPUM) i zwraca 4 ratios
+- Grid 4 kart wskaźników (`grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`): WSKAŹNIK PC, PC↓ PODZIEMIE, PC↑ NADZIEMIE, WSKAŹNIK PUM
+- W `PosRow` 4 chipy toggle: `pos-pc-*`, `pos-pc-pod-*`, `pos-pc-nad-*`, `pos-pum-*` (flex-wrap, każdy 9px font)
+- Hint w panelu zaktualizowany: „chipy PC / PC↓ / PC↑ / PUM"
+
+### Test
+- Lint JS: ✅
+- Backend curl: PATCH `{pc_podziemie_m2:50, pc_nadziemie_m2:100}` zwraca `pod=50.0 nad=100.0` ✅
+- PATCH pozycji z `include_in_pc_podziemie/nadziemie=true` — verify potwierdza wszystkie 4 flagi True ✅
+- E2E smoke: 4 inputy widoczne z poprawnymi wartościami, 4 karty wskaźników wyliczone (196,15 / 590,42 / 295,21 / 268,37 zł/m²), 4 chipy klikalne ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `WycenaUpdate` + `PositionUpdate` (2 nowe pola każdy)
+- `/app/frontend/src/components/Wyceny.js` — panel z 4 inputami, 4 wskaźniki w gridzie, 4 chipy w `PosRow`
+
+---
+
 ## Iteration 95am (2026-02) — Powierzchnie PC/PUM + wskaźniki zł/m²
 
 ### User request

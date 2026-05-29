@@ -862,20 +862,27 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
   }, [data, defaults]);
 
-  // iter95am: wskazniki kosztu na m2 PC/PUM
+  // iter95am/an: wskazniki kosztu na m2 PC/PUM + podzial PC na podziemie/nadziemie
   const wskazniki = useMemo(() => {
     const pc_m2 = parseFloat(data?.wycena?.pc_m2) || 0;
     const pum_m2 = parseFloat(data?.wycena?.pum_m2) || 0;
-    let sumPC = 0, sumPUM = 0;
+    const pc_pod_m2 = parseFloat(data?.wycena?.pc_podziemie_m2) || 0;
+    const pc_nad_m2 = parseFloat(data?.wycena?.pc_nadziemie_m2) || 0;
+    let sumPC = 0, sumPUM = 0, sumPCpod = 0, sumPCnad = 0;
     (data?.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
       const r = computePosRow(p, defaults);
       if (p.include_in_pc) sumPC += r.budzet;
       if (p.include_in_pum) sumPUM += r.budzet;
+      if (p.include_in_pc_podziemie) sumPCpod += r.budzet;
+      if (p.include_in_pc_nadziemie) sumPCnad += r.budzet;
     }));
     return {
-      pc_m2, pum_m2, sumPC, sumPUM,
+      pc_m2, pum_m2, pc_pod_m2, pc_nad_m2,
+      sumPC, sumPUM, sumPCpod, sumPCnad,
       pcRatio: pc_m2 > 0 ? sumPC / pc_m2 : null,
       pumRatio: pum_m2 > 0 ? sumPUM / pum_m2 : null,
+      pcPodRatio: pc_pod_m2 > 0 ? sumPCpod / pc_pod_m2 : null,
+      pcNadRatio: pc_nad_m2 > 0 ? sumPCnad / pc_nad_m2 : null,
     };
   }, [data, defaults]);
 
@@ -987,6 +994,26 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           <span className="text-[#94A3B8]">m²</span>
         </label>
         <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+          <span title="PC Podziemie — powierzchnia kondygnacji podziemnych" className="font-semibold text-[#9DBC85]">PC↓ <span className="text-[9px] text-[#94A3B8] font-normal">podziemie</span></span>
+          <input type="number" step="0.01" min="0" defaultValue={w.pc_podziemie_m2 ?? ''}
+            onBlur={(e) => saveDefault('pc_podziemie_m2', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            placeholder="—"
+            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            data-testid="surface-pc-podziemie" />
+          <span className="text-[#94A3B8]">m²</span>
+        </label>
+        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+          <span title="PC Nadziemie — powierzchnia kondygnacji nadziemnych" className="font-semibold text-[#9DBC85]">PC↑ <span className="text-[9px] text-[#94A3B8] font-normal">nadziemie</span></span>
+          <input type="number" step="0.01" min="0" defaultValue={w.pc_nadziemie_m2 ?? ''}
+            onBlur={(e) => saveDefault('pc_nadziemie_m2', e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+            placeholder="—"
+            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            data-testid="surface-pc-nadziemie" />
+          <span className="text-[#94A3B8]">m²</span>
+        </label>
+        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
           <span title="Powierzchnia Użytkowa Mieszkalna" className="font-semibold text-[#9DBC85]">PUM</span>
           <input type="number" step="0.01" min="0" defaultValue={w.pum_m2 ?? ''}
             onBlur={(e) => saveDefault('pum_m2', e.target.value)}
@@ -997,14 +1024,14 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           <span className="text-[#94A3B8]">m²</span>
         </label>
         <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
-          Zaznacz w pozycjach głównych chipy <b className="text-[#9DBC85]">PC</b> / <b className="text-[#9DBC85]">PUM</b> aby je wliczyć do wskaźników poniżej
+          Zaznacz w pozycjach głównych chipy <b className="text-[#9DBC85]">PC</b> / <b className="text-[#9DBC85]">PC↓</b> / <b className="text-[#9DBC85]">PC↑</b> / <b className="text-[#9DBC85]">PUM</b> aby je wliczyć do wskaźników
         </div>
       </div>
 
-      {(wskazniki.pcRatio != null || wskazniki.pumRatio != null) && (
-        <div className="flex items-stretch gap-3 flex-wrap" data-testid="wskazniki-bar">
+      {(wskazniki.pcRatio != null || wskazniki.pumRatio != null || wskazniki.pcPodRatio != null || wskazniki.pcNadRatio != null) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" data-testid="wskazniki-bar">
           {wskazniki.pcRatio != null && (
-            <div className="flex-1 min-w-[220px] border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+            <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pc">
               <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PC (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
@@ -1015,8 +1042,32 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               </div>
             </div>
           )}
+          {wskazniki.pcPodRatio != null && (
+            <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+                 data-testid="wskaznik-pc-podziemie">
+              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">PC↓ Podziemie (zł/m²)</div>
+              <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
+                {fmtPLN(wskazniki.pcPodRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+              </div>
+              <div className="text-[10px] text-[#64748B] tabular-nums">
+                {fmtPLN(wskazniki.sumPCpod)} zł ÷ {wskazniki.pc_pod_m2.toLocaleString('pl-PL')} m²
+              </div>
+            </div>
+          )}
+          {wskazniki.pcNadRatio != null && (
+            <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+                 data-testid="wskaznik-pc-nadziemie">
+              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">PC↑ Nadziemie (zł/m²)</div>
+              <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
+                {fmtPLN(wskazniki.pcNadRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+              </div>
+              <div className="text-[10px] text-[#64748B] tabular-nums">
+                {fmtPLN(wskazniki.sumPCnad)} zł ÷ {wskazniki.pc_nad_m2.toLocaleString('pl-PL')} m²
+              </div>
+            </div>
+          )}
           {wskazniki.pumRatio != null && (
-            <div className="flex-1 min-w-[220px] border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
+            <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pum">
               <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PUM (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
@@ -1234,8 +1285,8 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
         <span className="tabular-nums">{code}</span>
       </Td>
       <Td><span className="text-[#D4AF37] text-[11px]">Pozycja Główna</span>
-        {/* iter95am: chipy PC/PUM - kliknij aby wliczyc budzet pozycji do wskaznika zl/m2 */}
-        <div className="flex gap-1 mt-1" data-testid={`pos-divisor-${position.id}`}>
+        {/* iter95am/an: chipy PC/PC↓/PC↑/PUM - kliknij aby wliczyc budzet pozycji do wskaznika zl/m2 */}
+        <div className="flex gap-1 mt-1 flex-wrap" data-testid={`pos-divisor-${position.id}`}>
           <button
             type="button"
             onClick={() => save({ include_in_pc: !edit.include_in_pc })}
@@ -1247,6 +1298,28 @@ const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel
             }`}
             data-testid={`pos-pc-${position.id}`}
           >PC</button>
+          <button
+            type="button"
+            onClick={() => save({ include_in_pc_podziemie: !edit.include_in_pc_podziemie })}
+            title={edit.include_in_pc_podziemie ? 'Usuń z sumy PC podziemie' : 'Wlicz do wskaźnika PC podziemie (zł/m²)'}
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+              edit.include_in_pc_podziemie
+                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+            }`}
+            data-testid={`pos-pc-pod-${position.id}`}
+          >PC↓</button>
+          <button
+            type="button"
+            onClick={() => save({ include_in_pc_nadziemie: !edit.include_in_pc_nadziemie })}
+            title={edit.include_in_pc_nadziemie ? 'Usuń z sumy PC nadziemie' : 'Wlicz do wskaźnika PC nadziemie (zł/m²)'}
+            className={`text-[9px] font-bold px-1.5 py-0.5 rounded transition border ${
+              edit.include_in_pc_nadziemie
+                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+            }`}
+            data-testid={`pos-pc-nad-${position.id}`}
+          >PC↑</button>
           <button
             type="button"
             onClick={() => save({ include_in_pum: !edit.include_in_pum })}
