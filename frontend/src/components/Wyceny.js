@@ -711,6 +711,10 @@ const BomDialog = ({ wycenaId, onClose }) => {
   // iter95ak: historia wyslanych zapytan
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
+  // iter95ar: filtr kategorii materialow (z bom row.sub_category)
+  const [selectedCats, setSelectedCats] = useState(new Set());
+  // iter95ar: zapis szablonu emaila
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   const reloadHistory = useCallback(() => {
     api.get(`/wyceny/${wycenaId}/bom/history`)
@@ -719,18 +723,30 @@ const BomDialog = ({ wycenaId, onClose }) => {
   }, [wycenaId]);
 
   useEffect(() => {
-    api.get(`/wyceny/${wycenaId}/bom`)
-      .then((r) => {
-        setBom(r.data);
-        // pre-fill subject + body z szablonu
-        setSubject(`Zapytanie ofertowe — ${r.data?.wycena_name || ''}`);
-        setBody(
+    // iter95ar: rownolegle pobierz BOM + wycene (template subject/body)
+    Promise.all([
+      api.get(`/wyceny/${wycenaId}/bom`),
+      api.get(`/wyceny/${wycenaId}/template`),
+    ])
+      .then(([rBom, rW]) => {
+        setBom(rBom.data);
+        const wName = rBom.data?.wycena_name || '';
+        const wyc = rW.data?.wycena || {};
+        // iter95ar: szablon zapisany w bazie -> pre-fill; inaczej domyslny
+        setSubject(wyc.bom_email_subject || `Zapytanie ofertowe — ${wName}`);
+        setBody(wyc.bom_email_body || (
           `Dzień dobry,\n\n` +
-          `W załączeniu przesyłam zestawienie materiałów do wyceny: „${r.data?.wycena_name || '—'}".\n` +
-          `Proszę o przygotowanie oferty cenowej (cena netto za opakowanie, termin dostawy).\n\n` +
+          `W załączeniu przesyłam zestawienie materiałów do wyceny: „${wName || '—'}".\n` +
+          `Proszę o przygotowanie oferty cenowej (cena netto za opakowanie).\n\n` +
           `Termin oferty: 7 dni.\n\n` +
           `Pozdrawiam,\nFeGrro`
-        );
+        ));
+        // iter95ar: domyslnie zaznacz wszystkie sub_kategorie obecne w BOM
+        const allCats = new Set();
+        (rBom.data?.rows || []).forEach((r) => {
+          allCats.add(r.sub_category || '__brak__');
+        });
+        setSelectedCats(allCats);
       })
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));
@@ -769,8 +785,57 @@ const BomDialog = ({ wycenaId, onClose }) => {
     }
   };
 
+  // iter95ar: lista dostepnych sub_kategorii z BOM (dla checkboxow)
+  const availableCats = useMemo(() => {
+    const m = new Map();
+    (bom?.rows || []).forEach((r) => {
+      const c = r.sub_category || '__brak__';
+      m.set(c, (m.get(c) || 0) + 1);
+    });
+    return Array.from(m.entries()); // [['izolacje', 3], ['__brak__', 1]]
+  }, [bom]);
+
+  const toggleCat = (c) => {
+    setSelectedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(c)) next.delete(c); else next.add(c);
+      return next;
+    });
+  };
+
+  // iter95ar: czy wszystkie kategorie sa zaznaczone (nie wysylamy parametru subcategories)
+  const allCatsSelected = availableCats.length > 0 && availableCats.every(([c]) => selectedCats.has(c));
+
+  // zwroc liste sub_kategorii do filtrowania (bez "__brak__" - tych nie mozna wyslac z filtrem)
+  const subcatsForFilter = () => {
+    if (allCatsSelected) return null;
+    const arr = Array.from(selectedCats).filter((c) => c !== '__brak__');
+    return arr.length ? arr : null;
+  };
+
+  // iter95ar: liczba rows po filtrze (do podgladu w UI)
+  const filteredRowsCount = useMemo(() => {
+    if (allCatsSelected) return bom?.rows?.length || 0;
+    return (bom?.rows || []).filter((r) => selectedCats.has(r.sub_category || '__brak__')).length;
+  }, [bom, selectedCats, allCatsSelected]);
+
+  // iter95ar: zapis szablonu emaila do wyceny
+  const saveTemplate = async () => {
+    setSavingTemplate(true);
+    try {
+      await api.patch(`/wyceny/${wycenaId}`, {
+        bom_email_subject: subject,
+        bom_email_body: body,
+      });
+      toast.success('Szablon zapisany dla tej wyceny');
+    } catch (e) {
+      toast.error('Błąd zapisu: ' + (e.response?.data?.detail || e.message));
+    } finally { setSavingTemplate(false); }
+  };
+
   const sendEmail = async () => {
     if (!toEmail.trim()) { toast.error('Podaj email odbiorcy'); return; }
+    if (filteredRowsCount === 0) { toast.error('Brak materiałów po filtrze kategorii'); return; }
     setSending(true);
     try {
       const r = await api.post(`/wyceny/${wycenaId}/bom/send`, {
@@ -778,6 +843,7 @@ const BomDialog = ({ wycenaId, onClose }) => {
         subject: subject.trim() || undefined,
         body: body.trim() || undefined,
         supplier_id: supplierId || undefined,
+        subcategories: subcatsForFilter(),
       });
       toast.success(`Wysłano! (ID: ${r.data.message_id?.slice(0, 8) || 'ok'}…)`);
       setShowSendForm(false);
@@ -790,7 +856,11 @@ const BomDialog = ({ wycenaId, onClose }) => {
   const download = async (format) => {
     setDownloading(true);
     try {
-      const r = await api.get(`/wyceny/${wycenaId}/bom.${format}`, { responseType: 'blob' });
+      const subs = subcatsForFilter();
+      const apiUrl = subs
+        ? `/wyceny/${wycenaId}/bom.${format}?subcategories=${encodeURIComponent(subs.join(','))}`
+        : `/wyceny/${wycenaId}/bom.${format}`;
+      const r = await api.get(apiUrl, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -819,6 +889,53 @@ const BomDialog = ({ wycenaId, onClose }) => {
             Zagregowane materiały z całej wyceny. Liczba opakowań <b className="text-[#D4AF37]">zaokrąglona w górę</b> do pełnych palet / wiaderek / rolek.
           </div>
         </DialogHeader>
+
+        {/* iter95ar: panel kategorii do filtrowania zapytan */}
+        {availableCats.length > 1 && (
+          <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-2 space-y-1.5"
+               data-testid="bom-cat-filter">
+            <div className="text-[10px] uppercase text-[#9DBC85] font-semibold flex items-center gap-2">
+              📦 Kategorie materiałów (zaznacz co wysłać)
+              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">
+                Filtr aktywny: <b className="text-[#D4AF37]">{filteredRowsCount}/{bom?.rows?.length || 0}</b> pozycji
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {availableCats.map(([cat, count]) => {
+                const on = selectedCats.has(cat);
+                const label = cat === '__brak__' ? '— bez kategorii —' : cat;
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => toggleCat(cat)}
+                    className={`text-[10px] font-semibold px-2 py-1 rounded border transition ${
+                      on
+                        ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                        : 'border-[#5F7552]/60 text-[#94A3B8] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+                    }`}
+                    data-testid={`bom-cat-${cat.replace(/[^a-zA-Z0-9]/g, '_')}`}
+                  >
+                    {label} <span className="opacity-70 font-normal">({count})</span>
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                onClick={() => setSelectedCats(new Set(availableCats.map(([c]) => c)))}
+                className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                data-testid="bom-cat-all"
+              >Wszystkie</button>
+              <button
+                type="button"
+                onClick={() => setSelectedCats(new Set())}
+                className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                data-testid="bom-cat-none"
+              >Żadna</button>
+            </div>
+          </div>
+        )}
+
         <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
           {loading ? (
             <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
@@ -998,11 +1115,19 @@ const BomDialog = ({ wycenaId, onClose }) => {
               <Mail className="h-4 w-4 mr-1" /> Wyślij do hurtowni
             </Button>
           ) : (
-            <Button onClick={sendEmail} disabled={sending || !toEmail || !bom?.rows?.length}
-              className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
-              data-testid="bom-send-btn">
-              <Send className="h-4 w-4 mr-1" /> {sending ? 'Wysyłam...' : 'Wyślij teraz'}
-            </Button>
+            <>
+              <Button onClick={saveTemplate} disabled={savingTemplate}
+                variant="outline" className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10"
+                title="Zapisz aktualny temat i treść jako szablon emaila dla tej wyceny"
+                data-testid="bom-save-template-btn">
+                {savingTemplate ? 'Zapisuję…' : '💾 Zapisz szablon'}
+              </Button>
+              <Button onClick={sendEmail} disabled={sending || !toEmail || filteredRowsCount === 0}
+                className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+                data-testid="bom-send-btn">
+                <Send className="h-4 w-4 mr-1" /> {sending ? 'Wysyłam...' : `Wyślij teraz (${filteredRowsCount} poz.)`}
+              </Button>
+            </>
           )}
         </DialogFooter>
       </DialogContent>

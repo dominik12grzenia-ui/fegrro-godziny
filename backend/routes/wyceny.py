@@ -59,6 +59,9 @@ class WycenaUpdate(BaseModel):
     # iter95an: podzial PC na podziemie/nadziemie
     pc_podziemie_m2: Optional[float] = None
     pc_nadziemie_m2: Optional[float] = None
+    # iter95ar: zapisany szablon emaila zapytania ofertowego (per wycena)
+    bom_email_subject: Optional[str] = None
+    bom_email_body: Optional[str] = None
 
 
 class StageCreate(BaseModel):
@@ -579,6 +582,8 @@ async def _build_bom(wycena_id: str):
                 "pkg_unit": ce.get("pkg_unit") or "",
                 "zapotrzebowanie": ce.get("zapotrzebowanie"),
                 "zap_unit": ce.get("zap_unit") or "",
+                # iter95ar: sub_category z cennika do filtrowania zapytan (izolacje/stal/...)
+                "sub_category": ce.get("sub_category") or "",
             }
         grouped[key]["quantity"] += qty
         grouped[key]["occurrences"] += 1
@@ -613,6 +618,7 @@ async def _build_bom(wycena_id: str):
             "pkg_unit": pkg_unit,
             "qty_in_pkg_unit": round(qty_in_pkg_unit, 3) if qty_in_pkg_unit is not None else None,
             "num_packages": num_packages,
+            "sub_category": r.get("sub_category") or "",
         })
     rows.sort(key=lambda r: r["name"].lower())
     return {"wycena_name": wycena.get("name", ""), "rows": rows}
@@ -625,14 +631,31 @@ async def get_materials_bom(wycena_id: str, _user: dict = Depends(get_current_ad
 
 
 @router.get("/wyceny/{wycena_id}/bom.xlsx")
-async def export_bom_xlsx(wycena_id: str, _user: dict = Depends(get_current_admin)):
+async def export_bom_xlsx(
+    wycena_id: str,
+    subcategories: Optional[str] = Query(None, description="Lista sub_categories oddzielona przecinkiem"),
+    _user: dict = Depends(get_current_admin),
+):
     data = await _build_bom(wycena_id)
+    if subcategories:
+        data = _filter_bom_rows(data, [s.strip() for s in subcategories.split(",") if s.strip()])
     content, filename = _generate_bom_xlsx_bytes(data)
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+def _filter_bom_rows(data: dict, subcategories: Optional[List[str]] = None) -> dict:
+    """iter95ar: filtruj BOM po sub_category (kategoriach materialow)."""
+    if not subcategories:
+        return data
+    wanted = {(s or "").lower().strip() for s in subcategories if s}
+    if not wanted:
+        return data
+    rows = [r for r in data.get("rows", []) if (r.get("sub_category") or "").lower().strip() in wanted]
+    return {**data, "rows": rows}
 
 
 def _generate_bom_xlsx_bytes(data: dict):
@@ -649,13 +672,15 @@ def _generate_bom_xlsx_bytes(data: dict):
     ws["A2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
     ws["A2"].font = Font(italic=True, size=10, color="666666")
     ws.merge_cells("A2:E2")
+    # iter95ar: usunieto kolumne "Termin dostawy" - klient nie chce
     headers = ["L.p.", "Nazwa materiału", "Ilość zużycia", "Jednostka",
                "Opakowanie", "Wielkość opak.", "Liczba opakowań",
-               "Cena netto za opak. (PLN)", "Wartość netto (PLN)", "Termin dostawy", "Uwagi"]
+               "Cena netto za opak. (PLN)", "Wartość netto (PLN)", "Uwagi"]
     header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF")
     thin = Side(border_style="thin", color="999999")
     border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    n_cols = len(headers)
     for col, h in enumerate(headers, start=1):
         c = ws.cell(row=4, column=col, value=h)
         c.fill = header_fill; c.font = header_font
@@ -681,7 +706,8 @@ def _generate_bom_xlsx_bytes(data: dict):
         else:
             ws.cell(row=r_excel, column=7, value="—")
         ws.cell(row=r_excel, column=7).border = border
-        for col in range(8, 12):
+        # 8=cena, 9=wartosc, 10=uwagi (3 puste do uzupelnienia przez dostawce)
+        for col in range(8, n_cols + 1):
             ws.cell(row=r_excel, column=col, value="").border = border
         ws.cell(row=r_excel, column=1).alignment = Alignment(horizontal="center")
         ws.cell(row=r_excel, column=3).alignment = Alignment(horizontal="right")
@@ -689,9 +715,9 @@ def _generate_bom_xlsx_bytes(data: dict):
             ws.cell(row=r_excel, column=col).alignment = Alignment(horizontal="center")
     foot_row = 5 + len(data["rows"]) + 1
     ws.cell(row=foot_row, column=1,
-            value="Prosimy o uzupełnienie kolumn: cena netto, wartość netto, termin dostawy i uwagi.").font = Font(italic=True, color="666666")
-    ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=11)
-    widths = {"A": 6, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 14, "K": 20}
+            value="Prosimy o uzupełnienie kolumn: cena netto, wartość netto i uwagi.").font = Font(italic=True, color="666666")
+    ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=n_cols)
+    widths = {"A": 6, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 20}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     buf = BytesIO()
@@ -702,8 +728,14 @@ def _generate_bom_xlsx_bytes(data: dict):
 
 
 @router.get("/wyceny/{wycena_id}/bom.pdf")
-async def export_bom_pdf(wycena_id: str, _user: dict = Depends(get_current_admin)):
+async def export_bom_pdf(
+    wycena_id: str,
+    subcategories: Optional[str] = Query(None),
+    _user: dict = Depends(get_current_admin),
+):
     data = await _build_bom(wycena_id)
+    if subcategories:
+        data = _filter_bom_rows(data, [s.strip() for s in subcategories.split(",") if s.strip()])
     content, filename = _generate_bom_pdf_bytes(data)
     return StreamingResponse(
         io.BytesIO(content),
@@ -747,17 +779,19 @@ def _generate_bom_pdf_bytes(data: dict):
             except Exception:
                 pass
     buf = BytesIO()
-    doc = SimpleDocTemplate(buf, pagesize=landscape(A4), rightMargin=12 * mm, leftMargin=12 * mm,
+    # iter95ar: PDF zapytania ZAWSZE pionowo (A4 portrait), bez kolumny "Termin"
+    doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=12 * mm, leftMargin=12 * mm,
                             topMargin=12 * mm, bottomMargin=12 * mm)
     styles = getSampleStyleSheet()
-    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=16, textColor=colors.HexColor("#3F5235"))
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=15, textColor=colors.HexColor("#3F5235"))
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9, textColor=colors.grey)
+    name_st = ParagraphStyle("name", parent=styles["Normal"], fontName=base_font, fontSize=7.5, leading=9)
     elements = []
     elements.append(Paragraph(f"Zapytanie ofertowe — Zestawienie materiałów: {data['wycena_name']}", title_st))
     elements.append(Paragraph(f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}", sub_st))
     elements.append(Spacer(1, 6 * mm))
     table_data = [["L.p.", "Nazwa materiału", "Ilość", "Jedn.", "Opak.", "Wlk. opak.",
-                   "Liczba opak.", "Cena netto/opak.", "Termin", "Uwagi"]]
+                   "Liczba opak.", "Cena netto/opak.", "Uwagi"]]
     for idx, row in enumerate(data["rows"], start=1):
         if row.get("qty_in_pkg_unit") is not None:
             qty_str = f"{row['qty_in_pkg_unit']:.3f}".replace(".", ",")
@@ -768,11 +802,12 @@ def _generate_bom_pdf_bytes(data: dict):
         pkg_size = f"{row['pkg_qty']} {row.get('pkg_unit') or ''}" if row.get("pkg_qty") else "—"
         num_pkg = str(row["num_packages"]) if row.get("num_packages") is not None else "—"
         table_data.append([
-            str(idx), row["name"], qty_str, unit_str,
-            row.get("opakowanie") or "—", pkg_size, num_pkg, "", "", "",
+            str(idx), Paragraph(row["name"], name_st), qty_str, unit_str,
+            row.get("opakowanie") or "—", pkg_size, num_pkg, "", "",
         ])
-    tbl = Table(table_data, colWidths=[10 * mm, 50 * mm, 16 * mm, 12 * mm, 18 * mm,
-                                        18 * mm, 16 * mm, 22 * mm, 14 * mm, 24 * mm])
+    # szerokosci dla A4 portrait (uzyteczna szerokosc ~ 186mm)
+    tbl = Table(table_data, colWidths=[10 * mm, 56 * mm, 16 * mm, 12 * mm, 20 * mm,
+                                        22 * mm, 16 * mm, 20 * mm, 14 * mm], repeatRows=1)
     tbl.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, -1), base_font, 8),
         ("FONT", (0, 0), (-1, 0), bold_font, 8),
@@ -789,9 +824,9 @@ def _generate_bom_pdf_bytes(data: dict):
         ("FONT", (6, 1), (6, -1), bold_font, 8),
     ]))
     elements.append(tbl)
-    elements.append(Spacer(1, 10 * mm))
+    elements.append(Spacer(1, 8 * mm))
     elements.append(Paragraph(
-        "Prosimy o uzupełnienie kolumn: <b>cena netto za opakowanie</b>, <b>termin dostawy</b> oraz <b>uwagi</b>. "
+        "Prosimy o uzupełnienie kolumn: <b>cena netto za opakowanie</b> oraz <b>uwagi</b>. "
         "Liczby opakowań zostały zaokrąglone w górę do pełnych jednostek (paleta / wiaderko / rolka).",
         ParagraphStyle("foot", parent=styles["Normal"], fontName=base_font, fontSize=8, textColor=colors.grey)
     ))
@@ -864,6 +899,8 @@ class SendBomRequest(BaseModel):
     subject: Optional[str] = None
     body: Optional[str] = None
     supplier_id: Optional[str] = None  # zapisz historie
+    # iter95ar: filtr kategorii materialow (zapytanie do hurtownika tylko o jego branze)
+    subcategories: Optional[List[str]] = None
 
 
 @router.post("/wyceny/{wycena_id}/bom/send")
@@ -880,6 +917,9 @@ async def send_bom_email(wycena_id: str, payload: SendBomRequest, _user: dict = 
     except ImportError:
         raise HTTPException(500, "httpx not installed")
     data = await _build_bom(wycena_id)
+    # iter95ar: filtr po kategoriach (np. tylko izolacje dla hurtowni izolacji)
+    if payload.subcategories:
+        data = _filter_bom_rows(data, payload.subcategories)
     if not data.get("rows"):
         raise HTTPException(400, "Wycena nie zawiera materiałów do wysłania")
     xlsx_bytes, xlsx_name = _generate_bom_xlsx_bytes(data)

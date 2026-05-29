@@ -1,3 +1,51 @@
+## Iteration 95ar (2026-02) — Edytowalny szablon emaila + filtr kategorii + PDF portrait
+
+### User request
+„Edycja maila + zapis. W tabeli BOM bez terminu realizacji dostawy. Zapytanie ZAWSZE pionowe (A4 portrait). Wybór kategorii materiałów do wysłania."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `WycenaUpdate`: `bom_email_subject`, `bom_email_body` (Optional[str]) — szablon emaila per wycena
+- `_build_bom`: każda pozycja `row` ma teraz `sub_category` (kopiowane z cennika `wyceny_price_book.sub_category`)
+- Nowa funkcja `_filter_bom_rows(data, subcategories)` — filtruje rows po dopasowaniu lower-case
+- `_generate_bom_xlsx_bytes`: kolumna **„Termin dostawy" usunięta**, 10 kolumn (było 11), footer zaktualizowany
+- `_generate_bom_pdf_bytes`: **`A4` zamiast `landscape(A4)`**, kolumna „Termin" usunięta, `colWidths` przeliczone na portret (uż. szer. ~186mm), `repeatRows=1`, użyto `Paragraph` w kol. „Nazwa materiału" dla wrappingu
+- `SendBomRequest`: `subcategories: Optional[List[str]]`
+- Endpointy `bom.pdf` i `bom.xlsx` przyjmują query `subcategories=izolacje,stal` (comma-separated)
+- `send_bom_email` filtruje rows przez `_filter_bom_rows(data, payload.subcategories)`
+
+### Frontend (`/app/frontend/src/components/Wyceny.js` — `BomDialog`)
+- `useEffect`: Promise.all `[bom, template]` — pre-fill `subject` z `wycena.bom_email_subject` (lub default), `body` z `wycena.bom_email_body`
+- Memo `availableCats`: lista [sub_category, count] z BOM rows
+- Stan `selectedCats: Set`, funkcja `toggleCat`, `subcatsForFilter()` (null gdy wszystkie zaznaczone — nie wysyłaj parametru)
+- Memo `filteredRowsCount` — pokazuje X/Y w UI
+- **Panel filtra kategorii** (`bom-cat-filter`) widoczny gdy >1 kategoria w BOM:
+  - Chipy toggle dla każdej kategorii + count
+  - Przyciski „Wszystkie" / „Żadna"
+  - Status „Filtr aktywny: X/Y pozycji"
+- **Przycisk „💾 Zapisz szablon"** (`bom-save-template-btn`) w stopce gdy form wysyłki otwarty — PATCH `bom_email_subject/body`
+- Przycisk „Wyślij teraz" pokazuje teraz liczbę po filtrze: `Wyślij teraz (X poz.)`
+- `download(format)` i `sendEmail()` używają `subcatsForFilter()` przy query/body
+
+### Test
+- Lint JS: ✅
+- Backend curl:
+  - PATCH template `{bom_email_subject, bom_email_body}` zwraca obecne wartości ✅
+  - BOM PDF: MediaBox `595x842` = **PORTRAIT** ✅ (poprzednio `842x595` landscape)
+  - BOM XLSX headers: 10 kolumn, **„Termin dostawy" usunięte** ✅
+  - BOM XLSX z `?subcategories=izolacje,stal`: 5454 B (filtrowane do 0 rows) ✅
+- Frontend E2E smoke:
+  - Subject pre-fill z bazy → „Test temat" ✅
+  - Body pre-fill → „Test treść maila" ✅
+  - Przycisk „Zapisz szablon" widoczny ✅
+  - Po edycji + klik Zapisz → toast „Szablon zapisany dla tej wyceny" ✅
+  - Panel kategorii ukryty gdy tylko 1 kategoria (`__brak__`) — logika `availableCats.length > 1` ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — pola modelu, sub_category w build_bom, `_filter_bom_rows`, PDF/XLSX bez „Termin", PDF portrait, endpointy z query
+- `/app/frontend/src/components/Wyceny.js` — Promise.all dla template, panel kategorii, save template, filter w send/download
+
+---
+
 ## Iteration 95aq (2026-02) — Pełny CRUD hurtowni + numer telefonu
 
 ### User request
