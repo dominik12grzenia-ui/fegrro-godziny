@@ -1,3 +1,30 @@
+## Iteration 95az (2026-05) — Fix horyzontalnego scrolla w edytorze wyceny (mobile + laptop)
+
+### User report (mobile screenshot)
+„Czemu tak się dzieje i na laptopie i na telefonie" — header edytora wyceny (← Lista wycen | Drutex | Hurtownie | Zestawienie materiałów | Pobierz | Zaciągnij | Tryb negocjacji | Wersje | Budżet) wystawał poza prawą krawędź ekranu, wymuszając horyzontalny scroll całej strony.
+
+### Root cause
+`Wyceny.js` linia 533: `<div className="flex items-center gap-3">` zawierał 8 elementów flex **bez `flex-wrap`**. Suma ich minimalnych szerokości (Button + padding + text + ikona × 8) przekraczała viewport mobile (390px) i nawet laptopa z wąskim oknem.
+
+### Fix
+- `flex-wrap` na kontenerze nagłówka — przyciski przeskakują do kolejnej linii zamiast forced-overflow
+- `min-w-[160px]` + `truncate` + `title={w.name}` na bloku tytułu — długie nazwy wycen nie rozsadzają layoutu, pełna nazwa w tooltipie
+- `shrink-0` na każdym `<Button>` — buttons nie deformują się przy zwijaniu/rozwijaniu
+- `ml-auto shrink-0` na bloku „Budżet wyceny" — utrzymuje się przy prawej krawędzi w ostatniej linii
+
+### Test
+- Lint czysty, webpack compiled
+- Browser check (1920px): `scrollW=1920 clientW=1920 overflow=False` ✅
+- Wizualnie: header teraz layout 2-liniowy gdy szerokość niewystarczająca, brak forced horizontal scroll
+
+### Backlog (bez zmian)
+- 🟡 P3 — EquipmentForeman.js (1259 linii) → BulkTransferModal split
+- 🟡 P3 — Wyceny.js (2454 linii) → SubRow/PosRow/StageRow split
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+
+---
+
+
 ## Iteration 95ay (2026-05) — Bug fix listy brygadzistów + multi-select bulk transfer sprzętu
 
 ### User report (screenshot mobile)

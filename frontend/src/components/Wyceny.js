@@ -530,50 +530,51 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-3">
-        <Button onClick={onBack} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]" data-testid="wycena-back-btn">
+      {/* iter95az: header edytora — flex-wrap + min-w-0 na tytule, by uniknąć horyzontalnego scrolla na małych ekranach */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <Button onClick={onBack} variant="outline" className="border-[#2A3B59] text-[#CBD5E1] shrink-0" data-testid="wycena-back-btn">
           <ArrowLeft className="h-4 w-4 mr-1" /> Lista wycen
         </Button>
-        <div className="flex-1">
-          <div className="text-white text-lg font-semibold">{w.name}</div>
+        <div className="flex-1 min-w-[160px]">
+          <div className="text-white text-lg font-semibold truncate" title={w.name}>{w.name}</div>
         </div>
         <Button onClick={() => setSuppliersOpen(true)} variant="outline"
-          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10"
+          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10 shrink-0"
           data-testid="wycena-suppliers-btn">
           <BookOpen className="h-4 w-4 mr-1" /> Hurtownie
         </Button>
         <Button onClick={() => setBomOpen(true)} variant="outline"
-          className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+          className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10 shrink-0"
           data-testid="wycena-bom-btn">
           <Package className="h-4 w-4 mr-1" /> Zestawienie materiałów
         </Button>
         <Button onClick={() => setExportOpen(true)} variant="outline"
-          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10"
+          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10 shrink-0"
           data-testid="wycena-export-btn">
           <FileDown className="h-4 w-4 mr-1" /> Pobierz wycenę
         </Button>
         <Button onClick={() => setConvertOpen(true)} variant="outline"
-          className="border-[#9DBC85]/60 text-[#9DBC85] hover:bg-[#9DBC85]/10 font-semibold"
+          className="border-[#9DBC85]/60 text-[#9DBC85] hover:bg-[#9DBC85]/10 font-semibold shrink-0"
           title="Stwórz nową budowę w module Budżet z tej wyceny"
           data-testid="wycena-convert-btn">
           <FileText className="h-4 w-4 mr-1" /> Zaciągnij do budżetu
         </Button>
         {/* iter95av: tryb negocjacji + wersje */}
         <Button onClick={negotiationOn ? () => setNegotiationOn(false) : openNegotiation} variant="outline"
-          className={negotiationOn
+          className={(negotiationOn
             ? 'border-[#F59E0B] text-[#F59E0B] bg-[#F59E0B]/10 font-semibold animate-pulse'
-            : 'border-[#F59E0B]/60 text-[#F59E0B] hover:bg-[#F59E0B]/10'}
+            : 'border-[#F59E0B]/60 text-[#F59E0B] hover:bg-[#F59E0B]/10') + ' shrink-0'}
           title="Lokalne obniżki cen z live preview — bez zapisu w bazie"
           data-testid="wycena-negotiation-btn">
           🤝 {negotiationOn ? 'Wyjdź z negocjacji' : 'Tryb negocjacji'}
         </Button>
         <Button onClick={() => setVersionsOpen(true)} variant="outline"
-          className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+          className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] shrink-0"
           title="Historia wersji wyceny — przywróć poprzednią"
           data-testid="wycena-versions-btn">
           🕒 Wersje{snapshots.length > 0 ? ` (${snapshots.length})` : ''}
         </Button>
-        <div className="text-right">
+        <div className="text-right shrink-0 ml-auto">
           <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
           <div className="text-[#D4AF37] text-xl font-bold tabular-nums" data-testid="wycena-total">
             {fmtPLN(grandTotal.budzet)} zł
