@@ -14,9 +14,9 @@ export const ForemenTab = ({
   impersonateForeman,
 }) => {
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]">
+    <Card className="bg-[#243049] border-[#3D5378]">
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="text-[#CBD5E1]">Brygadziści</CardTitle>
+        <CardTitle className="text-[#F1F5F9]">Brygadziści</CardTitle>
         <Button
           onClick={async () => {
             const name = window.prompt('Imię i nazwisko nowego brygadzisty:');
@@ -47,12 +47,12 @@ export const ForemenTab = ({
             return (
               <div
                 key={foreman.id}
-                className={`p-4 rounded-lg border ${isPending ? 'border-[#DC4A3A]/50 bg-[#131C2F]' : 'border-[#2A3B59] bg-[#131C2F]'}`}
+                className={`p-4 rounded-lg border ${isPending ? 'border-[#DC4A3A]/50 bg-[#1E2A44]' : 'border-[#3D5378] bg-[#1E2A44]'}`}
                 data-testid={`foreman-${foreman.id}`}
               >
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                   <div>
-                    <span className="text-[#CBD5E1] font-semibold text-lg">{foreman.full_name}</span>
+                    <span className="text-[#F1F5F9] font-semibold text-lg">{foreman.full_name}</span>
                     {isPending && (
                       <span className="ml-2 text-xs bg-[#DC4A3A]/20 text-[#DC4A3A] px-2 py-0.5 rounded font-semibold">NOWY</span>
                     )}
@@ -76,14 +76,14 @@ export const ForemenTab = ({
                         toast.error(err.response?.data?.detail || 'Błąd');
                       }
                     }}
-                    className={hasPassword ? 'bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1] text-xs h-8' : 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] text-xs h-8 font-bold'}
+                    className={hasPassword ? 'bg-[#3D5378] hover:bg-[#3D5378] text-[#F1F5F9] text-xs h-8' : 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] text-xs h-8 font-bold'}
                     data-testid={`set-foreman-password-${foreman.id}`}
                   >
                     {hasPassword ? 'Zmien hasło' : 'Ustaw hasło'}
                   </Button>
                 </div>
                 <div className="mb-3">
-                  <p className="text-xs text-[#94A3B8] mb-2">Przypisane budowy:</p>
+                  <p className="text-xs text-[#CBD5E1] mb-2">Przypisane budowy:</p>
                   <div className="flex flex-wrap gap-2">
                     {sites.filter((s) => s.excel_column).map((site) => {
                       const isSelected = currentSiteIds.includes(site.id);
@@ -99,7 +99,7 @@ export const ForemenTab = ({
                           className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
                             isSelected
                               ? 'bg-[#4F6343] text-white'
-                              : 'bg-[#2A3B59] text-[#94A3B8] hover:bg-[#3D4F63]'
+                              : 'bg-[#3D5378] text-[#CBD5E1] hover:bg-[#3D4F63]'
                           }`}
                           data-testid={`foreman-site-${foreman.id}-${site.id}`}
                         >
@@ -168,7 +168,7 @@ export const ForemenTab = ({
             );
           })}
           {foremen.length === 0 && (
-            <div className="text-center p-8 text-[#94A3B8]">Brak zarejestrowanych brygadzistow</div>
+            <div className="text-center p-8 text-[#CBD5E1]">Brak zarejestrowanych brygadzistow</div>
           )}
         </div>
       </CardContent>

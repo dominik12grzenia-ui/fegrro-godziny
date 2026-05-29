@@ -20,7 +20,7 @@ const WarehouseAdmin = lazy(() => import('./WarehouseAdmin').then((m) => ({ defa
 
 const TabSpinner = () => (
   <div className="flex items-center justify-center py-12">
-    <div className="animate-pulse text-[#94A3B8] text-sm">Wczytywanie...</div>
+    <div className="animate-pulse text-[#CBD5E1] text-sm">Wczytywanie...</div>
   </div>
 );
 
@@ -85,19 +85,19 @@ export default function WarehouseDashboard() {
   };
 
   const Badge = ({ n }) => n > 0 ? (
-    <span className="ml-1 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">{n}</span>
+    <span className="ml-1 bg-[#D4AF37] text-[#1E2A44] text-xs rounded-full px-1.5 py-0.5 font-bold">{n}</span>
   ) : null;
 
   return (
     <WarehouseConfirmProvider>
-      <div className="min-h-screen bg-[#0B1120]">
+      <div className="min-h-screen bg-[#152033]">
         {/* Header */}
-        <div className="bg-[#131C2F] border-b border-[#2A3B59] px-4 py-3 flex items-center justify-between sticky top-0 z-30">
+        <div className="bg-[#1E2A44] border-b border-[#3D5378] px-4 py-3 flex items-center justify-between sticky top-0 z-30">
           <div className="flex items-center gap-3">
             <Warehouse className="h-6 w-6 text-[#D4AF37]" />
             <div>
               <p className="text-[#D4AF37] font-bold text-sm sm:text-base">FeGrro - Magazyn</p>
-              <p className="text-[#94A3B8] text-xs">{userName}</p>
+              <p className="text-[#CBD5E1] text-xs">{userName}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export default function WarehouseDashboard() {
               onAction={handleLogout}
               variant="ghost"
               size="sm"
-              className="text-[#CBD5E1] hover:bg-[#2A3B59]"
+              className="text-[#F1F5F9] hover:bg-[#3D5378]"
               data-testid="warehouse-logout-btn"
             ><LogOut className="h-4 w-4" /></ActionButton>
           </div>
@@ -122,7 +122,7 @@ export default function WarehouseDashboard() {
         {/* Tabs */}
         <div className="p-3 sm:p-4">
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList className="bg-[#131C2F] flex flex-wrap h-auto justify-start gap-1">
+            <TabsList className="bg-[#1E2A44] flex flex-wrap h-auto justify-start gap-1">
               <TabsTrigger value="equipment" data-testid="wh-equipment-tab" className="whitespace-nowrap">
                 <Wrench className="h-3.5 w-3.5 mr-1" /> Elektronarzędzia
                 <Badge n={pendingCounts.electronics} />

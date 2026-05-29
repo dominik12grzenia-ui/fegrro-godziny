@@ -5,7 +5,7 @@ export const LanguageToggle = ({ className = '' }) => {
   const { lang, setLang, supported } = useLanguage();
   return (
     <div
-      className={`inline-flex items-center bg-[#131C2F] border border-[#2A3B59] rounded-full overflow-hidden ${className}`}
+      className={`inline-flex items-center bg-[#1E2A44] border border-[#3D5378] rounded-full overflow-hidden ${className}`}
       data-testid="language-toggle"
       role="group"
       aria-label="Wybór jezyka / Вибір мови"
@@ -21,7 +21,7 @@ export const LanguageToggle = ({ className = '' }) => {
             aria-pressed={active}
             className={
               'px-3 py-1.5 text-xs font-bold tracking-wide transition-colors ' +
-              (active ? 'bg-[#4F6343] text-white' : 'text-[#CBD5E1] hover:text-white')
+              (active ? 'bg-[#4F6343] text-white' : 'text-[#F1F5F9] hover:text-white')
             }
             title={l.label}
           >

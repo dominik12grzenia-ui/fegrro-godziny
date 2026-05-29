@@ -58,26 +58,26 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
   const CHILD_BG = 'rgba(15, 23, 42, 0.6)'; // ciemniejsze tlo dla skladowych
   const HEADER_BG = '#4F6343';
   const HEADER_DARK = '#3F5235';
-  const BORDER = '#2A3B59';
+  const BORDER = '#3D5378';
   const SEPARATOR = '#D4AF37'; // złoty pionowy separator między blokami
 
   // Renderuje przyciski akcji w komorce NAZWA
   const renderNameActions = (line, isChild) => (
     <div className="flex items-center gap-1">
       {isChild && <span className="text-[#D4AF37] shrink-0">↳</span>}
-      <span className="truncate flex-1" style={isChild ? { color: '#94A3B8', fontStyle: 'italic' } : {}}>{line.name}</span>
+      <span className="truncate flex-1" style={isChild ? { color: '#CBD5E1', fontStyle: 'italic' } : {}}>{line.name}</span>
       {!isChild && onAddChild && (
         <button onClick={() => onAddChild(line)} className="text-[#5F7552] hover:text-[#9DBC85] shrink-0" data-testid={`excel-add-child-${line.id}`} title="Dodaj składową kosztową">
           <Plus className="h-3 w-3" />
         </button>
       )}
       {onEdit && (
-        <button onClick={() => onEdit(line)} className="text-[#94A3B8] hover:text-white shrink-0" data-testid={`excel-edit-${line.id}`} title="Edytuj">
+        <button onClick={() => onEdit(line)} className="text-[#CBD5E1] hover:text-white shrink-0" data-testid={`excel-edit-${line.id}`} title="Edytuj">
           <Pencil className="h-3 w-3" />
         </button>
       )}
       {onDelete && (
-        <button onClick={() => onDelete(line.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] shrink-0" data-testid={`excel-del-${line.id}`} title={isChild ? 'Usuń składową' : 'Usuń (wraz ze składowymi)'}>
+        <button onClick={() => onDelete(line.id)} className="text-[#CBD5E1] hover:text-[#FCA5A5] shrink-0" data-testid={`excel-del-${line.id}`} title={isChild ? 'Usuń składową' : 'Usuń (wraz ze składowymi)'}>
           <Trash2 className="h-3 w-3" />
         </button>
       )}
@@ -85,12 +85,12 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
   );
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-view">
+    <Card className="bg-[#1E2A44] border-[#3D5378]" data-testid="budget-excel-view">
       <CardHeader className="pb-2">
         <CardTitle className="text-white text-base flex items-center gap-2">
           <span style={{ color: '#D4AF37' }}>▦</span> Widok zestawienia kosztorysowego
         </CardTitle>
-        <p className="text-[10px] text-[#94A3B8] mt-1">
+        <p className="text-[10px] text-[#CBD5E1] mt-1">
           Pełna tabela 1:1 z arkuszem wykonawczym. Kolumny <span style={{ color: '#5F7552' }}>zielone</span> = kaucje (K.GIR / K.DW). Kolumny <span style={{ color: '#D4AF37' }}>złote</span> = przeroby. Klik <Plus className="h-3 w-3 inline-block text-[#5F7552]" /> obok nazwy = dodaj składową. Pozycja z ↳ = składowa kosztowa; wartości pozycji nadrzędnej liczą się jako suma składowych.
         </p>
       </CardHeader>
@@ -160,13 +160,13 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
           </thead>
           <tbody>
             {(materialsRows.length === 0 && laborRows.length === 0 && equipmentRows.length === 0) ? (
-              <tr><td colSpan={32} className="p-4 text-center text-[#94A3B8] border" style={{ borderColor: BORDER }}>Brak pozycji. Dodaj najpierw pozycje budżetu.</td></tr>
+              <tr><td colSpan={32} className="p-4 text-center text-[#CBD5E1] border" style={{ borderColor: BORDER }}>Brak pozycji. Dodaj najpierw pozycje budżetu.</td></tr>
             ) : Array.from({ length: maxRows }, (_, i) => {
               const mRow = materialsRows[i];
               const rRow = laborRows[i];
               const sRow = equipmentRows[i];
               return (
-                <tr key={i} className="hover:bg-[#0B1120]/40">
+                <tr key={i} className="hover:bg-[#152033]/40">
                   {/* MATERIAŁY (13 kolumn) */}
                   {mRow ? (() => {
                     const m = mRow.line;
@@ -185,26 +185,26 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
                     const cellStyle = { borderColor: BORDER, ...(rowBg ? { backgroundColor: rowBg } : {}) };
                     return (
                       <>
-                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={cellStyle}>{mRow.nrLabel}</td>
+                        <td className="px-1 py-0.5 text-center text-[#F1F5F9] border tabular-nums" style={cellStyle}>{mRow.nrLabel}</td>
                         <td className="px-1 py-0.5 text-left text-white border" style={{ ...cellStyle, maxWidth: 0 }} title={m.name}>
                           {renderNameActions(m, mRow.isChild)}
                         </td>
-                        <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={cellStyle}>{m.unit || '—'}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCellNum(ilosc)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(cena)}</td>
+                        <td className="px-0.5 py-0.5 text-center text-[#CBD5E1] border" style={cellStyle}>{m.unit || '—'}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCellNum(ilosc)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCell(cena)}</td>
                         <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={cellStyle}>{fmtCell(plan)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={cellStyle}>{fmtCell(cenaBjd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(cenaBjd)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || PRZEROB_BG }}>{fmtCell(przerob)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={cellStyle}>{fmtCell(przerob)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#94A3B8] border tabular-nums" style={cellStyle}>{fmtCell(cenaZakupu)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(przerob)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(cenaZakupu)}</td>
                       </>
                     );
                   })() : (
                     <>{Array.from({ length: 13 }, (_, j) => (
-                      <td key={`em-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER }}>&nbsp;</td>
+                      <td key={`em-${j}`} className="px-0.5 py-0.5 border bg-[#152033]/30" style={{ borderColor: BORDER }}>&nbsp;</td>
                     ))}</>
                   )}
                   {/* ROBOCIZNA (8 kolumn) */}
@@ -221,21 +221,21 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
                     const cellStyle = { borderColor: BORDER, ...(rowBg ? { backgroundColor: rowBg } : {}) };
                     return (
                       <>
-                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, borderLeft: `2px solid ${SEPARATOR}` }}>{rRow.nrLabel}</td>
+                        <td className="px-1 py-0.5 text-center text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, borderLeft: `2px solid ${SEPARATOR}` }}>{rRow.nrLabel}</td>
                         <td className="px-1 py-0.5 text-left text-white border" style={{ ...cellStyle, maxWidth: 0 }} title={r.name}>
                           {renderNameActions(r, rRow.isChild)}
                         </td>
                         <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={cellStyle}>{fmtCell(plan)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || PRZEROB_BG }}>{fmtCell(przerob)}</td>
                         <td className={`px-0.5 py-0.5 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={cellStyle}>{Math.round(pct)}%</td>
                       </>
                     );
                   })() : (
                     <>{Array.from({ length: 8 }, (_, j) => (
-                      <td key={`er-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
+                      <td key={`er-${j}`} className="px-0.5 py-0.5 border bg-[#152033]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
                     ))}</>
                   )}
                   {/* SPRZĘT (11 kolumn) */}
@@ -254,24 +254,24 @@ export const BudgetExcelView = ({ lines, onProgressChange, onEdit, onDelete, onA
                     const cellStyle = { borderColor: BORDER, ...(rowBg ? { backgroundColor: rowBg } : {}) };
                     return (
                       <>
-                        <td className="px-1 py-0.5 text-center text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, borderLeft: `2px solid ${SEPARATOR}` }}>{sRow.nrLabel}</td>
+                        <td className="px-1 py-0.5 text-center text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, borderLeft: `2px solid ${SEPARATOR}` }}>{sRow.nrLabel}</td>
                         <td className="px-1 py-0.5 text-left text-white border" style={{ ...cellStyle, maxWidth: 0 }} title={s.name}>
                           {renderNameActions(s, sRow.isChild)}
                         </td>
-                        <td className="px-0.5 py-0.5 text-center text-[#94A3B8] border" style={cellStyle}>{s.unit || '—'}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCellNum(ilosc)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(cena)}</td>
+                        <td className="px-0.5 py-0.5 text-center text-[#CBD5E1] border" style={cellStyle}>{s.unit || '—'}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCellNum(ilosc)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCell(cena)}</td>
                         <td className="px-0.5 py-0.5 text-right text-white font-semibold border tabular-nums" style={cellStyle}>{fmtCell(plan)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
-                        <td className="px-0.5 py-0.5 text-right text-[#CBD5E1] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kg)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || KAUCJA_BG }}>{fmtCell(kd)}</td>
+                        <td className="px-0.5 py-0.5 text-right text-[#F1F5F9] border tabular-nums" style={cellStyle}>{fmtCell(bzw)}</td>
                         <td className="px-0.5 py-0.5 text-right text-[#D4AF37] font-semibold border tabular-nums" style={{ ...cellStyle, backgroundColor: rowBg || PRZEROB_BG }}>{fmtCell(przerob)}</td>
                         <td className={`px-0.5 py-0.5 text-right border tabular-nums font-semibold ${pct >= 100 ? 'text-[#9B2C2C]' : pct >= 80 ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`} style={cellStyle}>{Math.round(pct)}%</td>
                       </>
                     );
                   })() : (
                     <>{Array.from({ length: 11 }, (_, j) => (
-                      <td key={`es-${j}`} className="px-0.5 py-0.5 border bg-[#0B1120]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
+                      <td key={`es-${j}`} className="px-0.5 py-0.5 border bg-[#152033]/30" style={{ borderColor: BORDER, ...(j === 0 ? { borderLeft: `2px solid ${SEPARATOR}` } : {}) }}>&nbsp;</td>
                     ))}</>
                   )}
                 </tr>

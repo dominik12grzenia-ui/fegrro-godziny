@@ -105,10 +105,10 @@ export const BudgetCostingView = ({
   const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
   const orphanPositions = positionsByStage['__none__'] || [];
 
-  if (loading) return <Card className="bg-[#131C2F] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8] text-sm">Ładuję...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#1E2A44] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1] text-sm">Ładuję...</CardContent></Card>;
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-costing-view">
+    <Card className="bg-[#1E2A44] border-[#3D5378]" data-testid="budget-costing-view">
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base flex items-center gap-2">
           <FolderTree className="h-5 w-5" style={{ color: '#D4AF37' }} />
@@ -117,7 +117,7 @@ export const BudgetCostingView = ({
         <Button size="sm"
           onClick={onAddPosition}
           disabled={stages.length === 0}
-          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+          className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-8 disabled:opacity-40"
           data-testid="costing-add-position-btn"
           title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
           <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
@@ -125,7 +125,7 @@ export const BudgetCostingView = ({
       </CardHeader>
       <CardContent className="p-2 space-y-2">
         {positions.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="costing-empty">
+          <div className="text-[#CBD5E1] text-sm py-8 text-center" data-testid="costing-empty">
             Brak pozycji kosztorysowych. {stages.length === 0 ? <>Najpierw utwórz <b>etap</b> (np. „Roboty zewnętrzne"), potem dodaj pozycje.</> : 'Kliknij „Dodaj pozycję" aby zacząć.'}
           </div>
         ) : (
@@ -135,7 +135,7 @@ export const BudgetCostingView = ({
               const stagePositions = positionsByStage[stage.id] || [];
               const st = computeStageTotals(stage.id);
               return (
-                <div key={stage.id} className="rounded border border-[#2A3B59] overflow-hidden" data-testid={`stage-block-${stage.id}`}>
+                <div key={stage.id} className="rounded border border-[#3D5378] overflow-hidden" data-testid={`stage-block-${stage.id}`}>
                   <button
                     type="button"
                     onClick={() => toggleStage(stage.id)}
@@ -145,15 +145,15 @@ export const BudgetCostingView = ({
                     <div className="flex items-center gap-2 min-w-0">
                       {collapsed ? <ChevronRight className="h-4 w-4 text-white shrink-0" /> : <ChevronDown className="h-4 w-4 text-white shrink-0" />}
                       <span className="text-white font-bold text-sm uppercase tracking-wide truncate">{stage.name}</span>
-                      <span className="text-[#0B1120] bg-[#D4AF37] text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">{st.count}</span>
+                      <span className="text-[#152033] bg-[#D4AF37] text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0">{st.count}</span>
                     </div>
                     <div className="flex items-center gap-4 text-[11px] tabular-nums shrink-0">
-                      <span className="text-[#0B1120] bg-white/85 px-2 py-0.5 rounded font-semibold">Plan: {fmtNum(st.plan)} zł</span>
-                      <span className="text-[#0B1120] bg-[#D4AF37] px-2 py-0.5 rounded font-bold">Wyk: {fmtNum(st.exec)} zł ({st.pct}%)</span>
+                      <span className="text-[#152033] bg-white/85 px-2 py-0.5 rounded font-semibold">Plan: {fmtNum(st.plan)} zł</span>
+                      <span className="text-[#152033] bg-[#D4AF37] px-2 py-0.5 rounded font-bold">Wyk: {fmtNum(st.exec)} zł ({st.pct}%)</span>
                     </div>
                   </button>
                   {!collapsed && (
-                    <div className="bg-[#0B1120]/40 p-2 space-y-2">
+                    <div className="bg-[#152033]/40 p-2 space-y-2">
                       {stagePositions.map((pos) => (
                         <PositionCard
                           key={pos.id}
@@ -179,7 +179,7 @@ export const BudgetCostingView = ({
                 <div className="px-3 py-2 bg-[#9B2C2C]/20 text-[#FCA5A5] text-xs font-bold uppercase tracking-wide">
                   ⚠ Pozycje bez etapu ({orphanPositions.length}) - przypisz je do etapu
                 </div>
-                <div className="bg-[#0B1120]/40 p-2 space-y-2">
+                <div className="bg-[#152033]/40 p-2 space-y-2">
                   {orphanPositions.map((pos) => (
                     <PositionCard
                       key={pos.id}

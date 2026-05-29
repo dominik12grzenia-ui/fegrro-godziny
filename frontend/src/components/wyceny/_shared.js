@@ -6,7 +6,7 @@ export const fmtPLN = (v) =>
   new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
 
 export const TYPE_LABEL = { materials: 'Materiał', labor: 'Robocizna', equipment: 'Sprzęt' };
-export const TYPE_COLOR = { materials: '#CBD5E1', labor: '#9DBC85', equipment: '#D4AF37' };
+export const TYPE_COLOR = { materials: '#F1F5F9', labor: '#9DBC85', equipment: '#D4AF37' };
 
 export const SUB_TYPE_LABEL = { labor: 'robocizna', materials: 'Materiał', equipment: 'Sprzęt' };
 export const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipment: '#7AB3D6' };
@@ -128,7 +128,7 @@ export const computePosRow = (p, defaults = {}) => {
 
 export const Th = ({ children, w, tip }) => (
   <th className="bg-[#3F5235]/80 text-white font-semibold text-[10px] uppercase tracking-wide
-                  border border-[#2A3B59] px-2 py-2 text-center align-middle cursor-help"
+                  border border-[#3D5378] px-2 py-2 text-center align-middle cursor-help"
       title={tip || undefined} style={w ? { minWidth: w } : null}>
     {children}{tip ? <span className="ml-1 text-[#D4AF37]">ⓘ</span> : null}
   </th>
@@ -138,7 +138,7 @@ export const PctInput = ({ label, testId, value, onSave }) => {
   const [v, setV] = useState(value ?? '');
   useEffect(() => { setV(value ?? ''); }, [value]);
   return (
-    <label className="flex items-center gap-1.5 text-xs text-[#CBD5E1]">
+    <label className="flex items-center gap-1.5 text-xs text-[#F1F5F9]">
       <span>{label}:</span>
       <input
         type="number" step="0.1" min="0" max="100"
@@ -146,10 +146,10 @@ export const PctInput = ({ label, testId, value, onSave }) => {
         onChange={(e) => setV(e.target.value)}
         onBlur={() => onSave(v)}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-        className="w-16 bg-[#0B1120] border border-[#2A3B59] rounded text-[#D4AF37] text-right tabular-nums font-bold px-1.5 py-0.5 outline-none focus:border-[#D4AF37]"
+        className="w-16 bg-[#152033] border border-[#3D5378] rounded text-[#D4AF37] text-right tabular-nums font-bold px-1.5 py-0.5 outline-none focus:border-[#D4AF37]"
         data-testid={testId}
       />
-      <span className="text-[#94A3B8]">%</span>
+      <span className="text-[#CBD5E1]">%</span>
     </label>
   );
 };

@@ -144,17 +144,17 @@ export const PublicPushGate = ({ token, children }) => {
         {children}
       </div>
       <div
-        className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#0B1120]/85 backdrop-blur-sm p-4"
+        className="fixed inset-0 z-[9999] flex items-center justify-center bg-[#152033]/85 backdrop-blur-sm p-4"
         data-testid="public-push-permission-gate"
       >
-        <div className="max-w-md w-full bg-[#131C2F] border-2 border-[#D4AF37] rounded-xl shadow-2xl p-6 sm:p-8">
+        <div className="max-w-md w-full bg-[#1E2A44] border-2 border-[#D4AF37] rounded-xl shadow-2xl p-6 sm:p-8">
           <div className="flex items-start gap-3 mb-4">
             <div className="rounded-full bg-[#D4AF37]/20 p-3">
               <Bell className="h-7 w-7 text-[#D4AF37]" />
             </div>
             <div className="flex-1">
               <h2 className="text-xl font-bold text-white mb-1">Włącz powiadomienia</h2>
-              <p className="text-sm text-[#94A3B8]">
+              <p className="text-sm text-[#CBD5E1]">
                 Aby otrzymywać informacje o statusie zamówień (BHP, odzież) musisz zezwolić na powiadomienia.
               </p>
             </div>
@@ -187,14 +187,14 @@ export const PublicPushGate = ({ token, children }) => {
             <Button
               onClick={enable}
               disabled={busy || denied}
-              className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-bold h-11"
+              className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] font-bold h-11"
               data-testid="public-push-gate-enable-btn"
             >
               {busy ? 'Włączam...' : 'Włącz powiadomienia'}
             </Button>
             <button
               onClick={dismiss24h}
-              className="w-full text-xs text-[#94A3B8] hover:text-white py-2"
+              className="w-full text-xs text-[#CBD5E1] hover:text-white py-2"
               data-testid="public-push-gate-dismiss-btn"
             >
               Przypomnij mi jutro

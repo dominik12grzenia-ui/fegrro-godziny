@@ -20,9 +20,9 @@ export const BulkTransferModal = ({
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-2xl max-h-[85vh] overflow-y-auto">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">
+          <CardTitle className="text-[#F1F5F9]">
             Przekaż {bulkItems.length} {bulkItems.length === 1 ? 'sprzęt' : 'sprzętów'}
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} data-testid="bulk-close-btn">
@@ -31,11 +31,11 @@ export const BulkTransferModal = ({
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Brygadzista odbierający *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Brygadzista odbierający *</label>
             <select
               value={bulkTo}
               onChange={(e) => setBulkTo(e.target.value)}
-              className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
               data-testid="bulk-transfer-to-select"
             >
               <option value="">-- wybierz --</option>
@@ -44,10 +44,10 @@ export const BulkTransferModal = ({
               ))}
             </select>
           </div>
-          <div className="border border-[#2A3B59] rounded">
+          <div className="border border-[#3D5378] rounded">
             <table className="w-full text-xs">
-              <thead className="bg-[#131C2F]">
-                <tr className="text-[#94A3B8] uppercase text-[10px]">
+              <thead className="bg-[#1E2A44]">
+                <tr className="text-[#CBD5E1] uppercase text-[10px]">
                   <th className="text-left px-2 py-1.5">Sprzęt</th>
                   <th className="text-center px-2 py-1.5 w-20">Masz</th>
                   <th className="text-center px-2 py-1.5 w-32">Przekaż</th>
@@ -56,9 +56,9 @@ export const BulkTransferModal = ({
               </thead>
               <tbody>
                 {bulkItems.map((it, idx) => (
-                  <tr key={it.id} className="border-t border-[#2A3B59]" data-testid={`bulk-item-${it.id}`}>
-                    <td className="px-2 py-1.5 text-[#CBD5E1]">{it.name}</td>
-                    <td className="px-2 py-1.5 text-center text-[#94A3B8] tabular-nums">{it.max}</td>
+                  <tr key={it.id} className="border-t border-[#3D5378]" data-testid={`bulk-item-${it.id}`}>
+                    <td className="px-2 py-1.5 text-[#F1F5F9]">{it.name}</td>
+                    <td className="px-2 py-1.5 text-center text-[#CBD5E1] tabular-nums">{it.max}</td>
                     <td className="px-2 py-1.5 text-center">
                       <Input
                         type="number"
@@ -71,14 +71,14 @@ export const BulkTransferModal = ({
                             ? { ...x, qty: Number.isNaN(v) ? '' : Math.max(1, Math.min(it.max, v)) }
                             : x));
                         }}
-                        className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-7 text-center tabular-nums"
+                        className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] h-7 text-center tabular-nums"
                         data-testid={`bulk-qty-${it.id}`}
                       />
                     </td>
                     <td className="px-2 py-1.5 text-center">
                       <button
                         onClick={() => setBulkItems((prev) => prev.filter((x) => x.id !== it.id))}
-                        className="text-[#94A3B8] hover:text-[#FCA5A5]"
+                        className="text-[#CBD5E1] hover:text-[#FCA5A5]"
                         title="Usuń z przekazu"
                         data-testid={`bulk-remove-${it.id}`}
                       >
@@ -90,8 +90,8 @@ export const BulkTransferModal = ({
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-[#94A3B8]">
-            Drugi brygadzista musi zaakceptować <b className="text-[#CBD5E1]">każdą</b> pozycję osobno.
+          <p className="text-xs text-[#CBD5E1]">
+            Drugi brygadzista musi zaakceptować <b className="text-[#F1F5F9]">każdą</b> pozycję osobno.
           </p>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="ghost" onClick={onClose} data-testid="bulk-cancel-btn">Anuluj</Button>

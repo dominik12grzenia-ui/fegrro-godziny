@@ -208,7 +208,7 @@ export const ClothingAdmin = () => {
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
+  if (loading) return <p className="text-[#CBD5E1] p-4">Ładowanie...</p>;
 
   return (
     <div className="space-y-4">
@@ -216,28 +216,28 @@ export const ClothingAdmin = () => {
       <div className="flex gap-2 flex-wrap">
         <button
           onClick={() => setSubtab('orders')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="clothing-subtab-orders"
         >
           Zamówione ({orders.filter(o => o.status !== 'issued').length})
         </button>
         <button
           onClick={() => setSubtab('issued')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issued' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issued' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="clothing-subtab-issued"
         >
           Wydane ({orders.filter(o => o.status === 'issued').length})
         </button>
         <button
           onClick={() => setSubtab('types')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'types' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'types' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="clothing-subtab-types"
         >
           Przydział
         </button>
         <button
           onClick={() => setSubtab('summary')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'summary' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'summary' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="clothing-subtab-summary"
         >
           Pracownicy
@@ -246,9 +246,9 @@ export const ClothingAdmin = () => {
 
       {/* TYPES sub-tab */}
       {subtab === 'types' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
               <Shirt className="h-5 w-5 text-[#4F6343]" /> Przydział - pozycje
             </CardTitle>
             <Button onClick={openCreate} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="add-clothing-type-btn">
@@ -257,54 +257,54 @@ export const ClothingAdmin = () => {
           </CardHeader>
           <CardContent>
             {types.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak zdefiniowanych pozycji. Kliknij "Dodaj" aby stworzyc pierwsza.</p>
+              <p className="text-[#CBD5E1]">Brak zdefiniowanych pozycji. Kliknij "Dodaj" aby stworzyc pierwsza.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#131C2F]">
+                  <thead className="bg-[#1E2A44]">
                     <tr>
-                      <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Limit/rok</th>
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Okno zamówień</th>
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Okres użytkowania</th>
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Wymagane</th>
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Akcje</th>
+                      <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9]">Nazwa</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9]">Limit/rok</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9]">Okno zamówień</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9]">Okres użytkowania</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9]">Wymagane</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9]">Akcje</th>
                     </tr>
                   </thead>
                   <tbody>
                     {types.map((t, idx) => (
-                      <tr key={t.id} className={idx % 2 === 0 ? 'bg-[#131C2F]/40' : 'bg-[#19243C]'} data-testid={`clothing-type-row-${t.id}`}>
-                        <td className="border border-[#2A3B59] p-2 text-[#CBD5E1] font-semibold">
+                      <tr key={t.id} className={idx % 2 === 0 ? 'bg-[#1E2A44]/40' : 'bg-[#243049]'} data-testid={`clothing-type-row-${t.id}`}>
+                        <td className="border border-[#3D5378] p-2 text-[#F1F5F9] font-semibold">
                           <div className="flex items-center gap-2">
                             {t.photo ? (
                               <img
                                 src={t.photo}
                                 alt={t.name}
-                                className="w-10 h-10 object-contain rounded border border-[#2A3B59] bg-[#0B1120] cursor-zoom-in shrink-0"
+                                className="w-10 h-10 object-contain rounded border border-[#3D5378] bg-[#152033] cursor-zoom-in shrink-0"
                                 onClick={() => setLightbox(t.photo)}
                                 data-testid={`clothing-thumb-${t.id}`}
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded bg-[#0B1120] border border-[#2A3B59] flex items-center justify-center shrink-0">
-                                <Shirt className="h-5 w-5 text-[#2A3B59]" />
+                              <div className="w-10 h-10 rounded bg-[#152033] border border-[#3D5378] flex items-center justify-center shrink-0">
+                                <Shirt className="h-5 w-5 text-[#3D5378]" />
                               </div>
                             )}
                             <span>{t.name}</span>
                           </div>
-                          {!t.is_active && <span className="ml-2 text-[10px] bg-[#2A3B59] text-white px-1.5 py-0.5 rounded uppercase">Nieaktywna</span>}
+                          {!t.is_active && <span className="ml-2 text-[10px] bg-[#3D5378] text-white px-1.5 py-0.5 rounded uppercase">Nieaktywna</span>}
                         </td>
-                        <td className="border border-[#2A3B59] p-2 text-center text-[#5F7552] font-bold">{t.yearly_limit}</td>
-                        <td className="border border-[#2A3B59] p-2 text-center text-[#94A3B8]">{MONTHS[t.start_month - 1]} → {MONTHS[t.end_month - 1]}</td>
-                        <td className="border border-[#2A3B59] p-2 text-center text-[#94A3B8]">{t.usage_period_months || 0} mies.</td>
-                        <td className="border border-[#2A3B59] p-2 text-center text-[11px] text-[#94A3B8]">
+                        <td className="border border-[#3D5378] p-2 text-center text-[#5F7552] font-bold">{t.yearly_limit}</td>
+                        <td className="border border-[#3D5378] p-2 text-center text-[#CBD5E1]">{MONTHS[t.start_month - 1]} → {MONTHS[t.end_month - 1]}</td>
+                        <td className="border border-[#3D5378] p-2 text-center text-[#CBD5E1]">{t.usage_period_months || 0} mies.</td>
+                        <td className="border border-[#3D5378] p-2 text-center text-[11px] text-[#CBD5E1]">
                           {[t.requires_shoe_size && 'rozm.but', t.requires_height && 'wzrost', t.requires_body_type && 'sylwetka'].filter(Boolean).join(', ') || '-'}
                         </td>
-                        <td className="border border-[#2A3B59] p-2">
+                        <td className="border border-[#3D5378] p-2">
                           <div className="flex gap-1 flex-wrap justify-center">
-                            <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="text-[#CBD5E1] h-7 px-2" data-testid={`edit-type-${t.id}`}>
+                            <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="text-[#F1F5F9] h-7 px-2" data-testid={`edit-type-${t.id}`}>
                               <Edit className="h-3 w-3" />
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => toggleActive(t)} className="text-[#94A3B8] h-7 px-2 text-xs">
+                            <Button size="sm" variant="ghost" onClick={() => toggleActive(t)} className="text-[#CBD5E1] h-7 px-2 text-xs">
                               {t.is_active ? 'Wył.' : 'Wł.'}
                             </Button>
                             <Button size="sm" variant="ghost" onClick={() => deleteType(t)} className="text-[#DC4A3A] h-7 px-2" data-testid={`del-type-${t.id}`}>
@@ -324,10 +324,10 @@ export const ClothingAdmin = () => {
 
       {/* ORDERS sub-tab - grouped by employee */}
       {(subtab === 'orders' || subtab === 'issued') && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <Shirt className="h-5 w-5 text-[#4F6343]" />
                 {subtab === 'orders' ? 'Zamówiona odzież' : 'Wydana odzież'}
               </CardTitle>
@@ -346,7 +346,7 @@ export const ClothingAdmin = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => exportOrdersPdf('include_forwarded')}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] text-xs h-8"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] text-xs h-8"
                     data-testid="export-orders-pdf-pending-and-forwarded"
                     title="Wszystkie niewydane, łącznie z przekazanymi do realizacji"
                   >
@@ -356,7 +356,7 @@ export const ClothingAdmin = () => {
                     size="sm"
                     variant="outline"
                     onClick={() => exportOrdersPdf('all')}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] text-xs h-8"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] text-xs h-8"
                     data-testid="export-orders-pdf-all"
                   >
                     <Download className="h-3.5 w-3.5 mr-1" /> PDF (wszystkie)
@@ -368,7 +368,7 @@ export const ClothingAdmin = () => {
                   size="sm"
                   variant="outline"
                   onClick={() => exportOrdersPdf('issued')}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] text-xs h-8"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] text-xs h-8"
                   data-testid="export-orders-pdf-issued"
                 >
                   <Download className="h-3.5 w-3.5 mr-1" /> PDF (wydane)
@@ -388,7 +388,7 @@ export const ClothingAdmin = () => {
                 .filter((row) => row.orders.length > 0);
               if (groupedFiltered.length === 0) {
                 return (
-                  <p className="text-[#94A3B8]">
+                  <p className="text-[#CBD5E1]">
                     {subtab === 'orders' ? 'Brak zamówień do wydania.' : 'Brak wydanych zamówień.'}
                   </p>
                 );
@@ -400,15 +400,15 @@ export const ClothingAdmin = () => {
                   const btInfo = BODY_TYPES.find((b) => b.value === p.body_type);
                   const BtIcon = btInfo?.Icon;
                   return (
-                    <div key={row.employee_id} className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3" data-testid={`orders-group-${row.employee_id}`}>
+                    <div key={row.employee_id} className="bg-[#1E2A44] rounded-lg border border-[#3D5378] p-3" data-testid={`orders-group-${row.employee_id}`}>
                       {/* Employee header with profile */}
-                      <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-[#2A3B59]">
-                        <span className="text-[#CBD5E1] font-bold text-base">{row.employee_name}</span>
+                      <div className="flex flex-wrap items-center gap-3 pb-2 border-b border-[#3D5378]">
+                        <span className="text-[#F1F5F9] font-bold text-base">{row.employee_name}</span>
                         <div className="flex flex-wrap items-center gap-2 text-xs">
-                          {p.shoe_size && <span className="bg-[#19243C] text-[#CBD5E1] px-2 py-1 rounded">But: <b>{p.shoe_size}</b></span>}
-                          {p.height && <span className="bg-[#19243C] text-[#CBD5E1] px-2 py-1 rounded">Wzrost: <b>{p.height} cm</b></span>}
+                          {p.shoe_size && <span className="bg-[#243049] text-[#F1F5F9] px-2 py-1 rounded">But: <b>{p.shoe_size}</b></span>}
+                          {p.height && <span className="bg-[#243049] text-[#F1F5F9] px-2 py-1 rounded">Wzrost: <b>{p.height} cm</b></span>}
                           {btInfo && BtIcon && (
-                            <span className="bg-[#19243C] text-[#CBD5E1] px-2 py-1 rounded flex items-center gap-1">
+                            <span className="bg-[#243049] text-[#F1F5F9] px-2 py-1 rounded flex items-center gap-1">
                               <BtIcon className="h-4 w-4 text-[#4F6343]" />
                               <b>{btInfo.label}</b>
                             </span>
@@ -424,10 +424,10 @@ export const ClothingAdmin = () => {
                           const issued = o.status === 'issued';
                           const forwarded = o.status === 'forwarded';
                           const bgClass = issued
-                            ? 'bg-[#19243C]/50 opacity-70'
+                            ? 'bg-[#243049]/50 opacity-70'
                             : forwarded
                               ? 'bg-[#7C5C00]/20 border border-[#D4AF37]/40'
-                              : 'bg-[#19243C]';
+                              : 'bg-[#243049]';
                           return (
                             <div
                               key={o.id}
@@ -437,11 +437,11 @@ export const ClothingAdmin = () => {
                               {/* Title + status badge: one clean line that wraps as needed */}
                               <div className="text-sm leading-snug break-words">
                                 <span className={`font-semibold ${issued ? 'text-[#5F7552]' : forwarded ? 'text-[#D4AF37]' : 'text-[#D4AF37]'}`}>{o.clothing_type_name}</span>
-                                <span className="text-[#94A3B8] ml-2 whitespace-nowrap">x {o.quantity}</span>
+                                <span className="text-[#CBD5E1] ml-2 whitespace-nowrap">x {o.quantity}</span>
                                 {issued && <span className="ml-2 inline-block text-[10px] bg-[#4F6343]/30 text-[#5F7552] px-2 py-0.5 rounded font-semibold uppercase whitespace-nowrap">Wydane</span>}
                                 {forwarded && <span className="ml-2 inline-block text-[10px] bg-[#D4AF37]/30 text-[#D4AF37] px-2 py-0.5 rounded font-semibold whitespace-nowrap">Przekazane do realizacji</span>}
                               </div>
-                              <p className="text-[11px] text-[#64748B] mt-1">
+                              <p className="text-[11px] text-[#94A3B8] mt-1">
                                 {new Date(o.created_at).toLocaleString('pl-PL')}
                                 {issued && o.issued_at && ` · Wydane: ${new Date(o.issued_at).toLocaleString('pl-PL')}`}
                                 {forwarded && o.forwarded_at && ` · Przekazane: ${new Date(o.forwarded_at).toLocaleString('pl-PL')}`}
@@ -453,7 +453,7 @@ export const ClothingAdmin = () => {
                                     size="sm"
                                     onClick={() => unmarkIssued(o)}
                                     variant="outline"
-                                    className="border-[#2A3B59] bg-[#131C2F] text-[#CBD5E1] hover:bg-[#2A3B59] text-xs h-7"
+                                    className="border-[#3D5378] bg-[#1E2A44] text-[#F1F5F9] hover:bg-[#3D5378] text-xs h-7"
                                     data-testid={`unissue-order-${o.id}`}
                                   >
                                     <Undo2 className="h-3 w-3 mr-1" /> Cofnij wydanie
@@ -464,8 +464,8 @@ export const ClothingAdmin = () => {
                                     size="sm"
                                     onClick={() => toggleForwarded(o)}
                                     className={forwarded
-                                      ? 'bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1] text-xs h-7'
-                                      : 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] text-xs h-7 font-bold'}
+                                      ? 'bg-[#3D5378] hover:bg-[#3D5378] text-[#F1F5F9] text-xs h-7'
+                                      : 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] text-xs h-7 font-bold'}
                                     data-testid={`forward-order-${o.id}`}
                                     title={forwarded ? 'Cofnij - wroci do listy do wydania i PDF' : 'Wykluczyc z PDF do dostawcy'}
                                   >
@@ -497,31 +497,31 @@ export const ClothingAdmin = () => {
 
       {/* SUMMARY sub-tab */}
       {subtab === 'summary' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
               <Shirt className="h-5 w-5 text-[#4F6343]" /> Pracownicy - wydania i limity
             </CardTitle>
           </CardHeader>
           <CardContent>
             {summary.length === 0 || types.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak danych.</p>
+              <p className="text-[#CBD5E1]">Brak danych.</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead className="bg-[#131C2F] sticky top-0 z-20">
+                  <thead className="bg-[#1E2A44] sticky top-0 z-20">
                     <tr>
-                      <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] sticky left-0 bg-[#131C2F] z-30">Pracownik</th>
+                      <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] sticky left-0 bg-[#1E2A44] z-30">Pracownik</th>
                       {types.filter(t => t.is_active).map(t => (
-                        <th key={t.id} className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[120px]">{t.name}</th>
+                        <th key={t.id} className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[120px]">{t.name}</th>
                       ))}
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[80px]">Akcje</th>
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[80px]">Akcje</th>
                     </tr>
                   </thead>
                   <tbody>
                     {summary.map((row, idx) => (
-                      <tr key={row.employee_id} className={`${idx % 2 === 0 ? 'bg-[#131C2F]/40' : 'bg-[#19243C]'} ${row.is_archived ? 'opacity-60' : ''}`}>
-                        <td className="border border-[#2A3B59] p-2 text-[#CBD5E1] font-semibold sticky left-0 bg-[#131C2F] z-10">
+                      <tr key={row.employee_id} className={`${idx % 2 === 0 ? 'bg-[#1E2A44]/40' : 'bg-[#243049]'} ${row.is_archived ? 'opacity-60' : ''}`}>
+                        <td className="border border-[#3D5378] p-2 text-[#F1F5F9] font-semibold sticky left-0 bg-[#1E2A44] z-10">
                           {row.employee_name}
                           {row.is_archived && (
                             <span className="ml-2 text-[10px] bg-[#DC4A3A]/20 text-[#DC4A3A] px-1.5 py-0.5 rounded">Archiwum</span>
@@ -529,16 +529,16 @@ export const ClothingAdmin = () => {
                         </td>
                         {types.filter(t => t.is_active).map(t => {
                           const item = row.items.find(i => i.clothing_type_id === t.id);
-                          if (!item) return <td key={t.id} className="border border-[#2A3B59] p-2 text-center text-[#94A3B8]">-</td>;
+                          if (!item) return <td key={t.id} className="border border-[#3D5378] p-2 text-center text-[#CBD5E1]">-</td>;
                           return (
-                            <td key={t.id} className="border border-[#2A3B59] p-2 text-center text-xs">
-                              <div className="text-[#CBD5E1]">Wydane: <span className="font-bold text-[#5F7552]">{item.issued_count_total}</span></div>
-                              <div className="text-[#94A3B8]">
+                            <td key={t.id} className="border border-[#3D5378] p-2 text-center text-xs">
+                              <div className="text-[#F1F5F9]">Wydane: <span className="font-bold text-[#5F7552]">{item.issued_count_total}</span></div>
+                              <div className="text-[#CBD5E1]">
                                 Zostalo: <span className="font-bold text-[#D4AF37]">{item.remaining_this_year}</span>/
                                 <span className={item.limit_overridden ? 'text-[#DC4A3A] font-bold' : ''}>{item.yearly_limit_effective}</span>
                               </div>
                               {item.next_available_at && (
-                                <div className="text-[10px] text-[#64748B] mt-1">Do {item.next_available_at.slice(0, 10)}</div>
+                                <div className="text-[10px] text-[#94A3B8] mt-1">Do {item.next_available_at.slice(0, 10)}</div>
                               )}
                               <button
                                 onClick={async () => {
@@ -565,7 +565,7 @@ export const ClothingAdmin = () => {
                             </td>
                           );
                         })}
-                        <td className="border border-[#2A3B59] p-2 text-center">
+                        <td className="border border-[#3D5378] p-2 text-center">
                           {row.is_archived ? (
                             <button
                               type="button"
@@ -588,7 +588,7 @@ export const ClothingAdmin = () => {
                               Usuń trwale
                             </button>
                           ) : (
-                            <span className="text-[10px] text-[#64748B]">-</span>
+                            <span className="text-[10px] text-[#94A3B8]">-</span>
                           )}
                         </td>
                       </tr>
@@ -604,64 +604,64 @@ export const ClothingAdmin = () => {
       {/* Add/Edit type modal */}
       {showAddType && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md max-h-[90vh] overflow-y-auto">
+          <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md max-h-[90vh] overflow-y-auto">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">{editingType ? 'Edytuj pozycję' : 'Dodaj pozycję'}</CardTitle>
+              <CardTitle className="text-[#F1F5F9]">{editingType ? 'Edytuj pozycję' : 'Dodaj pozycję'}</CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setShowAddType(false)} data-testid="close-clothing-modal">
                 <X className="h-4 w-4" />
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8]">Nazwa pozycji</label>
+                <label className="text-xs text-[#CBD5E1]">Nazwa pozycji</label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   placeholder="np. Buty robocze letnie"
                   data-testid="clothing-name-input"
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Limit na rok (szt.)</label>
+                  <label className="text-xs text-[#CBD5E1]">Limit na rok (szt.)</label>
                   <Input
                     type="number" min="1"
                     value={form.yearly_limit}
                     onChange={(e) => setForm((f) => ({ ...f, yearly_limit: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="clothing-limit-input"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Okres użytkowania (miesiące)</label>
+                  <label className="text-xs text-[#CBD5E1]">Okres użytkowania (miesiące)</label>
                   <Input
                     type="number" min="0"
                     value={form.usage_period_months}
                     onChange={(e) => setForm((f) => ({ ...f, usage_period_months: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="clothing-usage-input"
                   />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Od miesiąca</label>
+                  <label className="text-xs text-[#CBD5E1]">Od miesiąca</label>
                   <select
                     value={form.start_month}
                     onChange={(e) => setForm((f) => ({ ...f, start_month: e.target.value }))}
-                    className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-2 py-2 text-sm"
+                    className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-2 py-2 text-sm"
                     data-testid="clothing-start-select"
                   >
                     {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Do miesiąca (włącznie)</label>
+                  <label className="text-xs text-[#CBD5E1]">Do miesiąca (włącznie)</label>
                   <select
                     value={form.end_month}
                     onChange={(e) => setForm((f) => ({ ...f, end_month: e.target.value }))}
-                    className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-2 py-2 text-sm"
+                    className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-2 py-2 text-sm"
                     data-testid="clothing-end-select"
                   >
                     {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -670,32 +670,32 @@ export const ClothingAdmin = () => {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Grupa wariantów (opcjonalnie)</label>
+                  <label className="text-xs text-[#CBD5E1]">Grupa wariantów (opcjonalnie)</label>
                   <Input
                     value={form.tier_group}
                     onChange={(e) => setForm((f) => ({ ...f, tier_group: e.target.value }))}
                     placeholder="np. spodnie"
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="clothing-tier-group"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Poziom (1=tani, 2=droższy...)</label>
+                  <label className="text-xs text-[#CBD5E1]">Poziom (1=tani, 2=droższy...)</label>
                   <Input
                     type="number" min="1"
                     value={form.tier_level}
                     onChange={(e) => setForm((f) => ({ ...f, tier_level: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="clothing-tier-level"
                   />
                 </div>
               </div>
-              <p className="text-[10px] text-[#64748B] -mt-1">
+              <p className="text-[10px] text-[#94A3B8] -mt-1">
                 Pozycje w tej samej grupie są <strong>wzajemnie wyłączne</strong> - pracownik po pierwszym zamówieniu jest zablokowany na ten poziom (nie może zamienić tańszego na droższy ani odwrotnie).
               </p>
               <div className="pt-2 space-y-1">
-                <p className="text-xs text-[#94A3B8]">Wymagane pola od pracownika:</p>
-                <label className="flex items-center gap-2 text-sm text-[#CBD5E1]">
+                <p className="text-xs text-[#CBD5E1]">Wymagane pola od pracownika:</p>
+                <label className="flex items-center gap-2 text-sm text-[#F1F5F9]">
                   <input
                     type="checkbox"
                     checked={form.requires_shoe_size}
@@ -703,7 +703,7 @@ export const ClothingAdmin = () => {
                     data-testid="req-shoe"
                   /> Rozmiar buta
                 </label>
-                <label className="flex items-center gap-2 text-sm text-[#CBD5E1]">
+                <label className="flex items-center gap-2 text-sm text-[#F1F5F9]">
                   <input
                     type="checkbox"
                     checked={form.requires_height}
@@ -711,7 +711,7 @@ export const ClothingAdmin = () => {
                     data-testid="req-height"
                   /> Wzrost
                 </label>
-                <label className="flex items-center gap-2 text-sm text-[#CBD5E1]">
+                <label className="flex items-center gap-2 text-sm text-[#F1F5F9]">
                   <input
                     type="checkbox"
                     checked={form.requires_body_type}
@@ -721,7 +721,7 @@ export const ClothingAdmin = () => {
                 </label>
               </div>
               <div className="pt-2">
-                <label className="text-xs text-[#94A3B8] block mb-1">Zdjęcie podglądowe (opcjonalnie)</label>
+                <label className="text-xs text-[#CBD5E1] block mb-1">Zdjęcie podglądowe (opcjonalnie)</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -733,12 +733,12 @@ export const ClothingAdmin = () => {
                     reader.onload = (ev) => setForm((f) => ({ ...f, photo: ev.target.result }));
                     reader.readAsDataURL(file);
                   }}
-                  className="text-xs text-[#CBD5E1]"
+                  className="text-xs text-[#F1F5F9]"
                   data-testid="clothing-photo-input"
                 />
                 {form.photo && (
                   <div className="mt-2 relative inline-block">
-                    <img src={form.photo} alt="podglad" className="max-h-48 max-w-full object-contain rounded bg-[#0B1120]" />
+                    <img src={form.photo} alt="podglad" className="max-h-48 max-w-full object-contain rounded bg-[#152033]" />
                     <button
                       type="button"
                       onClick={() => setForm((f) => ({ ...f, photo: null }))}
@@ -752,7 +752,7 @@ export const ClothingAdmin = () => {
               </div>
               <div className="flex gap-2 pt-3">
                 <ActionButton onAction={submitForm} className="flex-1 bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="save-clothing-type-btn">{editingType ? 'Zapisz' : 'Dodaj'}</ActionButton>
-                <Button onClick={() => setShowAddType(false)} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]">Anuluj</Button>
+                <Button onClick={() => setShowAddType(false)} variant="outline" className="border-[#3D5378] text-[#F1F5F9]">Anuluj</Button>
               </div>
             </CardContent>
           </Card>

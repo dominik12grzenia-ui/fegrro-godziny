@@ -107,20 +107,20 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   const r = computeSubRow(edit, defaults);
   // Proporcjonalne kaucje/koszty w stosunku do zwolnionego sub-pozycji
   const ratio = posComputed.budzetZwolniony > 0 ? r.budzetZwolniony / posComputed.budzetZwolniony : 0;
-  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
+  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#152033] outline-none";
   // placeholdery pokazuja domysla z poziomu wyceny
   const narzutPlaceholder = (defaults.narzut ?? 0) ? String(defaults.narzut) : '0';
   const marzaPlaceholder = (defaults.marza ?? 0) ? String(defaults.marza) : '0';
 
   return (
-    <tr className="bg-[#0B1120]/30" data-testid={`sub-row-${sub.id}`}>
-      <Td className="text-[#94A3B8]">{code}</Td>
+    <tr className="bg-[#152033]/30" data-testid={`sub-row-${sub.id}`}>
+      <Td className="text-[#CBD5E1]">{code}</Td>
       <Td>
         <span className="text-[10px]" style={{ color: SUB_TYPE_COLOR[sub.type] }}>{SUB_TYPE_LABEL[sub.type]}</span>
       </Td>
       <Td>
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save()} className={`${inputCls} text-[#CBD5E1] pl-3`}
+          onBlur={() => save()} className={`${inputCls} text-[#F1F5F9] pl-3`}
           placeholder="↳ nazwa" data-testid={`sub-name-${sub.id}`} />
       </Td>
       <Td right>
@@ -129,7 +129,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
             onChange={(e) => setQtyInput(e.target.value)}
             onBlur={saveQty}
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
-            className={`${inputCls} text-right tabular-nums text-[#CBD5E1] ${String(qtyInput).startsWith('=') ? 'text-[#D4AF37] font-mono' : ''}`}
+            className={`${inputCls} text-right tabular-nums text-[#F1F5F9] ${String(qtyInput).startsWith('=') ? 'text-[#D4AF37] font-mono' : ''}`}
             title={formulaPreview && !formulaPreview.error ? `= ${formulaPreview.value} ${formulaPreview.unit || ''}` : (formulaPreview?.error || 'Wpisz liczbę lub formułę zaczynającą się od "=" np. =100 m² * 0,24 m')}
             data-testid={`sub-qty-${sub.id}`} />
           {formulaPreview && !formulaPreview.error && (() => {
@@ -147,7 +147,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
                 </span>
                 {match && <span className="text-[#9DBC85]" title="Jednostka pozycji zgadza się z analizą wymiarową">✓</span>}
                 {empty && (
-                  <span className="text-[#94A3B8] italic">
+                  <span className="text-[#CBD5E1] italic">
                     (auto-przypisze {detected} po wyjściu z pola)
                   </span>
                 )}
@@ -168,7 +168,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
             </div>
           )}
           {!formulaPreview && sub.quantity_formula && (
-            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#94A3B8] font-mono whitespace-nowrap pointer-events-none"
+            <div className="absolute left-0 -bottom-3.5 text-[9px] text-[#CBD5E1] font-mono whitespace-nowrap pointer-events-none"
               title={`Formuła: ${sub.quantity_formula}`}>
               fx
             </div>
@@ -178,7 +178,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
       <Td>
         <select value={edit.unit || ''}
           onChange={(e) => { const v = e.target.value; const next = { ...edit, unit: v }; setEdit(next); save(next); }}
-          className={`${inputCls} text-center text-[#CBD5E1]`}
+          className={`${inputCls} text-center text-[#F1F5F9]`}
           data-testid={`sub-unit-${sub.id}`}>
           {UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
         </select>
@@ -191,7 +191,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           </button>
           <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
             onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
-            onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#CBD5E1]`}
+            onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#F1F5F9]`}
             data-testid={`sub-price-${sub.id}`} />
         </div>
         {pickerOpen && (
@@ -212,12 +212,12 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
           data-testid={`sub-marza-${sub.id}`} />
       </Td>
-      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
-      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
-      <Td right className="text-[#94A3B8]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
+      <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
+      <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
+      <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kosztBudowy * ratio)}</Td>
       <Td right className="text-white font-semibold">{fmtPLN(posComputed.budzet * ratio)}</Td>
-      <Td right className="text-[#CBD5E1]">{fmtPLN(r.budzetZwolniony)}</Td>
-      <Td right className="text-[#94A3B8]">{fmtPLN(r.kosztPrognozowany)}</Td>
+      <Td right className="text-[#F1F5F9]">{fmtPLN(r.budzetZwolniony)}</Td>
+      <Td right className="text-[#CBD5E1]">{fmtPLN(r.kosztPrognozowany)}</Td>
       <Td right className={(r.budzetZwolniony - r.kosztPrognozowany) >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>
         {fmtPLN(r.budzetZwolniony - r.kosztPrognozowany)}
       </Td>
@@ -225,7 +225,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         {fmtPLN((r.budzetZwolniony - r.kosztPrognozowany) + posComputed.kaucjaDw * ratio)}
       </Td>
       <Td right>
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`sub-del-${sub.id}`}>
+        <button onClick={onDel} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`sub-del-${sub.id}`}>
           <Trash2 className="h-3 w-3" />
         </button>
       </Td>

@@ -20,19 +20,19 @@ const UNITS = ['szt.', 'op.', 'm', 'm2', 'm3', 'kg', 't', 'l', 'paleta'];
 const PendingItemRow = ({ row, onIssue, onRemove }) => {
   const [qty, setQty] = useState(String(row.quantity));
   return (
-    <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 hover:bg-[#19243C]/40 transition-colors"
+    <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 hover:bg-[#243049]/40 transition-colors"
       data-testid={`warehouse-pending-row-${row.order_id}-${row.material_id}`}>
       <div className="flex-1 min-w-[180px]">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[#CBD5E1] font-medium">{row.material_name}</span>
-          <span className="text-[#94A3B8] text-xs">zam. {row.quantity} {row.unit}</span>
+          <span className="text-[#F1F5F9] font-medium">{row.material_name}</span>
+          <span className="text-[#CBD5E1] text-xs">zam. {row.quantity} {row.unit}</span>
           {(row.stock_at_order ?? 0) < row.quantity && (
             <span className="text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1.5 py-0.5 rounded">
               w mag. {row.stock_at_order}
             </span>
           )}
         </div>
-        <div className="flex flex-wrap gap-2 text-[11px] text-[#64748B] mt-0.5">
+        <div className="flex flex-wrap gap-2 text-[11px] text-[#94A3B8] mt-0.5">
           {row.site_name && <span>· {row.site_name}</span>}
           <span>{new Date(row.created_at).toLocaleDateString('pl-PL')}</span>
           {row.note && <span className="italic">"{row.note}"</span>}
@@ -41,9 +41,9 @@ const PendingItemRow = ({ row, onIssue, onRemove }) => {
       <div className="flex items-center gap-1">
         <Input type="number" step="0.5" value={qty}
           onChange={(e) => setQty(e.target.value)}
-          className="h-8 w-20 text-center text-xs bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1]"
+          className="h-8 w-20 text-center text-xs bg-[#152033] border-[#3D5378] text-[#F1F5F9]"
           data-testid={`warehouse-issue-qty-${row.material_id}`} />
-        <span className="text-[10px] text-[#94A3B8]">{row.unit}</span>
+        <span className="text-[10px] text-[#CBD5E1]">{row.unit}</span>
         <Button size="sm" onClick={() => onIssue(qty)}
           className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-8 text-[11px]"
           data-testid={`warehouse-issue-btn-${row.material_id}`}>
@@ -271,7 +271,7 @@ export const WarehouseAdmin = () => {
     [orders, historyForeman],
   );
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
+  if (loading) return <p className="text-[#CBD5E1] p-4">Ładowanie...</p>;
 
   return (
     <div className="space-y-4">
@@ -280,7 +280,7 @@ export const WarehouseAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('materials')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'materials' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'materials' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="warehouse-subtab-materials"
         >
           Materiały ({materials.length})
@@ -288,12 +288,12 @@ export const WarehouseAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('orders')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'orders' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="warehouse-subtab-orders"
         >
           Zamówienia
           {pendingOrders.length > 0 && (
-            <span className="ml-2 bg-[#D4AF37] text-[#131C2F] px-2 py-0.5 rounded text-[11px]">
+            <span className="ml-2 bg-[#D4AF37] text-[#1E2A44] px-2 py-0.5 rounded text-[11px]">
               {pendingOrders.length}
             </span>
           )}
@@ -301,7 +301,7 @@ export const WarehouseAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('history')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'history' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'history' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="warehouse-subtab-history"
         >
           Historia
@@ -310,10 +310,10 @@ export const WarehouseAdmin = () => {
 
       {/* MATERIALS */}
       {subtab === 'materials' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <Boxes className="h-5 w-5 text-[#4F6343]" /> Materiały
               </CardTitle>
               <Button size="sm" onClick={openCreate}
@@ -325,29 +325,29 @@ export const WarehouseAdmin = () => {
           </CardHeader>
           <CardContent>
             {materials.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak materiałów. Dodaj pierwszy (np. Cement, Pustak, Stal zbrojeniowa).</p>
+              <p className="text-[#CBD5E1]">Brak materiałów. Dodaj pierwszy (np. Cement, Pustak, Stal zbrojeniowa).</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {materials.map((m) => {
                   const isLow = (m.current_stock || 0) < 1;
                   return (
                     <div key={m.id}
-                      className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3 flex gap-3"
+                      className="bg-[#1E2A44] rounded-lg border border-[#3D5378] p-3 flex gap-3"
                       data-testid={`warehouse-material-${m.id}`}>
                       {m.photo ? (
                         <img src={m.photo} alt={m.name} className="h-20 w-20 object-cover rounded shrink-0" />
                       ) : (
-                        <div className="h-20 w-20 bg-[#0B1120] rounded flex items-center justify-center shrink-0">
-                          <Package className="h-8 w-8 text-[#2A3B59]" />
+                        <div className="h-20 w-20 bg-[#152033] rounded flex items-center justify-center shrink-0">
+                          <Package className="h-8 w-8 text-[#3D5378]" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[#CBD5E1] font-semibold truncate">{m.name}</p>
+                        <p className="text-[#F1F5F9] font-semibold truncate">{m.name}</p>
                         <p className={`text-sm font-bold mt-1 ${isLow ? 'text-[#DC4A3A]' : 'text-[#5F7552]'}`}>
                           Stan: {m.current_stock} {m.unit}
                           {isLow && <AlertCircle className="h-3 w-3 inline-block ml-1" />}
                         </p>
-                        {m.note && <p className="text-[11px] text-[#64748B] mt-0.5 truncate">{m.note}</p>}
+                        {m.note && <p className="text-[11px] text-[#94A3B8] mt-0.5 truncate">{m.note}</p>}
                         <div className="flex gap-1 mt-2">
                           <Button size="sm" variant="ghost"
                             onClick={() => { setStockAdjust(m); setAdjustVal(''); setAdjustReason('przyjęcie'); }}
@@ -356,7 +356,7 @@ export const WarehouseAdmin = () => {
                             +/− stan
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => openEdit(m)}
-                            className="text-[#94A3B8] h-7 px-2">
+                            className="text-[#CBD5E1] h-7 px-2">
                             <Edit className="h-3 w-3" />
                           </Button>
                           <Button size="sm" variant="ghost" onClick={() => remove(m)}
@@ -376,16 +376,16 @@ export const WarehouseAdmin = () => {
 
       {/* ORDERS - grupowane per brygadzista, tylko pozycje DO WYDANIA */}
       {subtab === 'orders' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <Package className="h-5 w-5 text-[#4F6343]" /> Do wydania ({pendingByForeman.length} brygadzist{pendingByForeman.length === 1 ? 'a' : 'ów'})
               </CardTitle>
               <select
                 value={historyForeman}
                 onChange={(e) => setHistoryForeman(e.target.value)}
-                className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-8 px-2 text-sm"
+                className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-8 px-2 text-sm"
                 data-testid="warehouse-orders-foreman-filter">
                 <option value="">Wszyscy brygadziści</option>
                 {foremen.map((f) => (
@@ -396,20 +396,20 @@ export const WarehouseAdmin = () => {
           </CardHeader>
           <CardContent>
             {pendingByForeman.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak pozycji do wydania.</p>
+              <p className="text-[#CBD5E1]">Brak pozycji do wydania.</p>
             ) : (
               <div className="space-y-4">
                 {pendingByForeman.map((group) => (
                   <div key={group.foreman_id}
-                    className="bg-[#131C2F] rounded-lg border border-[#2A3B59]"
+                    className="bg-[#1E2A44] rounded-lg border border-[#3D5378]"
                     data-testid={`warehouse-pending-foreman-${group.foreman_id}`}>
-                    <div className="bg-[#19243C] px-4 py-2 rounded-t-lg border-b border-[#2A3B59]">
-                      <span className="text-[#CBD5E1] font-bold text-base">{group.foreman_name}</span>
+                    <div className="bg-[#243049] px-4 py-2 rounded-t-lg border-b border-[#3D5378]">
+                      <span className="text-[#F1F5F9] font-bold text-base">{group.foreman_name}</span>
                       <span className="ml-2 text-[11px] bg-[#4F6343]/30 text-[#5F7552] px-2 py-0.5 rounded">
                         {group.rows.length} {group.rows.length === 1 ? 'pozycja' : 'pozycji'}
                       </span>
                     </div>
-                    <div className="divide-y divide-[#2A3B59]">
+                    <div className="divide-y divide-[#3D5378]">
                       {group.rows.map((row) => (
                         <PendingItemRow
                           key={`${row.order_id}-${row.material_id}`}
@@ -427,25 +427,25 @@ export const WarehouseAdmin = () => {
             {/* Wydane / odrzucone - skrocona historia */}
             {filteredOrders.some((o) => o.status === 'issued' || o.status === 'rejected') && (
               <details className="mt-4">
-                <summary className="cursor-pointer text-[#94A3B8] text-sm hover:text-[#CBD5E1]">
+                <summary className="cursor-pointer text-[#CBD5E1] text-sm hover:text-[#F1F5F9]">
                   Pokaż wcześniejsze zamówienia ({filteredOrders.filter((o) => o.status === 'issued' || o.status === 'rejected').length})
                 </summary>
                 <div className="mt-2 space-y-2">
                   {filteredOrders.filter((o) => o.status === 'issued' || o.status === 'rejected').slice(0, 30).map((o) => (
-                    <div key={o.id} className="bg-[#131C2F] rounded p-2 text-xs"
+                    <div key={o.id} className="bg-[#1E2A44] rounded p-2 text-xs"
                       data-testid={`warehouse-archived-order-${o.id}`}>
                       <div className="flex flex-wrap justify-between gap-2">
-                        <span className="text-[#CBD5E1] font-semibold">{o.foreman_name}</span>
+                        <span className="text-[#F1F5F9] font-semibold">{o.foreman_name}</span>
                         <span className={`text-[10px] px-2 py-0.5 rounded ${o.status === 'issued' ? 'bg-[#4F6343]/30 text-[#5F7552]' : 'bg-[#DC4A3A]/20 text-[#DC4A3A]'}`}>
                           {o.status === 'issued' ? 'Wydane' : 'Odrzucone'}
                         </span>
-                        <span className="text-[#64748B]">{new Date(o.issued_at || o.created_at).toLocaleDateString('pl-PL')}</span>
+                        <span className="text-[#94A3B8]">{new Date(o.issued_at || o.created_at).toLocaleDateString('pl-PL')}</span>
                       </div>
-                      <div className="mt-1 text-[#94A3B8]">
+                      <div className="mt-1 text-[#CBD5E1]">
                         {(o.items || []).map((it) => `${it.material_name} (${it.issued_quantity ?? it.quantity} ${it.unit})`).join(' · ')}
                       </div>
                       <Button size="sm" variant="ghost" onClick={() => removeOrder(o)}
-                        className="text-[#94A3B8] h-6 px-2 text-[10px] mt-1">
+                        className="text-[#CBD5E1] h-6 px-2 text-[10px] mt-1">
                         <Trash2 className="h-3 w-3 mr-1" /> Usuń z historii
                       </Button>
                     </div>
@@ -459,16 +459,16 @@ export const WarehouseAdmin = () => {
 
       {/* HISTORY */}
       {subtab === 'history' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <History className="h-5 w-5 text-[#4F6343]" /> Historia ruchów magazynowych
               </CardTitle>
               <select
                 value={historyForeman}
                 onChange={(e) => setHistoryForeman(e.target.value)}
-                className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-8 px-2 text-sm"
+                className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-8 px-2 text-sm"
                 data-testid="warehouse-history-foreman-filter">
                 <option value="">Wszystkie zdarzenia</option>
                 {foremen.map((f) => (
@@ -479,27 +479,27 @@ export const WarehouseAdmin = () => {
           </CardHeader>
           <CardContent>
             {history.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak historii.</p>
+              <p className="text-[#CBD5E1]">Brak historii.</p>
             ) : (
               <div className="space-y-1">
                 {history.map((h) => (
                   <div key={h.id}
-                    className="flex flex-wrap items-center gap-2 bg-[#131C2F] rounded p-2 text-sm"
+                    className="flex flex-wrap items-center gap-2 bg-[#1E2A44] rounded p-2 text-sm"
                     data-testid={`warehouse-history-${h.id}`}>
-                    <span className="text-[#64748B] text-[11px] min-w-[110px]">
+                    <span className="text-[#94A3B8] text-[11px] min-w-[110px]">
                       {new Date(h.at).toLocaleString('pl-PL')}
                     </span>
                     <span className={`font-bold ${h.delta < 0 ? 'text-[#DC4A3A]' : 'text-[#5F7552]'} min-w-[70px]`}>
                       {h.delta > 0 ? '+' : ''}{h.delta} {h.unit || ''}
                     </span>
-                    <span className="text-[#CBD5E1] flex-1">{h.material_name}</span>
+                    <span className="text-[#F1F5F9] flex-1">{h.material_name}</span>
                     {h.foreman_name && (
                       <span className="text-[11px] bg-[#4F6343]/30 text-[#5F7552] px-2 py-0.5 rounded">
                         {h.foreman_name}
                       </span>
                     )}
-                    {h.reason && <span className="text-[11px] text-[#94A3B8]">{h.reason}</span>}
-                    <span className="text-[11px] text-[#64748B]">→ {h.stock_after}</span>
+                    {h.reason && <span className="text-[11px] text-[#CBD5E1]">{h.reason}</span>}
+                    <span className="text-[11px] text-[#94A3B8]">→ {h.stock_after}</span>
                   </div>
                 ))}
               </div>
@@ -512,56 +512,56 @@ export const WarehouseAdmin = () => {
       {showItem && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setShowItem(false)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+          <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[#CBD5E1]">
+                <CardTitle className="text-[#F1F5F9]">
                   {editing ? 'Edytuj materiał' : 'Nowy materiał'}
                 </CardTitle>
-                <Button size="sm" variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">
+                <Button size="sm" variant="ghost" onClick={() => setShowItem(false)} className="text-[#CBD5E1]">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8]">Nazwa</label>
+                <label className="text-xs text-[#CBD5E1]">Nazwa</label>
                 <Input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="np. Cement portlandzki 25kg"
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   data-testid="warehouse-form-name" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Jednostka</label>
+                  <label className="text-xs text-[#CBD5E1]">Jednostka</label>
                   <select value={form.unit} onChange={(e) => setForm((f) => ({ ...f, unit: e.target.value }))}
-                    className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                    className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-10 px-3 text-sm"
                     data-testid="warehouse-form-unit">
                     {UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Aktualny stan</label>
+                  <label className="text-xs text-[#CBD5E1]">Aktualny stan</label>
                   <Input type="number" step="0.01" value={form.current_stock}
                     onChange={(e) => setForm((f) => ({ ...f, current_stock: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="warehouse-form-stock" />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Notatka (opc.)</label>
+                <label className="text-xs text-[#CBD5E1]">Notatka (opc.)</label>
                 <Input value={form.note} onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
                   placeholder="np. polka A3"
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]" />
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]" />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Zdjecie (opc.)</label>
+                <label className="text-xs text-[#CBD5E1]">Zdjecie (opc.)</label>
                 <Input type="file" accept="image/*" onChange={onPhoto}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]" />
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]" />
                 {form.photo && <img src={form.photo} alt="podglad" className="h-20 mt-2 rounded" />}
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setShowItem(false)} className="text-[#94A3B8]">Anuluj</Button>
+                <Button variant="ghost" onClick={() => setShowItem(false)} className="text-[#CBD5E1]">Anuluj</Button>
                 <ActionButton onAction={save} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="warehouse-form-save">Zapisz</ActionButton>
               </div>
@@ -574,33 +574,33 @@ export const WarehouseAdmin = () => {
       {stockAdjust && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
           onClick={() => setStockAdjust(null)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+          <Card className="bg-[#243049] border-[#3D5378] w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
             <CardHeader>
-              <CardTitle className="text-[#CBD5E1] text-base">{stockAdjust.name}</CardTitle>
+              <CardTitle className="text-[#F1F5F9] text-base">{stockAdjust.name}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-sm text-[#94A3B8]">
-                Aktualny stan: <b className="text-[#CBD5E1]">{stockAdjust.current_stock} {stockAdjust.unit}</b>
+              <p className="text-sm text-[#CBD5E1]">
+                Aktualny stan: <b className="text-[#F1F5F9]">{stockAdjust.current_stock} {stockAdjust.unit}</b>
               </p>
               <div>
-                <label className="text-xs text-[#94A3B8]">Zmiana (+ przyjęcie, − wydanie/strata)</label>
+                <label className="text-xs text-[#CBD5E1]">Zmiana (+ przyjęcie, − wydanie/strata)</label>
                 <Input type="number" step="0.01" value={adjustVal}
                   onChange={(e) => setAdjustVal(e.target.value)}
                   placeholder={`np. 50 lub -10 (${stockAdjust.unit})`}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   data-testid="warehouse-adjust-input" />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Powód</label>
+                <label className="text-xs text-[#CBD5E1]">Powód</label>
                 <select value={adjustReason} onChange={(e) => setAdjustReason(e.target.value)}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm">
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-10 px-3 text-sm">
                   <option value="przyjęcie">Przyjęcie</option>
                   <option value="korekta">Korekta</option>
                   <option value="strata">Strata/zniszczenie</option>
                 </select>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="ghost" onClick={() => setStockAdjust(null)} className="text-[#94A3B8]">Anuluj</Button>
+                <Button variant="ghost" onClick={() => setStockAdjust(null)} className="text-[#CBD5E1]">Anuluj</Button>
                 <ActionButton onAction={submitAdjust} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
                   data-testid="warehouse-adjust-save">Zapisz</ActionButton>
               </div>

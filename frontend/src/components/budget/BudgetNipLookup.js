@@ -31,7 +31,7 @@ export const BudgetNipLookup = ({ onResult }) => {
       <Input value={nip} onChange={(e) => setNip(e.target.value)}
         placeholder="NIP (10 cyfr)" maxLength={13}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fetchGus(); } }}
-        className="h-7 text-xs bg-[#0B1120] border-[#2A3B59] text-white no-spinner"
+        className="h-7 text-xs bg-[#152033] border-[#3D5378] text-white no-spinner"
         data-testid="budget-nip-lookup-input" />
       <Button type="button" size="sm" onClick={fetchGus} disabled={busy}
         className="h-7 px-2 text-xs bg-[#4F6343] hover:bg-[#3F5235] text-white whitespace-nowrap"

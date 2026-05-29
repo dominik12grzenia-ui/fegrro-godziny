@@ -61,29 +61,29 @@ export const LaborPriceBook = () => {
     <div className="space-y-2" data-testid="labor-pricebook">
       <div className="flex items-center gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj nazwy robocizny..."
-          className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="labor-search" />
-        <Button onClick={addRow} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+          className="bg-[#152033] border-[#3D5378] max-w-sm" data-testid="labor-search" />
+        <Button onClick={addRow} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
           data-testid="labor-add-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
         </Button>
-        <div className="text-xs text-[#94A3B8]">{rows.length} pozycji</div>
+        <div className="text-xs text-[#CBD5E1]">{rows.length} pozycji</div>
       </div>
-      {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : rows.length === 0 ? (
-        <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="labor-empty">
+      {loading ? <div className="text-[#CBD5E1]">Ładuję...</div> : rows.length === 0 ? (
+        <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="labor-empty">
           Brak pozycji. Kliknij „Dodaj pozycję".
         </div>
       ) : (
-        <div className="overflow-x-auto border border-[#2A3B59] rounded">
+        <div className="overflow-x-auto border border-[#3D5378] rounded">
           <table className="w-full text-xs" data-testid="labor-table">
-            <thead className="bg-[#0B1120] text-[#94A3B8] sticky top-0">
+            <thead className="bg-[#152033] text-[#CBD5E1] sticky top-0">
               <tr>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[260px]">nazwa robocizny</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[120px]">cena za m²</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[120px]">cena za m³</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[280px]">
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[260px]">nazwa robocizny</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[120px]">cena za m²</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[120px]">cena za m³</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[280px]">
                   Wartości historyczne po zmianach (historia)
                 </th>
-                <th className="p-2 border-b border-[#2A3B59] w-8"></th>
+                <th className="p-2 border-b border-[#3D5378] w-8"></th>
               </tr>
             </thead>
             <tbody>

@@ -91,18 +91,18 @@ export const ClothingOrderPublic = ({ token }) => {
     // Skeleton so user sees the section immediately while data is fetched.
     // This eliminates the "blank space then clothing card appears" flash.
     return (
-      <Card className="mt-4 bg-[#19243C] border-[#2A3B59]" data-testid="clothing-skeleton">
+      <Card className="mt-4 bg-[#243049] border-[#3D5378]" data-testid="clothing-skeleton">
         <CardHeader className="pb-2">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
             <Shirt className="h-4 w-4 text-[#4F6343]" />
             Odzież robocza
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="h-24 bg-[#131C2F] rounded animate-pulse" />
+          <div className="h-24 bg-[#1E2A44] rounded animate-pulse" />
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="h-32 bg-[#131C2F] rounded animate-pulse" />
+              <div key={i} className="h-32 bg-[#1E2A44] rounded animate-pulse" />
             ))}
           </div>
         </CardContent>
@@ -115,9 +115,9 @@ export const ClothingOrderPublic = ({ token }) => {
 
   return (
     <>
-      <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
+      <Card className="mt-4 bg-[#243049] border-[#3D5378]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
             <Shirt className="h-4 w-4 text-[#4F6343]" />
             Odzież robocza
           </CardTitle>
@@ -128,44 +128,44 @@ export const ClothingOrderPublic = ({ token }) => {
               <p className="text-[#FCA5A5] text-sm font-semibold">
                 Zamawianie odzieży zostało wstrzymane
               </p>
-              <p className="text-[#94A3B8] text-xs mt-1">
+              <p className="text-[#CBD5E1] text-xs mt-1">
                 Skontaktuj się z biurem, aby dowiedzieć się więcej.
               </p>
             </div>
           )}
           {/* Profile section (saved once per worker) */}
-          <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
+          <div className="p-3 bg-[#1E2A44] rounded-lg border border-[#3D5378]">
             <div className="flex items-center gap-2 mb-2">
               <User className="h-4 w-4 text-[#4F6343]" />
-              <span className="text-[#CBD5E1] font-semibold text-sm">{t('clothing.my_sizes')}</span>
+              <span className="text-[#F1F5F9] font-semibold text-sm">{t('clothing.my_sizes')}</span>
               {!profileComplete && (
                 <span className="text-[10px] bg-[#7F2229] text-[#D4AF37] px-2 py-0.5 rounded font-semibold uppercase">{t('clothing_pub.complete')}</span>
               )}
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div>
-                <label className="text-[10px] text-[#94A3B8]">{t('clothing.shoe_size')}</label>
+                <label className="text-[10px] text-[#CBD5E1]">{t('clothing.shoe_size')}</label>
                 <Input
                   value={profile.shoe_size}
                   onChange={(e) => { setProfile((p) => ({ ...p, shoe_size: e.target.value })); setProfileDirty(true); }}
                   placeholder="np. 42"
-                  className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] h-9 text-sm"
+                  className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] h-9 text-sm"
                   data-testid="profile-shoe"
                 />
               </div>
               <div>
-                <label className="text-[10px] text-[#94A3B8]">{t('clothing.height_cm')}</label>
+                <label className="text-[10px] text-[#CBD5E1]">{t('clothing.height_cm')}</label>
                 <Input
                   value={profile.height}
                   onChange={(e) => { setProfile((p) => ({ ...p, height: e.target.value })); setProfileDirty(true); }}
                   placeholder="np. 178"
-                  className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] h-9 text-sm"
+                  className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] h-9 text-sm"
                   data-testid="profile-height"
                 />
               </div>
             </div>
             <div>
-              <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.body_type')}</label>
+              <label className="text-[10px] text-[#CBD5E1] block mb-1">{t('clothing.body_type')}</label>
               <div className="grid grid-cols-3 gap-2">
                 {BODY_TYPES.map((bt) => {
                   const selected = profile.body_type === bt.value;
@@ -177,10 +177,10 @@ export const ClothingOrderPublic = ({ token }) => {
                       onClick={() => { setProfile((p) => ({ ...p, body_type: bt.value })); setProfileDirty(true); }}
                       title={bt.label}
                       aria-label={bt.label}
-                      className={`flex items-center justify-center p-2 rounded border transition-colors ${selected ? 'bg-[#4F6343]/20 border-[#4F6343]' : 'bg-[#0B1120] border-[#2A3B59] hover:border-[#4F6343]/50'}`}
+                      className={`flex items-center justify-center p-2 rounded border transition-colors ${selected ? 'bg-[#4F6343]/20 border-[#4F6343]' : 'bg-[#152033] border-[#3D5378] hover:border-[#4F6343]/50'}`}
                       data-testid={`profile-body-${bt.value}`}
                     >
-                      <Icon className={`h-10 w-auto ${selected ? 'text-[#4F6343]' : 'text-[#2A3B59]'}`} />
+                      <Icon className={`h-10 w-auto ${selected ? 'text-[#4F6343]' : 'text-[#3D5378]'}`} />
                     </button>
                   );
                 })}
@@ -189,7 +189,7 @@ export const ClothingOrderPublic = ({ token }) => {
             {/* New: pants/jacket sizes + waist */}
             <div className="grid grid-cols-2 gap-2 mt-3">
               <div>
-                <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.pants_size')}</label>
+                <label className="text-[10px] text-[#CBD5E1] block mb-1">{t('clothing.pants_size')}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {GARMENT_SIZES.map((sz) => {
                     const selected = profile.pants_size === sz;
@@ -198,7 +198,7 @@ export const ClothingOrderPublic = ({ token }) => {
                         key={sz}
                         type="button"
                         onClick={() => { setProfile((p) => ({ ...p, pants_size: selected ? '' : sz })); setProfileDirty(true); }}
-                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#4F6343]/30 border-[#4F6343] text-white' : 'bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] hover:border-[#4F6343]/50'}`}
+                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#4F6343]/30 border-[#4F6343] text-white' : 'bg-[#152033] border-[#3D5378] text-[#F1F5F9] hover:border-[#4F6343]/50'}`}
                         data-testid={`profile-pants-${sz}`}
                       >
                         {sz}
@@ -208,7 +208,7 @@ export const ClothingOrderPublic = ({ token }) => {
                 </div>
               </div>
               <div>
-                <label className="text-[10px] text-[#94A3B8] block mb-1">{t('clothing.jacket_size')}</label>
+                <label className="text-[10px] text-[#CBD5E1] block mb-1">{t('clothing.jacket_size')}</label>
                 <div className="grid grid-cols-3 gap-1">
                   {GARMENT_SIZES.map((sz) => {
                     const selected = profile.jacket_size === sz;
@@ -217,7 +217,7 @@ export const ClothingOrderPublic = ({ token }) => {
                         key={sz}
                         type="button"
                         onClick={() => { setProfile((p) => ({ ...p, jacket_size: selected ? '' : sz })); setProfileDirty(true); }}
-                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#4F6343]/30 border-[#4F6343] text-white' : 'bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] hover:border-[#4F6343]/50'}`}
+                        className={`text-xs font-bold py-1.5 rounded border transition-colors ${selected ? 'bg-[#4F6343]/30 border-[#4F6343] text-white' : 'bg-[#152033] border-[#3D5378] text-[#F1F5F9] hover:border-[#4F6343]/50'}`}
                         data-testid={`profile-jacket-${sz}`}
                       >
                         {sz}
@@ -228,13 +228,13 @@ export const ClothingOrderPublic = ({ token }) => {
               </div>
             </div>
             <div className="mt-2">
-              <label className="text-[10px] text-[#94A3B8]">{t('clothing.waist_cm')}</label>
+              <label className="text-[10px] text-[#CBD5E1]">{t('clothing.waist_cm')}</label>
               <Input
                 value={profile.waist}
                 onChange={(e) => { setProfile((p) => ({ ...p, waist: e.target.value })); setProfileDirty(true); }}
                 placeholder="np. 92"
                 inputMode="numeric"
-                className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] h-9 text-sm"
+                className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] h-9 text-sm"
                 data-testid="profile-waist"
               />
             </div>
@@ -259,29 +259,29 @@ export const ClothingOrderPublic = ({ token }) => {
               (ct.requires_body_type && !profile.body_type)
             );
             return (
-              <div key={ct.id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
+              <div key={ct.id} className="p-3 bg-[#1E2A44] rounded-lg border border-[#3D5378]">
                 <div className="flex items-start gap-3">
                   {ct.photo ? (
                     <img
                       src={ct.photo}
                       alt={ct.name}
-                      className="w-20 h-20 object-contain rounded border border-[#2A3B59] bg-[#0B1120] cursor-zoom-in shrink-0"
+                      className="w-20 h-20 object-contain rounded border border-[#3D5378] bg-[#152033] cursor-zoom-in shrink-0"
                       onClick={() => setLightbox(ct.photo)}
                       data-testid={`clothing-photo-${ct.id}`}
                     />
                   ) : (
-                    <div className="w-20 h-20 rounded bg-[#0B1120] border border-[#2A3B59] flex items-center justify-center shrink-0">
-                      <Shirt className="h-8 w-8 text-[#2A3B59]" />
+                    <div className="w-20 h-20 rounded bg-[#152033] border border-[#3D5378] flex items-center justify-center shrink-0">
+                      <Shirt className="h-8 w-8 text-[#3D5378]" />
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[#CBD5E1] font-semibold">{ct.name}</span>
-                      <span className="text-xs text-[#94A3B8]">
+                      <span className="text-[#F1F5F9] font-semibold">{ct.name}</span>
+                      <span className="text-xs text-[#CBD5E1]">
                         Zostało: <span className="text-[#5F7552] font-bold">{ct.remaining_this_year}</span>/{ct.yearly_limit}
                       </span>
                     </div>
-                    <p className="text-[11px] text-[#64748B] mt-1">
+                    <p className="text-[11px] text-[#94A3B8] mt-1">
                       Okno zamówień: {MONTH_NAMES[ct.start_month - 1]} → {MONTH_NAMES[ct.end_month - 1]}
                       {ct.usage_period_months > 0 && ` · Okres: ${ct.usage_period_months} mies.`}
                     </p>
@@ -312,16 +312,16 @@ export const ClothingOrderPublic = ({ token }) => {
             const pending = myOrders.filter((o) => o.status !== 'issued');
             const issued = myOrders.filter((o) => o.status === 'issued');
             return (
-              <div className="mt-3 pt-3 border-t border-[#2A3B59] space-y-3">
+              <div className="mt-3 pt-3 border-t border-[#3D5378] space-y-3">
                 {pending.length > 0 && (
                   <div>
                     <p className="text-[#D4AF37] text-xs font-semibold mb-1">{t('clothing.ordered_waiting')}</p>
                     <div className="space-y-1">
                       {pending.map((o) => (
-                        <div key={o.id} className="text-xs bg-[#131C2F] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
+                        <div key={o.id} className="text-xs bg-[#1E2A44] p-2 rounded flex justify-between flex-wrap gap-2" data-testid={`my-clothing-${o.id}`}>
                           <span>
-                            <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
-                            <span className="text-[#94A3B8]"> x {o.quantity}</span>
+                            <span className="text-[#F1F5F9] font-semibold">{o.clothing_type_name}</span>
+                            <span className="text-[#CBD5E1]"> x {o.quantity}</span>
                           </span>
                           <span className="text-[#D4AF37]">{new Date(o.created_at).toLocaleDateString('pl-PL')}</span>
                         </div>
@@ -334,10 +334,10 @@ export const ClothingOrderPublic = ({ token }) => {
                     <p className="text-[#5F7552] text-xs font-semibold mb-1">{t('clothing.delivered')}</p>
                     <div className="space-y-1">
                       {issued.slice(0, 15).map((o) => (
-                        <div key={o.id} className="text-xs bg-[#131C2F]/60 p-2 rounded flex justify-between flex-wrap gap-2 opacity-70" data-testid={`my-clothing-${o.id}`}>
+                        <div key={o.id} className="text-xs bg-[#1E2A44]/60 p-2 rounded flex justify-between flex-wrap gap-2 opacity-70" data-testid={`my-clothing-${o.id}`}>
                           <span>
-                            <span className="text-[#CBD5E1] font-semibold">{o.clothing_type_name}</span>
-                            <span className="text-[#94A3B8]"> x {o.quantity}</span>
+                            <span className="text-[#F1F5F9] font-semibold">{o.clothing_type_name}</span>
+                            <span className="text-[#CBD5E1]"> x {o.quantity}</span>
                           </span>
                           <span className="text-[#5F7552]">Odebrane · {o.issued_at ? new Date(o.issued_at).toLocaleDateString('pl-PL') : ''}</span>
                         </div>

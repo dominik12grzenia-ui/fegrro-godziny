@@ -31,18 +31,18 @@ export const PriceBookRow = ({ item, onChange, onDel }) => {
   };
 
   return (
-    <tr className="border-b border-[#2A3B59]/40">
+    <tr className="border-b border-[#3D5378]/40">
       <td className="p-2"><Input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} onBlur={save}
-        className="bg-[#0B1120] border-[#2A3B59] h-8 text-xs" /></td>
+        className="bg-[#152033] border-[#3D5378] h-8 text-xs" /></td>
       <td className="p-2"><Input value={edit.unit} onChange={(e) => setEdit({ ...edit, unit: e.target.value })} onBlur={save}
-        className="bg-[#0B1120] border-[#2A3B59] h-8 text-xs w-24" /></td>
+        className="bg-[#152033] border-[#3D5378] h-8 text-xs w-24" /></td>
       <td className="p-2"><Input type="number" step="0.01" value={edit.unit_price_netto}
         onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })} onBlur={save}
-        className="bg-[#0B1120] border-[#2A3B59] h-8 text-xs text-right tabular-nums w-32" /></td>
+        className="bg-[#152033] border-[#3D5378] h-8 text-xs text-right tabular-nums w-32" /></td>
       <td className="p-2"><Input value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} onBlur={save}
-        className="bg-[#0B1120] border-[#2A3B59] h-8 text-xs" /></td>
+        className="bg-[#152033] border-[#3D5378] h-8 text-xs" /></td>
       <td className="p-2 text-right">
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`pricebook-del-${item.id}`}>
+        <button onClick={onDel} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`pricebook-del-${item.id}`}>
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </td>

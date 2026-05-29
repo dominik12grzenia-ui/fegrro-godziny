@@ -216,7 +216,7 @@ export const PushNotificationButton = ({ compact = false }) => {
       onClick={handleEnable}
       disabled={busy}
       className={compact
-        ? 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold h-8'
+        ? 'bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-bold h-8'
         : 'bg-[#4F6343] hover:bg-[#3F5235] text-white'}
       data-testid="push-enable-btn"
     >

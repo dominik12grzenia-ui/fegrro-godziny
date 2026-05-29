@@ -51,7 +51,7 @@ const Wyceny = lazy(wycenyImport);
 const Forecast = lazy(forecastImport);
 
 const TabSpinner = () => (
-  <div className="p-8 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
+  <div className="p-8 text-center text-[#CBD5E1] text-sm">Ładowanie...</div>
 );
 
 // =================== MODAL: SZYBKI DODAJ ZAPIS (z dashboardu) ===================
@@ -114,26 +114,26 @@ const QuickAddZapisModal = ({ open, onClose }) => {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[#D4AF37]">Dodaj zapis (koszt bez faktury)</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div>
-            <label className="text-[#94A3B8] text-xs">Data</label>
+            <label className="text-[#CBD5E1] text-xs">Data</label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-date" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="dash-quickadd-date" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Kontrahent (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Kontrahent (opcjonalnie)</label>
             <Input value={kontrahent} onChange={(e) => setKontrahent(e.target.value)}
               placeholder="np. Bricomat sp. z o.o."
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-kontrahent" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="dash-quickadd-kontrahent" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Kod kosztu *</label>
+            <label className="text-[#CBD5E1] text-xs">Kod kosztu *</label>
             <select value={kodId} onChange={(e) => setKodId(e.target.value)}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              className="w-full bg-[#152033] border border-[#3D5378] text-white rounded h-10 px-3"
               data-testid="dash-quickadd-kod">
               <option value="">— wybierz —</option>
               {kody.filter((k) => k.category !== 'PZS' && k.category !== 'PZSV').map((k) => (
@@ -142,9 +142,9 @@ const QuickAddZapisModal = ({ open, onClose }) => {
             </select>
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Budowa (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Budowa (opcjonalnie)</label>
             <select value={budowaId} onChange={(e) => setBudowaId(e.target.value)}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              className="w-full bg-[#152033] border border-[#3D5378] text-white rounded h-10 px-3"
               data-testid="dash-quickadd-budowa">
               <option value="">— nieprzypisane —</option>
               {budowy.filter((b) => !b.is_archived).map((b) => (
@@ -153,22 +153,22 @@ const QuickAddZapisModal = ({ open, onClose }) => {
             </select>
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Netto (PLN) *</label>
+            <label className="text-[#CBD5E1] text-xs">Netto (PLN) *</label>
             <Input type="number" step="0.01" value={netto} onChange={(e) => setNetto(e.target.value)}
               placeholder="0,00"
-              className="bg-[#0B1120] border-[#2A3B59] text-white text-lg font-mono tabular-nums"
+              className="bg-[#152033] border-[#3D5378] text-white text-lg font-mono tabular-nums"
               data-testid="dash-quickadd-netto" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Opis / uwagi (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Opis / uwagi (opcjonalnie)</label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="np. paliwo do koparki"
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="dash-quickadd-notes" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="dash-quickadd-notes" />
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}
-            className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]"
+            className="border-[#3D5378] text-[#F1F5F9] bg-transparent hover:bg-[#243049]"
             data-testid="dash-quickadd-cancel">Anuluj</Button>
           <ActionButton onAction={handleSave} disabled={saving}
             className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
@@ -247,8 +247,8 @@ export const AdminDashboard = () => {
       start_url: '/admin/dashboard',
       scope: '/',
       display: 'standalone',
-      background_color: '#0B1120',
-      theme_color: '#0B1120',
+      background_color: '#152033',
+      theme_color: '#152033',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -383,7 +383,7 @@ export const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0B1120] p-4">
+      <div className="min-h-screen bg-[#152033] p-4">
         <div className="max-w-7xl mx-auto space-y-6">
           <SkeletonBox style={{ height: 64 }} />
           <SkeletonCards count={4} />
@@ -395,9 +395,9 @@ export const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#0B1120]">
+    <div className="min-h-screen bg-[#152033]">
       {/* Sticky Header with Glassmorphism */}
-      <div className="sticky top-0 z-50 bg-[#0B1120]/80 backdrop-blur-xl border-b border-[#2A3B59] shadow-sm">
+      <div className="sticky top-0 z-50 bg-[#152033]/80 backdrop-blur-xl border-b border-[#3D5378] shadow-sm">
         <div className="max-w-7xl mx-auto p-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <img 
@@ -407,7 +407,7 @@ export const AdminDashboard = () => {
             />
             <div>
               <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">Panel Administratora</h1>
-              <p className="text-[#94A3B8] text-xs sm:text-sm font-medium">{user?.email}</p>
+              <p className="text-[#CBD5E1] text-xs sm:text-sm font-medium">{user?.email}</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -415,7 +415,7 @@ export const AdminDashboard = () => {
             <ActionButton
               onAction={handleLogout}
               variant="ghost"
-              className="text-[#94A3B8] hover:text-white hover:bg-[#19243C] transition-colors"
+              className="text-[#CBD5E1] hover:text-white hover:bg-[#243049] transition-colors"
               data-testid="admin-logout-btn"
             ><LogOut className="h-5 w-5" /></ActionButton>
           </div>
@@ -475,11 +475,11 @@ export const AdminDashboard = () => {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 md:gap-6">
-          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
+          <Card className="bg-[#243049] border-[#3D5378] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Pracownicy</p>
+                  <p className="text-sm font-medium text-[#CBD5E1] mb-1">Pracownicy</p>
                   <p className="text-3xl font-display font-bold text-[#5F7552] tracking-tight">{stats.totalEmployees}</p>
                 </div>
                 <Users className="h-10 w-10 text-[#5F7552] opacity-20" />
@@ -487,11 +487,11 @@ export const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
+          <Card className="bg-[#243049] border-[#3D5378] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Budowy</p>
+                  <p className="text-sm font-medium text-[#CBD5E1] mb-1">Budowy</p>
                   <p className="text-3xl font-display font-bold text-[#5F7552] tracking-tight">{stats.totalSites}</p>
                 </div>
                 <Building2 className="h-10 w-10 text-[#5F7552] opacity-20" />
@@ -499,11 +499,11 @@ export const AdminDashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20">
+          <Card className="bg-[#243049] border-[#3D5378] shadow-lg shadow-black/20">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#94A3B8] mb-1">Prośby</p>
+                  <p className="text-sm font-medium text-[#CBD5E1] mb-1">Prośby</p>
                   <p className="text-3xl font-display font-bold text-[#D4AF37] tracking-tight">{stats.pendingRequests}</p>
                 </div>
                 <Clock className="h-10 w-10 text-[#D4AF37] opacity-20" />
@@ -512,14 +512,14 @@ export const AdminDashboard = () => {
           </Card>
 
           <Card
-            className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20 cursor-pointer hover:border-[#4F6343] hover:bg-[#131C2F] transition-all group"
+            className="bg-[#243049] border-[#3D5378] shadow-lg shadow-black/20 cursor-pointer hover:border-[#4F6343] hover:bg-[#1E2A44] transition-all group"
             onClick={() => setActiveTab('clothing')}
             data-testid="stat-clothing-orders"
           >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#94A3B8] group-hover:text-white transition-colors mb-1">Zamówienia</p>
+                  <p className="text-sm font-medium text-[#CBD5E1] group-hover:text-white transition-colors mb-1">Zamówienia</p>
                   <p className="text-3xl font-display font-bold text-[#4F6343] tracking-tight">{stats.pendingClothing}</p>
                 </div>
                 <Shirt className="h-10 w-10 text-[#4F6343] opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -529,14 +529,14 @@ export const AdminDashboard = () => {
 
           {/* Szybkie dodanie kosztu/zapisu - bez konieczosci wchodzenia w Finanse */}
           <Card
-            className="bg-[#19243C] border-[#2A3B59] shadow-lg shadow-black/20 cursor-pointer hover:border-[#D4AF37] hover:bg-[#131C2F] transition-all group"
+            className="bg-[#243049] border-[#3D5378] shadow-lg shadow-black/20 cursor-pointer hover:border-[#D4AF37] hover:bg-[#1E2A44] transition-all group"
             onClick={() => setQuickAddOpen(true)}
             data-testid="stat-quick-add-zapis"
           >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-[#94A3B8] group-hover:text-white transition-colors mb-1">Dodaj zapis</p>
+                  <p className="text-sm font-medium text-[#CBD5E1] group-hover:text-white transition-colors mb-1">Dodaj zapis</p>
                   <p className="text-base font-display font-bold text-[#D4AF37] tracking-tight">Koszt bez faktury</p>
                 </div>
                 <Plus className="h-10 w-10 text-[#D4AF37] opacity-30 group-hover:opacity-60 transition-opacity" />
@@ -547,12 +547,12 @@ export const AdminDashboard = () => {
 
         {/* Quick Actions - Tabela Godzin */}
         <div>
-          <Card className="bg-gradient-to-br from-[#19243C] to-[#131C2F] border-[#2A3B59] shadow-lg">
+          <Card className="bg-gradient-to-br from-[#243049] to-[#1E2A44] border-[#3D5378] shadow-lg">
             <CardContent className="pt-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-display font-bold text-white tracking-tight mb-1">Tabela Godzin Pracy</h3>
-                  <p className="text-sm text-[#94A3B8]">Zarządzaj godzinami wszystkich pracowników w jednej tabeli</p>
+                  <p className="text-sm text-[#CBD5E1]">Zarządzaj godzinami wszystkich pracowników w jednej tabeli</p>
                 </div>
                 <Button
                   onClick={() => navigate('/admin/hours-table')}
@@ -570,9 +570,9 @@ export const AdminDashboard = () => {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin">
-            <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap bg-[#19243C] p-1 border border-[#2A3B59] rounded-lg">
-              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Lokalizacje</TabsTrigger>
-              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+            <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap bg-[#243049] p-1 border border-[#3D5378] rounded-lg">
+              <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Lokalizacje</TabsTrigger>
+              <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Brygadziści
                 {foremen.filter(f => f.status === 'pending').length > 0 && (
                   <span className="ml-2 bg-[#9B2C2C] text-white text-[10px] font-bold rounded px-1.5 py-0.5 shadow-sm">
@@ -580,7 +580,7 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="requests" data-testid="requests-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Prosby
                 {(stats.pendingRequests + notifications.length + absenceRequests.length) > 0 && (
                   <span className="ml-2 bg-[#4F6343] text-white text-[10px] font-bold rounded px-1.5 py-0.5 shadow-sm">
@@ -588,58 +588,58 @@ export const AdminDashboard = () => {
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="equipment" data-testid="equipment-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Elektronarzędzia
                 {equipmentOrdersByCategory.electronics > 0 && (
-                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
+                  <span className="ml-2 bg-[#D4AF37] text-[#152033] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.electronics}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="accessories" data-testid="accessories-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Akcesoria
                 {equipmentOrdersByCategory.accessories > 0 && (
-                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
+                  <span className="ml-2 bg-[#D4AF37] text-[#152033] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.accessories}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="formwork" data-testid="formwork-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Szalunki
                 {equipmentOrdersByCategory.formwork > 0 && (
-                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
+                  <span className="ml-2 bg-[#D4AF37] text-[#152033] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.formwork}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="warehouse" data-testid="warehouse-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Materiały
                 {equipmentOrdersByCategory.warehouse > 0 && (
-                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
+                  <span className="ml-2 bg-[#D4AF37] text-[#152033] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {equipmentOrdersByCategory.warehouse}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">
+              <TabsTrigger value="clothing" data-testid="clothing-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
                 Odzież
                 {stats.pendingClothing > 0 && (
-                  <span className="ml-2 bg-[#D4AF37] text-[#0B1120] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
+                  <span className="ml-2 bg-[#D4AF37] text-[#152033] text-[10px] rounded px-1.5 py-0.5 font-bold shadow-sm">
                     {stats.pendingClothing}
                   </span>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">BHP</TabsTrigger>
-              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Wypłaty</TabsTrigger>
-              <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Finanse</TabsTrigger>
-              <TabsTrigger value="budget" data-testid="budget-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Budżetowanie</TabsTrigger>
-              <TabsTrigger value="wyceny" data-testid="wyceny-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Wyceny</TabsTrigger>
-              <TabsTrigger value="forecast" data-testid="forecast-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Prognozy</TabsTrigger>
-              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#2A3B59] data-[state=active]:text-white transition-all text-[#94A3B8]">Narzędzia</TabsTrigger>
+              <TabsTrigger value="bhp" data-testid="bhp-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">BHP</TabsTrigger>
+              <TabsTrigger value="payroll" data-testid="payroll-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Wypłaty</TabsTrigger>
+              <TabsTrigger value="finance" data-testid="finance-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Finanse</TabsTrigger>
+              <TabsTrigger value="budget" data-testid="budget-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Budżetowanie</TabsTrigger>
+              <TabsTrigger value="wyceny" data-testid="wyceny-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Wyceny</TabsTrigger>
+              <TabsTrigger value="forecast" data-testid="forecast-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Prognozy</TabsTrigger>
+              <TabsTrigger value="tools" data-testid="tools-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Narzędzia</TabsTrigger>
             </TabsList>
           </div>
 
           {/* Tabs Content Sections */}
-          <div className="bg-[#0B1120] rounded-lg">
+          <div className="bg-[#152033] rounded-lg">
             <TabsContent value="sites" className="space-y-4 m-0">
             <Suspense fallback={<TabSpinner />}>
               <SitesTab

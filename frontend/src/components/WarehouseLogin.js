@@ -53,38 +53,38 @@ export default function WarehouseLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4 relative">
+    <div className="min-h-screen bg-[#152033] flex items-center justify-center p-4 relative">
       <div className="absolute top-4 right-4"><LanguageToggle /></div>
-      <Card className="w-full max-w-md bg-[#131C2F] border-[#2A3B59]" data-testid="warehouse-login-card">
+      <Card className="w-full max-w-md bg-[#1E2A44] border-[#3D5378]" data-testid="warehouse-login-card">
         <CardHeader className="text-center">
           <div className="mx-auto mb-2 w-16 h-16 rounded-full bg-[#D4AF37]/20 flex items-center justify-center">
             <Warehouse className="h-8 w-8 text-[#D4AF37]" />
           </div>
           <CardTitle className="text-[#D4AF37] text-2xl font-bold">FeGrro - {t('wh_login.title') || 'Magazynier'}</CardTitle>
-          <p className="text-sm text-[#94A3B8] mt-1">{t('wh_login.subtitle') || 'Logowanie'}</p>
+          <p className="text-sm text-[#CBD5E1] mt-1">{t('wh_login.subtitle') || 'Logowanie'}</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">{t('wh_login.username')}</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">{t('wh_login.username')}</label>
               <Input
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 placeholder="np. Jan Kowalski"
-                className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] placeholder:text-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] placeholder:text-[#3D5378]"
                 data-testid="warehouse-login-name"
                 autoComplete="username"
               />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">{t('wh_login.password')}</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">{t('wh_login.password')}</label>
               <Input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder={t('wh_login.password')}
-                className="bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] placeholder:text-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] placeholder:text-[#3D5378]"
                 data-testid="warehouse-login-password"
                 autoComplete="current-password"
               />
@@ -92,7 +92,7 @@ export default function WarehouseLogin() {
             <Button
               type="submit"
               disabled={busy}
-              className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
+              className="w-full bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-bold"
               data-testid="warehouse-login-submit"
             >
               <LogIn className="h-4 w-4 mr-2" />

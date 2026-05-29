@@ -581,9 +581,9 @@ export const HoursTable = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#131C2F] flex flex-col items-center justify-center">
+      <div className="min-h-screen bg-[#1E2A44] flex flex-col items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F6343]" />
-        <p className="mt-4 text-[#CBD5E1]">Wczytywanie...</p>
+        <p className="mt-4 text-[#F1F5F9]">Wczytywanie...</p>
       </div>
     );
   }
@@ -594,29 +594,29 @@ export const HoursTable = () => {
   const pendingCount = Object.keys(pendingAssignments).length;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#131C2F]">
+    <div className="min-h-screen flex flex-col bg-[#1E2A44]">
       {/* Header */}
-      <div className="bg-[#19243C] text-white shadow-lg shrink-0">
+      <div className="bg-[#243049] text-white shadow-lg shrink-0">
         <div className="max-w-full mx-auto p-4 flex items-center gap-4">
           <Button
             onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/worker/dashboard')}
             variant="ghost"
-            className="text-white hover:bg-[#2A3B59]"
+            className="text-white hover:bg-[#3D5378]"
             data-testid="back-btn"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1">
             <div className="flex items-center gap-3">
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59] p-1" data-testid="prev-month">
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="prev-month">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
               <h1 className="text-xl sm:text-2xl font-bold capitalize">{monthLabel}</h1>
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59] p-1" data-testid="next-month">
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="next-month">
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
-            <p className="text-[#94A3B8] text-sm">
+            <p className="text-[#CBD5E1] text-sm">
               {isAdmin ? 'Widok administratora' : 'Twoja budowa'}
             </p>
           </div>
@@ -633,7 +633,7 @@ export const HoursTable = () => {
                 }
               }}
               size="sm"
-              className="bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white"
+              className="bg-[#3D5378] text-[#F1F5F9] hover:bg-[#4F6343] hover:text-white"
               data-testid="generate-links-btn"
             >
               <Link2 className="h-4 w-4 mr-1" />
@@ -649,14 +649,14 @@ export const HoursTable = () => {
       <div className="shrink-0 p-4 pb-0 overflow-x-auto">
         {/* Assignment mode selector */}
         {isAdmin && (
-          <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59] flex flex-wrap items-center gap-2">
-            <span className="text-sm text-[#94A3B8] mr-2">Tryb:</span>
+          <div className="mb-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378] flex flex-wrap items-center gap-2">
+            <span className="text-sm text-[#CBD5E1] mr-2">Tryb:</span>
             <Button
               onClick={() => { setSelectedSiteForAssignment(null); setPendingAssignments({}); }}
               size="sm"
               className={!selectedSiteForAssignment
                 ? 'bg-[#4F6343] text-white'
-                : 'bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]'
+                : 'bg-[#3D5378] text-[#F1F5F9] hover:bg-[#3D4F63]'
               }
               data-testid="mode-edit-hours"
             >
@@ -672,7 +672,7 @@ export const HoursTable = () => {
                   size="sm"
                   style={isActive ? { backgroundColor: color, color: '#fff' } : {}}
                   className={!isActive
-                    ? 'bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]'
+                    ? 'bg-[#3D5378] text-[#F1F5F9] hover:bg-[#3D4F63]'
                     : ''
                   }
                   data-testid={`assign-site-${site.id}`}
@@ -695,8 +695,8 @@ export const HoursTable = () => {
 
         {/* Assignment action buttons - visible on mobile */}
         {selectedSiteForAssignment && (
-          <div className="mb-4 p-3 bg-[#0B1120] rounded-lg border-2 border-[#4F6343] flex flex-wrap items-center gap-2">
-            <span className="text-sm text-[#94A3B8]">Zaznaczono: {pendingCount}</span>
+          <div className="mb-4 p-3 bg-[#152033] rounded-lg border-2 border-[#4F6343] flex flex-wrap items-center gap-2">
+            <span className="text-sm text-[#CBD5E1]">Zaznaczono: {pendingCount}</span>
             <ActionButton
               onAction={handleBulkAssign}
               disabled={pendingCount === 0}
@@ -709,7 +709,7 @@ export const HoursTable = () => {
                 employees.forEach(emp => handleSelectFullMonth(emp.id));
               }}
               size="sm"
-              className="bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white border border-[#4F6343]"
+              className="bg-[#3D5378] text-[#F1F5F9] hover:bg-[#4F6343] hover:text-white border border-[#4F6343]"
               data-testid="full-month-all-btn"
             >
               Caly miesiąc (wszyscy)
@@ -718,7 +718,7 @@ export const HoursTable = () => {
               onClick={() => { setPendingAssignments({}); setSelectedSiteForAssignment(null); }}
               variant="outline"
               size="sm"
-              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+              className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
               data-testid="cancel-assign-btn"
             >
               Anuluj
@@ -727,7 +727,7 @@ export const HoursTable = () => {
         )}
 
         {/* Bulk mode bar */}
-        <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59]">
+        <div className="mb-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378]">
           {!bulkMode ? (
             <Button
               onClick={() => setBulkMode(true)}
@@ -740,7 +740,7 @@ export const HoursTable = () => {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[#CBD5E1] font-semibold text-sm">Godziny:</span>
+                <span className="text-[#F1F5F9] font-semibold text-sm">Godziny:</span>
                 <Input
                   type="number"
                   min="0"
@@ -748,11 +748,11 @@ export const HoursTable = () => {
                   value={bulkHours}
                   onChange={(e) => setBulkHours(e.target.value)}
                   placeholder="np. 10"
-                  className="w-24 bg-[#131C2F] border-[#4F6343] text-white text-center h-10"
+                  className="w-24 bg-[#1E2A44] border-[#4F6343] text-white text-center h-10"
                   data-testid="bulk-hours-input"
                   autoFocus
                 />
-                <span className="text-[#94A3B8] text-sm">Zaznacz pracownikow ponizej:</span>
+                <span className="text-[#CBD5E1] text-sm">Zaznacz pracownikow ponizej:</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {employees.map(emp => {
@@ -767,7 +767,7 @@ export const HoursTable = () => {
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isSelected
                           ? 'bg-[#4F6343] text-white ring-2 ring-[#5F7552]'
-                          : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'
+                          : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'
                       }`}
                       data-testid={`bulk-emp-${emp.id}`}
                     >
@@ -786,7 +786,7 @@ export const HoursTable = () => {
                 <Button
                   onClick={() => { setBulkMode(false); setBulkSelected(new Set()); setBulkHours(''); }}
                   variant="outline"
-                  className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+                  className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
                   data-testid="bulk-cancel-btn"
                 >
                   Anuluj
@@ -799,9 +799,9 @@ export const HoursTable = () => {
         {/* Table */}
       </div>
       <div className="flex-1 min-h-0 px-4 pb-4">
-        <Card className="bg-[#19243C] border-[#2A3B59] h-full flex flex-col">
+        <Card className="bg-[#243049] border-[#3D5378] h-full flex flex-col">
           <CardHeader className="pb-2 shrink-0">
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
               <Calendar className="h-5 w-5 text-[#4F6343]" />
               Godziny pracy
             </CardTitle>
@@ -810,28 +810,28 @@ export const HoursTable = () => {
             <div className="overflow-auto h-full" ref={tableScrollRef}>
               <table className="w-full text-sm border-collapse" data-testid="hours-table">
                 <thead className="sticky top-0 z-30" style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
-                  <tr className="bg-[#131C2F]">
-                    <th className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] min-w-[35px] sticky left-0 z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                  <tr className="bg-[#1E2A44]">
+                    <th className="border border-[#3D5378] p-1 text-center text-[#CBD5E1] min-w-[35px] sticky left-0 z-40 bg-[#1E2A44]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       L.p.
                     </th>
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1] min-w-[90px] sm:min-w-[140px] max-w-[100px] sm:max-w-none sticky left-[35px] z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-left text-[#F1F5F9] min-w-[90px] sm:min-w-[140px] max-w-[100px] sm:max-w-none sticky left-[35px] z-40 bg-[#1E2A44]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       Pracownik
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[100px] bg-[#131C2F]">
+                    <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] min-w-[100px] bg-[#1E2A44]">
                       Telefon
                     </th>
                     {isAdmin && (
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#131C2F]">
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[90px] bg-[#1E2A44]">
                         Zaliczki
                       </th>
                     )}
                     {isAdmin && (
-                      <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[90px] bg-[#131C2F]">
+                      <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[90px] bg-[#1E2A44]">
                         Kary
                       </th>
                     )}
                     {days.map(d => {
-                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
+                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#3D5378';
                       const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : '1px';
                       return (
                       <th
@@ -839,15 +839,15 @@ export const HoursTable = () => {
                         className="p-1 text-center min-w-[42px] relative"
                         data-today={d.isToday ? 'true' : undefined}
                         style={{
-                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#131C2F',
+                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#1E2A44',
                           borderLeft: `${borderWidth} solid ${borderColor}`,
                           borderRight: `${borderWidth} solid ${borderColor}`,
                           borderTop: `${borderWidth} solid ${borderColor}`,
                           borderBottom: `${borderWidth} solid ${borderColor}`,
                         }}
                       >
-                        <div className="text-[#CBD5E1] font-bold text-xs">{d.day}</div>
-                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
+                        <div className="text-[#F1F5F9] font-bold text-xs">{d.day}</div>
+                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#DC4A3A]' : 'text-[#CBD5E1]'}`}>
                           {d.dayName}
                         </div>
                       </th>
@@ -856,31 +856,31 @@ export const HoursTable = () => {
                     {sites.map((site, idx) => (
                       <th
                         key={`sh-${site.id}`}
-                        className="border border-[#2A3B59] p-1 text-center min-w-[60px]"
+                        className="border border-[#3D5378] p-1 text-center min-w-[60px]"
                         style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}
                       >
-                        <div className="text-[#CBD5E1] text-[10px] font-semibold leading-tight">{site.name}</div>
+                        <div className="text-[#F1F5F9] text-[10px] font-semibold leading-tight">{site.name}</div>
                       </th>
                     ))}
-                    <th className="border border-[#2A3B59] p-1 text-center min-w-[60px] bg-[#131C2F]">
-                      <div className="text-[#94A3B8] text-[10px] font-semibold">Nieprzy-<br/>pisane</div>
+                    <th className="border border-[#3D5378] p-1 text-center min-w-[60px] bg-[#1E2A44]">
+                      <div className="text-[#CBD5E1] text-[10px] font-semibold">Nieprzy-<br/>pisane</div>
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#4F6343] font-bold min-w-[60px] bg-[#131C2F]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#4F6343] font-bold min-w-[60px] bg-[#1E2A44]">
                       SUMA
                     </th>
                   </tr>
                   {/* Sum row under headers */}
-                  <tr className="bg-[#0B1120]">
-                    <td className="border border-[#2A3B59] p-0 bg-[#0B1120] sticky left-0 z-40" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}></td>
-                    <td className="border border-[#2A3B59] p-1 bg-[#0B1120] sticky left-[35px] z-40 text-[#4F6343] font-bold text-[10px]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>SUMA</td>
-                    <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>
-                    {isAdmin && <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>}
-                    {isAdmin && <td className="border border-[#2A3B59] p-0 bg-[#0B1120]"></td>}
+                  <tr className="bg-[#152033]">
+                    <td className="border border-[#3D5378] p-0 bg-[#152033] sticky left-0 z-40" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}></td>
+                    <td className="border border-[#3D5378] p-1 bg-[#152033] sticky left-[35px] z-40 text-[#4F6343] font-bold text-[10px]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>SUMA</td>
+                    <td className="border border-[#3D5378] p-0 bg-[#152033]"></td>
+                    {isAdmin && <td className="border border-[#3D5378] p-0 bg-[#152033]"></td>}
+                    {isAdmin && <td className="border border-[#3D5378] p-0 bg-[#152033]"></td>}
                     {days.map(d => {
                       const dayTotal = filteredEmployees.reduce((sum, emp) => sum + (hourEntries[`${emp.id}-${d.date}`] || 0), 0);
                       const dayTotalRounded = Math.round(dayTotal * 100) / 100;
                       return (
-                        <td key={`dsum-${d.day}`} className="border border-[#2A3B59] p-0 text-center bg-[#0B1120]">
+                        <td key={`dsum-${d.day}`} className="border border-[#3D5378] p-0 text-center bg-[#152033]">
                           <span className="text-[#4F6343] text-[10px] font-bold">{dayTotalRounded || ''}</span>
                         </td>
                       );
@@ -891,15 +891,15 @@ export const HoursTable = () => {
                         return sum + (hoursBySite[site.id] || 0);
                       }, 0);
                       return (
-                        <td key={`ssum-${site.id}`} className="border border-[#2A3B59] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
+                        <td key={`ssum-${site.id}`} className="border border-[#3D5378] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
                           <span className="text-white font-bold text-xs">{Math.round(siteTotal * 100) / 100}</span>
                         </td>
                       );
                     })}
-                    <td className="border border-[#2A3B59] p-1 text-center bg-[#0B1120]">
+                    <td className="border border-[#3D5378] p-1 text-center bg-[#152033]">
                       <span className="text-[#DC4A3A] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => sum + getEmployeeHoursBySite(emp.id).unassigned, 0) * 100) / 100}</span>
                     </td>
-                    <td className="border border-[#2A3B59] p-1 text-center bg-[#0B1120]">
+                    <td className="border border-[#3D5378] p-1 text-center bg-[#152033]">
                       <span className="text-[#4F6343] font-bold text-xs">{Math.round(filteredEmployees.reduce((sum, emp) => { const { hoursBySite, unassigned } = getEmployeeHoursBySite(emp.id); return sum + Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned; }, 0) * 100) / 100}</span>
                     </td>
                   </tr>
@@ -912,15 +912,15 @@ export const HoursTable = () => {
                     return (
                       <tr
                         key={employee.id}
-                        className="border-b border-[#2A3B59]"
+                        className="border-b border-[#3D5378]"
                         style={{ contentVisibility: 'auto', containIntrinsicSize: '0 44px' }}
                       >
                         {/* Row number */}
-                        <td className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#131C2F] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                        <td className="border border-[#3D5378] p-1 text-center text-[#CBD5E1] text-xs font-medium bg-[#1E2A44] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                           {filteredEmployees.indexOf(employee) + 1}
                         </td>
                         {/* Name - always neutral dark bg, no site color. Click to toggle full name on mobile. */}
-                        <td className="border border-[#2A3B59] p-1 sm:p-2 text-[#CBD5E1] font-medium bg-[#131C2F] sticky left-[35px] z-[15] max-w-[100px] sm:max-w-none" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
+                        <td className="border border-[#3D5378] p-1 sm:p-2 text-[#F1F5F9] font-medium bg-[#1E2A44] sticky left-[35px] z-[15] max-w-[100px] sm:max-w-none" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
                           <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
                             <button
                               type="button"
@@ -928,7 +928,7 @@ export const HoursTable = () => {
                                 e.stopPropagation();
                                 setExpandedNameId((prev) => prev === employee.id ? null : employee.id);
                               }}
-                              className={`text-left text-[#CBD5E1] hover:text-white text-xs sm:text-sm leading-tight ${expandedNameId === employee.id ? 'whitespace-normal break-words' : 'truncate'}`}
+                              className={`text-left text-[#F1F5F9] hover:text-white text-xs sm:text-sm leading-tight ${expandedNameId === employee.id ? 'whitespace-normal break-words' : 'truncate'}`}
                               data-testid={`emp-name-toggle-${employee.id}`}
                             >
                               {employee.full_name}
@@ -938,7 +938,7 @@ export const HoursTable = () => {
                                 {selectedSiteForAssignment && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleSelectFullMonth(employee.id); }}
-                                    className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#4F6343] hover:text-white transition-colors whitespace-nowrap border border-[#4F6343]/50"
+                                    className="shrink-0 text-[10px] px-2 py-1 rounded font-semibold bg-[#3D5378] text-[#F1F5F9] hover:bg-[#4F6343] hover:text-white transition-colors whitespace-nowrap border border-[#4F6343]/50"
                                     data-testid={`full-month-${employee.id}`}
                                   >
                                     Caly m-c
@@ -957,12 +957,12 @@ export const HoursTable = () => {
                             )}
                           </div>
                         </td>
-                        <td className="border border-[#2A3B59] p-2 text-[#94A3B8] text-xs bg-[#131C2F]">
+                        <td className="border border-[#3D5378] p-2 text-[#CBD5E1] text-xs bg-[#1E2A44]">
                           {employee.phone_number || '-'}
                         </td>
                         {isAdmin && (
                           <td
-                            className="border border-[#2A3B59] p-2 text-center bg-[#131C2F] cursor-pointer hover:bg-[#2A3B59] transition-colors"
+                            className="border border-[#3D5378] p-2 text-center bg-[#1E2A44] cursor-pointer hover:bg-[#3D5378] transition-colors"
                             onClick={() => openAdvanceModal(employee)}
                             data-testid={`advance-cell-${employee.id}`}
                           >
@@ -977,7 +977,7 @@ export const HoursTable = () => {
                         )}
                         {isAdmin && (
                           <td
-                            className="border border-[#2A3B59] p-2 text-center bg-[#131C2F] cursor-pointer hover:bg-[#2A3B59] transition-colors"
+                            className="border border-[#3D5378] p-2 text-center bg-[#1E2A44] cursor-pointer hover:bg-[#3D5378] transition-colors"
                             onClick={() => openPenaltyModal(employee)}
                             data-testid={`penalty-cell-${employee.id}`}
                           >
@@ -999,7 +999,7 @@ export const HoursTable = () => {
                           const isPending = !!pendingAssignments[cellKey];
                           const isHovered = hoveredCell === cellKey;
                           const hasAbsence = isAbsenceDate(employee.id, d.date);
-                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
+                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#3D5378';
                           const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : '1px';
 
                           // Check if past working day with no hours
@@ -1012,7 +1012,7 @@ export const HoursTable = () => {
                           const showNN = isPast && isWorkDay && noHours && !hasAbsence;
                           const showNU = isWorkDay && noHours && hasAbsence;
 
-                          const cellBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#19243C');
+                          const cellBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#243049');
 
                           return (
                             <td
@@ -1045,7 +1045,7 @@ export const HoursTable = () => {
                                     if (e.key === 'Escape') setEditingCell(null);
                                   }}
                                   autoFocus
-                                  className="w-full h-8 text-center bg-[#0B1120] text-white border-[#4F6343] text-sm p-0 rounded-none"
+                                  className="w-full h-8 text-center bg-[#152033] text-white border-[#4F6343] text-sm p-0 rounded-none"
                                   data-testid={`input-${employee.id}-${d.day}`}
                                 />
                               ) : showNN ? (
@@ -1058,7 +1058,7 @@ export const HoursTable = () => {
                                 </span>
                               )}
                               {isHovered && meta && meta.updatedBy && (
-                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-[#0B1120] text-[#CBD5E1] text-[10px] rounded px-2 py-1 whitespace-nowrap z-30 shadow-lg border border-[#2A3B59] pointer-events-none">
+                                <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 bg-[#152033] text-[#F1F5F9] text-[10px] rounded px-2 py-1 whitespace-nowrap z-30 shadow-lg border border-[#3D5378] pointer-events-none">
                                   {(!hours || hours === 0) && meta.deletedBy ? (
                                     <>Usunieto: {meta.deletedBy}<br/>{meta.deletedAt && new Date(meta.deletedAt).toLocaleString('pl-PL')}</>
                                   ) : (
@@ -1073,22 +1073,22 @@ export const HoursTable = () => {
                         {sites.map((site, idx) => (
                           <td
                             key={`t-${employee.id}-${site.id}`}
-                            className="border border-[#2A3B59] p-1 text-center"
+                            className="border border-[#3D5378] p-1 text-center"
                             style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '33' }}
                           >
-                            <span className="text-[#CBD5E1] font-semibold text-sm">
+                            <span className="text-[#F1F5F9] font-semibold text-sm">
                               {hoursBySite[site.id] || 0}
                             </span>
                           </td>
                         ))}
                         {/* Unassigned */}
-                        <td className="border border-[#2A3B59] p-1 text-center bg-[#131C2F]">
-                          <span className={`font-semibold text-sm ${unassigned > 0 ? 'text-[#DC4A3A]' : 'text-[#64748B]'}`}>
+                        <td className="border border-[#3D5378] p-1 text-center bg-[#1E2A44]">
+                          <span className={`font-semibold text-sm ${unassigned > 0 ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
                             {unassigned}
                           </span>
                         </td>
                         {/* Total */}
-                        <td className="border border-[#2A3B59] p-1 text-center bg-[#131C2F]">
+                        <td className="border border-[#3D5378] p-1 text-center bg-[#1E2A44]">
                           <span className="text-[#4F6343] font-bold text-base">{totalHours}</span>
                         </td>
                       </tr>
@@ -1099,25 +1099,25 @@ export const HoursTable = () => {
             </div>
 
             {/* Legend */}
-            <div className="p-4 border-t border-[#2A3B59] shrink-0">
-              <p className="text-xs font-semibold mb-2 text-[#CBD5E1]">Legenda:</p>
+            <div className="p-4 border-t border-[#3D5378] shrink-0">
+              <p className="text-xs font-semibold mb-2 text-[#F1F5F9]">Legenda:</p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: WEEKEND_BG }} />
-                  <span className="text-[#94A3B8]">Sobota/Niedziela</span>
+                  <span className="text-[#CBD5E1]">Sobota/Niedziela</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm border-2 border-[#9B2C2C]" />
-                  <span className="text-[#94A3B8]">Swieto ustawowe</span>
+                  <span className="text-[#CBD5E1]">Swieto ustawowe</span>
                 </div>
                 {sites.map((site, idx) => (
                   <div key={site.id} className="flex items-center gap-1.5">
                     <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] }} />
-                    <span className="text-[#94A3B8]">{site.name}</span>
+                    <span className="text-[#CBD5E1]">{site.name}</span>
                   </div>
                 ))}
               </div>
-              <p className="text-[10px] text-[#64748B] mt-2">
+              <p className="text-[10px] text-[#94A3B8] mt-2">
                 Najedz na komorke z godzinami aby zobaczyc kto je wpisal | Kliknij komorke aby edytować
               </p>
             </div>

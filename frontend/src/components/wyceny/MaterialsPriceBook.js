@@ -70,35 +70,35 @@ export const MaterialsPriceBook = () => {
     <div className="space-y-2" data-testid="materials-pricebook">
       <div className="flex items-center gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj produktu..."
-          className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="materials-search" />
-        <label className="text-[10px] text-[#94A3B8] flex items-center gap-1 cursor-pointer">
+          className="bg-[#152033] border-[#3D5378] max-w-sm" data-testid="materials-search" />
+        <label className="text-[10px] text-[#CBD5E1] flex items-center gap-1 cursor-pointer">
           <input type="checkbox" checked={hideEmpty} onChange={(e) => setHideEmpty(e.target.checked)}
             data-testid="materials-hide-empty" />
           Ukryj puste kategorie
         </label>
-        <div className="text-xs text-[#94A3B8]">
+        <div className="text-xs text-[#CBD5E1]">
           {rows.length} pozycji
         </div>
       </div>
-      {loading ? <div className="text-[#94A3B8]">Ładuję...</div> : (
-        <div className="overflow-x-auto border border-[#2A3B59] rounded">
+      {loading ? <div className="text-[#CBD5E1]">Ładuję...</div> : (
+        <div className="overflow-x-auto border border-[#3D5378] rounded">
           <table className="w-full text-xs" data-testid="materials-table">
-            <thead className="bg-[#0B1120] text-[#94A3B8] sticky top-0">
+            <thead className="bg-[#152033] text-[#CBD5E1] sticky top-0">
               <tr>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[100px]">kategoria</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[160px]">nazwa produktu</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[100px]">cena oferty</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[120px]">oferent</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[100px]">opakowanie</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[70px]">ilość</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[60px]">jd</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]">zapotrzebowanie</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[90px]">jd. do jd.</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[90px]">warstw</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[110px]" title="Koszty dodatkowe doliczane do każdej jednostki (np. transport)">koszty inne do jd</th>
-                <th className="text-right p-2 border-b border-r border-[#2A3B59] min-w-[120px]" title="Cena materiału przeliczona na 1 jednostkę wyrobu (np. zł/m² ściany). Wymaga uzupełnienia: ilość w opakowaniu, zapotrzebowanie, jd. do jd.">cena/jd. wyrobu</th>
-                <th className="text-left p-2 border-b border-r border-[#2A3B59] min-w-[140px]">uwagi</th>
-                <th className="p-2 border-b border-[#2A3B59] w-8"></th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[100px]">kategoria</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[160px]">nazwa produktu</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[100px]">cena oferty</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[120px]">oferent</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[100px]">opakowanie</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[70px]">ilość</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[60px]">jd</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[110px]">zapotrzebowanie</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[90px]">jd. do jd.</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[90px]">warstw</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[110px]" title="Koszty dodatkowe doliczane do każdej jednostki (np. transport)">koszty inne do jd</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[120px]" title="Cena materiału przeliczona na 1 jednostkę wyrobu (np. zł/m² ściany). Wymaga uzupełnienia: ilość w opakowaniu, zapotrzebowanie, jd. do jd.">cena/jd. wyrobu</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[140px]">uwagi</th>
+                <th className="p-2 border-b border-[#3D5378] w-8"></th>
               </tr>
             </thead>
             <tbody>
@@ -115,8 +115,8 @@ export const MaterialsPriceBook = () => {
                 };
                 return (
                   <React.Fragment key={sc}>
-                    <tr className="bg-[#131C2F]">
-                      <td colSpan="13" className="p-1.5 border-b border-[#2A3B59]">
+                    <tr className="bg-[#1E2A44]">
+                      <td colSpan="13" className="p-1.5 border-b border-[#3D5378]">
                         <button onClick={toggle}
                           className="flex items-center gap-2 text-[#D4AF37] font-semibold text-[11px] uppercase hover:text-[#FCD34D]"
                           data-testid={`mat-cat-toggle-${sc}`}>
@@ -124,12 +124,12 @@ export const MaterialsPriceBook = () => {
                             ? <ChevronRight className="h-3.5 w-3.5" />
                             : <ChevronDown className="h-3.5 w-3.5" />}
                           📁 {sc}
-                          <span className="text-[10px] text-[#94A3B8] font-normal normal-case">
+                          <span className="text-[10px] text-[#CBD5E1] font-normal normal-case">
                             ({items.length} {items.length === 1 ? 'pozycja' : items.length < 5 ? 'pozycje' : 'pozycji'})
                           </span>
                         </button>
                       </td>
-                      <td className="p-1 border-b border-[#2A3B59] text-right">
+                      <td className="p-1 border-b border-[#3D5378] text-right">
                         <button onClick={() => addRow(sc)} className="text-[#9DBC85] hover:text-[#C8E4B5] text-[11px]"
                           title="Dodaj pozycję w kategorii" data-testid={`mat-add-${sc}`}>
                           <Plus className="h-3.5 w-3.5" />
@@ -137,7 +137,7 @@ export const MaterialsPriceBook = () => {
                       </td>
                     </tr>
                     {!isCollapsed && (items.length === 0 ? (
-                      <tr><td colSpan="14" className="p-2 text-[#64748B] text-center text-[10px]">— brak pozycji —</td></tr>
+                      <tr><td colSpan="14" className="p-2 text-[#94A3B8] text-center text-[10px]">— brak pozycji —</td></tr>
                     ) : (
                       items.map((it) => (
                         <MaterialRow key={it.id} item={it} onLocalUpdate={updateLocal} onCategoryChange={fetchRows} onDel={() => remove(it.id)} />

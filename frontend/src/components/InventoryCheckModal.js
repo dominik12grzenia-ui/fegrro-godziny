@@ -182,14 +182,14 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
         className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
         data-testid="inventory-check-modal"
       >
-        <div className="bg-[#19243C] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-2xl w-full my-4">
-          <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center gap-3">
+        <div className="bg-[#243049] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-2xl w-full my-4">
+          <div className="px-5 py-4 border-b border-[#3D5378] flex items-center gap-3">
             <AlertTriangle className="h-7 w-7 text-[#D4AF37] shrink-0" />
             <div className="flex-1">
               <h2 className="text-lg sm:text-xl font-bold text-white">
                 Wymagana inwentaryzacja: {CATEGORY_LABELS[check.category] || check.category}
               </h2>
-              <p className="text-sm text-[#94A3B8] mt-1">
+              <p className="text-sm text-[#CBD5E1] mt-1">
                 Zaznacz checkbox jesli posiadasz dany sprzęt, lub kliknij <b className="text-[#D4AF37]">{t('inv.missing_or_less')}</b> aby zglosic niezgodność.
               </p>
               {checks.length > 1 && (
@@ -203,7 +203,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
           <div className="p-5 max-h-[60vh] overflow-y-auto">
             {items.length === 0 ? (
               <div className="text-center py-6">
-                <p className="text-[#94A3B8] mb-4">
+                <p className="text-[#CBD5E1] mb-4">
                   Nie masz przypisanego sprzętu w tej kategorii.
                 </p>
                 <Button
@@ -228,7 +228,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                           ? 'bg-[#4F6343]/20 border-[#4F6343]'
                           : rep
                           ? 'bg-[#D4AF37]/10 border-[#D4AF37]'
-                          : 'bg-[#131C2F] border-[#2A3B59]'
+                          : 'bg-[#1E2A44] border-[#3D5378]'
                       }`}
                       data-testid={`inventory-item-${eq.id}`}
                     >
@@ -245,17 +245,17 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                         <img
                           src={eq.photo}
                           alt={eq.name}
-                          className="h-12 w-12 rounded object-cover shrink-0 border border-[#2A3B59]"
+                          className="h-12 w-12 rounded object-cover shrink-0 border border-[#3D5378]"
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded bg-[#2A3B59] flex items-center justify-center shrink-0">
-                          <ClipboardCheck className="h-5 w-5 text-[#94A3B8]" />
+                        <div className="h-12 w-12 rounded bg-[#3D5378] flex items-center justify-center shrink-0">
+                          <ClipboardCheck className="h-5 w-5 text-[#CBD5E1]" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <div className="text-[#CBD5E1] font-semibold truncate">{eq.name}</div>
+                        <div className="text-[#F1F5F9] font-semibold truncate">{eq.name}</div>
                         {eq.brand && (
-                          <div className="text-xs text-[#94A3B8] truncate">{eq.brand}</div>
+                          <div className="text-xs text-[#CBD5E1] truncate">{eq.brand}</div>
                         )}
                         {rep && (
                           <div className="text-xs text-[#D4AF37] mt-0.5">
@@ -265,7 +265,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                       </div>
                       <div className="text-right shrink-0">
                         <div className="text-2xl font-bold text-white">{eq.assigned_quantity}</div>
-                        <div className="text-xs text-[#94A3B8]">szt.</div>
+                        <div className="text-xs text-[#CBD5E1]">szt.</div>
                       </div>
                       {!rep && !conf && (
                         <Button
@@ -286,8 +286,8 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
           </div>
 
           {items.length > 0 && (
-            <div className="px-5 py-4 border-t border-[#2A3B59] flex items-center justify-between gap-3 flex-wrap">
-              <div className="text-sm text-[#94A3B8]" data-testid="inventory-progress">
+            <div className="px-5 py-4 border-t border-[#3D5378] flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-sm text-[#CBD5E1]" data-testid="inventory-progress">
                 Zaznaczono: <span className="text-white font-bold">{checkedCount}</span> / {items.length}
               </div>
               <Button
@@ -309,15 +309,15 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
           className="fixed inset-0 z-[110] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
           data-testid="shortage-modal"
         >
-          <div className="bg-[#19243C] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-md w-full">
-            <div className="px-5 py-4 border-b border-[#2A3B59] flex items-center justify-between">
+          <div className="bg-[#243049] border-2 border-[#D4AF37] rounded-lg shadow-2xl max-w-md w-full">
+            <div className="px-5 py-4 border-b border-[#3D5378] flex items-center justify-between">
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
                 <AlertCircle className="h-5 w-5 text-[#D4AF37]" />
                 Zglos niezgodność
               </h3>
               <button
                 onClick={closeShortage}
-                className="text-[#94A3B8] hover:text-white"
+                className="text-[#CBD5E1] hover:text-white"
                 data-testid="shortage-close-btn"
               >
                 <X className="h-5 w-5" />
@@ -325,17 +325,17 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
             </div>
             <div className="p-5 space-y-4">
               <div>
-                <div className="text-sm text-[#94A3B8]">{t('inv.equipment_label')}</div>
-                <div className="text-[#CBD5E1] font-semibold">{shortageModal.equipment.name}</div>
+                <div className="text-sm text-[#CBD5E1]">{t('inv.equipment_label')}</div>
+                <div className="text-[#F1F5F9] font-semibold">{shortageModal.equipment.name}</div>
                 {shortageModal.equipment.brand && (
-                  <div className="text-xs text-[#94A3B8]">{shortageModal.equipment.brand}</div>
+                  <div className="text-xs text-[#CBD5E1]">{shortageModal.equipment.brand}</div>
                 )}
-                <div className="text-xs text-[#94A3B8] mt-1">
+                <div className="text-xs text-[#CBD5E1] mt-1">
                   Przypisana ilość: <b className="text-white">{shortageModal.equipment.assigned_quantity}</b> szt.
                 </div>
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">
+                <label className="text-sm text-[#F1F5F9] block mb-1">
                   Aktualnie posiadana ilość
                 </label>
                 <Input
@@ -344,29 +344,29 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   max={shortageModal.equipment.assigned_quantity}
                   value={shortageQty}
                   onChange={(e) => setShortageQty(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] text-white"
+                  className="bg-[#1E2A44] border-[#3D5378] text-white"
                   data-testid="shortage-qty-input"
                 />
-                <p className="text-xs text-[#94A3B8] mt-1">
+                <p className="text-xs text-[#CBD5E1] mt-1">
                   Wpisz 0 jesli nic nie masz, lub mniej niz {shortageModal.equipment.assigned_quantity}.
                 </p>
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">{t('inv.description_optional')}</label>
+                <label className="text-sm text-[#F1F5F9] block mb-1">{t('inv.description_optional')}</label>
                 <textarea
                   value={shortageDesc}
                   onChange={(e) => setShortageDesc(e.target.value)}
                   rows="3"
                   placeholder="np. zaginal na budowie X, oddany pracownikowi..."
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-3 py-2 text-sm"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-3 py-2 text-sm"
                   data-testid="shortage-desc-input"
                 />
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">{t('inv.photo_optional')}</label>
+                <label className="text-sm text-[#F1F5F9] block mb-1">{t('inv.photo_optional')}</label>
                 <label
                   htmlFor="shortage-photo-input"
-                  className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-[#131C2F] border border-[#2A3B59] rounded text-sm text-[#CBD5E1] hover:border-[#4F6343] w-fit"
+                  className="cursor-pointer flex items-center gap-2 px-3 py-2 bg-[#1E2A44] border border-[#3D5378] rounded text-sm text-[#F1F5F9] hover:border-[#4F6343] w-fit"
                 >
                   <Camera className="h-4 w-4" />
                   {shortagePhoto ? 'Zmien zdjecie' : 'Dodaj zdjecie'}
@@ -383,16 +383,16 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
                   <img
                     src={shortagePhoto}
                     alt="preview"
-                    className="mt-2 h-24 rounded border border-[#2A3B59]"
+                    className="mt-2 h-24 rounded border border-[#3D5378]"
                   />
                 )}
               </div>
             </div>
-            <div className="px-5 py-4 border-t border-[#2A3B59] flex items-center justify-end gap-2">
+            <div className="px-5 py-4 border-t border-[#3D5378] flex items-center justify-end gap-2">
               <Button
                 onClick={closeShortage}
                 variant="ghost"
-                className="text-[#94A3B8] hover:bg-[#2A3B59]"
+                className="text-[#CBD5E1] hover:bg-[#3D5378]"
                 data-testid="shortage-cancel-btn"
               >
                 Anuluj
@@ -400,7 +400,7 @@ export const InventoryCheckModal = ({ onAllConfirmed }) => {
               <ActionButton
                 onAction={submitShortage}
                 disabled={shortageSubmitting}
-                className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#131C2F] font-semibold"
+                className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#1E2A44] font-semibold"
                 data-testid="shortage-submit-btn"
               >{shortageSubmitting ? 'Wysylanie...' : 'Wyslij zgloszenie'}</ActionButton>
             </div>

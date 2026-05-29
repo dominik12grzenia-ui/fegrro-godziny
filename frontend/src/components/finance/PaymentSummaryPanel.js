@@ -74,15 +74,15 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
     <button
       type="button"
       onClick={() => onTileClick && onTileClick(filter)}
-      className={`text-left rounded-lg p-4 border-2 ${borderColor} bg-[#131C2F] hover:ring-2 hover:ring-[#D4AF37]/40 transition-all cursor-pointer`}
+      className={`text-left rounded-lg p-4 border-2 ${borderColor} bg-[#1E2A44] hover:ring-2 hover:ring-[#D4AF37]/40 transition-all cursor-pointer`}
       data-testid={testId}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[#94A3B8] text-xs uppercase tracking-wide">{label}</span>
+        <span className="text-[#CBD5E1] text-xs uppercase tracking-wide">{label}</span>
         {extra}
       </div>
       <div className={`text-2xl font-bold tabular-nums ${valueColor}`}>{fmtNum(value)}<span className="text-xs ml-1">zł {amountMode === 'brutto' ? 'brutto' : 'netto'}</span></div>
-      <div className="text-xs text-[#94A3B8] mt-1">{sub}</div>
+      <div className="text-xs text-[#CBD5E1] mt-1">{sub}</div>
     </button>
   );
 
@@ -99,16 +99,16 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
   return (
     <div className="space-y-2 mb-4">
       {/* Toggle Netto / Brutto */}
-      <div className="flex items-center justify-end gap-2 text-xs text-[#94A3B8]">
+      <div className="flex items-center justify-end gap-2 text-xs text-[#CBD5E1]">
         <span>Pokaż kwoty:</span>
-        <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]" data-testid="payment-amount-mode-toggle">
+        <div className="inline-flex rounded-md overflow-hidden border border-[#3D5378]" data-testid="payment-amount-mode-toggle">
           <button onClick={() => setMode('netto')}
-            className={`px-3 py-1 text-xs font-medium ${amountMode === 'netto' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+            className={`px-3 py-1 text-xs font-medium ${amountMode === 'netto' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
             data-testid="amount-mode-netto">
             Netto
           </button>
           <button onClick={() => setMode('brutto')}
-            className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${amountMode === 'brutto' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+            className={`px-3 py-1 text-xs font-medium border-l border-[#3D5378] ${amountMode === 'brutto' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
             data-testid="amount-mode-brutto">
             Brutto
           </button>
@@ -138,9 +138,9 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
         <Tile
           filter="overdue"
           testId="overdue-tile"
-          borderColor={overdueAny > 0 ? 'border-[#9B2C2C]/60' : 'border-[#2A3B59]'}
+          borderColor={overdueAny > 0 ? 'border-[#9B2C2C]/60' : 'border-[#3D5378]'}
           label="Przeterminowane (koszty)"
-          valueColor={overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}
+          valueColor={overdueAny > 0 ? 'text-[#FCA5A5]' : 'text-[#F1F5F9]'}
           value={pOverdue}
           sub={overdueAny > 0
             ? `${p.overdue_count} ${p.overdue_count === 1 ? 'faktura kosztowa' : 'faktur kosztowych'}`
@@ -163,7 +163,7 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
               Pokaż szczegóły
             </Button>
             <ActionButton size="sm" onAction={syncUnpaid} disabled={syncing}
-              className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-semibold h-7 text-xs"
+              className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] font-semibold h-7 text-xs"
               data-testid="discrepancy-sync-btn">{syncing ? 'Synchronizuję...' : 'Synchronizuj teraz'}</ActionButton>
           </div>
         </div>

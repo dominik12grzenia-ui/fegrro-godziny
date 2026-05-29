@@ -401,34 +401,34 @@ export const PayrollAdmin = () => {
   return (
     <div className="space-y-4">
       {/* Header: month picker + actions */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="pb-3">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <FileText className="h-5 w-5 text-[#4F6343]" /> Wypłaty - {PL_MONTHS[month - 1]} {year}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center bg-[#131C2F] rounded-lg border border-[#2A3B59] overflow-hidden">
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)} className="text-white hover:bg-[#2A3B59]" data-testid="payroll-prev-month"><ChevronLeft className="h-4 w-4" /></Button>
-              <span className="text-[#CBD5E1] px-3 capitalize font-semibold" data-testid="payroll-month-label">{PL_MONTHS[month - 1]} {year}</span>
-              <Button variant="ghost" size="sm" onClick={() => changeMonth(1)} className="text-white hover:bg-[#2A3B59]" data-testid="payroll-next-month"><ChevronRight className="h-4 w-4" /></Button>
+            <div className="flex items-center bg-[#1E2A44] rounded-lg border border-[#3D5378] overflow-hidden">
+              <Button variant="ghost" size="sm" onClick={() => changeMonth(-1)} className="text-white hover:bg-[#3D5378]" data-testid="payroll-prev-month"><ChevronLeft className="h-4 w-4" /></Button>
+              <span className="text-[#F1F5F9] px-3 capitalize font-semibold" data-testid="payroll-month-label">{PL_MONTHS[month - 1]} {year}</span>
+              <Button variant="ghost" size="sm" onClick={() => changeMonth(1)} className="text-white hover:bg-[#3D5378]" data-testid="payroll-next-month"><ChevronRight className="h-4 w-4" /></Button>
             </div>
             <div className="relative flex-1 min-w-[180px] max-w-xs">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[#64748B]" />
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-[#94A3B8]" />
               <Input
                 value={filter}
                 onChange={(e) => setFilter(e.target.value)}
                 placeholder="Szukaj pracownika..."
-                className="pl-8 bg-[#131C2F] border-[#2A3B59] text-white"
+                className="pl-8 bg-[#1E2A44] border-[#3D5378] text-white"
                 data-testid="payroll-search"
               />
             </div>
             <div className="ml-auto flex gap-2 flex-wrap">
               <ActionButton onAction={handleLockToggle}
                 className={isLocked
-                  ? "bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
-                  : "bg-[#2A3B59] hover:bg-[#2A3B59] text-[#CBD5E1]"}
+                  ? "bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-bold"
+                  : "bg-[#3D5378] hover:bg-[#3D5378] text-[#F1F5F9]"}
                 data-testid="payroll-lock-toggle"
               >{isLocked ? <><Unlock className="h-4 w-4 mr-1" /> Odblokuj miesiąc</> : <><Lock className="h-4 w-4 mr-1" /> Zamknij miesiąc</>}</ActionButton>
               <Button onClick={() => setShowAdd(true)} disabled={isLocked} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="payroll-add-employee">
@@ -441,11 +441,11 @@ export const PayrollAdmin = () => {
                 <Download className="h-4 w-4 mr-1" /> Karteczki ({selected.size})
               </Button>
               <Button onClick={() => downloadPdf(false)} disabled={downloading}
-                variant="outline" className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]" data-testid="payroll-pdf-all">
+                variant="outline" className="border-[#4F6343] text-[#4F6343] hover:bg-[#3D5378] hover:text-[#4F6343]" data-testid="payroll-pdf-all">
                 <Download className="h-4 w-4 mr-1" /> Karteczki wszystkich
               </Button>
               <Button onClick={runDiagnostics} disabled={diagLoading}
-                variant="outline" className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
+                variant="outline" className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#3D5378] hover:text-[#D4AF37]"
                 data-testid="payroll-diagnostics-btn">
                 Weryfikuj godziny
               </Button>
@@ -456,10 +456,10 @@ export const PayrollAdmin = () => {
               <button
                 type="button"
                 onClick={() => diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) ? runDiagnostics() : null}
-                className={`relative bg-[#131C2F] rounded p-2 border text-left transition-colors ${
+                className={`relative bg-[#1E2A44] rounded p-2 border text-left transition-colors ${
                   diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0)
-                    ? 'border-[#D4AF37] hover:bg-[#2A3B59] cursor-pointer'
-                    : 'border-[#2A3B59] cursor-default'
+                    ? 'border-[#D4AF37] hover:bg-[#3D5378] cursor-pointer'
+                    : 'border-[#3D5378] cursor-default'
                 }`}
                 data-testid="payroll-tile-hours"
                 title={
@@ -468,7 +468,7 @@ export const PayrollAdmin = () => {
                     : ''
                 }
               >
-                <div className="text-[#94A3B8]">Suma godzin</div>
+                <div className="text-[#CBD5E1]">Suma godzin</div>
                 <div className="text-white font-bold text-lg" data-testid="payroll-total-hours">{fmt(data.totals.total_hours)} h</div>
                 {diagAuto && (diagAuto.mismatch_count > 0 || diagAuto.type_issues > 0) && (
                   <span
@@ -480,12 +480,12 @@ export const PayrollAdmin = () => {
                   </span>
                 )}
               </button>
-              <div className="bg-[#131C2F] rounded p-2 border border-[#2A3B59]">
-                <div className="text-[#94A3B8]">Suma kwot z godzin</div>
+              <div className="bg-[#1E2A44] rounded p-2 border border-[#3D5378]">
+                <div className="text-[#CBD5E1]">Suma kwot z godzin</div>
                 <div className="text-white font-bold text-lg">{fmt(data.totals.total_hours_amount)} zł</div>
               </div>
-              <div className="bg-[#131C2F] rounded p-2 border border-[#DC4A3A]">
-                <div className="text-[#94A3B8]">Kwota godz. - kary + dodatki + kierowca</div>
+              <div className="bg-[#1E2A44] rounded p-2 border border-[#DC4A3A]">
+                <div className="text-[#CBD5E1]">Kwota godz. - kary + dodatki + kierowca</div>
                 <div className="text-[#DC4A3A] font-bold text-lg" data-testid="payroll-total-gross-net">
                   {fmt(data.rows.reduce((s, r) => s
                     + (r.computed.hours_amount || 0)
@@ -494,8 +494,8 @@ export const PayrollAdmin = () => {
                     + (r.record.driver_zl || 0), 0))} zł
                 </div>
               </div>
-              <div className="bg-[#131C2F] rounded p-2 border border-[#4F6343]">
-                <div className="text-[#94A3B8]">Suma wypłat (po zaliczkach)</div>
+              <div className="bg-[#1E2A44] rounded p-2 border border-[#4F6343]">
+                <div className="text-[#CBD5E1]">Suma wypłat (po zaliczkach)</div>
                 <div className="text-[#4F6343] font-bold text-lg" data-testid="payroll-total-payout">{fmt(data.totals.total_payout)} zł</div>
               </div>
             </div>
@@ -517,16 +517,16 @@ export const PayrollAdmin = () => {
 
       {/* Breakdown per budowa */}
       {data && data.rows && data.rows.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader className="pb-2">
             <button
               onClick={() => setShowBudowaBreakdown((v) => !v)}
-              className="flex items-center gap-2 text-[#CBD5E1] hover:text-white"
+              className="flex items-center gap-2 text-[#F1F5F9] hover:text-white"
               data-testid="payroll-toggle-budowa-breakdown"
             >
               {showBudowaBreakdown ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
               <span className="font-semibold">Podział kosztu wynagrodzeń na budowy</span>
-              <span className="text-xs text-[#94A3B8] font-normal">(pro-rata wg godzin pracownika; zaliczki nie wchodza)</span>
+              <span className="text-xs text-[#CBD5E1] font-normal">(pro-rata wg godzin pracownika; zaliczki nie wchodza)</span>
             </button>
           </CardHeader>
           {showBudowaBreakdown && (
@@ -583,7 +583,7 @@ export const PayrollAdmin = () => {
                 const sumK = list.reduce((s, b) => s + (b.koszt || 0), 0);
                 return (
                   <table className="w-full text-sm" data-testid="payroll-budowa-breakdown-table">
-                    <thead className="bg-[#131C2F] text-[#94A3B8] text-xs">
+                    <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs">
                       <tr>
                         <th className="p-2 text-left">Budowa</th>
                         <th className="p-2 text-right">Godziny</th>
@@ -593,16 +593,16 @@ export const PayrollAdmin = () => {
                     <tbody>
                       {list.map((b, idx) => (
                         <tr key={b.id || 'none'}
-                          className={`${idx % 2 === 0 ? 'bg-[#131C2F]/40' : ''} ${b.id === null ? 'border-l-2 border-l-[#D4AF37]' : ''}`}
+                          className={`${idx % 2 === 0 ? 'bg-[#1E2A44]/40' : ''} ${b.id === null ? 'border-l-2 border-l-[#D4AF37]' : ''}`}
                           data-testid={`payroll-budowa-row-${b.id || 'none'}`}>
-                          <td className="p-2 text-[#CBD5E1] font-medium">
+                          <td className="p-2 text-[#F1F5F9] font-medium">
                             {b.id === null ? <span className="text-[#D4AF37]">{b.name}</span> : b.name}
                           </td>
                           <td className="p-2 text-right text-white">{fmt(b.hours)}</td>
                           <td className="p-2 text-right text-[#DC4A3A] font-semibold">{fmt(b.koszt)} zł</td>
                         </tr>
                       ))}
-                      <tr className="border-t-2 border-[#DC4A3A] bg-[#131C2F] font-bold">
+                      <tr className="border-t-2 border-[#DC4A3A] bg-[#1E2A44] font-bold">
                         <td className="p-2 text-white">SUMA</td>
                         <td className="p-2 text-right text-white">{fmt(sumH)}</td>
                         <td className="p-2 text-right text-[#DC4A3A]">{fmt(sumK)} zł</td>
@@ -611,7 +611,7 @@ export const PayrollAdmin = () => {
                   </table>
                 );
               })()}
-              <div className="px-3 py-2 text-[11px] text-[#64748B] border-t border-[#2A3B59]">
+              <div className="px-3 py-2 text-[11px] text-[#94A3B8] border-t border-[#3D5378]">
                 Koszt wynagrodzeń = kwota godzin + dodatki + kierowca + inne+ - inne- - kary. Zaliczki <strong>NIE</strong> sa kosztem (to wczesniejsza wypłata, kwota juz w "kwocie godzin").
               </div>
             </CardContent>
@@ -620,16 +620,16 @@ export const PayrollAdmin = () => {
       )}
 
       {/* Table */}
-      <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
+      <Card className="bg-[#243049] border-[#3D5378] shadow-lg">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-4"><SkeletonTable rows={8} cols={7} /></div>
           ) : (
             <div className="overflow-x-auto scrollbar-thin">
               <table className="w-full text-sm" data-testid="payroll-table">
-                <thead className="bg-[#131C2F] text-[#94A3B8] text-xs uppercase tracking-wider font-semibold">
+                <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs uppercase tracking-wider font-semibold">
                   <tr>
-                    <th className="py-3 px-4 text-left border-b border-[#2A3B59]">
+                    <th className="py-3 px-4 text-left border-b border-[#3D5378]">
                       <input
                         type="checkbox"
                         checked={visibleRows.length > 0 && visibleRows.every((r) => selected.has(r.employee_id))}
@@ -638,28 +638,28 @@ export const PayrollAdmin = () => {
                         className="h-4 w-4 accent-[#4F6343] cursor-pointer rounded"
                       />
                     </th>
-                    <th className="py-3 px-4 text-left border-b border-[#2A3B59]">Pracownik</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Godziny</th>
-                    <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Stała</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Stawka zł/h</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kwota godzin</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Zaliczki</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kary</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Dodatki +</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Kierowca +</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Inne -</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Inne +</th>
-                    <th className="py-3 px-4 text-right border-b border-[#2A3B59]">Wypłata</th>
-                    <th className="py-3 px-4 text-center border-b border-[#2A3B59]">Akcje</th>
+                    <th className="py-3 px-4 text-left border-b border-[#3D5378]">Pracownik</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Godziny</th>
+                    <th className="py-3 px-4 text-center border-b border-[#3D5378]">Stała</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Stawka zł/h</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Kwota godzin</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Zaliczki</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Kary</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Dodatki +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Kierowca +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Inne -</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Inne +</th>
+                    <th className="py-3 px-4 text-right border-b border-[#3D5378]">Wypłata</th>
+                    <th className="py-3 px-4 text-center border-b border-[#3D5378]">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
                   {visibleRows.length === 0 && (
-                    <tr><td colSpan={14} className="py-6 px-4 text-center text-[#94A3B8]">Brak pracownikow</td></tr>
+                    <tr><td colSpan={14} className="py-6 px-4 text-center text-[#CBD5E1]">Brak pracownikow</td></tr>
                   )}
                   {visibleRows.map((r, idx) => (
                     <React.Fragment key={r.employee_id}>
-                      <tr className={`border-b border-[#2A3B59] hover:bg-[#131C2F]/50 transition-colors ${idx % 2 === 0 ? 'bg-[#19243C]' : 'bg-[#131C2F]/30'}`} data-testid={`payroll-row-${r.employee_id}`}>
+                      <tr className={`border-b border-[#3D5378] hover:bg-[#1E2A44]/50 transition-colors ${idx % 2 === 0 ? 'bg-[#243049]' : 'bg-[#1E2A44]/30'}`} data-testid={`payroll-row-${r.employee_id}`}>
                         <td className="py-3 px-4"><input type="checkbox" checked={selected.has(r.employee_id)} onChange={() => toggleSelected(r.employee_id)} data-testid={`payroll-check-${r.employee_id}`} className="h-4 w-4 accent-[#4F6343] cursor-pointer rounded" /></td>
                         <td className="py-3 px-4 text-[#F8FAFC] font-medium whitespace-nowrap">
                           <button onClick={() => toggleExpanded(r.employee_id)} className="flex items-center gap-1.5 hover:text-[#D4AF37] transition-colors text-left focus:outline-none">
@@ -681,7 +681,7 @@ export const PayrollAdmin = () => {
                         </td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums">
                           {r.record.is_fixed_salary ? (
-                            <span className="inline-block w-20 text-right text-[#94A3B8] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{fmt(r.computed.rate_effective)}</span>
+                            <span className="inline-block w-20 text-right text-[#CBD5E1] text-sm pr-2" data-testid={`payroll-rate-readonly-${r.employee_id}`}>{fmt(r.computed.rate_effective)}</span>
                           ) : (
                             <NumCell row={r} field="rate" handleNum={handleNum} step="0.5" disabled={isLocked} />
                           )}
@@ -690,7 +690,7 @@ export const PayrollAdmin = () => {
                           {r.record.is_fixed_salary ? (
                             <NumCell row={r} field="fixed_salary_amount" handleNum={handleNum} step="100" disabled={isLocked} />
                           ) : (
-                            <span className="inline-block text-[#94A3B8]" data-testid={`payroll-hamount-${r.employee_id}`}>{fmt(r.computed.hours_amount)}</span>
+                            <span className="inline-block text-[#CBD5E1]" data-testid={`payroll-hamount-${r.employee_id}`}>{fmt(r.computed.hours_amount)}</span>
                           )}
                         </td>
                         <td className="py-3 px-4 text-right font-mono tabular-nums"><span className="text-[#C78B58] font-semibold" data-testid={`payroll-adv-auto-${r.employee_id}`} title="Suma z tabeli zaliczek (read-only)">{fmt(r.auto_advances_zl)}</span></td>
@@ -705,7 +705,7 @@ export const PayrollAdmin = () => {
                             {savingId === r.employee_id && <span className="text-[#D4AF37] text-xs">...</span>}
                             <button
                               onClick={() => openAudit(r)}
-                              className="p-1.5 rounded hover:bg-[#2A3B59] text-[#94A3B8] hover:text-[#D4AF37] transition-colors"
+                              className="p-1.5 rounded hover:bg-[#3D5378] text-[#CBD5E1] hover:text-[#D4AF37] transition-colors"
                               title="Historia zmian"
                               data-testid={`payroll-audit-${r.employee_id}`}
                             >
@@ -714,7 +714,7 @@ export const PayrollAdmin = () => {
                             <button
                               onClick={() => handleArchive(r)}
                               disabled={isLocked}
-                              className={`p-1.5 rounded hover:bg-[#2A3B59] text-[#94A3B8] hover:text-[#9B2C2C] transition-colors ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                              className={`p-1.5 rounded hover:bg-[#3D5378] text-[#CBD5E1] hover:text-[#9B2C2C] transition-colors ${isLocked ? 'opacity-40 cursor-not-allowed' : ''}`}
                               title={isLocked ? 'Najpierw odblokuj miesiąc' : 'Zarchiwizuj'}
                               data-testid={`payroll-archive-${r.employee_id}`}
                             >
@@ -724,15 +724,15 @@ export const PayrollAdmin = () => {
                         </td>
                       </tr>
                       {expanded.has(r.employee_id) && (
-                        <tr className="bg-[#0B1120] border-b border-[#2A3B59]">
+                        <tr className="bg-[#152033] border-b border-[#3D5378]">
                           <td colSpan={14} className="py-4 px-6">
-                            <div className="text-xs uppercase tracking-wider font-semibold text-[#94A3B8] mb-3">Rozpiska godzin per budowa:</div>
+                            <div className="text-xs uppercase tracking-wider font-semibold text-[#CBD5E1] mb-3">Rozpiska godzin per budowa:</div>
                             {r.sites_breakdown.length === 0 ? (
-                              <div className="text-[#64748B] text-sm">Brak godzin w tym miesiącu</div>
+                              <div className="text-[#94A3B8] text-sm">Brak godzin w tym miesiącu</div>
                             ) : (
                               <div className="flex flex-wrap gap-2.5">
                                 {r.sites_breakdown.map((s) => (
-                                  <span key={s.site_id || 'none'} className="px-3 py-1.5 rounded-md bg-[#131C2F] border border-[#2A3B59] shadow-sm flex items-center gap-2" data-testid={`payroll-site-${r.employee_id}-${s.site_id||'none'}`}>
+                                  <span key={s.site_id || 'none'} className="px-3 py-1.5 rounded-md bg-[#1E2A44] border border-[#3D5378] shadow-sm flex items-center gap-2" data-testid={`payroll-site-${r.employee_id}-${s.site_id||'none'}`}>
                                     <span className="text-[#F8FAFC] text-sm font-medium">{s.site_name}</span>
                                     <span className="text-[#5F7552] font-bold font-mono tabular-nums bg-[#4F6343]/20 px-1.5 rounded text-xs">{s.hours} h</span>
                                   </span>
@@ -752,11 +752,11 @@ export const PayrollAdmin = () => {
       </Card>
 
       {/* Archiwum */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="pb-2">
           <button
             onClick={() => setShowArchived((v) => !v)}
-            className="flex items-center gap-2 text-[#CBD5E1] hover:text-white"
+            className="flex items-center gap-2 text-[#F1F5F9] hover:text-white"
             data-testid="payroll-toggle-archived"
           >
             {showArchived ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -767,14 +767,14 @@ export const PayrollAdmin = () => {
         {showArchived && (
           <CardContent>
             {archived.length === 0 ? (
-              <div className="text-[#64748B] text-sm py-2">Brak zarchiwizowanych pracownikow.</div>
+              <div className="text-[#94A3B8] text-sm py-2">Brak zarchiwizowanych pracownikow.</div>
             ) : (
               <div className="space-y-2" data-testid="payroll-archived-list">
                 {archived.map((emp) => (
-                  <div key={emp.id} className="flex items-center justify-between bg-[#131C2F] border border-[#2A3B59] rounded p-3">
+                  <div key={emp.id} className="flex items-center justify-between bg-[#1E2A44] border border-[#3D5378] rounded p-3">
                     <div>
-                      <div className="text-[#CBD5E1] font-medium">{emp.full_name}</div>
-                      <div className="text-xs text-[#64748B]">
+                      <div className="text-[#F1F5F9] font-medium">{emp.full_name}</div>
+                      <div className="text-xs text-[#94A3B8]">
                         {emp.phone_number || '(brak telefonu)'}
                         {emp.archived_at && <> &middot; zarchiwizowano {emp.archived_at.slice(0, 10)}</>}
                       </div>
@@ -783,7 +783,7 @@ export const PayrollAdmin = () => {
                       <Button
                         size="sm" variant="outline"
                         onClick={() => handleUnarchive(emp)}
-                        className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]"
+                        className="border-[#4F6343] text-[#4F6343] hover:bg-[#3D5378] hover:text-[#4F6343]"
                         data-testid={`payroll-unarchive-${emp.id}`}
                       >
                         <ArchiveRestore className="h-4 w-4 mr-1" /> Przywroc
@@ -853,7 +853,7 @@ const NumCell = ({ row, field, handleNum, step, disabled }) => {
         const v = e.target.value;
         if (parseFloat(v || 0) !== initial) handleNum(row, field, v);
       }}
-      className={`no-spinner w-20 bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+      className={`no-spinner w-20 bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-1 text-right text-sm ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
       data-testid={`payroll-input-${row.employee_id}-${field}`}
     />
   );

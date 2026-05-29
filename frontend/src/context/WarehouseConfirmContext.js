@@ -103,12 +103,12 @@ export const WarehouseConfirmProvider = ({ children }) => {
         >
           <div className="bg-[#1E293B] border-2 border-[#E8B76A] rounded-lg shadow-2xl p-6 max-w-md w-full">
             <h3 className="text-[#E8B76A] text-lg font-bold mb-2">Potwierdź operację</h3>
-            <p className="text-[#CBD5E1] mb-6">{pending.label}</p>
+            <p className="text-[#F1F5F9] mb-6">{pending.label}</p>
             <div className="flex gap-2 justify-end">
               <Button
                 variant="ghost"
                 onClick={cancel}
-                className="text-[#CBD5E1] hover:bg-[#334155]"
+                className="text-[#F1F5F9] hover:bg-[#334155]"
                 data-testid="warehouse-confirm-cancel"
               >
                 Anuluj

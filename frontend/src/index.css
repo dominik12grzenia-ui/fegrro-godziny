@@ -10,12 +10,12 @@ body {
     font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background-color: #0B1120;
+    background-color: #152033;
     color: #F8FAFC;
 }
 
 html {
-    background-color: #0B1120;
+    background-color: #152033;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -30,24 +30,24 @@ code, .font-mono {
 
 @layer base {
     :root {
-        --background: 222 47% 8%; /* #0B1120 */
+        --background: 220 42% 14%; /* #152033 */
         --foreground: 210 40% 98%; /* #F8FAFC */
-        --card: 221 41% 17%; /* #19243C */
+        --card: 221 34% 21%; /* #243049 */
         --card-foreground: 210 40% 98%;
-        --popover: 221 41% 17%;
+        --popover: 221 34% 21%;
         --popover-foreground: 210 40% 98%;
         --primary: 96 19% 33%; /* #4F6343 */
         --primary-foreground: 0 0% 100%;
-        --secondary: 219 36% 26%; /* #2A3B59 */
+        --secondary: 218 33% 35%; /* #3D5378 */
         --secondary-foreground: 210 40% 98%;
-        --muted: 215 28% 17%; /* #131C2F */
-        --muted-foreground: 215 14% 65%; /* #94A3B8 */
+        --muted: 221 39% 19%; /* #1E2A44 */
+        --muted-foreground: 213 27% 84%; /* #CBD5E1 */
         --accent: 46 65% 53%; /* #D4AF37 */
-        --accent-foreground: 222 47% 8%;
+        --accent-foreground: 220 42% 14%;
         --destructive: 0 56% 39%; /* #9B2C2C */
         --destructive-foreground: 0 0% 100%;
-        --border: 219 36% 26%; /* #2A3B59 */
-        --input: 219 36% 26%;
+        --border: 218 33% 35%; /* #3D5378 */
+        --input: 218 33% 35%;
         --ring: 96 19% 33%;
         --radius: 0.5rem;
     }
@@ -77,24 +77,24 @@ code, .font-mono {
     
     /* Force dark tabs - CRITICAL FIX */
     [role="tabpanel"] {
-        background: #0B1120 !important;
+        background: #152033 !important;
     }
     
     [data-state="active"][role="tabpanel"] {
-        background: #0B1120 !important;
+        background: #152033 !important;
     }
 
     /* Finance grid lines - separatory miedzy komorkami i wierszami */
     .finance-grid-table { border-collapse: collapse; }
     .finance-grid-table th,
     .finance-grid-table td {
-        border-bottom: 1px solid #2A3B59;
+        border-bottom: 1px solid #3D5378;
     }
     .finance-grid-table th:last-child,
     .finance-grid-table td:last-child { padding-right: 1rem; }
     .finance-grid-table th:first-child,
     .finance-grid-table td:first-child { padding-left: 1rem; }
-    .finance-grid-table tr:hover td { background-color: rgba(19, 28, 47, 0.8); }
+    .finance-grid-table tr:hover td { background-color: rgba(30, 42, 68, 0.8); }
 }
 /* iter95ad: ukryj strzalki spin w inputach type=number w module Wyceny */
 .wyceny-no-spin input[type="number"]::-webkit-inner-spin-button,

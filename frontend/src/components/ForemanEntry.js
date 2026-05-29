@@ -39,8 +39,8 @@ export const ForemanEntry = () => {
       start_url: '/foreman',
       scope: '/',
       display: 'standalone',
-      background_color: '#0B1120',
-      theme_color: '#0B1120',
+      background_color: '#152033',
+      theme_color: '#152033',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -81,9 +81,9 @@ export const ForemanEntry = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#131C2F] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#1E2A44] flex items-center justify-center p-6">
       <div className="absolute top-4 right-4"><LanguageToggle /></div>
-      <Card className="w-full max-w-md bg-[#19243C] border-[#2A3B59] shadow-xl">
+      <Card className="w-full max-w-md bg-[#243049] border-[#3D5378] shadow-xl">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
             <img
@@ -93,12 +93,12 @@ export const ForemanEntry = () => {
             />
           </div>
           <CardTitle className="text-2xl font-bold text-[#5F7552]">{t('login.foreman_title')}</CardTitle>
-          <CardDescription className="text-[#94A3B8]">{t('login.full_name')} + {t('login.password')}</CardDescription>
+          <CardDescription className="text-[#CBD5E1]">{t('login.full_name')} + {t('login.password')}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="firstName" className="text-[#CBD5E1]">{t('login.first_name')}</Label>
+              <Label htmlFor="firstName" className="text-[#F1F5F9]">{t('login.first_name')}</Label>
               <Input
                 id="firstName"
                 type="text"
@@ -107,11 +107,11 @@ export const ForemanEntry = () => {
                 onChange={(e) => setFirstName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                 required
                 data-testid="foreman-first-name"
-                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#1E2A44] border-[#3D5378] text-white placeholder:text-[#94A3B8] text-lg h-12"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="lastName" className="text-[#CBD5E1]">{t('login.last_name')}</Label>
+              <Label htmlFor="lastName" className="text-[#F1F5F9]">{t('login.last_name')}</Label>
               <Input
                 id="lastName"
                 type="text"
@@ -120,11 +120,11 @@ export const ForemanEntry = () => {
                 onChange={(e) => setLastName(e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1))}
                 required
                 data-testid="foreman-last-name"
-                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#1E2A44] border-[#3D5378] text-white placeholder:text-[#94A3B8] text-lg h-12"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-[#CBD5E1]">{t('login.password')}</Label>
+              <Label htmlFor="password" className="text-[#F1F5F9]">{t('login.password')}</Label>
               <Input
                 id="password"
                 type="password"
@@ -133,7 +133,7 @@ export const ForemanEntry = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 data-testid="foreman-password"
-                className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B] text-lg h-12"
+                className="bg-[#1E2A44] border-[#3D5378] text-white placeholder:text-[#94A3B8] text-lg h-12"
               />
             </div>
             {error && (

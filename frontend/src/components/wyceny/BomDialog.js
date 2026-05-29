@@ -179,13 +179,13 @@ export const BomDialog = ({ wycenaId, onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-5xl wyceny-no-spin"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-5xl wyceny-no-spin"
         data-testid="bom-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
             <Package className="h-5 w-5" /> Zapytanie ofertowe — Zestawienie materiałów
           </DialogTitle>
-          <div className="text-xs text-[#94A3B8]">
+          <div className="text-xs text-[#CBD5E1]">
             Zagregowane materiały z całej wyceny. Liczba opakowań <b className="text-[#D4AF37]">zaokrąglona w górę</b> do pełnych palet / wiaderek / rolek.
           </div>
         </DialogHeader>
@@ -195,7 +195,7 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                data-testid="bom-cat-filter">
             <div className="text-[10px] uppercase text-[#9DBC85] font-semibold flex items-center gap-2">
               📦 Kategorie materiałów (zaznacz co wysłać)
-              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">
+              <span className="text-[10px] text-[#CBD5E1] font-normal ml-auto">
                 Filtr aktywny: <b className="text-[#D4AF37]">{filteredRowsCount}/{bom?.rows?.length || 0}</b> pozycji
               </span>
             </div>
@@ -210,8 +210,8 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                     onClick={() => toggleCat(cat)}
                     className={`text-[10px] font-semibold px-2 py-1 rounded border transition ${
                       on
-                        ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
-                        : 'border-[#5F7552]/60 text-[#94A3B8] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+                        ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
+                        : 'border-[#5F7552]/60 text-[#CBD5E1] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
                     }`}
                     data-testid={`bom-cat-${cat.replace(/[^a-zA-Z0-9]/g, '_')}`}
                   >
@@ -222,30 +222,30 @@ export const BomDialog = ({ wycenaId, onClose }) => {
               <button
                 type="button"
                 onClick={() => setSelectedCats(new Set(availableCats.map(([c]) => c)))}
-                className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                className="text-[10px] border border-[#3D5378] text-[#F1F5F9] px-2 py-1 rounded hover:bg-[#3D5378]"
                 data-testid="bom-cat-all"
               >Wszystkie</button>
               <button
                 type="button"
                 onClick={() => setSelectedCats(new Set())}
-                className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                className="text-[10px] border border-[#3D5378] text-[#F1F5F9] px-2 py-1 rounded hover:bg-[#3D5378]"
                 data-testid="bom-cat-none"
               >Żadna</button>
             </div>
           </div>
         )}
 
-        <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
+        <div className="max-h-[60vh] overflow-y-auto border border-[#3D5378] rounded">
           {loading ? (
-            <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
+            <div className="text-[#CBD5E1] p-4 text-center text-sm">Ładowanie...</div>
           ) : !bom?.rows || bom.rows.length === 0 ? (
-            <div className="text-[#94A3B8] p-4 text-center text-sm">
+            <div className="text-[#CBD5E1] p-4 text-center text-sm">
               Brak materiałów w tej wycenie. Dodaj podpozycje typu „Materiał".
             </div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="bg-[#0B1120] sticky top-0">
-                <tr className="text-[#94A3B8] uppercase text-[10px]">
+              <thead className="bg-[#152033] sticky top-0">
+                <tr className="text-[#CBD5E1] uppercase text-[10px]">
                   <th className="text-center px-2 py-1.5 w-10">L.p.</th>
                   <th className="text-left px-2 py-1.5">Nazwa materiału</th>
                   <th className="text-right px-2 py-1.5 w-24">Ilość zużycia</th>
@@ -261,20 +261,20 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                   const qty = showPkgQty ? row.qty_in_pkg_unit : row.quantity;
                   const unit = showPkgQty ? (row.pkg_unit || '') : row.unit;
                   return (
-                    <tr key={idx} className="border-t border-[#2A3B59]" data-testid={`bom-row-${idx}`}>
-                      <td className="px-2 py-1.5 text-center text-[#94A3B8]">{idx + 1}</td>
+                    <tr key={idx} className="border-t border-[#3D5378]" data-testid={`bom-row-${idx}`}>
+                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{idx + 1}</td>
                       <td className="px-2 py-1.5 text-white">
                         {row.name}
                         {row.occurrences > 1 && (
-                          <span className="ml-2 text-[10px] text-[#94A3B8]">({row.occurrences} pozycje)</span>
+                          <span className="ml-2 text-[10px] text-[#CBD5E1]">({row.occurrences} pozycje)</span>
                         )}
                       </td>
                       <td className="px-2 py-1.5 text-right text-[#9DBC85] font-semibold tabular-nums">
                         {qty.toLocaleString('pl-PL', { maximumFractionDigits: 3 })}
                       </td>
-                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{unit || '—'}</td>
-                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">{row.opakowanie || '—'}</td>
-                      <td className="px-2 py-1.5 text-center text-[#94A3B8]">
+                      <td className="px-2 py-1.5 text-center text-[#F1F5F9]">{unit || '—'}</td>
+                      <td className="px-2 py-1.5 text-center text-[#F1F5F9]">{row.opakowanie || '—'}</td>
+                      <td className="px-2 py-1.5 text-center text-[#CBD5E1]">
                         {row.pkg_qty ? `${row.pkg_qty} ${row.pkg_unit || ''}` : '—'}
                       </td>
                       <td className="px-2 py-1.5 text-center font-bold tabular-nums">
@@ -292,19 +292,19 @@ export const BomDialog = ({ wycenaId, onClose }) => {
           )}
         </div>
         {showHistory && (
-          <div className="mt-3 p-3 bg-[#0B1120] border border-[#2A3B59] rounded space-y-2"
+          <div className="mt-3 p-3 bg-[#152033] border border-[#3D5378] rounded space-y-2"
                data-testid="bom-history-panel">
             <div className="text-[11px] text-[#9DBC85] font-semibold uppercase flex items-center gap-2">
               <Send className="h-4 w-4" /> Historia wysłanych zapytań ofertowych
-              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">{history.length} {history.length === 1 ? 'wysyłka' : 'wysyłek'}</span>
+              <span className="text-[10px] text-[#CBD5E1] font-normal ml-auto">{history.length} {history.length === 1 ? 'wysyłka' : 'wysyłek'}</span>
             </div>
             {history.length === 0 ? (
-              <div className="text-[11px] text-[#94A3B8] italic">Brak wysłanych zapytań dla tej wyceny.</div>
+              <div className="text-[11px] text-[#CBD5E1] italic">Brak wysłanych zapytań dla tej wyceny.</div>
             ) : (
-              <div className="max-h-48 overflow-y-auto border border-[#2A3B59] rounded">
+              <div className="max-h-48 overflow-y-auto border border-[#3D5378] rounded">
                 <table className="w-full text-xs">
-                  <thead className="bg-[#131C2F] sticky top-0">
-                    <tr className="text-[#94A3B8] uppercase text-[10px]">
+                  <thead className="bg-[#1E2A44] sticky top-0">
+                    <tr className="text-[#CBD5E1] uppercase text-[10px]">
                       <th className="text-left px-2 py-1.5">Data</th>
                       <th className="text-left px-2 py-1.5">Email odbiorcy</th>
                       <th className="text-left px-2 py-1.5">Temat</th>
@@ -316,14 +316,14 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                       const dateStr = d ? d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
                       const supplier = suppliers.find((s) => s.id === h.supplier_id);
                       return (
-                        <tr key={h.id || i} className="border-t border-[#2A3B59]"
+                        <tr key={h.id || i} className="border-t border-[#3D5378]"
                             data-testid={`bom-history-row-${i}`}>
-                          <td className="px-2 py-1.5 text-[#CBD5E1] tabular-nums whitespace-nowrap">{dateStr}</td>
+                          <td className="px-2 py-1.5 text-[#F1F5F9] tabular-nums whitespace-nowrap">{dateStr}</td>
                           <td className="px-2 py-1.5 text-[#9DBC85]">
                             {h.to_email}
-                            {supplier && <span className="ml-1 text-[10px] text-[#94A3B8]">({supplier.name})</span>}
+                            {supplier && <span className="ml-1 text-[10px] text-[#CBD5E1]">({supplier.name})</span>}
                           </td>
-                          <td className="px-2 py-1.5 text-[#94A3B8] truncate max-w-md" title={h.subject}>{h.subject || '—'}</td>
+                          <td className="px-2 py-1.5 text-[#CBD5E1] truncate max-w-md" title={h.subject}>{h.subject || '—'}</td>
                         </tr>
                       );
                     })}
@@ -334,16 +334,16 @@ export const BomDialog = ({ wycenaId, onClose }) => {
           </div>
         )}
         {showSendForm && (
-          <div className="mt-3 p-3 bg-[#0B1120] border border-[#5F7552]/60 rounded space-y-2">
+          <div className="mt-3 p-3 bg-[#152033] border border-[#5F7552]/60 rounded space-y-2">
             <div className="text-[11px] text-[#9DBC85] font-semibold uppercase flex items-center gap-2">
               <Mail className="h-4 w-4" /> Wyślij do hurtowni
-              <span className="text-[10px] text-[#94A3B8] font-normal ml-auto">Nadawca: biuro@fegrro.pl</span>
+              <span className="text-[10px] text-[#CBD5E1] font-normal ml-auto">Nadawca: biuro@fegrro.pl</span>
             </div>
             <div className="grid grid-cols-12 gap-2">
               <div className="col-span-6">
-                <label className="text-[10px] text-[#94A3B8] uppercase">Hurtownia (z bazy)</label>
+                <label className="text-[10px] text-[#CBD5E1] uppercase">Hurtownia (z bazy)</label>
                 <select value={supplierId} onChange={(e) => onPickSupplier(e.target.value)}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] rounded h-8 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] rounded h-8 text-xs text-[#F1F5F9] px-2 outline-none focus:border-[#D4AF37]"
                   data-testid="bom-supplier-select">
                   <option value="">— wybierz lub wpisz nowy email poniżej —</option>
                   {suppliers.map((s) => (
@@ -354,34 +354,34 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                 </select>
               </div>
               <div className="col-span-6">
-                <label className="text-[10px] text-[#94A3B8] uppercase">Email odbiorcy</label>
+                <label className="text-[10px] text-[#CBD5E1] uppercase">Email odbiorcy</label>
                 <Input value={toEmail} onChange={(e) => setToEmail(e.target.value)}
                   placeholder="email@hurtownia.pl"
-                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs"
+                  className="bg-[#1E2A44] border-[#3D5378] h-8 text-xs"
                   data-testid="bom-to-email" />
               </div>
               <div className="col-span-12">
-                <label className="text-[10px] text-[#94A3B8] uppercase">Temat</label>
+                <label className="text-[10px] text-[#CBD5E1] uppercase">Temat</label>
                 <Input value={subject} onChange={(e) => setSubject(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs"
+                  className="bg-[#1E2A44] border-[#3D5378] h-8 text-xs"
                   data-testid="bom-subject" />
               </div>
               <div className="col-span-12">
-                <label className="text-[10px] text-[#94A3B8] uppercase">Wiadomość</label>
+                <label className="text-[10px] text-[#CBD5E1] uppercase">Wiadomość</label>
                 <textarea value={body} onChange={(e) => setBody(e.target.value)} rows={5}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] rounded p-2 text-xs text-[#CBD5E1] outline-none focus:border-[#D4AF37] resize-y"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] rounded p-2 text-xs text-[#F1F5F9] outline-none focus:border-[#D4AF37] resize-y"
                   data-testid="bom-body" />
               </div>
             </div>
-            <div className="border-t border-[#2A3B59] pt-2 mt-2">
-              <div className="text-[10px] text-[#94A3B8] uppercase mb-1">Lub dodaj nową hurtownię do bazy</div>
+            <div className="border-t border-[#3D5378] pt-2 mt-2">
+              <div className="text-[10px] text-[#CBD5E1] uppercase mb-1">Lub dodaj nową hurtownię do bazy</div>
               <div className="grid grid-cols-12 gap-2">
                 <Input value={newSupName} onChange={(e) => setNewSupName(e.target.value)} placeholder="Nazwa"
-                  className="col-span-4 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-name" />
+                  className="col-span-4 bg-[#1E2A44] border-[#3D5378] h-7 text-xs" data-testid="bom-new-sup-name" />
                 <Input value={newSupEmail} onChange={(e) => setNewSupEmail(e.target.value)} placeholder="email@hurtownia.pl"
-                  className="col-span-4 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-email" />
+                  className="col-span-4 bg-[#1E2A44] border-[#3D5378] h-7 text-xs" data-testid="bom-new-sup-email" />
                 <Input value={newSupBranze} onChange={(e) => setNewSupBranze(e.target.value)} placeholder="branże (opcjonalnie)"
-                  className="col-span-3 bg-[#131C2F] border-[#2A3B59] h-7 text-xs" data-testid="bom-new-sup-branze" />
+                  className="col-span-3 bg-[#1E2A44] border-[#3D5378] h-7 text-xs" data-testid="bom-new-sup-branze" />
                 <button onClick={addSupplier}
                   className="col-span-1 bg-[#5F7552] hover:bg-[#3F5235] text-white text-[10px] rounded"
                   data-testid="bom-add-sup">+ dodaj</button>
@@ -390,10 +390,10 @@ export const BomDialog = ({ wycenaId, onClose }) => {
           </div>
         )}
         <DialogFooter className="gap-2">
-          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+          <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
             data-testid="bom-close">Zamknij</Button>
           <Button onClick={() => setShowHistory((v) => !v)} variant="outline"
-            className={`border-[#2A3B59] ${showHistory ? 'text-[#D4AF37] border-[#D4AF37]/60' : 'text-[#CBD5E1]'}`}
+            className={`border-[#3D5378] ${showHistory ? 'text-[#D4AF37] border-[#D4AF37]/60' : 'text-[#F1F5F9]'}`}
             data-testid="bom-history-toggle">
             <Send className="h-4 w-4 mr-1" /> Historia{history.length > 0 ? ` (${history.length})` : ''}
           </Button>
@@ -409,7 +409,7 @@ export const BomDialog = ({ wycenaId, onClose }) => {
           </Button>
           {!showSendForm ? (
             <Button onClick={() => setShowSendForm(true)} disabled={!bom?.rows?.length}
-              className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+              className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#152033] font-semibold"
               data-testid="bom-send-form-btn">
               <Mail className="h-4 w-4 mr-1" /> Wyślij do hurtowni
             </Button>
@@ -422,7 +422,7 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                 {savingTemplate ? 'Zapisuję…' : '💾 Zapisz szablon'}
               </Button>
               <Button onClick={sendEmail} disabled={sending || !toEmail || filteredRowsCount === 0}
-                className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+                className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#152033] font-semibold"
                 data-testid="bom-send-btn">
                 <Send className="h-4 w-4 mr-1" /> {sending ? 'Wysyłam...' : `Wyślij teraz (${filteredRowsCount} poz.)`}
               </Button>

@@ -38,13 +38,13 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-xl"
                      data-testid="convert-budget-dialog">
         <DialogHeader>
           <DialogTitle className="text-[#9DBC85] flex items-center gap-2">
             <FileText className="h-5 w-5" /> Zaciągnij wycenę do budżetu
           </DialogTitle>
-          <div className="text-xs text-[#94A3B8]">
+          <div className="text-xs text-[#CBD5E1]">
             Tworzy <b className="text-white">nową budowę</b> w module Finanse/Budżet ze skopiowaną strukturą wyceny.
             Etapy, pozycje główne i podpozycje (materiały / robocizna / sprzęt) zostaną przeniesione 1:1.
           </div>
@@ -52,56 +52,56 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
         {result ? (
           <div className="border border-[#9DBC85]/60 bg-[#3F5235]/20 rounded p-4 space-y-2">
             <div className="text-[#9DBC85] font-semibold text-sm">✓ Budowa utworzona pomyślnie</div>
-            <div className="text-xs text-[#CBD5E1]">
+            <div className="text-xs text-[#F1F5F9]">
               <b>{result.budowa_name}</b><br />
               Etapy: {result.stats.stages} · Pozycje: {result.stats.positions} · Linie: {result.stats.lines}
             </div>
-            <div className="text-[10px] text-[#94A3B8] mt-2">
+            <div className="text-[10px] text-[#CBD5E1] mt-2">
               Przejdź do modułu <b className="text-[#9DBC85]">Finanse → Budżet</b> aby kontynuować pracę z budową.
             </div>
           </div>
         ) : (
           <div className="space-y-3">
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">Nazwa budowy *</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Nazwa budowy *</label>
               <Input value={budowaName} onChange={(e) => setBudowaName(e.target.value)}
                 placeholder="np. Dom Kowalskich — Warszawa"
-                className="bg-[#0B1120] border-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378]"
                 data-testid="convert-budowa-name" autoFocus />
-              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+              <div className="text-[10px] text-[#CBD5E1] mt-0.5">
                 Domyślnie nazwa wyceny. Musi być unikalna.
               </div>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-[10px] uppercase text-[#94A3B8]">Kod budowy (opc.)</label>
+                <label className="text-[10px] uppercase text-[#CBD5E1]">Kod budowy (opc.)</label>
                 <Input value={code} onChange={(e) => setCode(e.target.value)}
                   placeholder="np. B/2026/01"
-                  className="bg-[#0B1120] border-[#2A3B59]"
+                  className="bg-[#152033] border-[#3D5378]"
                   data-testid="convert-code" />
               </div>
               <div>
-                <label className="text-[10px] uppercase text-[#94A3B8]">Nr umowy (opc.)</label>
+                <label className="text-[10px] uppercase text-[#CBD5E1]">Nr umowy (opc.)</label>
                 <Input value={umowaNr} onChange={(e) => setUmowaNr(e.target.value)}
                   placeholder="U/2026/001"
-                  className="bg-[#0B1120] border-[#2A3B59]"
+                  className="bg-[#152033] border-[#3D5378]"
                   data-testid="convert-umowa-nr" />
               </div>
             </div>
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">Data umowy (opc.)</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Data umowy (opc.)</label>
               <Input value={umowaData} onChange={(e) => setUmowaData(e.target.value)}
                 placeholder="15.09.2026 lub 2026-09-15"
-                className="bg-[#0B1120] border-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378]"
                 data-testid="convert-umowa-data" />
             </div>
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">Zamawiający</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Zamawiający</label>
               <Input value={zamawiajacy} onChange={(e) => setZamawiajacy(e.target.value)}
                 placeholder="ACME Sp. z o.o. NIP: 1234567890"
-                className="bg-[#0B1120] border-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378]"
                 data-testid="convert-zamawiajacy" />
-              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+              <div className="text-[10px] text-[#CBD5E1] mt-0.5">
                 {clientName ? '✓ Pre-fillowane z danych klienta wyceny — możesz nadpisać' : 'Wycena nie ma danych klienta — uzupełnij ręcznie'}
               </div>
             </div>
@@ -109,14 +109,14 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
         )}
         <DialogFooter>
           {result ? (
-            <Button onClick={onClose} className="bg-[#9DBC85] hover:bg-[#8AA773] text-[#0B1120]"
+            <Button onClick={onClose} className="bg-[#9DBC85] hover:bg-[#8AA773] text-[#152033]"
               data-testid="convert-close">Zamknij</Button>
           ) : (
             <>
-              <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+              <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
                 data-testid="convert-cancel">Anuluj</Button>
               <Button onClick={submit} disabled={converting || !budowaName.trim()}
-                className="bg-[#9DBC85] hover:bg-[#8AA773] text-[#0B1120] font-semibold"
+                className="bg-[#9DBC85] hover:bg-[#8AA773] text-[#152033] font-semibold"
                 data-testid="convert-submit">
                 <FileText className="h-4 w-4 mr-1" /> {converting ? 'Zaciągam…' : 'Zaciągnij do budżetu'}
               </Button>

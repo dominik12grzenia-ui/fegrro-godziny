@@ -42,18 +42,18 @@ export const PriceBook = ({ category }) => {
     <div className="space-y-3" data-testid={`pricebook-${category}`}>
       <div className="flex items-center gap-2">
         <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Szukaj..."
-          className="bg-[#0B1120] border-[#2A3B59] max-w-sm" data-testid="pricebook-search" />
-        <Button onClick={() => setAdding(true)} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+          className="bg-[#152033] border-[#3D5378] max-w-sm" data-testid="pricebook-search" />
+        <Button onClick={() => setAdding(true)} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
           data-testid="pricebook-add-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
         </Button>
       </div>
-      {loading ? <div className="text-[#94A3B8]">Ładuję...</div>
+      {loading ? <div className="text-[#CBD5E1]">Ładuję...</div>
         : rows.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-6 text-center">Brak pozycji w cenniku.</div>
+          <div className="text-[#CBD5E1] text-sm py-6 text-center">Brak pozycji w cenniku.</div>
         ) : (
           <table className="w-full text-sm">
-            <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
+            <thead className="text-[#CBD5E1] border-b border-[#3D5378]">
               <tr>
                 <th className="text-left p-2">Nazwa</th>
                 <th className="text-left p-2">J.m.</th>

@@ -88,7 +88,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
   if (active.length === 0 && recent.length === 0 && !showHistory) return null;
 
   return (
-    <Card className="bg-[#19243C] border-[#D4AF37]" data-testid="equipment-orders-admin">
+    <Card className="bg-[#243049] border-[#D4AF37]" data-testid="equipment-orders-admin">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-[#D4AF37] flex items-center gap-2">
           <ShoppingCart className="h-5 w-5" />
@@ -98,7 +98,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
           size="sm"
           variant="outline"
           onClick={() => setShowHistory((v) => !v)}
-          className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
+          className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#3D5378] hover:text-[#D4AF37]"
           data-testid="equipment-orders-toggle-history">
           <History className="h-3.5 w-3.5 mr-1" />
           {showHistory ? 'Ukryj historię' : 'Pokaż historię'}
@@ -112,31 +112,31 @@ export const EquipmentOrdersAdmin = ({ category }) => {
             return (
               <div
                 key={o.id}
-                className="flex flex-wrap items-center gap-3 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                className="flex flex-wrap items-center gap-3 p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                 data-testid={`equipment-order-${o.id}`}
               >
                 {o.equipment_photo ? (
-                  <img src={o.equipment_photo} alt="" className="h-14 w-14 rounded object-cover border border-[#2A3B59] shrink-0" />
+                  <img src={o.equipment_photo} alt="" className="h-14 w-14 rounded object-cover border border-[#3D5378] shrink-0" />
                 ) : (
-                  <div className="h-14 w-14 rounded bg-[#2A3B59] flex items-center justify-center shrink-0">
-                    <Package className="h-6 w-6 text-[#94A3B8]" />
+                  <div className="h-14 w-14 rounded bg-[#3D5378] flex items-center justify-center shrink-0">
+                    <Package className="h-6 w-6 text-[#CBD5E1]" />
                   </div>
                 )}
                 <div className="flex-1 min-w-[200px]">
-                  <div className="text-[#CBD5E1] font-semibold">
+                  <div className="text-[#F1F5F9] font-semibold">
                     {o.foreman_name}
-                    <span className="text-[#94A3B8]"> - </span>
+                    <span className="text-[#CBD5E1]"> - </span>
                     <span className="text-[#4F6343]">{o.equipment_name}</span>
                     {o.variant && <span className="text-[#D4AF37]"> ({o.variant})</span>}
                   </div>
-                  <div className="text-xs text-[#94A3B8]">
+                  <div className="text-xs text-[#CBD5E1]">
                     Zamówiono: <b className="text-white">{o.quantity_requested}</b>
                     {o.quantity_issued > 0 && <span>, wydano: <b className="text-[#86EFAC]">{o.quantity_issued}</b>, zostaje: <b className="text-[#D4AF37]">{remaining}</b></span>}
-                    <span className="ml-2 text-[#64748B]">
+                    <span className="ml-2 text-[#94A3B8]">
                       <Clock className="h-3 w-3 inline" /> {new Date(o.created_at).toLocaleString('pl-PL')}
                     </span>
                   </div>
-                  {o.notes && <div className="text-xs text-[#CBD5E1] italic mt-1">"{o.notes}"</div>}
+                  {o.notes && <div className="text-xs text-[#F1F5F9] italic mt-1">"{o.notes}"</div>}
                 </div>
                 <span className={`px-2 py-0.5 rounded text-xs border shrink-0 ${badge.cls}`}>{badge.label}</span>
                 <Input
@@ -146,7 +146,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
                   placeholder={String(remaining)}
                   value={issueQty[o.id] || ''}
                   onChange={(e) => setIssueQty((m) => ({ ...m, [o.id]: e.target.value }))}
-                  className="w-20 bg-[#0B1120] border-[#2A3B59] text-white text-center shrink-0"
+                  className="w-20 bg-[#152033] border-[#3D5378] text-white text-center shrink-0"
                   data-testid={`issue-qty-${o.id}`}
                 />
                 <Button
@@ -174,9 +174,9 @@ export const EquipmentOrdersAdmin = ({ category }) => {
             return (
               <div
                 key={o.id}
-                className="flex items-center gap-3 p-2 bg-[#0B1120] rounded border border-[#2A3B59]/50 opacity-60"
+                className="flex items-center gap-3 p-2 bg-[#152033] rounded border border-[#3D5378]/50 opacity-60"
               >
-                <div className="flex-1 min-w-0 text-xs text-[#94A3B8]">
+                <div className="flex-1 min-w-0 text-xs text-[#CBD5E1]">
                   {o.foreman_name} - {o.equipment_name}
                   {o.variant && <span> ({o.variant})</span>}
                   <span> x{o.quantity_issued || o.quantity_requested}</span>
@@ -187,7 +187,7 @@ export const EquipmentOrdersAdmin = ({ category }) => {
           })}
         </div>
         {!showHistory && (
-          <div className="mt-3 text-xs text-[#94A3B8] italic">
+          <div className="mt-3 text-xs text-[#CBD5E1] italic">
             Zamówienia wydane / odrzucone starsze niż 7 dni są ukryte. Kliknij <strong>Pokaż historię</strong>, aby zobaczyć wszystkie.
           </div>
         )}

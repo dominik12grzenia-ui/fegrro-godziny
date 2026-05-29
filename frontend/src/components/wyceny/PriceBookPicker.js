@@ -106,7 +106,7 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-3xl wyceny-no-spin"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-3xl wyceny-no-spin"
         data-testid={`price-picker-${category}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
@@ -119,23 +119,23 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
           </DialogTitle>
         </DialogHeader>
         <div className="flex items-center gap-2 mb-2">
-          <Search className="h-4 w-4 text-[#94A3B8]" />
+          <Search className="h-4 w-4 text-[#CBD5E1]" />
           <Input value={q} onChange={(e) => setQ(e.target.value)}
             placeholder="Szukaj po nazwie, kategorii, oferencie..."
-            className="bg-[#0B1120] border-[#2A3B59] flex-1"
+            className="bg-[#152033] border-[#3D5378] flex-1"
             data-testid="picker-search" autoFocus />
         </div>
-        <div className="max-h-[60vh] overflow-y-auto border border-[#2A3B59] rounded">
+        <div className="max-h-[60vh] overflow-y-auto border border-[#3D5378] rounded">
           {loading ? (
-            <div className="text-[#94A3B8] p-4 text-center text-sm">Ładowanie...</div>
+            <div className="text-[#CBD5E1] p-4 text-center text-sm">Ładowanie...</div>
           ) : filtered.length === 0 ? (
-            <div className="text-[#94A3B8] p-4 text-center text-sm">
+            <div className="text-[#CBD5E1] p-4 text-center text-sm">
               {rows.length === 0 ? 'Brak pozycji w cenniku. Dodaj je w zakładce „Ceny ' + (TYPE_LABEL[category] || '').toLowerCase() + '".' : 'Brak wyników.'}
             </div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="bg-[#0B1120] sticky top-0">
-                <tr className="text-[#94A3B8] uppercase text-[10px]">
+              <thead className="bg-[#152033] sticky top-0">
+                <tr className="text-[#CBD5E1] uppercase text-[10px]">
                   <th className="text-left px-2 py-1.5">Nazwa</th>
                   <th className="text-left px-2 py-1.5">Info</th>
                   <th className="text-center px-2 py-1.5">Jedn.</th>
@@ -153,11 +153,11 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
                     <React.Fragment key={it.id}>
                       <tr
                         onClick={() => { if (!needsCompletion && !isEditing) onPick({ ...it, unit_price_netto: eff.price, unit: eff.unit || it.unit }); }}
-                        className={`border-t border-[#2A3B59] ${needsCompletion ? 'opacity-70' : 'hover:bg-[#3F5235]/30 cursor-pointer'}`}
+                        className={`border-t border-[#3D5378] ${needsCompletion ? 'opacity-70' : 'hover:bg-[#3F5235]/30 cursor-pointer'}`}
                         data-testid={`picker-row-${it.id}`}>
                         <td className="px-2 py-1.5 text-white">{it.name}</td>
-                        <td className="px-2 py-1.5 text-[#94A3B8] text-[10px]">{getExtraInfo(it)}</td>
-                        <td className="px-2 py-1.5 text-center text-[#CBD5E1]">
+                        <td className="px-2 py-1.5 text-[#CBD5E1] text-[10px]">{getExtraInfo(it)}</td>
+                        <td className="px-2 py-1.5 text-center text-[#F1F5F9]">
                           {eff.unit || '—'}
                           {mismatch && (
                             <span className="ml-1 text-[10px] text-[#F59E0B]"
@@ -181,7 +181,7 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
                                 {fmtPLN(eff.price)}
                               </span>
                               {(eff.source === 'computed' || mismatch) && (
-                                <span className="ml-1 text-[10px] text-[#94A3B8]"
+                                <span className="ml-1 text-[10px] text-[#CBD5E1]"
                                   title={mismatch ? `Przeliczona, ale jednostka różni się od pozycji (${eff.unit} vs ${posUnit})` : 'Przeliczona z opakowania'}>⚙</span>
                               )}
                             </>
@@ -201,7 +201,7 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
           )}
         </div>
         <DialogFooter>
-          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+          <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
             data-testid="picker-close">Anuluj</Button>
         </DialogFooter>
       </DialogContent>

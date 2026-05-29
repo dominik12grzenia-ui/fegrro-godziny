@@ -24,7 +24,7 @@ const WarehouseDashboard = lazy(() => import('./components/WarehouseDashboard'))
 const WarehouseTokenEntry = lazy(() => import('./components/WarehouseTokenEntry'));
 
 const RouteFallback = () => (
-  <div className="min-h-screen flex items-center justify-center bg-[#0B1120]">
+  <div className="min-h-screen flex items-center justify-center bg-[#152033]">
     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#9DBC85]"></div>
   </div>
 );

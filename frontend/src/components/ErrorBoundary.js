@@ -53,15 +53,15 @@ class ErrorBoundary extends React.Component {
     const stack = this.state.error?.stack || '';
 
     return (
-      <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4" data-testid="error-boundary">
-        <div className="max-w-md w-full bg-[#131C2F] border border-[#9B2C2C]/50 rounded-lg p-6 text-center">
+      <div className="min-h-screen bg-[#152033] flex items-center justify-center p-4" data-testid="error-boundary">
+        <div className="max-w-md w-full bg-[#1E2A44] border border-[#9B2C2C]/50 rounded-lg p-6 text-center">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#9B2C2C]/20 flex items-center justify-center">
             <svg className="h-8 w-8 text-[#FCA5A5]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
             </svg>
           </div>
           <h1 className="text-xl font-bold text-white mb-2">Coś poszło nie tak</h1>
-          <p className="text-sm text-[#94A3B8] mb-4">
+          <p className="text-sm text-[#CBD5E1] mb-4">
             Aplikacja napotkała błąd. Najpierw spróbuj odświeżyć stronę. Jeśli problem się powtarza, wyloguj się i zaloguj ponownie.
           </p>
           <p className="text-xs text-[#FCA5A5] bg-[#9B2C2C]/15 rounded p-2 mb-4 break-words" data-testid="error-message">
@@ -76,13 +76,13 @@ class ErrorBoundary extends React.Component {
             </button>
             <button
               onClick={this.handleLogoutReset}
-              className="px-4 py-2 bg-[#19243C] hover:bg-[#2A3B59] text-[#CBD5E1] rounded text-sm border border-[#2A3B59]"
+              className="px-4 py-2 bg-[#243049] hover:bg-[#3D5378] text-[#F1F5F9] rounded text-sm border border-[#3D5378]"
               data-testid="error-logout">
               Wyloguj i wróć do logowania
             </button>
           </div>
           {process.env.NODE_ENV === 'development' && stack && (
-            <pre className="text-[10px] text-[#94A3B8] mt-4 text-left overflow-auto max-h-40 bg-[#0B1120] p-2 rounded">
+            <pre className="text-[10px] text-[#CBD5E1] mt-4 text-left overflow-auto max-h-40 bg-[#152033] p-2 rounded">
               {stack}
             </pre>
           )}

@@ -18,7 +18,7 @@ const CATEGORY_COLOR = {
   budowa: 'bg-[#4F6343] text-white',
   sklep: 'bg-[#92400E] text-[#FED7AA]',
   magazyn: 'bg-[#1E40AF] text-[#BFDBFE]',
-  inne: 'bg-[#2A3B59] text-[#CBD5E1]',
+  inne: 'bg-[#3D5378] text-[#F1F5F9]',
 };
 
 const buildMapsLink = (site) => {
@@ -102,9 +102,9 @@ export const LocationsButton = () => {
 
       {open && (
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[90vh] flex flex-col">
+          <Card className="bg-[#243049] border-[#3D5378] w-full max-w-2xl max-h-[90vh] flex flex-col">
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <MapPin className="h-5 w-5 text-[#4F6343]" /> Lokalizacje
               </CardTitle>
               <Button variant="ghost" size="sm" onClick={() => setOpen(false)} data-testid="close-locations-modal">
@@ -115,19 +115,19 @@ export const LocationsButton = () => {
               {/* Filters */}
               <div className="flex gap-2 flex-wrap">
                 <div className="flex-1 min-w-[180px] relative">
-                  <Search className="h-4 w-4 absolute left-2 top-2.5 text-[#64748B]" />
+                  <Search className="h-4 w-4 absolute left-2 top-2.5 text-[#94A3B8]" />
                   <Input
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                     placeholder="Szukaj lokalizacji..."
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] pl-8"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] pl-8"
                     data-testid="locations-search"
                   />
                 </div>
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
                   data-testid="locations-category-filter"
                 >
                   <option value="all">{t('common.all')}</option>
@@ -138,10 +138,10 @@ export const LocationsButton = () => {
                 </select>
               </div>
 
-              {loading && <p className="text-[#94A3B8] text-center py-4">{t('common.loading_dots')}</p>}
+              {loading && <p className="text-[#CBD5E1] text-center py-4">{t('common.loading_dots')}</p>}
 
               {!loading && filtered.length === 0 && (
-                <p className="text-[#94A3B8] text-center py-6">{t('loc.no_matching')}</p>
+                <p className="text-[#CBD5E1] text-center py-6">{t('loc.no_matching')}</p>
               )}
 
               <div className="space-y-2" data-testid="locations-list">
@@ -150,21 +150,21 @@ export const LocationsButton = () => {
                   return (
                     <div
                       key={site.id}
-                      className="flex items-start justify-between gap-2 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                      className="flex items-start justify-between gap-2 p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                       data-testid={`location-item-${site.id}`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-[#CBD5E1] text-sm">{site.name}</h3>
+                          <h3 className="font-bold text-[#F1F5F9] text-sm">{site.name}</h3>
                           <span className={`text-[10px] px-2 py-0.5 rounded font-semibold ${CATEGORY_COLOR[cat]}`}>
                             {CATEGORY_LABEL[cat] || cat}
                           </span>
                         </div>
                         {site.address && (
-                          <p className="text-xs text-[#94A3B8] mt-1 truncate">{site.address}</p>
+                          <p className="text-xs text-[#CBD5E1] mt-1 truncate">{site.address}</p>
                         )}
                         {!site.address && site.google_maps_url && (
-                          <p className="text-xs text-[#94A3B8] mt-1 truncate">{site.google_maps_url}</p>
+                          <p className="text-xs text-[#CBD5E1] mt-1 truncate">{site.google_maps_url}</p>
                         )}
                         {!site.location_lat && !site.address && (
                           <p className="text-xs text-[#DC4A3A] mt-1">{t('common.no_location_set')}</p>
@@ -183,7 +183,7 @@ export const LocationsButton = () => {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleCopy(site)}
-                          className="text-[#94A3B8] hover:bg-[#2A3B59] text-xs h-7"
+                          className="text-[#CBD5E1] hover:bg-[#3D5378] text-xs h-7"
                           data-testid={`copy-link-btn-${site.id}`}
                         >
                           <Copy className="h-3 w-3 mr-1" /> Kopiuj link
@@ -194,7 +194,7 @@ export const LocationsButton = () => {
                 })}
               </div>
 
-              <p className="text-[10px] text-[#64748B] text-center pt-2">
+              <p className="text-[10px] text-[#94A3B8] text-center pt-2">
                 Klik "Nawiguj" otwiera Google Maps z trasa od Twojej pozycji.
               </p>
             </CardContent>

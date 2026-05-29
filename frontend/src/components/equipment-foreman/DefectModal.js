@@ -13,32 +13,32 @@ export const DefectModal = ({
   if (!modal) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Usterka: {modal.name}</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Usterka: {modal.name}</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose}><X className="h-4 w-4" /></Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_pcs')}</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">{t('eq.qty_pcs')}</label>
             <Input type="number" min="1" max={modal.quantity} value={defectQty}
               onChange={(e) => setDefectQty(e.target.value)}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="defect-qty-input" />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.defect_description')}</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">{t('eq.defect_description')}</label>
             <textarea value={defectDesc} onChange={(e) => setDefectDesc(e.target.value)} rows="3"
-              className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
               data-testid="defect-desc-input" />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.photo_2mb')}</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">{t('eq.photo_2mb')}</label>
             <input type="file" accept="image/*" capture="environment"
               onChange={onPhotoUpload}
-              className="text-xs text-[#CBD5E1]"
+              className="text-xs text-[#F1F5F9]"
               data-testid="defect-photo-input" />
-            {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
+            {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#152033]" />}
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="ghost" onClick={onClose}>Anuluj</Button>

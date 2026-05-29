@@ -138,10 +138,10 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
     return aggregate;
   };
 
-  const BORDER = '#2A3B59';
+  const BORDER = '#3D5378';
   const STAGE_BG = '#3F5235';
-  const POS_BG = '#19243C';
-  const SUB_BG = '#0B1120';
+  const POS_BG = '#243049';
+  const SUB_BG = '#152033';
   const HEADER_BG = '#4F6343';
   const KAUCJA_BG = 'rgba(212, 175, 55, 0.12)';
   const EXEC_BG = 'rgba(95, 117, 82, 0.14)';
@@ -192,11 +192,11 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
   const alertCell = (val, ref, opts = {}) => {
     const base = { borderColor: BORDER };
     if (val == null || (typeof val === 'number' && !isFinite(val))) {
-      return { style: { ...base, color: '#94A3B8' }, icon: null };
+      return { style: { ...base, color: '#CBD5E1' }, icon: null };
     }
     if (opts.pct) {
       if (val >= 100) return { style: { ...base, color: '#FFFFFF', backgroundColor: '#9B2C2C', fontWeight: 700 }, icon: '⚠' };
-      if (val >= 80) return { style: { ...base, color: '#0B1120', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
+      if (val >= 80) return { style: { ...base, color: '#152033', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
       return { style: { ...base, color: '#5F7552', fontWeight: 700 }, icon: null };
     }
     if (val < 0) {
@@ -205,7 +205,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
     if (!opts.skipWarn) {
       const refAbs = Math.abs(ref || 0);
       if (refAbs > 0 && val < refAbs * 0.05) {
-        return { style: { ...base, color: '#0B1120', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
+        return { style: { ...base, color: '#152033', backgroundColor: '#D4AF37', fontWeight: 700 }, icon: null };
       }
     }
     return { style: { ...base, color: '#5F7552', fontWeight: 700 }, icon: null };
@@ -222,7 +222,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
     );
   };
 
-  if (loading) return <Card className="bg-[#131C2F] border-[#2A3B59]"><CardContent className="p-6 text-[#94A3B8] text-sm">Ładuję...</CardContent></Card>;
+  if (loading) return <Card className="bg-[#1E2A44] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1] text-sm">Ładuję...</CardContent></Card>;
 
   const stagesWithPositions = stages.filter((s) => positionsByStage[s.id]?.length > 0);
   const orphanPositions = positionsByStage['__none__'] || [];
@@ -256,7 +256,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
   })();
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59]" data-testid="budget-excel-template-view">
+    <Card className="bg-[#1E2A44] border-[#3D5378]" data-testid="budget-excel-template-view">
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base flex items-center gap-2">
           <FolderTree className="h-5 w-5" style={{ color: '#D4AF37' }} />
@@ -266,11 +266,11 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
           {/* iter79: Selektor okresu dla alokacji O/P/Q */}
           {setAllocMonth && (
             <div className="flex items-center gap-1 text-xs">
-              <label className="text-[#94A3B8]">Alokacja (O/P/Q):</label>
+              <label className="text-[#CBD5E1]">Alokacja (O/P/Q):</label>
               <select
                 value={allocMonth || 0}
                 onChange={(e) => setAllocMonth(parseInt(e.target.value, 10) || 0)}
-                className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1 rounded text-xs"
+                className="bg-[#152033] border border-[#3D5378] text-white px-2 py-1 rounded text-xs"
                 data-testid="budget-alloc-period">
                 <option value={0}>Cały rok {year}</option>
                 {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m} {year}</option>)}
@@ -280,7 +280,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
           <Button size="sm"
             onClick={onAddPosition}
             disabled={stages.length === 0}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-8 disabled:opacity-40"
             data-testid="template-add-position-btn"
             title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję (kod 1xx) z 3 podpozycjami'}>
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
@@ -311,7 +311,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
               {allocations.fallback_mode === 'plan' && (
                 <Button size="sm"
                   onClick={() => setEqualDistribution && setEqualDistribution(!equalDistribution)}
-                  className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-7 text-xs"
+                  className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-7 text-xs"
                   data-testid="alloc-equal-distribute-btn">
                   {equalDistribution ? 'Wg planu (G)' : 'Rozłóż równo'}
                 </Button>
@@ -331,12 +331,12 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
       )}
       {/* iter95: Diagnostyczny banner pul allokacji - pokazuje DLACZEGO Q=0 (lub niskie) */}
       {allocations?.pools && (
-        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#2A3B59] bg-[#0B1120] text-[#94A3B8] text-xs"
+        <div className="mx-4 mt-2 mb-1 rounded p-2 border border-[#3D5378] bg-[#152033] text-[#CBD5E1] text-xs"
              data-testid="alloc-pools-diagnostic">
           <div className="flex flex-wrap gap-x-4 gap-y-1">
-            <span>📊 <b className="text-[#CBD5E1]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}{allocations.date_range ? ` · zakres: ${allocations.date_range.start} → ${allocations.date_range.end}` : ''}):</span>
-            <span>O (koszty bez etapów) = <b className={allocations.pools.O > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.O)} zł</b></span>
-            <span>P (wynagrodzenia bez etapów) = <b className={allocations.pools.P > 0 ? 'text-[#D4AF37]' : 'text-[#64748B]'}>{fmtNum(allocations.pools.P)} zł</b></span>
+            <span>📊 <b className="text-[#F1F5F9]">Pule alokacji</b> ({allocMonth ? `${MONTHS_PL[allocMonth-1]} ${year}` : `cały rok ${year}`}{allocations.date_range ? ` · zakres: ${allocations.date_range.start} → ${allocations.date_range.end}` : ''}):</span>
+            <span>O (koszty bez etapów) = <b className={allocations.pools.O > 0 ? 'text-[#D4AF37]' : 'text-[#94A3B8]'}>{fmtNum(allocations.pools.O)} zł</b></span>
+            <span>P (wynagrodzenia bez etapów) = <b className={allocations.pools.P > 0 ? 'text-[#D4AF37]' : 'text-[#94A3B8]'}>{fmtNum(allocations.pools.P)} zł</b></span>
             <span>Q (firmowe × %sprzedaży) = <button onClick={() => setShowQBreakdown(true)}
               className={`underline decoration-dotted hover:decoration-solid font-bold ${allocations.pools.Q > 0 ? 'text-[#D4AF37]' : 'text-[#FCA5A5]'}`}
               data-testid="q-breakdown-btn" title="Kliknij aby zobaczyć rozbicie Q per miesiąc i kategoria">
@@ -350,9 +350,9 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             <span>Koszty firmowe nieprzyp. (bez budowy) = <b className={allocations.pools.unassigned_company > 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}>{fmtNum(allocations.pools.unassigned_company)} zł</b></span>
           </div>
           {(allocations.pools.q_categorized != null || allocations.pools.q_leftover != null) && (
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px] text-[#94A3B8]">
-              <span>Q skład: kategoryzowane (KP/KSP/PPE pro-rata jak Sprzedaż) = <b className="text-[#CBD5E1]">{fmtNum(allocations.pools.q_categorized)} zł</b></span>
-              <span>+ pozostałe (KSB bez budowy, kod=brak) × %sprzedaży = <b className="text-[#CBD5E1]">{fmtNum(allocations.pools.q_leftover)} zł</b></span>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1 text-[10px] text-[#CBD5E1]">
+              <span>Q skład: kategoryzowane (KP/KSP/PPE pro-rata jak Sprzedaż) = <b className="text-[#F1F5F9]">{fmtNum(allocations.pools.q_categorized)} zł</b></span>
+              <span>+ pozostałe (KSB bez budowy, kod=brak) × %sprzedaży = <b className="text-[#F1F5F9]">{fmtNum(allocations.pools.q_leftover)} zł</b></span>
             </div>
           )}
           {allocations.pools.Q === 0 && (
@@ -367,11 +367,11 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
       )}
       <CardContent className="p-0">
         {positions.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-8 text-center" data-testid="template-empty">
+          <div className="text-[#CBD5E1] text-sm py-8 text-center" data-testid="template-empty">
             {stages.length === 0 ? (
               <div>
                 <div className="text-base mb-3">Aby zacząć tworzyć kosztorys, najpierw utwórz <b className="text-white">etap budowy</b> (np. „Mury oporowe", „Roboty zewnętrzne").</div>
-                <div className="text-xs text-[#64748B]">Etap to grupa pozycji kosztorysowych. Najczęściej odpowiada fazom realizacji budowy.</div>
+                <div className="text-xs text-[#94A3B8]">Etap to grupa pozycji kosztorysowych. Najczęściej odpowiada fazom realizacji budowy.</div>
               </div>
             ) : (
               'Kliknij „Dodaj pozycję" aby zacząć.'
@@ -408,7 +408,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                   <td className="px-1 py-1.5 text-center font-bold text-[#D4AF37] text-[10px] uppercase border-r" style={{ borderColor: BORDER }} colSpan={2}>Σ SUMA</td>
                   <td className="px-1 py-1.5 text-left font-bold text-[#D4AF37] text-[10px] border-r" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 18, backgroundColor: '#0F1A30' }}>Wszystkie pozycje budowy</td>
                   <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.qty)}</td>
-                  <td className="px-1 py-1.5 text-right tabular-nums text-[#94A3B8] text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.cena)}</td>
+                  <td className="px-1 py-1.5 text-right tabular-nums text-[#CBD5E1] text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.cena)}</td>
                   <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER }}>{num(grandTotals.G)}</td>
                   <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(grandTotals.H)}</td>
                   <td className="px-1 py-1.5 text-right tabular-nums text-[#D4AF37] font-bold text-[10px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(grandTotals.I)}</td>
@@ -458,32 +458,32 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                                       bez prot.
                                     </span>
                                   )}
-                                  <button onClick={() => onAddSubposition(pos)} className="text-[#5F7552] hover:text-[#9DBC85] shrink-0 p-0.5 rounded bg-[#0B1120] border border-[#5F7552]/40" data-testid={`pos-add-sub-${pos.id}`} title="Dodaj podpozycję (Robocizna / Materiał / Sprzęt)">
+                                  <button onClick={() => onAddSubposition(pos)} className="text-[#5F7552] hover:text-[#9DBC85] shrink-0 p-0.5 rounded bg-[#152033] border border-[#5F7552]/40" data-testid={`pos-add-sub-${pos.id}`} title="Dodaj podpozycję (Robocizna / Materiał / Sprzęt)">
                                     <Plus className="h-3 w-3" />
                                   </button>
                                 </div>
                               </td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(agg.qty)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.cena)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(agg.qty)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(agg.cena)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.G)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.H)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.I)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(agg.J)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.H)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(agg.I)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(agg.J)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-white font-bold border-r" style={{ borderColor: BORDER }}>{num(agg.K)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r relative" style={{ borderColor: BORDER }} title={agg.hasL ? 'Suma kosztu prognozowanego ze składowych' : 'Brak wartości - wpisz w podpozycjach'}>{agg.hasL ? num(agg.L) : '—'}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r relative" style={{ borderColor: BORDER }} title={agg.hasL ? 'Suma kosztu prognozowanego ze składowych' : 'Brak wartości - wpisz w podpozycjach'}>{agg.hasL ? num(agg.L) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (agg.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{agg.M != null ? num(agg.M) : '—'}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.N)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="O = koszty bez budget_line_id na tej budowie (z wyl. KP), rozproszone wg % protokol pozycji">{num(agg.O)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="P = wynagrodzenia tej budowy alokowane do slotu robocizny pozycji">{num(agg.P)}</td>
-                              <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }} title="Q = firmowe koszty bez budowy x (KP_budowa / KP_firma), alokowane do slotu robocizny">{num(agg.Q)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }} title="O = koszty bez budget_line_id na tej budowie (z wyl. KP), rozproszone wg % protokol pozycji">{num(agg.O)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }} title="P = wynagrodzenia tej budowy alokowane do slotu robocizny pozycji">{num(agg.P)}</td>
+                              <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }} title="Q = firmowe koszty bez budowy x (KP_budowa / KP_firma), alokowane do slotu robocizny">{num(agg.Q)}</td>
                               <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(agg.R)}</td>
                               {renderAlertCell(agg.S, null, { pct: true, warningTitle: 'Przekroczono 100% kosztu jednostkowego - sprawdz alokacje O/P/Q vs N' })}
                               {renderAlertCell(agg.T, agg.L, { warningTitle: 'Przekroczono prognozowany koszt (T = L - R < 0)' })}
                               {renderAlertCell(agg.U, agg.K, { warningTitle: 'STRATA - koszty przekraczaja Budzet Zwolniony (U = K - R < 0)' })}
                               {renderAlertCell(agg.V, null, { skipWarn: true, warningTitle: 'Zysk faktyczny gorszy od prognozowanego' })}
                               <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: POS_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
-                                <button onClick={() => onEditPosition(pos)} className="text-[#94A3B8] hover:text-white p-1" data-testid={`pos-edit-${pos.id}`} title="Edytuj nazwę/etap"><Pencil className="h-3 w-3" /></button>
-                                <button onClick={() => onDeletePosition(pos)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-1" data-testid={`pos-del-${pos.id}`} title="Usuń pozycję (wraz z podpozycjami)"><Trash2 className="h-3 w-3" /></button>
+                                <button onClick={() => onEditPosition(pos)} className="text-[#CBD5E1] hover:text-white p-1" data-testid={`pos-edit-${pos.id}`} title="Edytuj nazwę/etap"><Pencil className="h-3 w-3" /></button>
+                                <button onClick={() => onDeletePosition(pos)} className="text-[#CBD5E1] hover:text-[#FCA5A5] p-1" data-testid={`pos-del-${pos.id}`} title="Usuń pozycję (wraz z podpozycjami)"><Trash2 className="h-3 w-3" /></button>
                               </td>
                             </tr>
                             {/* Podpozycje (3 sloty R/M/S w kolejnosci sprzet/robocizna/material) */}
@@ -492,8 +492,8 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                               if (!hasAnySub) {
                                 return (
                                   <tr data-testid={`pos-empty-${pos.id}`} style={{ backgroundColor: SUB_BG }}>
-                                    <td colSpan={cols.length + 1} className="px-3 py-2 text-center text-[#94A3B8] text-[10px] italic border-r" style={{ borderColor: BORDER }}>
-                                      Brak podpozycji. Kliknij <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#0B1120] border border-[#5F7552]/40 text-[#5F7552]"><Plus className="h-2.5 w-2.5" /></span> przy nazwie pozycji aby dodać Robociznę / Materiał / Sprzęt.
+                                    <td colSpan={cols.length + 1} className="px-3 py-2 text-center text-[#CBD5E1] text-[10px] italic border-r" style={{ borderColor: BORDER }}>
+                                      Brak podpozycji. Kliknij <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[#152033] border border-[#5F7552]/40 text-[#5F7552]"><Plus className="h-2.5 w-2.5" /></span> przy nazwie pozycji aby dodać Robociznę / Materiał / Sprzęt.
                                     </td>
                                   </tr>
                                 );
@@ -515,26 +515,26 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                                 return (
                                   <React.Fragment key={`${pos.id}-${slot.id}`}>
                                   <tr data-testid={`pos-sub-${slot.id}`} style={{ backgroundColor: SUB_BG }}>
-                                    <td className="px-1 py-1 text-center text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{subKod}</td>
+                                    <td className="px-1 py-1 text-center text-[#F1F5F9] border-r" style={{ borderColor: BORDER }}>{subKod}</td>
                                     <td className="px-1 py-1 text-center border-r" style={{ borderColor: BORDER, color: BUDGET_TYPES[type].color }}>{SUB_TYPE_LABEL[type]}</td>
-                                    <td className="px-1 py-1 text-left text-[#CBD5E1] border-r truncate pl-4" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: SUB_BG }} title={slot.name}>
-                                      <span className="text-[#64748B] mr-1">↳</span>{slot.name}
+                                    <td className="px-1 py-1 text-left text-[#F1F5F9] border-r truncate pl-4" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: SUB_BG }} title={slot.name}>
+                                      <span className="text-[#94A3B8] mr-1">↳</span>{slot.name}
                                     </td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(r.qty)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.cena)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(r.qty)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER }}>{num(r.cena)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-white border-r" style={{ borderColor: BORDER }}>{num(r.G)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.H)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.I)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.J)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.K)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.H)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(r.I)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#CBD5E1] border-r" style={{ borderColor: BORDER }}>{num(r.J)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#F1F5F9] border-r" style={{ borderColor: BORDER }}>{num(r.K)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums border-r relative" style={{ borderColor: BORDER }} data-testid={`forecast-cell-${slot.id}`}>
                                       <ForecastCell line={slot} computedL={r.L} isParent={false} computedQty={r.qty} computedCena={r.cena} computedG={r.G} onSave={onSaveLine} num={num} />
                                     </td>
                                     <td className="px-1 py-1 text-right tabular-nums border-r font-semibold" style={{ borderColor: BORDER, color: (r.M||0) >= 0 ? '#5F7552' : '#FCA5A5' }}>{r.M != null ? num(r.M) : '—'}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.N)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.O)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.P)}</td>
-                                    <td className="px-1 py-1 text-right tabular-nums text-[#64748B] border-r" style={{ borderColor: BORDER }}>{num(r.Q)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.O)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.P)}</td>
+                                    <td className="px-1 py-1 text-right tabular-nums text-[#94A3B8] border-r" style={{ borderColor: BORDER }}>{num(r.Q)}</td>
                                     <td className="px-1 py-1 text-right tabular-nums text-[#D4AF37] font-bold border-r" style={{ borderColor: BORDER, backgroundColor: EXEC_BG }}>{num(r.R)}</td>
                                     {renderAlertCell(r.S, null, { pct: true, warningTitle: 'Slot: przekroczono 100% kosztu (R/K)' })}
                                     {renderAlertCell(r.T, r.L, { warningTitle: 'Slot: przekroczono prognoze (T = L - R)' })}
@@ -542,7 +542,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                                     {renderAlertCell(r.V, null, { skipWarn: true })}
                                     <td className="px-1 py-1 text-center sticky right-0" style={{ backgroundColor: SUB_BG, zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
                                       <button onClick={() => onAddChildLine(slot)} className="text-[#5F7552] hover:text-[#9DBC85] p-0.5" data-testid={`sub-add-child-${slot.id}`} title="Dodaj składową (rozwiń podpozycję)"><Plus className="h-3 w-3" /></button>
-                                      <button onClick={() => onEditLine(slot)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`sub-edit-${slot.id}`} title="Edytuj wartości"><Pencil className="h-3 w-3" /></button>
+                                      <button onClick={() => onEditLine(slot)} className="text-[#CBD5E1] hover:text-white p-0.5" data-testid={`sub-edit-${slot.id}`} title="Edytuj wartości"><Pencil className="h-3 w-3" /></button>
                                     </td>
                                   </tr>
                                   {/* Skladowe (np. cement, piasek) - wciecie x2 */}
@@ -550,25 +550,25 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                                     const cr = computeRow(c);
                                     return (
                                       <tr key={c.id} data-testid={`pos-skladowa-${c.id}`} style={{ backgroundColor: '#0a0f1d' }}>
-                                        <td className="px-1 py-0.5 text-center text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>{subKod}.</td>
-                                        <td className="px-1 py-0.5 text-center text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>składowa</td>
-                                        <td className="px-1 py-0.5 text-left text-[#94A3B8] italic text-[9px] border-r truncate pl-8" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: '#0a0f1d' }} title={c.name}>
+                                        <td className="px-1 py-0.5 text-center text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{subKod}.</td>
+                                        <td className="px-1 py-0.5 text-center text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>składowa</td>
+                                        <td className="px-1 py-0.5 text-left text-[#CBD5E1] italic text-[9px] border-r truncate pl-8" style={{ borderColor: BORDER, position: 'sticky', left: 0, zIndex: 4, backgroundColor: '#0a0f1d' }} title={c.name}>
                                           <span className="text-[#D4AF37] mr-1">↳↳</span>{c.name}
                                         </td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(cr.qty)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.cena)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#CBD5E1] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.G)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.H)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.I)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#64748B] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.J)}</td>
-                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.K)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#CBD5E1] text-[9px] border-r" style={{ borderColor: BORDER }}>{fmtCellNum(cr.qty)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#CBD5E1] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.cena)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#F1F5F9] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.G)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.H)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER, backgroundColor: KAUCJA_BG }}>{num(cr.I)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#94A3B8] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.J)}</td>
+                                        <td className="px-1 py-0.5 text-right tabular-nums text-[#CBD5E1] text-[9px] border-r" style={{ borderColor: BORDER }}>{num(cr.K)}</td>
                                         <td className="px-1 py-0.5 text-right tabular-nums border-r text-[9px] relative" style={{ borderColor: BORDER }} data-testid={`forecast-cell-skladowa-${c.id}`}>
                                           <ForecastCell line={c} computedL={cr.L} isParent={false} computedQty={cr.qty} computedCena={cr.cena} computedG={cr.G} onSave={onSaveLine} num={num} />
                                         </td>
-                                        <td colSpan={10} className="px-1 py-0.5 text-[9px] text-[#64748B] text-center border-r" style={{ borderColor: BORDER }}>(składowa — wartości agregują się do podpozycji)</td>
+                                        <td colSpan={10} className="px-1 py-0.5 text-[9px] text-[#94A3B8] text-center border-r" style={{ borderColor: BORDER }}>(składowa — wartości agregują się do podpozycji)</td>
                                         <td className="px-1 py-0.5 text-center sticky right-0" style={{ backgroundColor: '#0a0f1d', zIndex: 4, borderLeft: `1px solid ${BORDER}` }}>
-                                          <button onClick={() => onEditLine(c)} className="text-[#94A3B8] hover:text-white p-0.5" data-testid={`skladowa-edit-${c.id}`}><Pencil className="h-3 w-3" /></button>
-                                          <button onClick={() => onDeleteLine(c.id)} className="text-[#94A3B8] hover:text-[#FCA5A5] p-0.5" data-testid={`skladowa-del-${c.id}`}><Trash2 className="h-3 w-3" /></button>
+                                          <button onClick={() => onEditLine(c)} className="text-[#CBD5E1] hover:text-white p-0.5" data-testid={`skladowa-edit-${c.id}`}><Pencil className="h-3 w-3" /></button>
+                                          <button onClick={() => onDeleteLine(c.id)} className="text-[#CBD5E1] hover:text-[#FCA5A5] p-0.5" data-testid={`skladowa-del-${c.id}`}><Trash2 className="h-3 w-3" /></button>
                                         </td>
                                       </tr>
                                     );
@@ -594,7 +594,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             </table>
           </div>
         )}
-        <div className="px-3 py-2 bg-[#0B1120] border-t border-[#2A3B59] text-[10px] text-[#94A3B8]">
+        <div className="px-3 py-2 bg-[#152033] border-t border-[#3D5378] text-[10px] text-[#CBD5E1]">
           <div className="flex items-center gap-2 flex-wrap" data-testid="budget-legend">
             <span className="text-[#D4AF37] font-semibold">ⓘ</span>
             <span>Kliknij nagłówek kolumny aby zobaczyć opis i wzór.</span>
@@ -603,7 +603,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span>
             <span>= strata / przekroczenie</span>
             <span className="text-[#475569]">·</span>
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ backgroundColor: '#D4AF37', color: '#152033' }}>żółte</span>
             <span>= rezerwa &lt; 5%</span>
             <span className="text-[#475569]">·</span>
             <span className="px-1.5 py-0.5 rounded text-[9px] font-bold" style={{ color: '#5F7552' }}>zielone</span>
@@ -613,7 +613,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
       </CardContent>
       {/* iter82: Modal opisu kolumny */}
       <Dialog open={!!infoCol} onOpenChange={(o) => { if (!o) setInfoCol(null); }}>
-        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-lg" data-testid="col-info-modal">
+        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-lg" data-testid="col-info-modal">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <span className="px-2 py-1 rounded bg-[#4F6343] text-white text-xs font-mono">{infoCol?.k}</span>
@@ -623,17 +623,17 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
           <div className="space-y-3 text-sm">
             {infoCol?.formula && (
               <div>
-                <div className="text-[#94A3B8] text-xs uppercase mb-1">Wzór</div>
-                <code className="block bg-[#0B1120] border border-[#2A3B59] rounded px-3 py-2 text-[#D4AF37] font-mono">{infoCol.formula}</code>
+                <div className="text-[#CBD5E1] text-xs uppercase mb-1">Wzór</div>
+                <code className="block bg-[#152033] border border-[#3D5378] rounded px-3 py-2 text-[#D4AF37] font-mono">{infoCol.formula}</code>
               </div>
             )}
             <div>
-              <div className="text-[#94A3B8] text-xs uppercase mb-1">Opis</div>
-              <div className="text-[#CBD5E1] leading-relaxed">{infoCol?.desc || 'Brak opisu.'}</div>
+              <div className="text-[#CBD5E1] text-xs uppercase mb-1">Opis</div>
+              <div className="text-[#F1F5F9] leading-relaxed">{infoCol?.desc || 'Brak opisu.'}</div>
             </div>
             {['S', 'T', 'U', 'V'].includes(infoCol?.k) && (
               <div>
-                <div className="text-[#94A3B8] text-xs uppercase mb-1">Alerty kolorów</div>
+                <div className="text-[#CBD5E1] text-xs uppercase mb-1">Alerty kolorów</div>
                 <div className="space-y-1 text-xs">
                   <div className="flex items-center gap-2">
                     <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#9B2C2C', color: '#fff' }}>⚠ czerwone</span>
@@ -641,13 +641,13 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                   </div>
                   {['T', 'U'].includes(infoCol?.k) && (
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#152033' }}>żółte</span>
                       <span>mała rezerwa (mniej niż 5% wartości referencyjnej)</span>
                     </div>
                   )}
                   {infoCol?.k === 'S' && (
                     <div className="flex items-center gap-2">
-                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#0B1120' }}>żółte</span>
+                      <span className="px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: '#D4AF37', color: '#152033' }}>żółte</span>
                       <span>≥ 80% i &lt; 100%</span>
                     </div>
                   )}
@@ -663,7 +663,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
       </Dialog>
       {/* iter95g: Modal rozbicia Q (skąd się wziął) */}
       <Dialog open={showQBreakdown} onOpenChange={setShowQBreakdown}>
-        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-3xl" data-testid="q-breakdown-modal">
+        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-3xl" data-testid="q-breakdown-modal">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
               <span className="px-2 py-1 rounded bg-[#4F6343] text-white text-xs font-mono">Q</span>
@@ -671,11 +671,11 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 text-sm max-h-[70vh] overflow-y-auto">
-            <div className="rounded bg-[#0B1120] border border-[#2A3B59] p-3">
+            <div className="rounded bg-[#152033] border border-[#3D5378] p-3">
               <div className="text-[#D4AF37] font-bold text-lg mb-1">
                 Q = {fmtNum(allocations?.pools?.Q || 0)} zł
               </div>
-              <div className="text-xs text-[#94A3B8]">
+              <div className="text-xs text-[#CBD5E1]">
                 Suma kosztów firmowych BEZ przypisanej budowy, rozdzielonych pomiędzy budowy proporcjonalnie do sprzedaży.
                 Następnie ta kwota trafia tylko na sloty <b>robocizny (R)</b> proporcjonalnie do % zaawansowania pozycji.
               </div>
@@ -683,10 +683,10 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
 
             {/* Skład Q */}
             <div>
-              <div className="text-[#94A3B8] text-xs uppercase mb-2">Skład Q (jak liczone)</div>
-              <table className="w-full text-xs border border-[#2A3B59] rounded overflow-hidden">
+              <div className="text-[#CBD5E1] text-xs uppercase mb-2">Skład Q (jak liczone)</div>
+              <table className="w-full text-xs border border-[#3D5378] rounded overflow-hidden">
                 <tbody>
-                  <tr className="border-b border-[#2A3B59]">
+                  <tr className="border-b border-[#3D5378]">
                     <td className="px-2 py-1.5">🔹 Kategoryzowane (KP/KSP/PPE pro-rata jak Sprzedaż)</td>
                     <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.q_categorized || 0)} zł</td>
                   </tr>
@@ -694,7 +694,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                     <td className="px-2 py-1.5">🔹 Pozostałe (KSB bez budowy, kod=brak) × %sprzedaży</td>
                     <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.q_leftover || 0)} zł</td>
                   </tr>
-                  <tr className="bg-[#0B1120] border-t border-[#D4AF37]/40">
+                  <tr className="bg-[#152033] border-t border-[#D4AF37]/40">
                     <td className="px-2 py-1.5 font-bold">SUMA Q</td>
                     <td className="px-2 py-1.5 text-right font-bold text-[#D4AF37]">{fmtNum(allocations?.pools?.Q || 0)} zł</td>
                   </tr>
@@ -705,11 +705,11 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             {/* Per miesiąc */}
             {allocations?.q_monthly?.length > 0 && (
               <div>
-                <div className="text-[#94A3B8] text-xs uppercase mb-2">
+                <div className="text-[#CBD5E1] text-xs uppercase mb-2">
                   Rozbicie per miesiąc (w widoku rocznym sumujemy Q liczone NIEZALEŻNIE dla każdego miesiąca)
                 </div>
-                <table className="w-full text-xs border border-[#2A3B59] rounded overflow-hidden">
-                  <thead className="bg-[#131C2F] text-[#94A3B8]">
+                <table className="w-full text-xs border border-[#3D5378] rounded overflow-hidden">
+                  <thead className="bg-[#1E2A44] text-[#CBD5E1]">
                     <tr>
                       <th className="px-2 py-1.5 text-left">Miesiąc</th>
                       <th className="px-2 py-1.5 text-right">Sprzedaż tej budowy</th>
@@ -722,7 +722,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                   </thead>
                   <tbody>
                     {allocations.q_monthly.map((m) => (
-                      <tr key={m.month} className="border-t border-[#2A3B59]">
+                      <tr key={m.month} className="border-t border-[#3D5378]">
                         <td className="px-2 py-1.5 font-mono">{MONTHS_PL[m.month-1]} {m.year}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.sprzedaz_budowa)}</td>
                         <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(m.sprzedaz_firma)}</td>
@@ -732,7 +732,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                         <td className="px-2 py-1.5 text-right tabular-nums font-bold text-[#D4AF37]">{fmtNum(m.q)}</td>
                       </tr>
                     ))}
-                    <tr className="bg-[#0B1120] border-t border-[#D4AF37]/40 font-bold">
+                    <tr className="bg-[#152033] border-t border-[#D4AF37]/40 font-bold">
                       <td className="px-2 py-1.5">SUMA</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.sprzedaz_budowa)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums">{fmtNum(allocations.pools.sprzedaz_total_firma)}</td>
@@ -743,7 +743,7 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                     </tr>
                   </tbody>
                 </table>
-                <div className="text-[10px] text-[#64748B] mt-2">
+                <div className="text-[10px] text-[#94A3B8] mt-2">
                   ℹ Miesiące, w których budowa nie miała żadnego zapisu (faktury/kosztu), są pomijane.
                   Q jest liczone osobno per miesiąc i sumowane — dzięki temu różne miesięczne ratio
                   sprzedaży są poprawnie odzwierciedlone.
@@ -752,20 +752,20 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
             )}
 
             {/* Wyjaśnienie metody */}
-            <div className="rounded bg-[#0B1120] border border-[#2A3B59] p-3 text-xs">
-              <div className="text-[#94A3B8] uppercase mb-1">Jak działa „Kategoryzowane"</div>
-              <ul className="space-y-0.5 list-disc list-inside text-[#CBD5E1]">
+            <div className="rounded bg-[#152033] border border-[#3D5378] p-3 text-xs">
+              <div className="text-[#CBD5E1] uppercase mb-1">Jak działa „Kategoryzowane"</div>
+              <ul className="space-y-0.5 list-disc list-inside text-[#F1F5F9]">
                 <li>KP (wynagrodzenia) nieprzyp. × (KP tej budowy / suma KP wszystkich budów)</li>
                 <li>KSP_STAWKI nieprzyp. × ((KP+KBB) tej budowy / suma)</li>
                 <li>KSP_UKLADY nieprzyp. × udział KP</li>
                 <li>Pozostałe KSP × udział KP</li>
                 <li>PPE (podatki) × (sprzedaż tej budowy / sprzedaż całej firmy)</li>
               </ul>
-              <div className="text-[#94A3B8] uppercase mt-3 mb-1">Jak działa „Pozostałe"</div>
-              <div className="text-[#CBD5E1]">
+              <div className="text-[#CBD5E1] uppercase mt-3 mb-1">Jak działa „Pozostałe"</div>
+              <div className="text-[#F1F5F9]">
                 Wszystkie firmowe koszty BEZ budowy które NIE są w kategoriach KP/KSP/PPE
                 (np. faktury Hilti, NOE bez kodu — patrz screenshot).
-                Mnożone przez: <code className="bg-[#19243C] px-1 rounded">sprzedaż_budowy / sprzedaż_firmy</code> dla danego miesiąca.
+                Mnożone przez: <code className="bg-[#243049] px-1 rounded">sprzedaż_budowy / sprzedaż_firmy</code> dla danego miesiąca.
               </div>
             </div>
           </div>

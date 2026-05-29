@@ -25,68 +25,68 @@ export const AddEquipmentModal = ({ open, onClose, form, setForm, onPhotoUpload,
   if (!open) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Dodaj sprzęt</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Dodaj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={onClose} data-testid="close-add-modal">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Nazwa *</label>
             <Input
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="equipment-name-input"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Marka</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Marka</label>
             <Input
               value={form.brand}
               onChange={(e) => setForm({ ...form, brand: e.target.value })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="equipment-brand-input"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Ilość dostepnych sztuk *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Ilość dostepnych sztuk *</label>
             <Input
               type="number"
               min="0"
               value={form.total_quantity}
               onChange={(e) => setForm({ ...form, total_quantity: e.target.value })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="equipment-quantity-input"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">
+            <label className="text-xs text-[#CBD5E1] mb-1 block">
               Warianty / rozmiary (opcjonalne, oddziel przecinkami)
             </label>
             <Input
               value={form.variants}
               onChange={(e) => setForm({ ...form, variants: e.target.value })}
               placeholder="np. 5mm, 8mm, 10mm  lub  125mm, 180mm, 230mm"
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="equipment-variants-input"
             />
-            <p className="text-[10px] text-[#64748B] mt-1">
+            <p className="text-[10px] text-[#94A3B8] mt-1">
               Brygadzista będzie musial wybrac jeden z wariantow przy zamawianiu.
             </p>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Zdjecie (opcjonalne, max 2MB)</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Zdjecie (opcjonalne, max 2MB)</label>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => onPhotoUpload(e, 'add')}
-              className="text-xs text-[#CBD5E1]"
+              className="text-xs text-[#F1F5F9]"
               data-testid="equipment-photo-input"
             />
-            {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
+            {form.photo && <img src={form.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#152033]" />}
           </div>
           <div className="flex gap-2 justify-end pt-2">
             <Button variant="ghost" onClick={onClose}>Anuluj</Button>
@@ -104,33 +104,33 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
   if (!editingEq) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Edytuj sprzęt</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Edytuj sprzęt</CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setEditingEq(null)}>
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Nazwa</label>
             <Input
               value={editingEq.name || ''}
               onChange={(e) => setEditingEq({ ...editingEq, name: e.target.value })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="edit-equipment-name"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Marka</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Marka</label>
             <Input
               value={editingEq.brand || ''}
               onChange={(e) => setEditingEq({ ...editingEq, brand: e.target.value })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">
+            <label className="text-xs text-[#CBD5E1] mb-1 block">
               Ilość całkowita (stan w magazynie)
             </label>
             <Input
@@ -138,34 +138,34 @@ export const EditEquipmentModal = ({ editingEq, setEditingEq, onPhotoUpload, onU
               min="0"
               value={editingEq.total_quantity ?? 0}
               onChange={(e) => setEditingEq({ ...editingEq, total_quantity: e.target.value === '' ? '' : parseInt(e.target.value, 10) })}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="edit-total-quantity"
             />
-            <p className="text-[10px] text-[#64748B] mt-1">
+            <p className="text-[10px] text-[#94A3B8] mt-1">
               Aktualnie: przypisano {editingEq.assigned_quantity || 0}, w naprawie {editingEq.broken_quantity || 0}, zaginione {editingEq.lost_quantity || 0}, dostępne {editingEq.available_quantity || 0}
             </p>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">
+            <label className="text-xs text-[#CBD5E1] mb-1 block">
               Warianty / rozmiary (oddziel przecinkami)
             </label>
             <Input
               value={editingEq.variants_edit || ''}
               onChange={(e) => setEditingEq({ ...editingEq, variants_edit: e.target.value })}
               placeholder="np. 5mm, 8mm, 10mm"
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="edit-variants-input"
             />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Zdjecie</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Zdjecie</label>
             <input
               type="file"
               accept="image/*"
               onChange={(e) => onPhotoUpload(e, 'edit')}
-              className="text-xs text-[#CBD5E1]"
+              className="text-xs text-[#F1F5F9]"
             />
-            {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
+            {editingEq.photo && <img src={editingEq.photo} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#152033]" />}
           </div>
           <div className="flex gap-2 justify-between pt-2">
             <Button
@@ -196,38 +196,38 @@ export const HistoryModal = ({ historyModalEq, setHistoryModalEq, historyForModa
   if (!historyModalEq) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[80vh] flex flex-col">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-2xl max-h-[80vh] flex flex-col">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">Historia: {historyModalEq.name}</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Historia: {historyModalEq.name}</CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setHistoryModalEq(null)} data-testid="close-history-modal">
             <X className="h-4 w-4" />
           </Button>
         </CardHeader>
         <CardContent className="overflow-y-auto">
           {historyForModal.length === 0 ? (
-            <p className="text-[#94A3B8] text-sm">Brak wpisow.</p>
+            <p className="text-[#CBD5E1] text-sm">Brak wpisow.</p>
           ) : (
             <div className="space-y-1" data-testid="history-modal-list">
               {historyForModal.map((h) => (
                 <div
                   key={h.id}
-                  className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59] flex flex-wrap gap-2"
+                  className="text-xs p-2 bg-[#1E2A44] rounded border border-[#3D5378] flex flex-wrap gap-2"
                 >
                   <span className="text-[#4F6343] font-semibold">{ACTION_LABELS[h.action] || h.action}</span>
                   {h.details?.foreman_name && (
-                    <span className="text-[#94A3B8]">
+                    <span className="text-[#CBD5E1]">
                       -&gt; {h.details.foreman_name} ({h.details.quantity ?? '?'})
                     </span>
                   )}
                   {h.details?.to_foreman_name && (
-                    <span className="text-[#94A3B8]">
+                    <span className="text-[#CBD5E1]">
                       -&gt; {h.details.to_foreman_name} ({h.details.quantity ?? '?'})
                     </span>
                   )}
                   {h.details?.description && (
-                    <span className="text-[#94A3B8]">"{h.details.description}"</span>
+                    <span className="text-[#CBD5E1]">"{h.details.description}"</span>
                   )}
-                  <span className="text-[#64748B] ml-auto">
+                  <span className="text-[#94A3B8] ml-auto">
                     przez {h.actor_name} · {new Date(h.created_at).toLocaleString('pl-PL')}
                   </span>
                 </div>
@@ -247,9 +247,9 @@ export const ResolveDefectModal = ({
   if (!resolveModal) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1]">
+          <CardTitle className="text-[#F1F5F9]">
             Naprawione: {resolveModal.equipment_name} ({resolveModal.quantity} szt.)
           </CardTitle>
           <Button variant="ghost" size="sm" onClick={() => setResolveModal(null)} data-testid="close-resolve-modal">
@@ -257,9 +257,9 @@ export const ResolveDefectModal = ({
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          <p className="text-sm text-[#94A3B8]">Gdzie przekazac naprawiony sprzęt?</p>
+          <p className="text-sm text-[#CBD5E1]">Gdzie przekazac naprawiony sprzęt?</p>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[#F1F5F9] cursor-pointer">
               <input
                 type="radio"
                 name="resolve-dest"
@@ -269,7 +269,7 @@ export const ResolveDefectModal = ({
               />
               Do magazynu (dostępny w magazynie)
             </label>
-            <label className="flex items-center gap-2 text-sm text-[#CBD5E1] cursor-pointer">
+            <label className="flex items-center gap-2 text-sm text-[#F1F5F9] cursor-pointer">
               <input
                 type="radio"
                 name="resolve-dest"
@@ -283,7 +283,7 @@ export const ResolveDefectModal = ({
               <select
                 value={resolveForemanId}
                 onChange={(e) => setResolveForemanId(e.target.value)}
-                className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
                 data-testid="resolve-foreman-select"
               >
                 <option value="">-- Wybierz brygadziste --</option>
@@ -347,7 +347,7 @@ export const ResolveDefectModal = ({
             <Button
               onClick={() => setResolveModal(null)}
               variant="outline"
-              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+              className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
             >
               Anuluj
             </Button>

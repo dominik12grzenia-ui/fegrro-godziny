@@ -23,10 +23,10 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#0B1120] outline-none";
+  const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#152033] outline-none";
 
   return (
-    <tr className="bg-[#19243C] text-white font-semibold" data-testid={`pos-row-${position.id}`}>
+    <tr className="bg-[#243049] text-white font-semibold" data-testid={`pos-row-${position.id}`}>
       <Td>
         <button onClick={onToggle} className="text-[#D4AF37] mr-1 text-[10px]" data-testid={`pos-toggle-${position.id}`}>
           {collapsed ? '▶' : '▼'}
@@ -42,7 +42,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
             title={edit.include_in_pc ? 'Usuń z sumy PC' : 'Wlicz do wskaźnika PC (zł/m² PC)'}
             className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc
-                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
             }`}
             data-testid={`pos-pc-${position.id}`}
@@ -53,7 +53,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
             title={edit.include_in_pc_podziemie ? 'Usuń z sumy PC podziemie' : 'Wlicz do wskaźnika PC podziemie (zł/m²)'}
             className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc_podziemie
-                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
             }`}
             data-testid={`pos-pc-pod-${position.id}`}
@@ -64,7 +64,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
             title={edit.include_in_pc_nadziemie ? 'Usuń z sumy PC nadziemie' : 'Wlicz do wskaźnika PC nadziemie (zł/m²)'}
             className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pc_nadziemie
-                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
             }`}
             data-testid={`pos-pc-nad-${position.id}`}
@@ -75,7 +75,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
             title={edit.include_in_pum ? 'Usuń z sumy PUM' : 'Wlicz do wskaźnika PUM (zł/m² PUM)'}
             className={`text-[8px] font-bold px-1 py-px rounded transition border leading-tight ${
               edit.include_in_pum
-                ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
                 : 'border-[#5F7552]/50 text-[#5F7552] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
             }`}
             data-testid={`pos-pum-${position.id}`}
@@ -93,20 +93,20 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
           onBlur={() => save({ quantity: edit.quantity === '' || edit.quantity == null ? null : parseFloat(edit.quantity) || 0 })}
           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
           placeholder="wpisz"
-          className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-right tabular-nums text-[#D4AF37] font-bold px-2 outline-none focus:border-[#D4AF37] focus:bg-[#0B1120] hover:border-[#9DBC85]"
+          className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-right tabular-nums text-[#D4AF37] font-bold px-2 outline-none focus:border-[#D4AF37] focus:bg-[#152033] hover:border-[#9DBC85]"
           data-testid={`pos-qty-${position.id}`} />
       </Td>
       <Td>
         <select value={edit.unit || ''}
           onChange={(e) => { const v = e.target.value; setEdit({ ...edit, unit: v }); save({ unit: v || null }); }}
-          className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-center text-[#CBD5E1] px-1 outline-none focus:border-[#D4AF37]"
+          className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-center text-[#F1F5F9] px-1 outline-none focus:border-[#D4AF37]"
           data-testid={`pos-unit-${position.id}`}>
           {UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
         </select>
       </Td>
-      <Td right className="text-[#94A3B8]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
-      <Td right className="text-[#64748B]">—</Td>
-      <Td right className="text-[#64748B]">—</Td>
+      <Td right className="text-[#CBD5E1]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
+      <Td right className="text-[#94A3B8]">—</Td>
+      <Td right className="text-[#94A3B8]">—</Td>
       <Td right>{fmtPLN(row.kaucjaGir)}</Td>
       <Td right>{fmtPLN(row.kaucjaDw)}</Td>
       <Td right>{fmtPLN(row.kosztBudowy)}</Td>
@@ -124,7 +124,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
         {fmtPLN(row.zyskPlusDw)}
       </Td>
       <Td right>
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`pos-del-${position.id}`}>
+        <button onClick={onDel} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`pos-del-${position.id}`}>
           <Trash2 className="h-3.5 w-3.5" />
         </button>
       </Td>

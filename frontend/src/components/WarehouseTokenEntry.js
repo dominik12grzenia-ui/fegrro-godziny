@@ -38,13 +38,13 @@ export default function WarehouseTokenEntry() {
   }, [token, navigate]);
 
   return (
-    <div className="min-h-screen bg-[#0B1120] flex items-center justify-center p-4" data-testid="warehouse-token-entry">
+    <div className="min-h-screen bg-[#152033] flex items-center justify-center p-4" data-testid="warehouse-token-entry">
       <div className="text-center">
         <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#D4AF37]/20 flex items-center justify-center animate-pulse">
           <Warehouse className="h-10 w-10 text-[#D4AF37]" />
         </div>
         <p className="text-[#D4AF37] text-lg font-bold">Otwieranie panelu magazyniera...</p>
-        <p className="text-[#94A3B8] text-sm mt-2">Trwa weryfikacja linku</p>
+        <p className="text-[#CBD5E1] text-sm mt-2">Trwa weryfikacja linku</p>
       </div>
     </div>
   );

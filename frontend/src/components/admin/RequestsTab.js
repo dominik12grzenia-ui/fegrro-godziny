@@ -18,9 +18,9 @@ export const RequestsTab = ({
 }) => {
   return (
     <div className="space-y-4">
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader>
-          <CardTitle className="text-[#CBD5E1]">Prośby o uzupełnienie godzin</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Prośby o uzupełnienie godzin</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -28,19 +28,19 @@ export const RequestsTab = ({
               const employee = employees.find((e) => e.id === request.employee_id);
               const site = sites.find((s) => s.id === request.site_id);
               return (
-                <div key={request.id} className="border rounded-lg p-4 bg-[#19243C] border-[#2A3B59]">
+                <div key={request.id} className="border rounded-lg p-4 bg-[#243049] border-[#3D5378]">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div className="space-y-2 flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <Clock className="h-5 w-5 text-[#4F6343] shrink-0" />
-                        <span className="font-semibold text-[#CBD5E1] truncate">
+                        <span className="font-semibold text-[#F1F5F9] truncate">
                           {employee?.full_name || 'Nieznany pracownik'}
                         </span>
                       </div>
-                      <div className="text-sm text-[#94A3B8] space-y-1">
-                        <p><strong className="text-[#CBD5E1]">Budowa:</strong> {site?.name || 'Nieznana'}</p>
-                        <p><strong className="text-[#CBD5E1]">Data:</strong> {request.work_date}</p>
-                        <p><strong className="text-[#CBD5E1]">Godziny:</strong> {request.hours_worked}h</p>
+                      <div className="text-sm text-[#CBD5E1] space-y-1">
+                        <p><strong className="text-[#F1F5F9]">Budowa:</strong> {site?.name || 'Nieznana'}</p>
+                        <p><strong className="text-[#F1F5F9]">Data:</strong> {request.work_date}</p>
+                        <p><strong className="text-[#F1F5F9]">Godziny:</strong> {request.hours_worked}h</p>
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -69,14 +69,14 @@ export const RequestsTab = ({
               );
             })}
             {requests.length === 0 && (
-              <div className="text-center p-8 text-[#94A3B8]">Brak oczekujacych prosb</div>
+              <div className="text-center p-8 text-[#CBD5E1]">Brak oczekujacych prosb</div>
             )}
           </div>
         </CardContent>
       </Card>
 
       {notifications.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <CardTitle className="text-[#DC4A3A] flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
@@ -86,15 +86,15 @@ export const RequestsTab = ({
           <CardContent>
             <div className="space-y-3">
               {notifications.map((notif) => (
-                <div key={notif.id} className="p-4 bg-[#131C2F] rounded-lg border border-[#DC4A3A]/30">
+                <div key={notif.id} className="p-4 bg-[#1E2A44] rounded-lg border border-[#DC4A3A]/30">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-[#CBD5E1] font-semibold">{notif.employee_name}</p>
-                      <p className="text-sm text-[#94A3B8]">
-                        Data: <strong className="text-[#CBD5E1]">{notif.work_date}</strong> |{' '}
+                      <p className="text-[#F1F5F9] font-semibold">{notif.employee_name}</p>
+                      <p className="text-sm text-[#CBD5E1]">
+                        Data: <strong className="text-[#F1F5F9]">{notif.work_date}</strong> |{' '}
                         Godziny: <strong className="text-[#DC4A3A]">{notif.hours_worked}h</strong>
                       </p>
-                      <p className="text-xs text-[#64748B] mt-1">
+                      <p className="text-xs text-[#94A3B8] mt-1">
                         Wpisal: {notif.created_by_name} | {new Date(notif.created_at).toLocaleString('pl-PL')}
                       </p>
                     </div>
@@ -138,18 +138,18 @@ export const RequestsTab = ({
       )}
 
       {absenceRequests.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardContent className="pt-4">
-            <h3 className="text-[#CBD5E1] font-bold mb-4 flex items-center gap-2">
+            <h3 className="text-[#F1F5F9] font-bold mb-4 flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-[#DC4A3A]" />
               Nieobecności — do akceptacji ({absenceRequests.length})
             </h3>
             <div className="space-y-3">
               {absenceRequests.map((absence) => (
-                <div key={absence.id} className="p-4 bg-[#131C2F] rounded-lg border-2 border-[#9B2C2C]">
+                <div key={absence.id} className="p-4 bg-[#1E2A44] rounded-lg border-2 border-[#9B2C2C]">
                   <div className="flex flex-col gap-2">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                      <p className="text-[#CBD5E1] font-semibold text-base">{absence.employee_name || 'Pracownik'}</p>
+                      <p className="text-[#F1F5F9] font-semibold text-base">{absence.employee_name || 'Pracownik'}</p>
                       <div className="flex gap-2">
                         <Button
                           size="sm"
@@ -189,7 +189,7 @@ export const RequestsTab = ({
                         </span>
                       ))}
                     </div>
-                    <p className="text-xs text-[#64748B]">
+                    <p className="text-xs text-[#94A3B8]">
                       Zgloszone: {absence.created_at ? new Date(absence.created_at).toLocaleString('pl-PL') : ''}
                     </p>
                   </div>

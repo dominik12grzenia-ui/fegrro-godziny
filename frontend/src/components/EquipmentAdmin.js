@@ -413,9 +413,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
   return (
     <div className="space-y-4" data-testid="equipment-admin">
       {/* Main table */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#4F6343]" />
             {title} - przypisania
           </CardTitle>
@@ -423,7 +423,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
             <select
               value={filterForemanId}
               onChange={(e) => setFilterForemanId(e.target.value)}
-              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+              className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
               data-testid="foreman-filter-select"
             >
               <option value="">-- pokaz wszystkich --</option>
@@ -436,7 +436,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 size="sm"
                 variant="ghost"
                 onClick={() => setFilterForemanId('')}
-                className="text-[#94A3B8] hover:bg-[#2A3B59] text-xs"
+                className="text-[#CBD5E1] hover:bg-[#3D5378] text-xs"
                 data-testid="clear-filter-btn"
               >
                 <X className="h-3 w-3 mr-1" /> Wyczysc
@@ -452,7 +452,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
             <ActionButton
               onAction={handleStartInventory}
               disabled={startingInventory || activeInventory.length >0}
-              className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#131C2F] font-semibold disabled:opacity-50"
+              className="bg-[#D4AF37] hover:bg-[#D4A055] text-[#1E2A44] font-semibold disabled:opacity-50"
               data-testid="start-inventory-btn"
               title={activeInventory.length > 0 ? 'Inwentaryzacja juz aktywna' : 'Wymuś inwentaryzacje u brygadzistow'}
             >
@@ -462,18 +462,18 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
         </CardHeader>
         <CardContent>
           {equipment.length === 0 ? (
-            <p className="text-[#94A3B8] text-center py-6">Brak sprzętu. Kliknij "Dodaj sprzęt".</p>
+            <p className="text-[#CBD5E1] text-center py-6">Brak sprzętu. Kliknij "Dodaj sprzęt".</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="border-collapse text-sm" data-testid="equipment-main-table">
-                <thead className="sticky top-0 z-30 bg-[#19243C]">
+                <thead className="sticky top-0 z-30 bg-[#243049]">
                   {/* Top totals row: per-foreman totals */}
                   <tr>
-                    <th className="border border-[#2A3B59] p-2 bg-[#131C2F]" colSpan={8}></th>
+                    <th className="border border-[#3D5378] p-2 bg-[#1E2A44]" colSpan={8}></th>
                     {visibleForemen.map((f) => (
                       <th
                         key={`tot-${f.id}`}
-                        className="border border-[#2A3B59] p-1 bg-[#131C2F] text-center text-[#4F6343] font-bold"
+                        className="border border-[#3D5378] p-1 bg-[#1E2A44] text-center text-[#4F6343] font-bold"
                         data-testid={`foreman-total-${f.id}`}
                       >
                         {foremanTotal(f.id)}
@@ -481,35 +481,35 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                     ))}
                   </tr>
                   {/* Headers row */}
-                  <tr className="bg-[#131C2F]">
-                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                  <tr className="bg-[#1E2A44]">
+                    <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] min-w-[120px]">
                       Historia przekazania
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[110px]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[110px]">
                       Przekaż
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[160px]">
+                    <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] min-w-[160px]">
                       Nazwa sprzętu
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[120px]">
+                    <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] min-w-[120px]">
                       Marka
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[100px]">
                       Ilość dostępnych sztuk
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[120px]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[120px]">
                       Zdane do magazynu do naprawy
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[90px]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[90px]">
                       Zaginione
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] min-w-[100px]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#F1F5F9] min-w-[100px]">
                       Dostępne w magazynie
                     </th>
                     {visibleForemen.map((f) => (
                       <th
                         key={f.id}
-                        className="border border-[#2A3B59] p-1 text-center text-[#CBD5E1] align-bottom"
+                        className="border border-[#3D5378] p-1 text-center text-[#F1F5F9] align-bottom"
                         style={{ height: '90px', minWidth: '50px', maxWidth: '50px' }}
                       >
                         <div
@@ -532,19 +532,19 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 </thead>
                 <tbody>
                   {visibleEquipment.map((eq, idx) => (
-                    <tr key={eq.id} data-testid={`equipment-row-${eq.id}`} className={idx % 2 === 0 ? 'bg-[#131C2F]/40' : 'bg-[#19243C]'}>
-                      <td className="border border-[#2A3B59] p-1">
+                    <tr key={eq.id} data-testid={`equipment-row-${eq.id}`} className={idx % 2 === 0 ? 'bg-[#1E2A44]/40' : 'bg-[#243049]'}>
+                      <td className="border border-[#3D5378] p-1">
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => setHistoryModalEq(eq)}
-                          className="text-[#4F6343] hover:bg-[#2A3B59] text-xs h-7"
+                          className="text-[#4F6343] hover:bg-[#3D5378] text-xs h-7"
                           data-testid={`history-btn-${eq.id}`}
                         >
                           <History className="h-3 w-3 mr-1" /> Historia
                         </Button>
                       </td>
-                      <td className="border border-[#2A3B59] p-1 text-center">
+                      <td className="border border-[#3D5378] p-1 text-center">
                         <Button
                           size="sm"
                           onClick={() => openTransferModal(eq)}
@@ -556,41 +556,41 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                           <Send className="h-3 w-3 mr-1" /> Przekaż
                         </Button>
                       </td>
-                      <td className="border border-[#2A3B59] p-2">
+                      <td className="border border-[#3D5378] p-2">
                         <div className="flex items-center gap-2">
                           {eq.photo ? (
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-12 h-12 object-contain rounded border border-[#2A3B59] shrink-0 bg-[#0B1120] cursor-zoom-in"
+                              className="w-12 h-12 object-contain rounded border border-[#3D5378] shrink-0 bg-[#152033] cursor-zoom-in"
                               data-testid={`equipment-thumb-${eq.id}`}
                               onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-12 h-12 rounded bg-[#131C2F] border border-[#2A3B59] flex items-center justify-center shrink-0">
-                              <Wrench className="h-5 w-5 text-[#2A3B59]" />
+                            <div className="w-12 h-12 rounded bg-[#1E2A44] border border-[#3D5378] flex items-center justify-center shrink-0">
+                              <Wrench className="h-5 w-5 text-[#3D5378]" />
                             </div>
                           )}
                           <button
                             onClick={() => handleOpenEdit(eq)}
-                            className="text-[#CBD5E1] font-semibold hover:text-[#4F6343] text-left"
+                            className="text-[#F1F5F9] font-semibold hover:text-[#4F6343] text-left"
                             data-testid={`equipment-name-${eq.id}`}
                           >
                             {eq.name}
                           </button>
                         </div>
                       </td>
-                      <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
-                      <td className="border border-[#2A3B59] p-1 text-center">
+                      <td className="border border-[#3D5378] p-2 text-[#CBD5E1]">{eq.brand || '-'}</td>
+                      <td className="border border-[#3D5378] p-1 text-center">
                         <span
-                          className="text-[#CBD5E1] font-semibold"
+                          className="text-[#F1F5F9] font-semibold"
                           data-testid={`total-display-${eq.id}`}
                           title="Aby zmienić - kliknij w nazwę sprzętu"
                         >
                           {eq.total_quantity}
                         </span>
                       </td>
-                      <td className="border border-[#2A3B59] p-1 text-center">
+                      <td className="border border-[#3D5378] p-1 text-center">
                         {(eq.broken_quantity || 0) > 0 ? (
                           <button
                             onClick={() => setResolveModal({
@@ -608,18 +608,18 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                             {eq.broken_quantity}
                           </button>
                         ) : (
-                          <span className="text-[#64748B]" data-testid={`broken-display-${eq.id}`}>0</span>
+                          <span className="text-[#94A3B8]" data-testid={`broken-display-${eq.id}`}>0</span>
                         )}
                       </td>
-                      <td className="border border-[#2A3B59] p-2 text-center">
+                      <td className="border border-[#3D5378] p-2 text-center">
                         <span
-                          className={(eq.lost_quantity || 0) > 0 ? 'text-[#DC4A3A] font-bold' : 'text-[#64748B]'}
+                          className={(eq.lost_quantity || 0) > 0 ? 'text-[#DC4A3A] font-bold' : 'text-[#94A3B8]'}
                           data-testid={`lost-${eq.id}`}
                         >
                           {eq.lost_quantity || 0}
                         </span>
                       </td>
-                      <td className="border border-[#2A3B59] p-2 text-center">
+                      <td className="border border-[#3D5378] p-2 text-center">
                         <span
                           className={
                             eq.available_quantity > 0
@@ -638,13 +638,13 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                           .map((p) => p[0]).join('').toUpperCase();
                         const canTransfer = (eq.available_quantity || 0) > 0;
                         return (
-                          <td key={f.id} className="border border-[#2A3B59] p-1 text-center">
-                            <div className="text-[8px] text-[#94A3B8] leading-none mb-0.5 font-semibold">{initials}</div>
+                          <td key={f.id} className="border border-[#3D5378] p-1 text-center">
+                            <div className="text-[8px] text-[#CBD5E1] leading-none mb-0.5 font-semibold">{initials}</div>
                             <button
                               type="button"
                               onClick={() => openTransferModal(eq, f.id)}
                               disabled={!canTransfer}
-                              className={`w-12 rounded px-1 py-1 text-center text-xs font-semibold ${current > 0 ? 'bg-[#3F5235]/40 text-[#9DBC85] border border-[#5F7552]' : 'bg-[#131C2F] text-[#64748B] border border-[#2A3B59]'} ${canTransfer ? 'hover:bg-[#4F6343]/30 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                              className={`w-12 rounded px-1 py-1 text-center text-xs font-semibold ${current > 0 ? 'bg-[#3F5235]/40 text-[#9DBC85] border border-[#5F7552]' : 'bg-[#1E2A44] text-[#94A3B8] border border-[#3D5378]'} ${canTransfer ? 'hover:bg-[#4F6343]/30 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                               data-testid={`assign-cell-${eq.id}-${f.id}`}
                               title={canTransfer ? `Kliknij aby przekazać ${f.full_name}` : 'Brak dostępnych sztuk'}
                             >
@@ -659,7 +659,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
               </table>
             </div>
           )}
-          <p className="text-xs text-[#94A3B8] mt-3">
+          <p className="text-xs text-[#CBD5E1] mt-3">
             Klikaj w nazwę sprzętu, aby edytować (w tym ilość całkowitą). Kliknij <b className="text-[#9DBC85]">„Przekaż"</b> lub komórkę brygadzisty, aby utworzyć przekazanie - brygadzista musi je zaakceptować. Liczby na samej górze = suma sprzętu przypisanego u danego brygadzisty.
           </p>
         </CardContent>
@@ -667,7 +667,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Active inventory check banner */}
       {activeInventory.length > 0 && (
-        <Card className="bg-[#19243C] border-[#D4AF37]" data-testid="active-inventory-card">
+        <Card className="bg-[#243049] border-[#D4AF37]" data-testid="active-inventory-card">
           <CardHeader>
             <CardTitle className="text-[#D4AF37] flex items-center gap-2">
               <ClipboardCheck className="h-5 w-5" />
@@ -688,24 +688,24 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 return (
                   <div
                     key={c.id}
-                    className="p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                    className="p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                     data-testid={`inventory-status-${c.id}`}
                   >
                     <div className="flex items-center justify-between flex-wrap gap-2 mb-2">
-                      <div className="text-sm text-[#CBD5E1]">
+                      <div className="text-sm text-[#F1F5F9]">
                         Rozpoczeto: {new Date(c.started_at).toLocaleString('pl-PL')}
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="text-sm">
                           <span className="text-[#4F6343] font-bold">{confirmed}</span>
-                          <span className="text-[#94A3B8]"> / </span>
+                          <span className="text-[#CBD5E1]"> / </span>
                           <span className="text-white font-bold">{required}</span>
-                          <span className="text-[#94A3B8] ml-1">potwierdzonych</span>
+                          <span className="text-[#CBD5E1] ml-1">potwierdzonych</span>
                         </div>
                         <Button
                           size="sm"
                           onClick={() => handleFinishInventory(c.id)}
-                          className="bg-[#2A3B59] hover:bg-[#2A3B59] text-white"
+                          className="bg-[#3D5378] hover:bg-[#3D5378] text-white"
                           data-testid={`finish-inventory-${c.id}`}
                         >
                           Zakoncz recznie
@@ -713,7 +713,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       </div>
                     </div>
                     {pendingNames.length > 0 && (
-                      <div className="text-xs text-[#94A3B8]">
+                      <div className="text-xs text-[#CBD5E1]">
                         <span className="text-[#D4AF37]">Oczekuje: </span>
                         {pendingNames.join(', ')}
                       </div>
@@ -731,7 +731,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Inventory shortage reports */}
       {shortages.length > 0 && (
-        <Card className="bg-[#19243C] border-[#D4AF37]" data-testid="shortages-card">
+        <Card className="bg-[#243049] border-[#D4AF37]" data-testid="shortages-card">
           <CardHeader>
             <CardTitle className="text-[#D4AF37] flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" />
@@ -743,19 +743,19 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
               {shortages.map((s) => (
                 <div
                   key={s.id}
-                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                   data-testid={`shortage-row-${s.id}`}
                 >
                   <div className="flex-1 min-w-[200px] text-sm">
                     <div>
-                      <span className="text-[#CBD5E1] font-semibold">{s.foreman_name}</span>
-                      <span className="text-[#94A3B8]"> - </span>
+                      <span className="text-[#F1F5F9] font-semibold">{s.foreman_name}</span>
+                      <span className="text-[#CBD5E1]"> - </span>
                       <span className="text-[#4F6343] font-bold">{s.equipment_name}</span>
                       {s.equipment_brand && (
-                        <span className="text-[#94A3B8]"> ({s.equipment_brand})</span>
+                        <span className="text-[#CBD5E1]"> ({s.equipment_brand})</span>
                       )}
                     </div>
-                    <div className="text-[#94A3B8] mt-1">
+                    <div className="text-[#CBD5E1] mt-1">
                       Posiada <span className="text-white font-bold">{s.reported_quantity}</span>
                       <span> / </span>
                       <span className="text-white">{s.expected_quantity}</span> szt.
@@ -764,9 +764,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       </span>
                     </div>
                     {s.description && (
-                      <div className="text-[#CBD5E1] mt-1 italic">"{s.description}"</div>
+                      <div className="text-[#F1F5F9] mt-1 italic">"{s.description}"</div>
                     )}
-                    <div className="text-xs text-[#64748B] mt-1">
+                    <div className="text-xs text-[#94A3B8] mt-1">
                       {new Date(s.created_at).toLocaleString('pl-PL')}
                     </div>
                   </div>
@@ -775,7 +775,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       <img
                         src={s.photo}
                         alt="dowod"
-                        className="h-16 w-16 rounded object-cover border border-[#2A3B59] cursor-zoom-in"
+                        className="h-16 w-16 rounded object-cover border border-[#3D5378] cursor-zoom-in"
                       />
                     </a>
                   )}
@@ -797,7 +797,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       onAction={() => handleResolveShortage(s.id)}
                       loadingText="Rozpatruję..."
                       successText="✓ Rozpatrzone"
-                      className="border-[#4F6343] text-[#4F6343] hover:bg-[#2A3B59] hover:text-[#4F6343]"
+                      className="border-[#4F6343] text-[#4F6343] hover:bg-[#3D5378] hover:text-[#4F6343]"
                       data-testid={`resolve-shortage-${s.id}`}
                       title="Sprzęt sie znalazl - bez zmian na stanie"
                     >
@@ -812,9 +812,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
       )}
 
       {/* Warehouse keeper setting */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
             <UserCog className="h-5 w-5 text-[#4F6343]" />
             Magazynier (otrzymuje powiadomienia o zwrotach)
           </CardTitle>
@@ -824,7 +824,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
             <select
               value={warehouseKeeper.foreman_id || ''}
               onChange={(e) => handleSetWarehouseKeeper(e.target.value)}
-              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
+              className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm flex-1 min-w-[200px]"
               data-testid="warehouse-keeper-select"
             >
               <option value="">-- tylko admin --</option>
@@ -832,7 +832,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 <option key={f.id} value={f.id}>{f.full_name}</option>
               ))}
             </select>
-            <span className="text-xs text-[#94A3B8]">
+            <span className="text-xs text-[#CBD5E1]">
               {warehouseKeeper.foreman_id
                 ? `Aktualnie: ${warehouseKeeper.foreman_name}`
                 : 'Powiadomienia trafiaja tylko do admina'}
@@ -843,7 +843,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Pending returns */}
       {pendingReturns.length > 0 && (
-        <Card className="bg-[#19243C] border-[#4F6343]">
+        <Card className="bg-[#243049] border-[#4F6343]">
           <CardHeader>
             <CardTitle className="text-[#4F6343] flex items-center gap-2">
               <Undo2 className="h-5 w-5" /> Oczekujace zwroty do magazynu ({pendingReturns.length})
@@ -854,16 +854,16 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
               {pendingReturns.map((r) => (
                 <div
                   key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                   data-testid={`pending-return-${r.id}`}
                 >
                   <div className="text-sm">
-                    <span className="text-[#CBD5E1] font-semibold">{r.from_foreman_name}</span>
-                    <span className="text-[#94A3B8]"> zwraca </span>
+                    <span className="text-[#F1F5F9] font-semibold">{r.from_foreman_name}</span>
+                    <span className="text-[#CBD5E1]"> zwraca </span>
                     <span className="text-[#4F6343] font-bold">{r.equipment_name}</span>
-                    <span className="text-[#94A3B8]"> x </span>
+                    <span className="text-[#CBD5E1]"> x </span>
                     <span className="text-white font-bold">{r.quantity}</span>
-                    <span className="text-[#64748B] text-xs ml-2">
+                    <span className="text-[#94A3B8] text-xs ml-2">
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
@@ -884,7 +884,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                       onAction={() => handleRouteToRepair(r.id, r.equipment_name, r.quantity)}
                       loadingText="Kieruję..."
                       successText="✓ Do naprawy"
-                      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-semibold"
+                      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-semibold"
                       data-testid={`route-to-repair-${r.id}`}
                       title="Sprzęt trafi do naprawy zamiast do magazynu dostępnego"
                     >
@@ -910,7 +910,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* iter89: Sporne przypisania sprzetu */}
       {disputes.length > 0 && (
-        <Card className="bg-[#19243C] border-[#9B2C2C]" data-testid="disputes-panel">
+        <Card className="bg-[#243049] border-[#9B2C2C]" data-testid="disputes-panel">
           <CardHeader>
             <CardTitle className="text-[#FCA5A5] flex items-center gap-2">
               <AlertTriangle className="h-5 w-5" /> Sporne przypisania sprzętu ({disputes.length})
@@ -921,23 +921,23 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
               {disputes.map((d) => (
                 <div
                   key={d.id}
-                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#9B2C2C]/40"
+                  className="flex flex-wrap items-start justify-between gap-3 p-3 bg-[#1E2A44] rounded border border-[#9B2C2C]/40"
                   data-testid={`dispute-${d.id}`}
                 >
                   <div className="text-sm flex-1 min-w-[200px]">
                     <div>
-                      <span className="text-[#CBD5E1] font-semibold">{d.foreman_name}</span>
-                      <span className="text-[#94A3B8]"> twierdzi że nie otrzymał: </span>
+                      <span className="text-[#F1F5F9] font-semibold">{d.foreman_name}</span>
+                      <span className="text-[#CBD5E1]"> twierdzi że nie otrzymał: </span>
                       <span className="text-[#FCA5A5] font-bold">{d.equipment_name}</span>
-                      <span className="text-[#94A3B8]"> x </span>
+                      <span className="text-[#CBD5E1]"> x </span>
                       <span className="text-white font-bold">{d.quantity}</span>
                     </div>
                     {d.contested_reason && (
-                      <div className="text-xs text-[#94A3B8] mt-1 italic">
+                      <div className="text-xs text-[#CBD5E1] mt-1 italic">
                         Powód: „{d.contested_reason}"
                       </div>
                     )}
-                    <div className="text-[#64748B] text-xs mt-1">
+                    <div className="text-[#94A3B8] text-xs mt-1">
                       Przypisane: {d.assigned_at ? new Date(d.assigned_at).toLocaleString('pl-PL') : '—'}
                       {d.contested_at && ` · Zgłoszone: ${new Date(d.contested_at).toLocaleString('pl-PL')}`}
                     </div>
@@ -981,25 +981,25 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Pending transfers */}
       {pendingTransfers.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
-            <CardTitle className="text-[#CBD5E1]">Oczekujace przekazania</CardTitle>
+            <CardTitle className="text-[#F1F5F9]">Oczekujace przekazania</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {pendingTransfers.map((t) => (
                 <div
                   key={t.id}
-                  className="text-sm p-2 bg-[#131C2F] rounded border border-[#2A3B59]"
+                  className="text-sm p-2 bg-[#1E2A44] rounded border border-[#3D5378]"
                   data-testid={`pending-transfer-${t.id}`}
                 >
-                  <span className="text-[#CBD5E1]">{t.from_foreman_name}</span>
-                  <span className="text-[#94A3B8]"> -&gt; </span>
-                  <span className="text-[#CBD5E1]">{t.to_foreman_name}</span>
-                  <span className="text-[#94A3B8]">: </span>
+                  <span className="text-[#F1F5F9]">{t.from_foreman_name}</span>
+                  <span className="text-[#CBD5E1]"> -&gt; </span>
+                  <span className="text-[#F1F5F9]">{t.to_foreman_name}</span>
+                  <span className="text-[#CBD5E1]">: </span>
                   <span className="text-[#4F6343] font-semibold">{t.equipment_name}</span>
-                  <span className="text-[#94A3B8]"> x {t.quantity} szt. </span>
-                  <span className="text-[#64748B] text-xs">
+                  <span className="text-[#CBD5E1]"> x {t.quantity} szt. </span>
+                  <span className="text-[#94A3B8] text-xs">
                     {new Date(t.created_at).toLocaleString('pl-PL')}
                   </span>
                 </div>
@@ -1011,12 +1011,12 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
 
       {/* Defects */}
       {defects.length > 0 && (
-        <Card className="bg-[#19243C] border-[#2A3B59]" data-testid="defects-panel">
+        <Card className="bg-[#243049] border-[#3D5378]" data-testid="defects-panel">
           <CardHeader>
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-[#DC4A3A]" /> Sprzęt w naprawie i zgłoszone usterki
             </CardTitle>
-            <p className="text-xs text-[#94A3B8] mt-1">
+            <p className="text-xs text-[#CBD5E1] mt-1">
               Kliknij <b>Naprawione</b> aby zwrócić do magazynu (lub przypisać brygadziście) albo <b>Złom</b> jeśli nie da się naprawić.
             </p>
           </CardHeader>
@@ -1028,7 +1028,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                 return (
                 <div
                   key={d.id}
-                  className={`text-sm p-2 rounded border ${resolved ? 'bg-[#131C2F] border-[#4F6343]/40 opacity-70' : 'bg-[#131C2F] border-[#2A3B59]'}`}
+                  className={`text-sm p-2 rounded border ${resolved ? 'bg-[#1E2A44] border-[#4F6343]/40 opacity-70' : 'bg-[#1E2A44] border-[#3D5378]'}`}
                   data-testid={`defect-${d.id}`}
                 >
                   <div className="flex justify-between flex-wrap gap-2">
@@ -1037,21 +1037,21 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'Elektronarz�
                         <span className="mr-2 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-2 py-0.5 rounded font-semibold uppercase">W naprawie</span>
                       )}
                       <span className={`font-semibold ${resolved ? 'text-[#4F6343] line-through' : 'text-[#DC4A3A]'}`}>{d.equipment_name}</span>
-                      <span className="text-[#94A3B8]"> x {d.quantity}</span>
-                      <span className="text-[#94A3B8]"> · </span>
-                      <span className="text-[#CBD5E1]">{d.foreman_name}</span>
+                      <span className="text-[#CBD5E1]"> x {d.quantity}</span>
+                      <span className="text-[#CBD5E1]"> · </span>
+                      <span className="text-[#F1F5F9]">{d.foreman_name}</span>
                       {resolved && (
                         <span className="ml-2 text-[10px] bg-[#4F6343]/30 text-[#5F7552] px-2 py-0.5 rounded font-semibold uppercase">Naprawione</span>
                       )}
                     </span>
-                    <span className="text-[#64748B] text-xs">
+                    <span className="text-[#94A3B8] text-xs">
                       {new Date(d.created_at).toLocaleString('pl-PL')}
                     </span>
                   </div>
-                  {d.description && <p className="text-xs text-[#94A3B8] mt-1">{d.description}</p>}
-                  {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120] cursor-zoom-in" onClick={() => setPreviewPhoto(d.photo)} />}
+                  {d.description && <p className="text-xs text-[#CBD5E1] mt-1">{d.description}</p>}
+                  {d.photo && <img src={d.photo} alt="usterka" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#152033] cursor-zoom-in" onClick={() => setPreviewPhoto(d.photo)} />}
                   {resolved && d.resolved_by_name && (
-                    <p className="text-[11px] text-[#64748B] mt-1">
+                    <p className="text-[11px] text-[#94A3B8] mt-1">
                       Naprawione przez {d.resolved_by_name} · {d.resolved_at ? new Date(d.resolved_at).toLocaleString('pl-PL') : ''}
                       {d.destination === 'foreman' && d.destination_foreman_name && (
                         <span> → przekazano do <span className="text-[#5F7552] font-semibold">{d.destination_foreman_name}</span></span>

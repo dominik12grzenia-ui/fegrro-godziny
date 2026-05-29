@@ -53,7 +53,7 @@ export const Wyceny = () => {
   const [selectedId, setSelectedId] = useState(null);  // id otwartej wyceny
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59] wyceny-no-spin">
+    <Card className="bg-[#1E2A44] border-[#3D5378] wyceny-no-spin">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-white text-base flex items-center gap-2">
@@ -64,21 +64,21 @@ export const Wyceny = () => {
       </CardHeader>
       <CardContent>
         <Tabs value={tab} onValueChange={setTab}>
-          <TabsList className="bg-[#0B1120] border border-[#2A3B59] mb-3">
+          <TabsList className="bg-[#152033] border border-[#3D5378] mb-3">
             <TabsTrigger value="list" data-testid="wyceny-tab-list"
-              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               Wyceny
             </TabsTrigger>
             <TabsTrigger value="materials" data-testid="wyceny-tab-materials"
-              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               Ceny materiałów
             </TabsTrigger>
             <TabsTrigger value="labor" data-testid="wyceny-tab-labor"
-              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               Ceny robocizny
             </TabsTrigger>
             <TabsTrigger value="equipment" data-testid="wyceny-tab-equipment"
-              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+              className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               Ceny sprzętu
             </TabsTrigger>
           </TabsList>
@@ -133,20 +133,20 @@ const WycenyList = ({ onOpen }) => {
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
-        <Button onClick={() => setCreating(true)} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+        <Button onClick={() => setCreating(true)} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
           data-testid="wyceny-create-btn">
           <Plus className="h-4 w-4 mr-1" /> Utwórz wycenę
         </Button>
       </div>
       {creating && <NewWycenaDialog onClose={() => setCreating(false)} onCreated={(id) => { fetchRows(); onOpen(id); }} />}
-      {loading ? <div className="text-[#94A3B8] text-sm">Ładuję...</div>
+      {loading ? <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         : rows.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="wyceny-empty">
+          <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="wyceny-empty">
             Brak wycen. Wpisz nazwę i kliknij „Utwórz wycenę".
           </div>
         ) : (
           <table className="w-full text-sm" data-testid="wyceny-list">
-            <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
+            <thead className="text-[#CBD5E1] border-b border-[#3D5378]">
               <tr>
                 <th className="text-left p-2">Nazwa</th>
                 <th className="text-right p-2">Pozycje</th>
@@ -157,15 +157,15 @@ const WycenyList = ({ onOpen }) => {
             </thead>
             <tbody>
               {rows.map((w) => (
-                <tr key={w.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40 cursor-pointer"
+                <tr key={w.id} className="border-b border-[#3D5378]/40 hover:bg-[#152033]/40 cursor-pointer"
                     onClick={() => onOpen(w.id)} data-testid={`wycena-row-${w.id}`}>
                   <td className="p-2 text-white font-semibold">{w.name}</td>
-                  <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{w.lines_count || 0}</td>
+                  <td className="p-2 text-right text-[#F1F5F9] tabular-nums">{w.lines_count || 0}</td>
                   <td className="p-2 text-right text-[#D4AF37] tabular-nums font-semibold">{fmtPLN(w.total_netto)}</td>
-                  <td className="p-2 text-[#94A3B8] text-xs">{(w.created_at || '').slice(0, 10)}</td>
+                  <td className="p-2 text-[#CBD5E1] text-xs">{(w.created_at || '').slice(0, 10)}</td>
                   <td className="p-2 text-right">
                     <button onClick={(e) => { e.stopPropagation(); remove(w.id, w.name); }}
-                      className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`wycena-del-${w.id}`}>
+                      className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`wycena-del-${w.id}`}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </td>
@@ -540,7 +540,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const toggleStage = (id) => { setCollapsedStages((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const togglePos = (id) => { setCollapsedPos((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
-  if (loading) return <div className="text-[#94A3B8]">Ładuję wycenę...</div>;
+  if (loading) return <div className="text-[#CBD5E1]">Ładuję wycenę...</div>;
   if (!data) return null;
   const w = data.wycena;
 
@@ -548,7 +548,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     <div className="space-y-3">
       {/* iter95az: header edytora — flex-wrap + min-w-0 na tytule, by uniknąć horyzontalnego scrolla na małych ekranach */}
       <div className="flex items-center gap-2 flex-wrap">
-        <Button onClick={onBack} variant="outline" className="border-[#2A3B59] text-[#CBD5E1] shrink-0" data-testid="wycena-back-btn">
+        <Button onClick={onBack} variant="outline" className="border-[#3D5378] text-[#F1F5F9] shrink-0" data-testid="wycena-back-btn">
           <ArrowLeft className="h-4 w-4 mr-1" /> Lista wycen
         </Button>
         <div className="flex-1 min-w-[160px]">
@@ -585,13 +585,13 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           🤝 {negotiationOn ? 'Wyjdź z negocjacji' : 'Tryb negocjacji'}
         </Button>
         <Button onClick={() => setVersionsOpen(true)} variant="outline"
-          className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] shrink-0"
+          className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] shrink-0"
           title="Historia wersji wyceny — przywróć poprzednią"
           data-testid="wycena-versions-btn">
           🕒 Wersje{snapshots.length > 0 ? ` (${snapshots.length})` : ''}
         </Button>
         <div className="text-right shrink-0 ml-auto">
-          <div className="text-[10px] text-[#94A3B8] uppercase">Budżet wyceny</div>
+          <div className="text-[10px] text-[#CBD5E1] uppercase">Budżet wyceny</div>
           <div className="text-[#D4AF37] text-xl font-bold tabular-nums" data-testid="wycena-total">
             {fmtPLN(grandTotal.budzet)} zł
           </div>
@@ -612,7 +612,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           onSave={(v) => saveDefault('default_narzut_pct', v)} />
         <PctInput label="Marża materiał" testId="default-marza" value={defaults.marza}
           onSave={(v) => saveDefault('default_marza_pct', v)} />
-        <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
+        <div className="text-[10px] text-[#CBD5E1] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
       </div>
@@ -636,47 +636,47 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 flex items-center gap-4 flex-wrap"
            data-testid="wycena-surface-panel">
         <div className="text-[#9DBC85] text-xs uppercase font-semibold">📐 Powierzchnie budynku:</div>
-        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+        <label className="flex items-center gap-1 text-xs text-[#F1F5F9]">
           <span title="Powierzchnia Całkowita" className="font-semibold text-[#9DBC85]">PC</span>
           <input type="number" step="0.01" min="0" defaultValue={w.pc_m2 ?? ''}
             onBlur={(e) => saveDefault('pc_m2', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             placeholder="—"
-            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
             data-testid="surface-pc" />
-          <span className="text-[#94A3B8]">m²</span>
+          <span className="text-[#CBD5E1]">m²</span>
         </label>
-        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
-          <span title="PC Podziemie — powierzchnia kondygnacji podziemnych" className="font-semibold text-[#9DBC85]">PC↓ <span className="text-[9px] text-[#94A3B8] font-normal">podziemie</span></span>
+        <label className="flex items-center gap-1 text-xs text-[#F1F5F9]">
+          <span title="PC Podziemie — powierzchnia kondygnacji podziemnych" className="font-semibold text-[#9DBC85]">PC↓ <span className="text-[9px] text-[#CBD5E1] font-normal">podziemie</span></span>
           <input type="number" step="0.01" min="0" defaultValue={w.pc_podziemie_m2 ?? ''}
             onBlur={(e) => saveDefault('pc_podziemie_m2', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             placeholder="—"
-            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
             data-testid="surface-pc-podziemie" />
-          <span className="text-[#94A3B8]">m²</span>
+          <span className="text-[#CBD5E1]">m²</span>
         </label>
-        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
-          <span title="PC Nadziemie — powierzchnia kondygnacji nadziemnych" className="font-semibold text-[#9DBC85]">PC↑ <span className="text-[9px] text-[#94A3B8] font-normal">nadziemie</span></span>
+        <label className="flex items-center gap-1 text-xs text-[#F1F5F9]">
+          <span title="PC Nadziemie — powierzchnia kondygnacji nadziemnych" className="font-semibold text-[#9DBC85]">PC↑ <span className="text-[9px] text-[#CBD5E1] font-normal">nadziemie</span></span>
           <input type="number" step="0.01" min="0" defaultValue={w.pc_nadziemie_m2 ?? ''}
             onBlur={(e) => saveDefault('pc_nadziemie_m2', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             placeholder="—"
-            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
             data-testid="surface-pc-nadziemie" />
-          <span className="text-[#94A3B8]">m²</span>
+          <span className="text-[#CBD5E1]">m²</span>
         </label>
-        <label className="flex items-center gap-1 text-xs text-[#CBD5E1]">
+        <label className="flex items-center gap-1 text-xs text-[#F1F5F9]">
           <span title="Powierzchnia Użytkowa Mieszkalna" className="font-semibold text-[#9DBC85]">PUM</span>
           <input type="number" step="0.01" min="0" defaultValue={w.pum_m2 ?? ''}
             onBlur={(e) => saveDefault('pum_m2', e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
             placeholder="—"
-            className="bg-[#0B1120] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
+            className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 w-20 text-xs text-right tabular-nums text-white px-2 outline-none focus:border-[#D4AF37]"
             data-testid="surface-pum" />
-          <span className="text-[#94A3B8]">m²</span>
+          <span className="text-[#CBD5E1]">m²</span>
         </label>
-        <div className="text-[10px] text-[#94A3B8] flex-1 text-right">
+        <div className="text-[10px] text-[#CBD5E1] flex-1 text-right">
           Zaznacz w pozycjach głównych chipy <b className="text-[#9DBC85]">PC</b> / <b className="text-[#9DBC85]">PC↓</b> / <b className="text-[#9DBC85]">PC↑</b> / <b className="text-[#9DBC85]">PUM</b> aby je wliczyć do wskaźników
         </div>
       </div>
@@ -686,11 +686,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           {wskazniki.pcRatio != null && (
             <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pc">
-              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PC (zł/m²)</div>
+              <div className="text-[10px] uppercase text-[#CBD5E1] tracking-wider">Wskaźnik PC (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
-                {fmtPLN(wskazniki.pcRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+                {fmtPLN(wskazniki.pcRatio)} <span className="text-sm text-[#CBD5E1]">zł/m²</span>
               </div>
-              <div className="text-[10px] text-[#64748B] tabular-nums">
+              <div className="text-[10px] text-[#94A3B8] tabular-nums">
                 {fmtPLN(wskazniki.sumPC)} zł ÷ {wskazniki.pc_m2.toLocaleString('pl-PL')} m²
               </div>
             </div>
@@ -698,11 +698,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           {wskazniki.pcPodRatio != null && (
             <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pc-podziemie">
-              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">PC↓ Podziemie (zł/m²)</div>
+              <div className="text-[10px] uppercase text-[#CBD5E1] tracking-wider">PC↓ Podziemie (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
-                {fmtPLN(wskazniki.pcPodRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+                {fmtPLN(wskazniki.pcPodRatio)} <span className="text-sm text-[#CBD5E1]">zł/m²</span>
               </div>
-              <div className="text-[10px] text-[#64748B] tabular-nums">
+              <div className="text-[10px] text-[#94A3B8] tabular-nums">
                 {fmtPLN(wskazniki.sumPCpod)} zł ÷ {wskazniki.pc_pod_m2.toLocaleString('pl-PL')} m²
               </div>
             </div>
@@ -710,11 +710,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           {wskazniki.pcNadRatio != null && (
             <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pc-nadziemie">
-              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">PC↑ Nadziemie (zł/m²)</div>
+              <div className="text-[10px] uppercase text-[#CBD5E1] tracking-wider">PC↑ Nadziemie (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
-                {fmtPLN(wskazniki.pcNadRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+                {fmtPLN(wskazniki.pcNadRatio)} <span className="text-sm text-[#CBD5E1]">zł/m²</span>
               </div>
-              <div className="text-[10px] text-[#64748B] tabular-nums">
+              <div className="text-[10px] text-[#94A3B8] tabular-nums">
                 {fmtPLN(wskazniki.sumPCnad)} zł ÷ {wskazniki.pc_nad_m2.toLocaleString('pl-PL')} m²
               </div>
             </div>
@@ -722,11 +722,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           {wskazniki.pumRatio != null && (
             <div className="border border-[#9DBC85]/40 bg-[#3F5235]/10 rounded p-3"
                  data-testid="wskaznik-pum">
-              <div className="text-[10px] uppercase text-[#94A3B8] tracking-wider">Wskaźnik PUM (zł/m²)</div>
+              <div className="text-[10px] uppercase text-[#CBD5E1] tracking-wider">Wskaźnik PUM (zł/m²)</div>
               <div className="text-[#9DBC85] text-2xl font-bold tabular-nums">
-                {fmtPLN(wskazniki.pumRatio)} <span className="text-sm text-[#94A3B8]">zł/m²</span>
+                {fmtPLN(wskazniki.pumRatio)} <span className="text-sm text-[#CBD5E1]">zł/m²</span>
               </div>
-              <div className="text-[10px] text-[#64748B] tabular-nums">
+              <div className="text-[10px] text-[#94A3B8] tabular-nums">
                 {fmtPLN(wskazniki.sumPUM)} zł ÷ {wskazniki.pum_m2.toLocaleString('pl-PL')} m²
               </div>
             </div>
@@ -735,23 +735,23 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       )}
 
       {/* iter95al: dane klienta dla PDF "Wersja dla klienta" */}
-      <div className="border border-[#2A3B59] bg-[#0B1120]/40 rounded" data-testid="wycena-client-panel">
+      <div className="border border-[#3D5378] bg-[#152033]/40 rounded" data-testid="wycena-client-panel">
         <button
           type="button"
           onClick={() => setClientPanelOpen((v) => !v)}
-          className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-[#131C2F] rounded"
+          className="w-full px-3 py-2 flex items-center gap-2 text-left hover:bg-[#1E2A44] rounded"
           data-testid="wycena-client-toggle"
         >
           {clientPanelOpen ? <ChevronDown className="h-3.5 w-3.5 text-[#9DBC85]" />
                            : <ChevronRight className="h-3.5 w-3.5 text-[#9DBC85]" />}
           <span className="text-[#9DBC85] text-xs uppercase font-semibold">👤 Dane klienta</span>
           {!clientPanelOpen && (w.client_name || w.client_nip || w.client_address) && (
-            <span className="text-[10px] text-[#94A3B8] truncate">
+            <span className="text-[10px] text-[#CBD5E1] truncate">
               · {w.client_name || ''}{w.client_nip ? ` · NIP ${w.client_nip}` : ''}
             </span>
           )}
           {!clientPanelOpen && !w.client_name && !w.client_nip && !w.client_address && (
-            <span className="text-[10px] text-[#94A3B8] italic">
+            <span className="text-[10px] text-[#CBD5E1] italic">
               · uzupełnij, jeśli chcesz wygenerować PDF „Wersja dla klienta" z blokiem adresata
             </span>
           )}
@@ -759,24 +759,24 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         {clientPanelOpen && (
           <div className="px-3 pb-3 grid grid-cols-12 gap-2">
             <div className="col-span-6">
-              <label className="text-[10px] text-[#94A3B8] uppercase">Nazwa firmy / klienta</label>
+              <label className="text-[10px] text-[#CBD5E1] uppercase">Nazwa firmy / klienta</label>
               <Input
                 defaultValue={w.client_name || ''}
                 onBlur={(e) => saveText('client_name', e.target.value)}
                 placeholder="np. Jan Kowalski / ACME Sp. z o.o."
-                className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white"
+                className="bg-[#1E2A44] border-[#3D5378] h-8 text-xs text-white"
                 data-testid="wycena-client-name"
               />
             </div>
             <div className="col-span-3">
-              <label className="text-[10px] text-[#94A3B8] uppercase">NIP</label>
+              <label className="text-[10px] text-[#CBD5E1] uppercase">NIP</label>
               <div className="flex items-center gap-1">
                 <Input
                   key={`nip-${w.client_nip || ''}`}
                   defaultValue={w.client_nip || ''}
                   onBlur={(e) => saveText('client_nip', e.target.value)}
                   placeholder="1234567890"
-                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white flex-1"
+                  className="bg-[#1E2A44] border-[#3D5378] h-8 text-xs text-white flex-1"
                   data-testid="wycena-client-nip"
                 />
                 <button
@@ -792,13 +792,13 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               </div>
             </div>
             <div className="col-span-12">
-              <label className="text-[10px] text-[#94A3B8] uppercase">Adres (wielolinijkowy)</label>
+              <label className="text-[10px] text-[#CBD5E1] uppercase">Adres (wielolinijkowy)</label>
               <textarea
                 defaultValue={w.client_address || ''}
                 onBlur={(e) => saveText('client_address', e.target.value)}
                 placeholder="ul. Przykładowa 12 / 5&#10;00-001 Warszawa"
                 rows={2}
-                className="w-full bg-[#131C2F] border border-[#2A3B59] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#9DBC85] resize-y"
+                className="w-full bg-[#1E2A44] border border-[#3D5378] rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#9DBC85] resize-y"
                 data-testid="wycena-client-address"
               />
             </div>
@@ -806,7 +806,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         )}
       </div>
 
-      <div className="overflow-x-auto border border-[#2A3B59] rounded">
+      <div className="overflow-x-auto border border-[#3D5378] rounded">
         <table className="w-full text-xs border-collapse" data-testid="wycena-excel-table">
           <thead className="sticky top-0 z-10">
             <tr>
@@ -828,24 +828,24 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <Th w="110" tip="ZYSK + KAUCJA DW — ile finalnie zarobimy gdy KAUCJA DW zostanie zwolniona po odbiorach">ZYSK + KAUCJA DW</Th>
               <Th w="70">AKCJE</Th>
             </tr>
-            <tr className="bg-[#0B1120] text-[#D4AF37] font-bold">
-              <td className="border border-[#2A3B59] px-2 py-2 text-center">Σ SUMA</td>
-              <td className="border border-[#2A3B59] px-2 py-2"></td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#CBD5E1]">Wszystkie pozycje wyceny</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-center tabular-nums text-[#94A3B8]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-[#94A3B8] text-center">—</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold">{fmtPLN(grandTotal.budzetZwolniony)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztPrognozowany)}</td>
-              <td className={`border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.prognozy)}</td>
-              <td className={`border border-[#2A3B59] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.zyskPlusDw >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.zyskPlusDw)}</td>
-              <td className="border border-[#2A3B59] px-2 py-2"></td>
+            <tr className="bg-[#152033] text-[#D4AF37] font-bold">
+              <td className="border border-[#3D5378] px-2 py-2 text-center">Σ SUMA</td>
+              <td className="border border-[#3D5378] px-2 py-2"></td>
+              <td className="border border-[#3D5378] px-2 py-2 text-[#F1F5F9]">Wszystkie pozycje wyceny</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums text-[#CBD5E1]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.budzet)}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums font-bold">{fmtPLN(grandTotal.budzetZwolniony)}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztPrognozowany)}</td>
+              <td className={`border border-[#3D5378] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.prognozy >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.prognozy)}</td>
+              <td className={`border border-[#3D5378] px-2 py-2 text-right tabular-nums font-bold ${grandTotal.zyskPlusDw >= 0 ? 'text-[#9DBC85]' : 'text-[#FCA5A5]'}`}>{fmtPLN(grandTotal.zyskPlusDw)}</td>
+              <td className="border border-[#3D5378] px-2 py-2"></td>
             </tr>
           </thead>
           <tbody>
@@ -863,7 +863,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               return (
                 <React.Fragment key={st.id}>
                   <tr className="bg-[#3F5235]/40 text-white font-semibold">
-                    <td colSpan={16} className="border border-[#2A3B59] px-2 py-1.5">
+                    <td colSpan={16} className="border border-[#3D5378] px-2 py-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <button onClick={() => toggleStage(st.id)} className="text-[#D4AF37]" data-testid={`stage-toggle-${st.id}`}>
                           {stCollapsed ? '▶' : '▼'}
@@ -875,7 +875,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         {/* iter95ao + iter95av: quick-apply chipy z licznikiem (flex-wrap by nie nakładało się na tytuł) */}
                         {total > 0 && (
                           <div className="flex items-center gap-1 flex-wrap ml-3 pl-3 border-l border-[#5F7552]/40 basis-full sm:basis-auto" data-testid={`stage-bulk-${st.id}`}>
-                            <span className="text-[9px] text-[#94A3B8] uppercase mr-1 whitespace-nowrap">Zastosuj na etap:</span>
+                            <span className="text-[9px] text-[#CBD5E1] uppercase mr-1 whitespace-nowrap">Zastosuj na etap:</span>
                             {[
                               { key: 'pc', flag: 'include_in_pc', label: 'PC', count: cnt.pc },
                               { key: 'pcPod', flag: 'include_in_pc_podziemie', label: 'PC↓', count: cnt.pcPod },
@@ -895,10 +895,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                                   }
                                   className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition whitespace-nowrap ${
                                     allOn
-                                      ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
+                                      ? 'bg-[#9DBC85] text-[#152033] border-[#9DBC85]'
                                       : someOn
                                         ? 'bg-[#9DBC85]/20 text-[#9DBC85] border-[#9DBC85]/60'
-                                        : 'border-[#5F7552]/50 text-[#94A3B8] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
+                                        : 'border-[#5F7552]/50 text-[#CBD5E1] hover:text-[#9DBC85] hover:border-[#9DBC85]/60'
                                   }`}
                                   data-testid={`stage-bulk-${it.key}-${st.id}`}
                                 >
@@ -910,8 +910,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         )}
                       </div>
                     </td>
-                    <td className="border border-[#2A3B59] px-2 py-1.5 text-right">
-                      <button onClick={() => delStage(st.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`stage-del-${st.id}`}>
+                    <td className="border border-[#3D5378] px-2 py-1.5 text-right">
+                      <button onClick={() => delStage(st.id)} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`stage-del-${st.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </td>
@@ -934,10 +934,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                             onDel={() => delSlot(sub.id)} />
                         ))}
                         {!posCollapsed && (
-                          <tr className="bg-[#0B1120]/40">
-                            <td colSpan={17} className="border border-[#2A3B59] px-2 py-1">
+                          <tr className="bg-[#152033]/40">
+                            <td colSpan={17} className="border border-[#3D5378] px-2 py-1">
                               <div className="flex gap-2 items-center pl-12">
-                                <span className="text-[10px] text-[#64748B]">+ Dodaj podpozycję:</span>
+                                <span className="text-[10px] text-[#94A3B8]">+ Dodaj podpozycję:</span>
                                 <button onClick={() => addSlot(p.id, st.id, 'labor')} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-2 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`add-sub-lab-${p.id}`}>+ Robocizna</button>
                                 <button onClick={() => addSlot(p.id, st.id, 'materials')} className="text-[10px] text-[#D4AF37] border border-[#D4AF37]/40 px-2 py-0.5 rounded hover:bg-[#D4AF37]/10" data-testid={`add-sub-mat-${p.id}`}>+ Materiał</button>
                                 <button onClick={() => addSlot(p.id, st.id, 'equipment')} className="text-[10px] text-[#7AB3D6] border border-[#7AB3D6]/40 px-2 py-0.5 rounded hover:bg-[#7AB3D6]/10" data-testid={`add-sub-equ-${p.id}`}>+ Sprzęt</button>
@@ -955,10 +955,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         </table>
       </div>
 
-      <div className="flex items-center gap-2 pt-2 border-t border-[#2A3B59]">
+      <div className="flex items-center gap-2 pt-2 border-t border-[#3D5378]">
         <Input value={newStageName} onChange={(e) => setNewStageName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && addStage()}
-          placeholder="Nazwa nowego etapu..." className="bg-[#0B1120] border-[#2A3B59]"
+          placeholder="Nazwa nowego etapu..." className="bg-[#152033] border-[#3D5378]"
           data-testid="stage-new-name" />
         <Button onClick={addStage} variant="outline" className="border-[#5F7552] text-[#9DBC85]" data-testid="stage-add-btn">
           <Plus className="h-4 w-4 mr-1" /> Dodaj etap
@@ -980,22 +980,22 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       {/* iter95av: dialog wersji wyceny */}
       {versionsOpen && (
         <Dialog open={true} onOpenChange={(o) => !o && setVersionsOpen(false)}>
-          <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-2xl"
+          <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-2xl"
                          data-testid="versions-dialog">
             <DialogHeader>
               <DialogTitle className="text-[#D4AF37]">🕒 Historia wersji wyceny</DialogTitle>
-              <div className="text-xs text-[#94A3B8]">
+              <div className="text-xs text-[#CBD5E1]">
                 Snapshoty tworzone automatycznie przy „Przyjmij na stałe" (negocjacja) oraz przy przywróceniu starej wersji.
               </div>
             </DialogHeader>
-            <div className="max-h-[50vh] overflow-y-auto border border-[#2A3B59] rounded">
+            <div className="max-h-[50vh] overflow-y-auto border border-[#3D5378] rounded">
               {snapshots.length === 0 ? (
-                <div className="p-4 text-center text-[#94A3B8] text-sm italic">
+                <div className="p-4 text-center text-[#CBD5E1] text-sm italic">
                   Brak zapisanych wersji. Pierwsza wersja zostanie zapisana automatycznie przy zaakceptowaniu negocjacji.
                 </div>
               ) : (
                 <table className="w-full text-xs">
-                  <thead className="bg-[#0B1120] sticky top-0 text-[#94A3B8] uppercase text-[10px]">
+                  <thead className="bg-[#152033] sticky top-0 text-[#CBD5E1] uppercase text-[10px]">
                     <tr>
                       <th className="text-left px-3 py-2">Data utworzenia</th>
                       <th className="text-left px-3 py-2">Etykieta</th>
@@ -1007,13 +1007,13 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                     {snapshots.map((s) => {
                       const d = new Date(s.created_at);
                       return (
-                        <tr key={s.id} className="border-t border-[#2A3B59] hover:bg-[#0B1120]/60"
+                        <tr key={s.id} className="border-t border-[#3D5378] hover:bg-[#152033]/60"
                             data-testid={`snapshot-row-${s.id}`}>
-                          <td className="px-3 py-2 text-[#CBD5E1] tabular-nums whitespace-nowrap">
+                          <td className="px-3 py-2 text-[#F1F5F9] tabular-nums whitespace-nowrap">
                             {d.toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' })}
                           </td>
                           <td className="px-3 py-2 text-white">{s.label}</td>
-                          <td className="px-3 py-2 text-right text-[10px] text-[#64748B]">
+                          <td className="px-3 py-2 text-right text-[10px] text-[#94A3B8]">
                             {s.stats?.stages || 0}E · {s.stats?.positions || 0}P · {s.stats?.lines || 0}L
                           </td>
                           <td className="px-3 py-2 text-right">
@@ -1032,7 +1032,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
             </div>
             <DialogFooter>
               <Button onClick={() => setVersionsOpen(false)} variant="outline"
-                className="border-[#2A3B59] text-[#CBD5E1]"
+                className="border-[#3D5378] text-[#F1F5F9]"
                 data-testid="versions-close">Zamknij</Button>
             </DialogFooter>
           </DialogContent>
@@ -1043,7 +1043,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 };
 
 const Td = ({ children, right = false, className = '' }) => (
-  <td className={`border border-[#2A3B59] px-2 py-1.5 ${right ? 'text-right tabular-nums' : ''} ${className}`}>
+  <td className={`border border-[#3D5378] px-2 py-1.5 ${right ? 'text-right tabular-nums' : ''} ${className}`}>
     {children}
   </td>
 );

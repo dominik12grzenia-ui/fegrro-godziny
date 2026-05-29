@@ -92,13 +92,13 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {editLine ? 'Edytuj pozycję' : (isChildMode ? `Dodaj składową do: ${parentLine.name}` : 'Nowa pozycja budżetu')}
           </DialogTitle>
           {isChildMode && (
-            <p className="text-xs text-[#94A3B8] mt-1">
+            <p className="text-xs text-[#CBD5E1] mt-1">
               Składowa dziedziczy typ <b style={{ color: BUDGET_TYPES[parentLine.type || 'materials']?.color }}>{BUDGET_TYPES[parentLine.type || 'materials']?.label}</b> z pozycji nadrzędnej.
               Wartości pozycji głównej będą automatycznie sumą składowych.
             </p>
@@ -113,11 +113,11 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
           {/* Kategoria + Etap dropdowny */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8]">Kategoria *</label>
+              <label className="text-xs text-[#CBD5E1]">Kategoria *</label>
               {!newCatMode ? (
                 <div className="flex gap-1">
                   <select value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="flex-1 bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+                    className="flex-1 bg-[#152033] border border-[#3D5378] text-white px-2 py-1.5 rounded text-sm"
                     data-testid="budget-line-category-select">
                     <option value="">— wybierz —</option>
                     {categories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -130,18 +130,18 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
               ) : (
                 <div className="flex gap-1">
                   <Input value={newCatName} onChange={(e) => setNewCatName(e.target.value)}
-                    placeholder="Nowa kategoria" className="bg-[#0B1120] border-[#2A3B59] text-sm h-8"
+                    placeholder="Nowa kategoria" className="bg-[#152033] border-[#3D5378] text-sm h-8"
                     data-testid="budget-line-new-cat-name" autoFocus
                     onKeyDown={(e) => { if (e.key === 'Enter') addCategory(); }} />
                   <button onClick={addCategory} className="text-[#5F7552] hover:text-[#7CA169] px-2" data-testid="budget-line-new-cat-save">✓</button>
-                  <button onClick={() => { setNewCatMode(false); setNewCatName(''); }} className="text-[#94A3B8] hover:text-white px-2">✕</button>
+                  <button onClick={() => { setNewCatMode(false); setNewCatName(''); }} className="text-[#CBD5E1] hover:text-white px-2">✕</button>
                 </div>
               )}
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Etap budowy</label>
+              <label className="text-xs text-[#CBD5E1]">Etap budowy</label>
               <select value={form.stage_id} onChange={(e) => setForm({ ...form, stage_id: e.target.value })}
-                className="w-full bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+                className="w-full bg-[#152033] border border-[#3D5378] text-white px-2 py-1.5 rounded text-sm"
                 data-testid="budget-line-stage-select">
                 <option value="">— bez etapu —</option>
                 {stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -151,7 +151,7 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
 
           {/* Typ budżetu - radio buttons */}
           <div>
-            <label className="text-xs text-[#94A3B8] block mb-1">Typ budżetu *</label>
+            <label className="text-xs text-[#CBD5E1] block mb-1">Typ budżetu *</label>
             <div className="grid grid-cols-3 gap-2">
               {Object.entries(BUDGET_TYPES).map(([key, cfg]) => (
                 <button
@@ -161,7 +161,7 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
                   className={`px-3 py-2 rounded text-xs font-semibold border transition flex items-center justify-center gap-2 ${
                     form.type === key
                       ? 'border-2'
-                      : 'border-[#2A3B59] text-[#94A3B8] hover:text-white'
+                      : 'border-[#3D5378] text-[#CBD5E1] hover:text-white'
                   }`}
                   style={form.type === key ? { borderColor: cfg.color, backgroundColor: `${cfg.color}20`, color: cfg.color } : {}}
                   data-testid={`budget-line-type-${key}`}
@@ -176,42 +176,42 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
           </div>
 
           <div>
-            <label className="text-xs text-[#94A3B8]">Nazwa pozycji *</label>
+            <label className="text-xs text-[#CBD5E1]">Nazwa pozycji *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="np. Beton C8/10 chudziaki" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-name" />
+              placeholder="np. Beton C8/10 chudziaki" className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-name" />
           </div>
 
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8]">Ilość</label>
+              <label className="text-xs text-[#CBD5E1]">Ilość</label>
               <Input type="number" step="0.01" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-quantity" />
+                className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-quantity" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Jednostka</label>
+              <label className="text-xs text-[#CBD5E1]">Jednostka</label>
               <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                placeholder="m3, t, mb" className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-unit" />
+                placeholder="m3, t, mb" className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-unit" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Cena j. netto</label>
+              <label className="text-xs text-[#CBD5E1]">Cena j. netto</label>
               <Input type="number" step="0.01" value={form.unit_price_netto} onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-price" />
+                className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-price" />
             </div>
           </div>
 
           {/* Auto-calc Plan netto */}
-          <div className="bg-[#0B1120] rounded p-2 border border-[#2A3B59]">
+          <div className="bg-[#152033] rounded p-2 border border-[#3D5378]">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-[#94A3B8]">Plan netto = Ilość × Cena =</span>
+              <span className="text-[#CBD5E1]">Plan netto = Ilość × Cena =</span>
               <span className="text-[#D4AF37] font-bold tabular-nums text-sm" data-testid="budget-line-plan-auto">
                 {fmtNum(autoPlan)} zł
               </span>
             </div>
             <details className="mt-1">
-              <summary className="text-xs text-[#94A3B8] cursor-pointer hover:text-white">Nadpisz wartość ręcznie</summary>
+              <summary className="text-xs text-[#CBD5E1] cursor-pointer hover:text-white">Nadpisz wartość ręcznie</summary>
               <Input type="number" step="0.01" value={form.plan_netto_override}
                 onChange={(e) => setForm({ ...form, plan_netto_override: e.target.value })}
-                placeholder="puste = auto" className="bg-[#131C2F] border-[#2A3B59] mt-1 h-8 text-xs"
+                placeholder="puste = auto" className="bg-[#1E2A44] border-[#3D5378] mt-1 h-8 text-xs"
                 data-testid="budget-line-plan-override" />
             </details>
           </div>
@@ -219,24 +219,24 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
           {/* Kaucje z defaultem z Finansów */}
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8]">
+              <label className="text-xs text-[#CBD5E1]">
                 Kaucja GIR (%) <span className="text-[#5F7552]">domyślnie {defaultGir}%</span>
               </label>
               <Input type="number" step="0.1" value={form.kaucja_gir_pct}
                 onChange={(e) => setForm({ ...form, kaucja_gir_pct: e.target.value })}
-                placeholder={`${defaultGir}`} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-gir" />
-              <div className="text-[10px] text-[#94A3B8] mt-0.5 tabular-nums">
+                placeholder={`${defaultGir}`} className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-gir" />
+              <div className="text-[10px] text-[#CBD5E1] mt-0.5 tabular-nums">
                 = {fmtNum(finalPlan * effGir / 100)} zł
               </div>
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">
+              <label className="text-xs text-[#CBD5E1]">
                 Kaucja DW (%) <span className="text-[#5F7552]">domyślnie {defaultDw}%</span>
               </label>
               <Input type="number" step="0.1" value={form.kaucja_dw_pct}
                 onChange={(e) => setForm({ ...form, kaucja_dw_pct: e.target.value })}
-                placeholder={`${defaultDw}`} className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-dw" />
-              <div className="text-[10px] text-[#94A3B8] mt-0.5 tabular-nums">
+                placeholder={`${defaultDw}`} className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-dw" />
+              <div className="text-[10px] text-[#CBD5E1] mt-0.5 tabular-nums">
                 = {fmtNum(finalPlan * effDw / 100)} zł
               </div>
             </div>
@@ -244,21 +244,21 @@ export const BudgetLineModal = ({ budowaId, editLine, parentLine, categories, st
 
           {/* Info: dane umowy/zamawiajacy (z Finansow) */}
           {budowaInfo && (
-            <div className="bg-[#0B1120]/60 border border-[#2A3B59] rounded p-2 text-[10px] text-[#94A3B8]">
+            <div className="bg-[#152033]/60 border border-[#3D5378] rounded p-2 text-[10px] text-[#CBD5E1]">
               <div><span className="text-[#5F7552]">Umowa:</span> {budowaInfo.umowa_nr || <em className="text-[#FCA5A5]">brak — uzupełnij przed protokołem</em>}</div>
               <div><span className="text-[#5F7552]">Zamawiający:</span> {budowaInfo.zamawiajacy ? budowaInfo.zamawiajacy.substring(0, 80) + (budowaInfo.zamawiajacy.length > 80 ? '...' : '') : <em className="text-[#FCA5A5]">brak — uzupełnij przed protokołem</em>}</div>
             </div>
           )}
 
           <div>
-            <label className="text-xs text-[#94A3B8]">Notatki</label>
+            <label className="text-xs text-[#CBD5E1]">Notatki</label>
             <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="bg-[#0B1120] border-[#2A3B59]" data-testid="budget-line-notes" />
+              className="bg-[#152033] border-[#3D5378]" data-testid="budget-line-notes" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="budget-line-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
+          <Button variant="outline" onClick={onClose} className="border-[#3D5378] text-[#CBD5E1]">Anuluj</Button>
+          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]" data-testid="budget-line-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

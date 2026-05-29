@@ -1,3 +1,52 @@
+## Iteration 95bi (2026-05) — Brand refresh: rozjaśnienie palety dark mode
+
+### User request
+„włącz agenta ai od brandingu strony. Strona jest trochę za ciemna i mało czytelna popraw to"
+
+### Decyzja po konsultacji
+Design agent zaproponował pełną migrację do jasnego motywu domyślnie. Po przedstawieniu 3 opcji (a/b/c) user wybrał **(a) — szybką poprawę czytelności w dark mode**, bez ryzyka regresji.
+
+### Wykonane: globalny lift jasności palety
+Bezpieczna 2-stopniowa zamiana przez placeholdery (uniknięcie kaskadowania) we wszystkich plikach `.js`/`.jsx`/`.css` (poza `node_modules`):
+
+| Stary | Nowy | Rola | Usages |
+|---|---|---|---|
+| `#0B1120` | **`#152033`** | Tło body (rozjaśnione) | 307 |
+| `#131C2F` | **`#1E2A44`** | Inputs / średnie powierzchnie | 454 |
+| `#19243C` | **`#243049`** | Karty (jaśniejsze, lepiej oddzielone) | 176 |
+| `#2A3B59` | **`#3D5378`** | Granice (mocniejszy kontrast) | 999 |
+| `#CBD5E1` | **`#F1F5F9`** | Główny tekst (jaśniejszy) | 530 |
+| `#94A3B8` | **`#CBD5E1`** | Secondary tekst (lift, więcej kontrastu) | 828 |
+| `#64748B` | **`#94A3B8`** | Muted tekst (lift) | 132 |
+
+**Razem: ~3 426 substitucji** w 100+ komponentach.
+
+### Dodatkowo zaktualizowane CSS variables (`index.css`)
+HSL values w `:root` zsynchronizowane z nowymi hex (background 222 47% 8% → 220 42% 14%, border 219 36% 26% → 218 33% 35%, etc.). Tabpanel forced background + finance-grid-table hover też zaktualizowane.
+
+### Zachowane (bez zmian)
+- 🟢 Marka FeGrro (zieleń `#4F6343`/`#5F7552`/`#9DBC85`)
+- 🟡 Akcent złoty (`#D4AF37`, `#FCD34D`) — warningi, push button
+- 🔴 Destruktywny czerwony (`#DC4A3A`, `#9B2C2C`)
+- Logo, fonts (Manrope + Cabinet Grotesk + JetBrains Mono), border-radius
+
+### Wynik wizualny (screenshot test login + dashboard + Wypłaty + Elektronarzędzia + Lokalizacje)
+- ✅ Tło rozjaśnione z near-black do ciemnego granatu — wyraźnie czytelniej
+- ✅ Karty wyraźniej oddzielone od body (jaśniejsze tło + mocniejsze borders)
+- ✅ Tabela elektronarzędzi: wiersze, nagłówki, separatory wyraźniejsze
+- ✅ Tekst nagłówków i wartości znacznie jaśniejszy (slate-100/200 zamiast slate-300/400)
+- ✅ Brak regresji w action UI (przyciski Dodaj/Zaloguj, modale, formularze)
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Opcjonalny przełącznik dark/light w nagłówku (gdy potrzeba)
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- ⚪ Google Maps API key dla preview domain
+
+---
+
+
+
 ## Iteration 95bh (2026-05) — Weryfikacja przepływów BRYGADZISTY (foreman) po fix reload
 
 ### User follow-up

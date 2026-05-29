@@ -144,14 +144,14 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
 
   return (
     <>
-    <Card className="bg-[#131C2F] border-[#2A3B59]">
+    <Card className="bg-[#1E2A44] border-[#3D5378]">
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base">Pozycje budżetu</CardTitle>
         <div className="flex gap-2 flex-wrap">
           {stages.length === 0 && (
             <Button size="sm"
               onClick={() => setManagerOpen('stages')}
-              className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 animate-pulse"
+              className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-8 animate-pulse"
               data-testid="budget-create-first-stage-btn"
               title="Budowa nie ma jeszcze etapów - kliknij aby utworzyć pierwszy">
               <Plus className="h-4 w-4 mr-1" /> Utwórz pierwszy etap
@@ -159,12 +159,12 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           )}
           <Button size="sm" variant="outline"
             onClick={() => setManagerOpen('stages')}
-            className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-stages-btn">
+            className="border-[#3D5378] text-[#CBD5E1] hover:text-white h-8" data-testid="budget-manage-stages-btn">
             Etapy ({stages.length})
           </Button>
           <Button size="sm" variant="outline"
             onClick={() => setManagerOpen('categories')}
-            className="border-[#2A3B59] text-[#94A3B8] hover:text-white h-8" data-testid="budget-manage-categories-btn">
+            className="border-[#3D5378] text-[#CBD5E1] hover:text-white h-8" data-testid="budget-manage-categories-btn">
             Kategorie ({categories.length})
           </Button>
           {(lines.length > 0 || positions.length > 0) && (
@@ -178,7 +178,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           <Button size="sm"
             onClick={() => { setEditPosition(null); setPositionModalOpen(true); }}
             disabled={stages.length === 0}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8 disabled:opacity-40"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-8 disabled:opacity-40"
             data-testid="budget-add-position-btn"
             title={stages.length === 0 ? 'Najpierw utwórz etap' : 'Dodaj nową pozycję kosztorysową'}>
             <Plus className="h-4 w-4 mr-1" /> Dodaj pozycję
@@ -215,9 +215,9 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
                     </div>
                     <div className="text-xs tabular-nums font-bold" style={{ color: cfg.color }}>{pct}%</div>
                   </div>
-                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Plan</span><span className="text-white tabular-nums">{fmtNum(t.plan)} zł</span></div>
-                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Wykonanie</span><span className="tabular-nums" style={{ color: cfg.color }}>{fmtNum(t.exec)} zł</span></div>
-                  <div className="text-[10px] text-[#94A3B8] flex justify-between"><span>Pozostało</span><span className={`tabular-nums ${(t.plan - t.exec) < 0 ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>{fmtNum(t.plan - t.exec)} zł</span></div>
+                  <div className="text-[10px] text-[#CBD5E1] flex justify-between"><span>Plan</span><span className="text-white tabular-nums">{fmtNum(t.plan)} zł</span></div>
+                  <div className="text-[10px] text-[#CBD5E1] flex justify-between"><span>Wykonanie</span><span className="tabular-nums" style={{ color: cfg.color }}>{fmtNum(t.exec)} zł</span></div>
+                  <div className="text-[10px] text-[#CBD5E1] flex justify-between"><span>Pozostało</span><span className={`tabular-nums ${(t.plan - t.exec) < 0 ? 'text-[#FCA5A5]' : 'text-[#F1F5F9]'}`}>{fmtNum(t.plan - t.exec)} zł</span></div>
                 </div>
               );
             })}
@@ -227,25 +227,25 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
         {/* === Karty RAZEM (przychody/koszty/zysk) === */}
         {!loading && linkedLines.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2 border-t-2 border-[#D4AF37]" data-testid="budget-totals-footer">
-            <div className="rounded p-3 bg-[#0B1120] border border-[#5F7552]/40">
-              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem przychody (Plan / Wyk)</div>
+            <div className="rounded p-3 bg-[#152033] border border-[#5F7552]/40">
+              <div className="text-[10px] text-[#CBD5E1] uppercase tracking-wide">Razem przychody (Plan / Wyk)</div>
               <div className="text-sm text-[#5F7552] font-bold tabular-nums mt-1">{fmtNum(totalIncomePlan)} / {fmtNum(totalIncomeExec)} zł</div>
             </div>
-            <div className="rounded p-3 bg-[#0B1120] border border-[#D4AF37]/40">
-              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Razem koszty (Plan / Wyk)</div>
+            <div className="rounded p-3 bg-[#152033] border border-[#D4AF37]/40">
+              <div className="text-[10px] text-[#CBD5E1] uppercase tracking-wide">Razem koszty (Plan / Wyk)</div>
               <div className="text-sm text-[#D4AF37] font-bold tabular-nums mt-1">{fmtNum(totalPlan)} / {fmtNum(totalExec)} zł</div>
             </div>
-            <div className={`rounded p-3 bg-[#0B1120] border ${zyskBiezacy >= 0 ? 'border-[#5F7552]/40' : 'border-[#FCA5A5]/40'}`}>
-              <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">Zysk bieżący (Przych. Wyk − Koszty Wyk)</div>
+            <div className={`rounded p-3 bg-[#152033] border ${zyskBiezacy >= 0 ? 'border-[#5F7552]/40' : 'border-[#FCA5A5]/40'}`}>
+              <div className="text-[10px] text-[#CBD5E1] uppercase tracking-wide">Zysk bieżący (Przych. Wyk − Koszty Wyk)</div>
               <div className={`text-sm font-bold tabular-nums mt-1 ${zyskBiezacy >= 0 ? 'text-[#5F7552]' : 'text-[#FCA5A5]'}`}>{fmtNum(zyskBiezacy)} zł</div>
             </div>
           </div>
         )}
 
         {loading ? (
-          <div className="text-[#94A3B8] text-sm">Ładuję...</div>
+          <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         ) : lines.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="budget-empty">
+          <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="budget-empty">
             Brak pozycji. Kliknij „Dodaj pozycję" aby zacząć.
           </div>
         ) : null}

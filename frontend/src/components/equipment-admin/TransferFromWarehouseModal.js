@@ -14,9 +14,9 @@ export const TransferFromWarehouseModal = ({
   if (!transferModal) return null;
   return (
     <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" data-testid="transfer-from-warehouse-modal">
-      <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
+      <Card className="bg-[#243049] border-[#3D5378] w-full max-w-md">
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <Send className="h-5 w-5 text-[#4F6343]" />
             Przekaż sprzęt z magazynu
           </CardTitle>
@@ -25,12 +25,12 @@ export const TransferFromWarehouseModal = ({
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="p-2 bg-[#131C2F] rounded border border-[#2A3B59] text-sm">
-            <div className="text-[#CBD5E1] font-semibold">{transferModal.name}</div>
+          <div className="p-2 bg-[#1E2A44] rounded border border-[#3D5378] text-sm">
+            <div className="text-[#F1F5F9] font-semibold">{transferModal.name}</div>
             {transferModal.brand && (
-              <div className="text-[#94A3B8] text-xs">{transferModal.brand}</div>
+              <div className="text-[#CBD5E1] text-xs">{transferModal.brand}</div>
             )}
-            <div className="text-xs text-[#94A3B8] mt-1">
+            <div className="text-xs text-[#CBD5E1] mt-1">
               Dostępne w magazynie: <span className="text-[#9DBC85] font-bold">{transferModal.available_quantity || 0}</span> szt.
               {(transferModal.broken_quantity || 0) > 0 && (
                 <span className="ml-2 text-[#DC4A3A]">(w naprawie: {transferModal.broken_quantity})</span>
@@ -38,11 +38,11 @@ export const TransferFromWarehouseModal = ({
             </div>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Brygadzista</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Brygadzista</label>
             <select
               value={transferForemanId}
               onChange={(e) => setTransferForemanId(e.target.value)}
-              className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+              className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded px-3 py-2 text-sm"
               data-testid="transfer-foreman-select"
             >
               <option value="">-- wybierz --</option>
@@ -52,18 +52,18 @@ export const TransferFromWarehouseModal = ({
             </select>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Ilość</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Ilość</label>
             <Input
               type="number"
               min="1"
               max={transferModal.available_quantity || 1}
               value={transferQty}
               onChange={(e) => setTransferQty(e.target.value)}
-              className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+              className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
               data-testid="transfer-qty-input"
             />
           </div>
-          <p className="text-[11px] text-[#94A3B8] bg-[#0B1120] p-2 rounded border border-[#2A3B59]">
+          <p className="text-[11px] text-[#CBD5E1] bg-[#152033] p-2 rounded border border-[#3D5378]">
             Brygadzista musi zaakceptować przekazanie. Stan magazynu zmieni się dopiero po akceptacji.
           </p>
           <div className="flex gap-2 justify-end pt-1">

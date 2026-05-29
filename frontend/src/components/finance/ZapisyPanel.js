@@ -333,7 +333,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
 
   const renderKodSelect = (val, onChange, testid, isUnassignedHighlight = false) => (
     <select value={val || ''} onChange={onChange}
-      className={`w-full bg-[#131C2F] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-[#2A3B59] text-white'}`}
+      className={`w-full bg-[#1E2A44] border rounded px-1 py-1 text-xs ${isUnassignedHighlight ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-[#3D5378] text-white'}`}
       data-testid={testid}>
       <option value="">— przypisz kod —</option>
       {['PZS','PZSV','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
@@ -348,7 +348,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
 
   const renderBudowaSelect = (val, onChange, testid) => (
     <select value={val || ''} onChange={onChange}
-      className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-1 py-1 text-xs"
+      className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-1 py-1 text-xs"
       data-testid={testid}>
       <option value="">— bez budowy —</option>
       {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -379,7 +379,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     });
     return (
       <select value={val || ''} onChange={onChange}
-        className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-1 py-1 text-xs"
+        className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-1 py-1 text-xs"
         data-testid={testid}>
         <option value="">— bez kodu —</option>
         {groups.map(stageName => (
@@ -400,7 +400,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   };
 
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]">
+    <Card className="bg-[#243049] border-[#3D5378]">
       <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
         <CardTitle className="text-white">
           Faktury i zapisy ({filteredRows.length}{filteredRows.length !== rows.length ? `/${rows.length}` : ''}, suma: {fmtPLN(totalNetto)})
@@ -413,68 +413,68 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
           )}
           {filterUnassigned && (
             <button onClick={() => setFilterUnassigned(false)}
-              className="ml-3 px-2 py-0.5 text-xs bg-[#2A3B59] text-[#CBD5E1] rounded hover:bg-[#2A3B59]">
+              className="ml-3 px-2 py-0.5 text-xs bg-[#3D5378] text-[#F1F5F9] rounded hover:bg-[#3D5378]">
               Pokaż wszystkie
             </button>
           )}
         </CardTitle>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Filtr platnosci (Fakturownia paid/overdue/due/receivables) */}
-          <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]" data-testid="payment-filter-chips">
+          <div className="inline-flex rounded-md overflow-hidden border border-[#3D5378]" data-testid="payment-filter-chips">
             <button onClick={() => setPaymentFilter('all')}
-              className={`px-2 py-1 text-xs font-medium ${paymentFilter === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-2 py-1 text-xs font-medium ${paymentFilter === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="payment-filter-all">
               Wszystko
             </button>
             <button onClick={() => setPaymentFilter('paid')}
-              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'paid' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#3D5378] ${paymentFilter === 'paid' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="payment-filter-paid">
               ✓ Opłacone ({paidCount})
             </button>
             <button onClick={() => setPaymentFilter('due')}
-              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'due' ? 'bg-[#D4AF37] text-[#0B1120]' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#3D5378] ${paymentFilter === 'due' ? 'bg-[#D4AF37] text-[#152033]' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="payment-filter-due">
               Do zapłaty ({dueCount})
             </button>
             <button onClick={() => setPaymentFilter('overdue')}
-              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'overdue' ? 'bg-[#9B2C2C] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#3D5378] ${paymentFilter === 'overdue' ? 'bg-[#9B2C2C] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="payment-filter-overdue">
               ⚠ Przeterminowane ({overdueCount})
             </button>
             <button onClick={() => setPaymentFilter('receivables')}
-              className={`px-2 py-1 text-xs font-medium border-l border-[#2A3B59] ${paymentFilter === 'receivables' ? 'bg-[#5F7552] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-2 py-1 text-xs font-medium border-l border-[#3D5378] ${paymentFilter === 'receivables' ? 'bg-[#5F7552] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="payment-filter-receivables">
               Kontrahenci mi do zapłaty ({receivablesCount})
             </button>
           </div>
-          <div className="inline-flex rounded-md overflow-hidden border border-[#2A3B59]">
+          <div className="inline-flex rounded-md overflow-hidden border border-[#3D5378]">
             <button onClick={() => setFilterType('all')}
-              className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-3 py-1 text-xs font-medium ${filterType === 'all' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="finance-filter-all">
               Wszystko ({rows.length})
             </button>
             <button onClick={() => setFilterType('cost')}
-              className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${filterType === 'cost' ? 'bg-[#DC4A3A] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#3D5378] ${filterType === 'cost' ? 'bg-[#DC4A3A] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="finance-filter-cost">
               Koszty ({costCount})
             </button>
             <button onClick={() => setFilterType('income')}
-              className={`px-3 py-1 text-xs font-medium border-l border-[#2A3B59] ${filterType === 'income' ? 'bg-[#4F6343] text-white' : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-3 py-1 text-xs font-medium border-l border-[#3D5378] ${filterType === 'income' ? 'bg-[#4F6343] text-white' : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="finance-filter-income">
               Sprzedaż ({incomeCount})
             </button>
           </div>
           <ActionButton onAction={syncCurrent} variant="outline"
-            className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#2A3B59] hover:text-[#D4AF37]"
+            className="border-[#D4AF37] text-[#D4AF37] hover:bg-[#3D5378] hover:text-[#D4AF37]"
             data-testid="finance-sync-current">Sync bieżący miesiąc</ActionButton>
           <ActionButton onAction={propagateBudowa} variant="outline"
-            className="border-[#5F7552] text-[#5F7552] hover:bg-[#2A3B59] hover:text-[#9DBC85]"
+            className="border-[#5F7552] text-[#5F7552] hover:bg-[#3D5378] hover:text-[#9DBC85]"
             data-testid="finance-propagate-budowa"
             title="Propaguje budowa_id z naglowkow faktur na pozycje (naprawia alokacje w kolumnie Q)">
             Propaguj budowy → pozycje
           </ActionButton>
           <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
-            className="bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-1 text-sm"
+            className="bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-1 text-sm"
             data-testid="finance-zapisy-month">
             <option value="0">Caly rok</option>
             {PL_MONTHS_SHORT.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
@@ -508,10 +508,10 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
         </div>
       )}
       <CardContent className="p-0 overflow-x-auto">
-        {loading ? <div className="p-6 text-[#94A3B8]">Ładowanie...</div> :
-        rows.length === 0 ? <div className="p-6 text-[#94A3B8]">Brak zapisow w tym okresie.</div> :
+        {loading ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
+        rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Brak zapisow w tym okresie.</div> :
         <table className="w-full text-sm">
-          <thead className="bg-[#131C2F] text-[#94A3B8]">
+          <thead className="bg-[#1E2A44] text-[#CBD5E1]">
             <tr>
               <th className="p-2 text-left w-8"></th>
               <th className="p-2 text-left">Data</th>
@@ -532,21 +532,21 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                 const hasAssignedPositions = (r.positions || []).some(p => p.kod_id);
                 return (
                   <React.Fragment key={r.id}>
-                    <tr className={`border-t border-[#2A3B59] hover:bg-[#131C2F]/50 ${
+                    <tr className={`border-t border-[#3D5378] hover:bg-[#1E2A44]/50 ${
                       unassigned ? 'bg-[#D4AF37]/10 ring-1 ring-inset ring-[#D4AF37]/40' : ''
                     }`} data-testid={`finance-invoice-row-${r.id}`}>
                       <td className="p-2 text-center">
                         {(r.positions || []).length > 0 && (
                           <button onClick={() => setExpanded(s => ({ ...s, [r.id]: !s[r.id] }))}
-                            className="text-[#94A3B8] hover:text-white" data-testid={`finance-invoice-toggle-${r.id}`}>
+                            className="text-[#CBD5E1] hover:text-white" data-testid={`finance-invoice-toggle-${r.id}`}>
                             {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
                           </button>
                         )}
                       </td>
                       <td className="p-2 text-white text-xs whitespace-nowrap">{r.date}</td>
-                      <td className="p-2 text-[#CBD5E1] text-xs">
+                      <td className="p-2 text-[#F1F5F9] text-xs">
                         <div className="font-semibold">{r.kontrahent || '-'}</div>
-                        {r.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{r.nr_faktury}</div>}
+                        {r.nr_faktury && <div className="text-[#CBD5E1] text-[10px]">{r.nr_faktury}</div>}
                         <div className="flex flex-wrap gap-1 mt-0.5">
                           <span className="text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">FAKTUROWNIA</span>
                           {r.is_income && <span className="text-[10px] bg-[#4F6343]/30 text-[#5F7552] px-1 rounded">SPRZEDAŻ</span>}
@@ -567,7 +567,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                           )}
                         </div>
                       </td>
-                      <td className="p-2 text-[#94A3B8] text-xs italic">
+                      <td className="p-2 text-[#CBD5E1] text-xs italic">
                         {(r.positions || []).length} {(r.positions || []).length === 1 ? 'pozycja' : 'pozycji'}
                         {hasAssignedPositions && r.kod_id && (
                           <div className="text-[10px] text-[#D4AF37] mt-0.5" title="Naglowek faktury wnosi do aggregacji TYLKO reszte (netto - przypisane pozycje)">
@@ -575,7 +575,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                           </div>
                         )}
                         {hasAssignedPositions && !r.kod_id && (
-                          <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                          <div className="text-[10px] text-[#CBD5E1] mt-0.5">
                             Przypisano w pozycjach: {fmtPLN(r.assigned_positions_sum)}
                           </div>
                         )}
@@ -630,13 +630,13 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                       </td>
                     </tr>
                     {isOpen && (r.positions || []).map((p) => (
-                      <tr key={p.id} className="border-t border-[#2A3B59] bg-[#131C2F]/50">
+                      <tr key={p.id} className="border-t border-[#3D5378] bg-[#1E2A44]/50">
                         <td></td>
-                        <td className="p-2 text-[#94A3B8] text-[10px]"></td>
-                        <td className="p-2 text-[#94A3B8] text-xs pl-6">
-                          <span className="text-[#2A3B59]">└</span> pozycja
+                        <td className="p-2 text-[#CBD5E1] text-[10px]"></td>
+                        <td className="p-2 text-[#CBD5E1] text-xs pl-6">
+                          <span className="text-[#3D5378]">└</span> pozycja
                         </td>
-                        <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={p.pozycja_nazwa}>{p.pozycja_nazwa || '-'}</td>
+                        <td className="p-2 text-[#F1F5F9] text-xs max-w-[200px] truncate" title={p.pozycja_nazwa}>{p.pozycja_nazwa || '-'}</td>
                         <td className="p-2 text-xs">
                           {renderKodSelect(p.kod_id, (e) => quickAssignPos(p, 'kod_id', e.target.value),
                             `finance-pos-kod-${p.id}`)}
@@ -649,7 +649,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                           {renderBudgetCodeSelect(p.budowa_id, p.budget_line_id, (e) => quickAssignPos(p, 'budget_line_id', e.target.value || null),
                             `finance-pos-budget-line-${p.id}`)}
                         </td>
-                        <td className="p-2 text-right text-[#CBD5E1] font-mono whitespace-nowrap">{fmtPLN(p.netto)}</td>
+                        <td className="p-2 text-right text-[#F1F5F9] font-mono whitespace-nowrap">{fmtPLN(p.netto)}</td>
                         <td className="p-2 text-right"></td>
                       </tr>
                     ))}
@@ -660,23 +660,23 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               const z = r;
               const isUnassigned = z.source === 'fakturownia' && !z.kod_id;
               return (
-                <tr key={z.id} className={`border-t border-[#2A3B59] hover:bg-[#131C2F]/50 ${
-                  isUnassigned ? 'bg-[#D4AF37]/10 ring-1 ring-inset ring-[#D4AF37]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#131C2F]/40' : '')
+                <tr key={z.id} className={`border-t border-[#3D5378] hover:bg-[#1E2A44]/50 ${
+                  isUnassigned ? 'bg-[#D4AF37]/10 ring-1 ring-inset ring-[#D4AF37]/40' : (z.source && z.source.startsWith('auto_') ? 'bg-[#1E2A44]/40' : '')
                 }`} data-testid={`finance-zapis-row-${z.id}`}>
                   <td></td>
                   <td className="p-2 text-white text-xs whitespace-nowrap">{z.date}</td>
-                  <td className="p-2 text-[#CBD5E1] text-xs">
+                  <td className="p-2 text-[#F1F5F9] text-xs">
                     <div>{z.kontrahent || '-'}</div>
-                    {z.nr_faktury && <div className="text-[#94A3B8] text-[10px]">{z.nr_faktury}</div>}
-                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#2A3B59]/40 text-[#CBD5E1] px-1 rounded">RECZNY</span>}
+                    {z.nr_faktury && <div className="text-[#CBD5E1] text-[10px]">{z.nr_faktury}</div>}
+                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#3D5378]/40 text-[#F1F5F9] px-1 rounded">RECZNY</span>}
                     {z.source && z.source.startsWith('auto_') && <span className="inline-block mt-0.5 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">AUTO</span>}
                   </td>
-                  <td className="p-2 text-[#CBD5E1] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
+                  <td className="p-2 text-[#F1F5F9] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
                   <td className="p-2 text-xs">
-                    <span className="text-[#CBD5E1]">{kodName(z.kod_id)}</span>
+                    <span className="text-[#F1F5F9]">{kodName(z.kod_id)}</span>
                   </td>
                   <td className="p-2 text-xs">
-                    <span className="text-[#94A3B8]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>
+                    <span className="text-[#CBD5E1]">{z.budowa_id ? budowaName(z.budowa_id) : '-'}</span>
                   </td>
                   <td className="p-2 text-xs">
                     {renderBudgetCodeSelect(z.budowa_id, z.budget_line_id, (e) => quickAssignPos(z, 'budget_line_id', e.target.value || null),
@@ -685,7 +685,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                   <td className="p-2 text-right text-white font-mono whitespace-nowrap">{fmtPLN(z.netto)}</td>
                   <td className="p-2 text-right">
                     <div className="flex items-center gap-1 justify-end">
-                      <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#2A3B59] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#94A3B8]" /></button>
+                      <button onClick={() => openEdit(z)} className="p-1 hover:bg-[#3D5378] rounded" title="Edytuj"><Edit2 className="h-4 w-4 text-[#CBD5E1]" /></button>
                       <button onClick={() => remove(z)} className="p-1 hover:bg-[#7F1D1D] rounded" title="Usuń"><Trash2 className="h-4 w-4 text-[#9B2C2C]" /></button>
                     </div>
                   </td>
@@ -697,33 +697,33 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
-        <DialogContent className="bg-[#19243C] border-[#2A3B59] text-[#CBD5E1] max-w-2xl" data-testid="finance-zapis-modal">
+        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-2xl" data-testid="finance-zapis-modal">
           <DialogHeader><DialogTitle className="text-white">{editing ? 'Edytuj zapis' : 'Dodaj zapis ksiegowy'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Data</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Data</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({...form, date: e.target.value})}
-                className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="finance-zapis-date" />
+                className="bg-[#1E2A44] border-[#3D5378] text-white" data-testid="finance-zapis-date" />
             </div>
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Nr faktury</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Nr faktury</label>
               <Input value={form.nr_faktury} onChange={(e) => setForm({...form, nr_faktury: e.target.value})}
-                placeholder="FV/.../2026" className="bg-[#131C2F] border-[#2A3B59] text-white" />
+                placeholder="FV/.../2026" className="bg-[#1E2A44] border-[#3D5378] text-white" />
             </div>
             <div className="col-span-2">
-              <label className="text-sm text-[#94A3B8] block mb-1">Kontrahent</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Kontrahent</label>
               <Input value={form.kontrahent} onChange={(e) => setForm({...form, kontrahent: e.target.value})}
-                placeholder="np. INWESTOR ABC" className="bg-[#131C2F] border-[#2A3B59] text-white" />
+                placeholder="np. INWESTOR ABC" className="bg-[#1E2A44] border-[#3D5378] text-white" />
             </div>
             <div className="col-span-2">
-              <label className="text-sm text-[#94A3B8] block mb-1">Pozycja (nazwa towaru/uslugi)</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Pozycja (nazwa towaru/uslugi)</label>
               <Input value={form.pozycja_nazwa} onChange={(e) => setForm({...form, pozycja_nazwa: e.target.value})}
-                placeholder="np. Beton B25, Stal preta fi12" className="bg-[#131C2F] border-[#2A3B59] text-white" />
+                placeholder="np. Beton B25, Stal preta fi12" className="bg-[#1E2A44] border-[#3D5378] text-white" />
             </div>
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Kod kosztu</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Kod kosztu</label>
               <select value={form.kod_id} onChange={(e) => setForm({...form, kod_id: e.target.value})}
-                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
+                className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-2 text-sm"
                 data-testid="finance-zapis-kod">
                 {['PZS','PZSV','PPE','PV','G','KP','KBB','KSB','KSP'].map(cat => {
                   const catKody = kody.filter(k => k.category === cat);
@@ -737,9 +737,9 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               </select>
             </div>
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Budowa (opcjonalnie)</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Budowa (opcjonalnie)</label>
               <select value={form.budowa_id} onChange={(e) => setForm({...form, budowa_id: e.target.value, budget_line_id: ''})}
-                className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
+                className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-2 text-sm"
                 data-testid="finance-zapis-budowa">
                 <option value="">— bez budowy —</option>
                 {budowy.filter(b => !b.is_archived).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
@@ -747,9 +747,9 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
             </div>
             {form.budowa_id && budgetLines.length > 0 && (
               <div>
-                <label className="text-sm text-[#94A3B8] block mb-1">Pozycja budżetu (opcjonalnie)</label>
+                <label className="text-sm text-[#CBD5E1] block mb-1">Pozycja budżetu (opcjonalnie)</label>
                 <select value={form.budget_line_id} onChange={(e) => setForm({...form, budget_line_id: e.target.value})}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-white rounded px-2 py-2 text-sm"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-2 text-sm"
                   data-testid="finance-zapis-budget-line">
                   <option value="">— bez przypisania —</option>
                   {(() => {
@@ -777,20 +777,20 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               </div>
             )}
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Netto (zł)</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Netto (zł)</label>
               <Input type="number" step="0.01" value={form.netto} onChange={(e) => setForm({...form, netto: e.target.value})}
-                placeholder="0.00" className="no-spinner bg-[#131C2F] border-[#2A3B59] text-white"
+                placeholder="0.00" className="no-spinner bg-[#1E2A44] border-[#3D5378] text-white"
                 data-testid="finance-zapis-netto" />
             </div>
             <div className="col-span-2">
-              <label className="text-sm text-[#94A3B8] block mb-1">Uwagi</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Uwagi</label>
               <Input value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
-                className="bg-[#131C2F] border-[#2A3B59] text-white" />
+                className="bg-[#1E2A44] border-[#3D5378] text-white" />
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
-              className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white">Anuluj</Button>
+              className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] hover:text-white">Anuluj</Button>
             <ActionButton onAction={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">{editing ? 'Zapisz' : 'Dodaj'}</ActionButton>
           </DialogFooter>
         </DialogContent>

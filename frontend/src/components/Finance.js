@@ -218,14 +218,14 @@ const InfoHeader = ({ label, info, className = '', align = 'right' }) => {
           </button>
         </PopoverTrigger>
         <PopoverContent
-          className="w-80 bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1] text-xs p-4"
+          className="w-80 bg-[#152033] border-[#3D5378] text-[#F1F5F9] text-xs p-4"
           align="start"
           side="bottom">
           <div className="font-semibold text-[#D4AF37] text-sm mb-2">{info.title}</div>
-          <div className="text-[#CBD5E1] mb-3 leading-relaxed">{info.desc}</div>
+          <div className="text-[#F1F5F9] mb-3 leading-relaxed">{info.desc}</div>
           {info.formula && (
-            <div className="pt-2 border-t border-[#2A3B59]">
-              <div className="text-[10px] uppercase tracking-wide text-[#94A3B8] mb-1">Wzor</div>
+            <div className="pt-2 border-t border-[#3D5378]">
+              <div className="text-[10px] uppercase tracking-wide text-[#CBD5E1] mb-1">Wzor</div>
               <div className="font-mono text-[#4F6343] text-[11px] leading-relaxed">{info.formula}</div>
             </div>
           )}
@@ -269,7 +269,7 @@ export const Finance = () => {
     <div className="space-y-4">
       <FakturowniaSyncWarning />
       {/* Subtab nav + year picker + quick add */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-[#2A3B59] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[#3D5378] pb-2">
         {SUBTABS.map(t => (
           <button
             key={t.id}
@@ -278,7 +278,7 @@ export const Finance = () => {
             className={`px-3 py-1.5 rounded-t text-sm font-semibold transition-colors ${
               active === t.id
                 ? 'bg-[#4F6343] text-white'
-                : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59] hover:text-white'
+                : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378] hover:text-white'
             }`}
           >
             {t.label}
@@ -289,18 +289,18 @@ export const Finance = () => {
           <Button
             size="sm"
             onClick={() => setQuickAddOpen(true)}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] font-semibold"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] font-semibold"
             data-testid="finance-quick-add-zapis-btn"
           >
             <Plus className="h-4 w-4 mr-1" /> Dodaj zapis
           </Button>
-          <span className="text-[#94A3B8] text-sm">Rok:</span>
+          <span className="text-[#CBD5E1] text-sm">Rok:</span>
           <Input
             type="number"
             min="2020" max="2099"
             value={year}
             onChange={(e) => setYear(parseInt(e.target.value) || new Date().getFullYear())}
-            className="w-24 bg-[#131C2F] border-[#2A3B59] text-white h-8"
+            className="w-24 bg-[#1E2A44] border-[#3D5378] text-white h-8"
             data-testid="finance-year-input"
           />
         </div>

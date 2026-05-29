@@ -105,7 +105,7 @@ export const WarehouseForeman = () => {
     }
   };
 
-  if (loading) return <p className="text-[#94A3B8] p-4">{t('wh.loading_dots')}</p>;
+  if (loading) return <p className="text-[#CBD5E1] p-4">{t('wh.loading_dots')}</p>;
 
   return (
     <div className="space-y-3">
@@ -113,14 +113,14 @@ export const WarehouseForeman = () => {
         <button
           type="button"
           onClick={() => setView('catalog')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'catalog' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8]'}`}
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'catalog' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1]'}`}
           data-testid="foreman-warehouse-catalog">
           Katalog
         </button>
         <button
           type="button"
           onClick={() => setView('history')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'history' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8]'}`}
+          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${view === 'history' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1]'}`}
           data-testid="foreman-warehouse-history">
           Moje zamówienia ({orders.length})
         </button>
@@ -128,15 +128,15 @@ export const WarehouseForeman = () => {
 
       {view === 'catalog' && (
         <>
-          <Card className="bg-[#19243C] border-[#2A3B59]">
+          <Card className="bg-[#243049] border-[#3D5378]">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
                 <Package className="h-4 w-4 text-[#4F6343]" /> Materiały dostępne do zamówienia
               </CardTitle>
             </CardHeader>
             <CardContent>
               {materials.length === 0 ? (
-                <p className="text-[#94A3B8] text-sm">{t('wh.empty_admin_add')}</p>
+                <p className="text-[#CBD5E1] text-sm">{t('wh.empty_admin_add')}</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {materials.map((m) => {
@@ -144,17 +144,17 @@ export const WarehouseForeman = () => {
                     const stockLow = (m.current_stock || 0) <= 0;
                     return (
                       <div key={m.id}
-                        className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-2 flex gap-2"
+                        className="bg-[#1E2A44] rounded-lg border border-[#3D5378] p-2 flex gap-2"
                         data-testid={`foreman-mat-${m.id}`}>
                         {m.photo ? (
                           <img src={m.photo} alt={m.name} className="h-14 w-14 object-cover rounded shrink-0" />
                         ) : (
-                          <div className="h-14 w-14 bg-[#0B1120] rounded flex items-center justify-center shrink-0">
-                            <Package className="h-6 w-6 text-[#2A3B59]" />
+                          <div className="h-14 w-14 bg-[#152033] rounded flex items-center justify-center shrink-0">
+                            <Package className="h-6 w-6 text-[#3D5378]" />
                           </div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-[#CBD5E1] text-sm font-semibold truncate">{m.name}</p>
+                          <p className="text-[#F1F5F9] text-sm font-semibold truncate">{m.name}</p>
                           <p className={`text-[11px] ${stockLow ? 'text-[#D4AF37]' : 'text-[#5F7552]'}`}>
                             Stan: {m.current_stock} {m.unit}
                             {stockLow && <span className="ml-1">(zamów dostawę)</span>}
@@ -163,17 +163,17 @@ export const WarehouseForeman = () => {
                             <div className="flex items-center gap-1 mt-1">
                               <Button size="sm" variant="ghost"
                                 onClick={() => setQty(m, (cart[m.id] || 0) - 1)}
-                                className="h-6 w-6 p-0 text-[#CBD5E1]">
+                                className="h-6 w-6 p-0 text-[#F1F5F9]">
                                 <Minus className="h-3 w-3" />
                               </Button>
                               <Input type="number" step="0.5" value={inCart}
                                 onChange={(e) => setQty(m, e.target.value)}
-                                className="h-6 w-16 text-center text-xs bg-[#0B1120] border-[#2A3B59] text-[#CBD5E1]"
+                                className="h-6 w-16 text-center text-xs bg-[#152033] border-[#3D5378] text-[#F1F5F9]"
                                 data-testid={`foreman-mat-qty-${m.id}`} />
-                              <span className="text-[10px] text-[#94A3B8]">{m.unit}</span>
+                              <span className="text-[10px] text-[#CBD5E1]">{m.unit}</span>
                               <Button size="sm" variant="ghost"
                                 onClick={() => setQty(m, (cart[m.id] || 0) + 1)}
-                                className="h-6 w-6 p-0 text-[#CBD5E1]">
+                                className="h-6 w-6 p-0 text-[#F1F5F9]">
                                 <Plus className="h-3 w-3" />
                               </Button>
                             </div>
@@ -195,18 +195,18 @@ export const WarehouseForeman = () => {
 
           {/* Cart */}
           {cartItems.length > 0 && (
-            <Card className="bg-[#19243C] border-[#4F6343]" data-testid="foreman-cart">
+            <Card className="bg-[#243049] border-[#4F6343]" data-testid="foreman-cart">
               <CardHeader className="pb-2">
-                <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+                <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
                   <ShoppingCart className="h-4 w-4 text-[#4F6343]" /> Koszyk ({cartItems.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {cartItems.map((it) => (
-                  <div key={it.id} className="flex items-center justify-between bg-[#131C2F] rounded p-2 text-sm">
+                  <div key={it.id} className="flex items-center justify-between bg-[#1E2A44] rounded p-2 text-sm">
                     <div className="flex-1 min-w-0">
-                      <span className="text-[#CBD5E1] font-medium">{it.name}</span>
-                      <span className="text-[#94A3B8] ml-2">x {it.qty} {it.unit}</span>
+                      <span className="text-[#F1F5F9] font-medium">{it.name}</span>
+                      <span className="text-[#CBD5E1] ml-2">x {it.qty} {it.unit}</span>
                     </div>
                     <Button size="sm" variant="ghost" onClick={() => removeFromCart(it)}
                       className="text-[#DC4A3A] h-6 px-2 text-xs">×</Button>
@@ -214,14 +214,14 @@ export const WarehouseForeman = () => {
                 ))}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                   <select value={siteId} onChange={(e) => setSiteId(e.target.value)}
-                    className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-9 px-3 text-sm"
+                    className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-9 px-3 text-sm"
                     data-testid="foreman-cart-site">
                     <option value="">(opcjonalnie - na która budowę)</option>
                     {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                   <Input value={note} onChange={(e) => setNote(e.target.value)}
                     placeholder="Notatka (opc.) - kiedy potrzebne, dla kogo..."
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-9"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9] h-9"
                     data-testid="foreman-cart-note" />
                 </div>
                 <ActionButton onAction={submitOrder} disabled={submitting}
@@ -235,15 +235,15 @@ export const WarehouseForeman = () => {
       )}
 
       {view === 'history' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
               <History className="h-4 w-4 text-[#4F6343]" /> Moje zamówienia
             </CardTitle>
           </CardHeader>
           <CardContent>
             {orders.length === 0 ? (
-              <p className="text-[#94A3B8] text-sm">{t('wh.no_orders_yet2')}</p>
+              <p className="text-[#CBD5E1] text-sm">{t('wh.no_orders_yet2')}</p>
             ) : (
               <div className="space-y-2">
                 {orders.map((o) => {
@@ -252,18 +252,18 @@ export const WarehouseForeman = () => {
                     'bg-[#DC4A3A]/20 text-[#DC4A3A]';
                   const statusLabel = { pending: 'Czeka', issued: 'Wydane', rejected: 'Odrzucone' }[o.status];
                   return (
-                    <div key={o.id} className="bg-[#131C2F] rounded p-2 text-sm"
+                    <div key={o.id} className="bg-[#1E2A44] rounded p-2 text-sm"
                       data-testid={`foreman-order-${o.id}`}>
                       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
                         <span className={`text-[11px] px-2 py-0.5 rounded ${statusColor}`}>{statusLabel}</span>
-                        <span className="text-[11px] text-[#64748B]">
+                        <span className="text-[11px] text-[#94A3B8]">
                           {new Date(o.created_at).toLocaleString('pl-PL')}
                         </span>
                       </div>
                       <div className="space-y-0.5">
                         {o.items.map((it) => (
-                          <div key={it.material_id} className="text-[#CBD5E1] text-xs">
-                            • {it.material_name} <span className="text-[#94A3B8]">x {it.quantity} {it.unit}</span>
+                          <div key={it.material_id} className="text-[#F1F5F9] text-xs">
+                            • {it.material_name} <span className="text-[#CBD5E1]">x {it.quantity} {it.unit}</span>
                             {it.issued_quantity !== null && it.issued_quantity !== undefined && (
                               <span className="ml-2 text-[10px] text-[#5F7552]">(wydano {it.issued_quantity})</span>
                             )}

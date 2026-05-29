@@ -21,7 +21,7 @@ export const NegotiationPanel = ({
       <div className="text-sm font-bold text-[#F59E0B] uppercase tracking-wide flex items-center gap-1">
         🤝 Tryb negocjacji — symulacja na żywo
       </div>
-      <div className="text-[10px] text-[#94A3B8] flex-1">
+      <div className="text-[10px] text-[#CBD5E1] flex-1">
         Zmiany NIE są zapisywane — pełna wycena nietknięta. Kliknij <b className="text-[#F59E0B]">Przyjmij na stałe</b> aby zaakceptować po negocjacji z klientem.
       </div>
     </div>
@@ -32,52 +32,52 @@ export const NegotiationPanel = ({
         { key: 'materials', label: '🧱 Materiały', cls: 'border-[#5F7552]' },
         { key: 'equipment', label: '🚜 Sprzęt', cls: 'border-[#2D4D5C]' },
       ].map((it) => (
-        <div key={it.key} className={`border ${it.cls} bg-[#0B1120]/60 rounded p-2`}>
-          <div className="text-[10px] uppercase text-[#94A3B8] mb-1">{it.label}</div>
+        <div key={it.key} className={`border ${it.cls} bg-[#152033]/60 rounded p-2`}>
+          <div className="text-[10px] uppercase text-[#CBD5E1] mb-1">{it.label}</div>
           <div className="flex items-center gap-1">
             <input
               type="number" step="0.5"
               value={neg[it.key]}
               onChange={(e) => setNeg({ ...neg, [it.key]: e.target.value })}
-              className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+              className="bg-[#1E2A44] border border-[#3D5378] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
               data-testid={`neg-${it.key}-input`}
             />
-            <span className="text-sm text-[#94A3B8]">%</span>
+            <span className="text-sm text-[#CBD5E1]">%</span>
           </div>
-          <div className="text-[9px] text-[#64748B] mt-0.5">
+          <div className="text-[9px] text-[#94A3B8] mt-0.5">
             {parseFloat(neg[it.key]) > 0 ? '↑ podwyżka' : parseFloat(neg[it.key]) < 0 ? '↓ obniżka' : 'bez zmian'}
           </div>
         </div>
       ))}
-      <div className="border border-[#D4AF37]/40 bg-[#0B1120]/60 rounded p-2">
-        <div className="text-[10px] uppercase text-[#94A3B8] mb-1">Narzut materiał</div>
+      <div className="border border-[#D4AF37]/40 bg-[#152033]/60 rounded p-2">
+        <div className="text-[10px] uppercase text-[#CBD5E1] mb-1">Narzut materiał</div>
         <div className="flex items-center gap-1">
           <input
             type="number" step="0.5"
             value={neg.narzutOverride}
             onChange={(e) => setNeg({ ...neg, narzutOverride: e.target.value })}
             placeholder={`${data?.wycena?.default_narzut_pct ?? 0}`}
-            className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+            className="bg-[#1E2A44] border border-[#3D5378] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
             data-testid="neg-narzut-input"
           />
-          <span className="text-sm text-[#94A3B8]">%</span>
+          <span className="text-sm text-[#CBD5E1]">%</span>
         </div>
-        <div className="text-[9px] text-[#64748B] mt-0.5">orig: {data?.wycena?.default_narzut_pct ?? 0}%</div>
+        <div className="text-[9px] text-[#94A3B8] mt-0.5">orig: {data?.wycena?.default_narzut_pct ?? 0}%</div>
       </div>
-      <div className="border border-[#D4AF37]/40 bg-[#0B1120]/60 rounded p-2">
-        <div className="text-[10px] uppercase text-[#94A3B8] mb-1">Marża materiał</div>
+      <div className="border border-[#D4AF37]/40 bg-[#152033]/60 rounded p-2">
+        <div className="text-[10px] uppercase text-[#CBD5E1] mb-1">Marża materiał</div>
         <div className="flex items-center gap-1">
           <input
             type="number" step="0.5"
             value={neg.marzaOverride}
             onChange={(e) => setNeg({ ...neg, marzaOverride: e.target.value })}
             placeholder={`${data?.wycena?.default_marza_pct ?? 0}`}
-            className="bg-[#131C2F] border border-[#2A3B59] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
+            className="bg-[#1E2A44] border border-[#3D5378] rounded h-8 w-20 text-sm text-right tabular-nums text-white px-2 outline-none focus:border-[#F59E0B]"
             data-testid="neg-marza-input"
           />
-          <span className="text-sm text-[#94A3B8]">%</span>
+          <span className="text-sm text-[#CBD5E1]">%</span>
         </div>
-        <div className="text-[9px] text-[#64748B] mt-0.5">orig: {data?.wycena?.default_marza_pct ?? 0}%</div>
+        <div className="text-[9px] text-[#94A3B8] mt-0.5">orig: {data?.wycena?.default_marza_pct ?? 0}%</div>
       </div>
     </div>
 
@@ -103,10 +103,10 @@ export const NegotiationPanel = ({
           const isProfit = cmp.lbl.includes('zysk');
           const goodDelta = isProfit ? delta >= 0 : delta <= 0;
           return (
-            <div key={i} className="border border-[#2A3B59] bg-[#131C2F] rounded p-2">
-              <div className="text-[10px] uppercase text-[#94A3B8]">{cmp.lbl}</div>
+            <div key={i} className="border border-[#3D5378] bg-[#1E2A44] rounded p-2">
+              <div className="text-[10px] uppercase text-[#CBD5E1]">{cmp.lbl}</div>
               <div className="flex items-center gap-2">
-                <span className="text-[#64748B] line-through tabular-nums text-[11px]">{fmtPLN(cmp.orig)}</span>
+                <span className="text-[#94A3B8] line-through tabular-nums text-[11px]">{fmtPLN(cmp.orig)}</span>
                 <span className="text-[#F59E0B]">→</span>
                 <span className="font-bold tabular-nums">{fmtPLN(cmp.curr)}</span>
               </div>
@@ -121,17 +121,17 @@ export const NegotiationPanel = ({
 
     <div className="flex gap-2 justify-end pt-1 border-t border-[#F59E0B]/20">
       <Button onClick={() => setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' })}
-        variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+        variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
         data-testid="neg-reset">
         Wyzeruj
       </Button>
       <Button onClick={() => setNegotiationOn(false)} variant="outline"
-        className="border-[#2A3B59] text-[#CBD5E1]"
+        className="border-[#3D5378] text-[#F1F5F9]"
         data-testid="neg-cancel">
         Anuluj (powrót do oryginału)
       </Button>
       <Button onClick={applyNegotiation} disabled={!negHasChanges}
-        className="bg-[#F59E0B] hover:bg-[#D97706] text-[#0B1120] font-semibold disabled:opacity-40"
+        className="bg-[#F59E0B] hover:bg-[#D97706] text-[#152033] font-semibold disabled:opacity-40"
         data-testid="neg-apply">
         ✓ Przyjmij na stałe (zapisze wersję)
       </Button>

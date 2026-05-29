@@ -27,30 +27,30 @@ export const PriceBookAddModal = ({ category, onClose, onSaved }) => {
   };
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="pricebook-modal">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md" data-testid="pricebook-modal">
         <DialogHeader>
           <DialogTitle>Dodaj pozycję cennika ({TYPE_LABEL[category]})</DialogTitle>
         </DialogHeader>
         <div className="space-y-2">
-          <div><label className="text-xs text-[#94A3B8]">Nazwa *</label>
+          <div><label className="text-xs text-[#CBD5E1]">Nazwa *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="bg-[#0B1120] border-[#2A3B59]" data-testid="pricebook-modal-name" /></div>
+              className="bg-[#152033] border-[#3D5378]" data-testid="pricebook-modal-name" /></div>
           <div className="grid grid-cols-2 gap-2">
-            <div><label className="text-xs text-[#94A3B8]">J.m.</label>
+            <div><label className="text-xs text-[#CBD5E1]">J.m.</label>
               <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                placeholder="szt / m / kg / h..." className="bg-[#0B1120] border-[#2A3B59]" /></div>
-            <div><label className="text-xs text-[#94A3B8]">Cena netto</label>
+                placeholder="szt / m / kg / h..." className="bg-[#152033] border-[#3D5378]" /></div>
+            <div><label className="text-xs text-[#CBD5E1]">Cena netto</label>
               <Input type="number" step="0.01" value={form.unit_price_netto}
                 onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59]" data-testid="pricebook-modal-price" /></div>
+                className="bg-[#152033] border-[#3D5378]" data-testid="pricebook-modal-price" /></div>
           </div>
-          <div><label className="text-xs text-[#94A3B8]">Notatki</label>
+          <div><label className="text-xs text-[#CBD5E1]">Notatki</label>
             <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              className="bg-[#0B1120] border-[#2A3B59]" /></div>
+              className="bg-[#152033] border-[#3D5378]" /></div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <Button onClick={save} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="pricebook-modal-save">Zapisz</Button>
+          <Button variant="outline" onClick={onClose} className="border-[#3D5378] text-[#CBD5E1]">Anuluj</Button>
+          <Button onClick={save} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]" data-testid="pricebook-modal-save">Zapisz</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

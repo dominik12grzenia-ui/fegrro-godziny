@@ -159,7 +159,7 @@ export const BhpAdmin = () => {
     );
   }, [issuances]);
 
-  if (loading) return <p className="text-[#94A3B8] p-4">Ładowanie...</p>;
+  if (loading) return <p className="text-[#CBD5E1] p-4">Ładowanie...</p>;
 
   const activeItems = items.filter((i) => i.is_active !== false);
 
@@ -170,7 +170,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('items')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'items' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'items' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="bhp-subtab-items"
         >
           Rzeczy BHP
@@ -178,7 +178,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('issuances')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issuances' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'issuances' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="bhp-subtab-issuances"
         >
           Wydania pracownikom ({issuances.length})
@@ -186,7 +186,7 @@ export const BhpAdmin = () => {
         <button
           type="button"
           onClick={() => setSubtab('employees')}
-          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'employees' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+          className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${subtab === 'employees' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
           data-testid="bhp-subtab-employees"
         >
           Pracownicy - dokumenty
@@ -197,10 +197,10 @@ export const BhpAdmin = () => {
 
       {/* ITEMS sub-tab */}
       {subtab === 'items' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <HardHat className="h-5 w-5 text-[#4F6343]" /> Rzeczy BHP
               </CardTitle>
               <Button
@@ -215,7 +215,7 @@ export const BhpAdmin = () => {
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak pozycji. Dodaj pierwszą (np. Szelki, Kask, Rękawice).</p>
+              <p className="text-[#CBD5E1]">Brak pozycji. Dodaj pierwszą (np. Szelki, Kask, Rękawice).</p>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {items.map((it) => {
@@ -226,7 +226,7 @@ export const BhpAdmin = () => {
                   return (
                     <div
                       key={it.id}
-                      className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3 flex gap-3"
+                      className="bg-[#1E2A44] rounded-lg border border-[#3D5378] p-3 flex gap-3"
                       data-testid={`bhp-item-${it.id}`}
                     >
                       {it.photo ? (
@@ -237,13 +237,13 @@ export const BhpAdmin = () => {
                           onClick={() => setLightbox(it.photo)}
                         />
                       ) : (
-                        <div className="h-20 w-20 bg-[#0B1120] rounded flex items-center justify-center shrink-0">
-                          <HardHat className="h-8 w-8 text-[#2A3B59]" />
+                        <div className="h-20 w-20 bg-[#152033] rounded flex items-center justify-center shrink-0">
+                          <HardHat className="h-8 w-8 text-[#3D5378]" />
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <p className="text-[#CBD5E1] font-semibold truncate">{it.name}</p>
-                        <p className="text-[11px] text-[#94A3B8] mt-1">
+                        <p className="text-[#F1F5F9] font-semibold truncate">{it.name}</p>
+                        <p className="text-[11px] text-[#CBD5E1] mt-1">
                           Wydano: <b className="text-[#5F7552]">{totalQty} szt.</b> ({issuedCount} wydań)
                         </p>
                         <div className="flex gap-1 mt-2">
@@ -259,7 +259,7 @@ export const BhpAdmin = () => {
                             size="sm"
                             variant="ghost"
                             onClick={() => openEditItem(it)}
-                            className="text-[#94A3B8] h-7 px-2"
+                            className="text-[#CBD5E1] h-7 px-2"
                             data-testid={`bhp-edit-btn-${it.id}`}
                           >
                             <Edit className="h-3 w-3" />
@@ -286,10 +286,10 @@ export const BhpAdmin = () => {
 
       {/* ISSUANCES sub-tab */}
       {subtab === 'issuances' && (
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
                 <HardHat className="h-5 w-5 text-[#4F6343]" /> Wydane pracownikom
               </CardTitle>
               <Button
@@ -305,34 +305,34 @@ export const BhpAdmin = () => {
           </CardHeader>
           <CardContent>
             {issuancesByEmployee.length === 0 ? (
-              <p className="text-[#94A3B8]">Brak wydań.</p>
+              <p className="text-[#CBD5E1]">Brak wydań.</p>
             ) : (
               <div className="space-y-3">
                 {issuancesByEmployee.map((row) => (
                   <div
                     key={row.employee_id}
-                    className="bg-[#131C2F] rounded-lg border border-[#2A3B59] p-3"
+                    className="bg-[#1E2A44] rounded-lg border border-[#3D5378] p-3"
                     data-testid={`bhp-emp-row-${row.employee_id}`}
                   >
-                    <p className="text-[#CBD5E1] font-bold text-base border-b border-[#2A3B59] pb-2 mb-2">
+                    <p className="text-[#F1F5F9] font-bold text-base border-b border-[#3D5378] pb-2 mb-2">
                       {row.employee_name}
                     </p>
                     <div className="space-y-1">
                       {row.issuances.map((iss) => (
                         <div
                           key={iss.id}
-                          className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-[#19243C]"
+                          className="flex flex-wrap items-center justify-between gap-2 p-2 rounded bg-[#243049]"
                           data-testid={`bhp-issuance-${iss.id}`}
                         >
                           <div className="flex-1 min-w-0">
                             <span className="text-[#D4AF37] font-semibold">{iss.bhp_item_name}</span>
-                            <span className="text-[#94A3B8] ml-2">x {iss.quantity}</span>
+                            <span className="text-[#CBD5E1] ml-2">x {iss.quantity}</span>
                             {iss.serial_number && (
-                              <span className="ml-2 text-[11px] bg-[#0B1120] text-[#CBD5E1] px-2 py-0.5 rounded">
+                              <span className="ml-2 text-[11px] bg-[#152033] text-[#F1F5F9] px-2 py-0.5 rounded">
                                 SN: {iss.serial_number}
                               </span>
                             )}
-                            <p className="text-[11px] text-[#64748B] mt-0.5">
+                            <p className="text-[11px] text-[#94A3B8] mt-0.5">
                               {new Date(iss.issued_at).toLocaleString('pl-PL')}
                               {iss.note && ` · ${iss.note}`}
                             </p>
@@ -364,37 +364,37 @@ export const BhpAdmin = () => {
           onClick={() => setShowAddItem(false)}
         >
           <Card
-            className="bg-[#19243C] border-[#2A3B59] w-full max-w-md"
+            className="bg-[#243049] border-[#3D5378] w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[#CBD5E1]">
+                <CardTitle className="text-[#F1F5F9]">
                   {editingItem ? 'Edytuj rzecz BHP' : 'Nowa rzecz BHP'}
                 </CardTitle>
-                <Button size="sm" variant="ghost" onClick={() => setShowAddItem(false)} className="text-[#94A3B8]">
+                <Button size="sm" variant="ghost" onClick={() => setShowAddItem(false)} className="text-[#CBD5E1]">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8]">Nazwa</label>
+                <label className="text-xs text-[#CBD5E1]">Nazwa</label>
                 <Input
                   value={itemForm.name}
                   onChange={(e) => setItemForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="np. Szelki BHP"
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   data-testid="bhp-item-name-input"
                 />
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Zdjęcie (opcjonalnie)</label>
+                <label className="text-xs text-[#CBD5E1]">Zdjęcie (opcjonalnie)</label>
                 <Input
                   type="file"
                   accept="image/*"
                   onChange={onPhotoChange}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   data-testid="bhp-item-photo-input"
                 />
                 {itemForm.photo && (
@@ -402,7 +402,7 @@ export const BhpAdmin = () => {
                 )}
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setShowAddItem(false)} className="text-[#94A3B8]">
+                <Button variant="ghost" onClick={() => setShowAddItem(false)} className="text-[#CBD5E1]">
                   Anuluj
                 </Button>
                 <ActionButton
@@ -423,24 +423,24 @@ export const BhpAdmin = () => {
           onClick={() => setShowIssue(false)}
         >
           <Card
-            className="bg-[#19243C] border-[#2A3B59] w-full max-w-md"
+            className="bg-[#243049] border-[#3D5378] w-full max-w-md"
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader>
               <div className="flex items-center justify-between">
-                <CardTitle className="text-[#CBD5E1]">Wydaj rzecz BHP</CardTitle>
-                <Button size="sm" variant="ghost" onClick={() => setShowIssue(false)} className="text-[#94A3B8]">
+                <CardTitle className="text-[#F1F5F9]">Wydaj rzecz BHP</CardTitle>
+                <Button size="sm" variant="ghost" onClick={() => setShowIssue(false)} className="text-[#CBD5E1]">
                   <X className="h-4 w-4" />
                 </Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
-                <label className="text-xs text-[#94A3B8]">Pracownik</label>
+                <label className="text-xs text-[#CBD5E1]">Pracownik</label>
                 <select
                   value={issueForm.employee_id}
                   onChange={(e) => setIssueForm((f) => ({ ...f, employee_id: e.target.value }))}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-10 px-3 text-sm"
                   data-testid="bhp-issue-employee-select"
                 >
                   <option value="">-- wybierz --</option>
@@ -450,11 +450,11 @@ export const BhpAdmin = () => {
                 </select>
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Rzecz BHP</label>
+                <label className="text-xs text-[#CBD5E1]">Rzecz BHP</label>
                 <select
                   value={issueForm.bhp_item_id}
                   onChange={(e) => setIssueForm((f) => ({ ...f, bhp_item_id: e.target.value }))}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded-md h-10 px-3 text-sm"
+                  className="w-full bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] rounded-md h-10 px-3 text-sm"
                   data-testid="bhp-issue-item-select"
                 >
                   <option value="">-- wybierz --</option>
@@ -465,38 +465,38 @@ export const BhpAdmin = () => {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Ilość</label>
+                  <label className="text-xs text-[#CBD5E1]">Ilość</label>
                   <Input
                     type="number"
                     min="1"
                     value={issueForm.quantity}
                     onChange={(e) => setIssueForm((f) => ({ ...f, quantity: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="bhp-issue-qty-input"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-[#94A3B8]">Nr seryjny (opc.)</label>
+                  <label className="text-xs text-[#CBD5E1]">Nr seryjny (opc.)</label>
                   <Input
                     value={issueForm.serial_number}
                     onChange={(e) => setIssueForm((f) => ({ ...f, serial_number: e.target.value }))}
-                    className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                    className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                     data-testid="bhp-issue-sn-input"
                   />
                 </div>
               </div>
               <div>
-                <label className="text-xs text-[#94A3B8]">Notatka (opc.)</label>
+                <label className="text-xs text-[#CBD5E1]">Notatka (opc.)</label>
                 <Input
                   value={issueForm.note}
                   onChange={(e) => setIssueForm((f) => ({ ...f, note: e.target.value }))}
                   placeholder="np. zuzyte, przekazane na budowe X"
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
                   data-testid="bhp-issue-note-input"
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setShowIssue(false)} className="text-[#94A3B8]">
+                <Button variant="ghost" onClick={() => setShowIssue(false)} className="text-[#CBD5E1]">
                   Anuluj
                 </Button>
                 <ActionButton

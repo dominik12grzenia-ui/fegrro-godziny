@@ -32,11 +32,11 @@ export const GanttView = ({ tasks, ganttData }) => {
     <div className="overflow-x-auto" data-testid="schedule-gantt">
       <div className="relative" style={{ minWidth: `${totalWidth + 240}px` }}>
         {/* Header z miesiacami */}
-        <div className="flex border-b border-[#2A3B59]">
-          <div className="w-60 shrink-0 p-2 text-xs text-[#94A3B8] font-semibold border-r border-[#2A3B59]">Zadanie</div>
+        <div className="flex border-b border-[#3D5378]">
+          <div className="w-60 shrink-0 p-2 text-xs text-[#CBD5E1] font-semibold border-r border-[#3D5378]">Zadanie</div>
           <div className="relative" style={{ width: `${totalWidth}px`, height: '32px' }}>
             {monthMarkers.map((m, i) => (
-              <div key={i} className="absolute top-0 text-[10px] text-[#94A3B8] border-l border-[#2A3B59] h-full pl-1" style={{ left: `${m.offset}px` }}>
+              <div key={i} className="absolute top-0 text-[10px] text-[#CBD5E1] border-l border-[#3D5378] h-full pl-1" style={{ left: `${m.offset}px` }}>
                 {m.label}
               </div>
             ))}
@@ -49,14 +49,14 @@ export const GanttView = ({ tasks, ganttData }) => {
           const startOffset = Math.max(0, (start - minD) / (1000 * 60 * 60 * 24));
           const duration = Math.max(1, (end - start) / (1000 * 60 * 60 * 24) + 1);
           return (
-            <div key={t.id} className="flex border-b border-[#2A3B59]/30 hover:bg-[#0B1120]/40">
-              <div className="w-60 shrink-0 p-2 text-xs text-white border-r border-[#2A3B59]">
+            <div key={t.id} className="flex border-b border-[#3D5378]/30 hover:bg-[#152033]/40">
+              <div className="w-60 shrink-0 p-2 text-xs text-white border-r border-[#3D5378]">
                 {t.name}
-                <div className="text-[10px] text-[#94A3B8]">{t.progress_pct}%</div>
+                <div className="text-[10px] text-[#CBD5E1]">{t.progress_pct}%</div>
               </div>
               <div className="relative" style={{ width: `${totalWidth}px`, height: '36px' }}>
                 <div
-                  className="absolute top-1 h-6 rounded shadow flex items-center px-2 text-[10px] font-semibold text-[#0B1120] overflow-hidden"
+                  className="absolute top-1 h-6 rounded shadow flex items-center px-2 text-[10px] font-semibold text-[#152033] overflow-hidden"
                   style={{
                     left: `${startOffset * dayWidth}px`,
                     width: `${duration * dayWidth}px`,

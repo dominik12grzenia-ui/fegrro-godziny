@@ -32,58 +32,58 @@ export const EquipmentRow = ({ item, onLocalUpdate, onDel }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
-  const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#0B1120] outline-none px-1";
+  const inputCls = "bg-transparent border-0 h-7 text-xs w-full focus:bg-[#152033] outline-none px-1";
 
   return (
-    <tr className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/30" data-testid={`equipment-row-${item.id}`}>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+    <tr className="border-b border-[#3D5378]/40 hover:bg-[#152033]/30" data-testid={`equipment-row-${item.id}`}>
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
           onBlur={save}
           placeholder="np. zagęszczarka, młot udarowy..."
           className={`${inputCls} text-white`} data-testid={`equipment-name-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_hour ?? ''}
           onChange={(e) => setEdit({ ...edit, price_hour: e.target.value })}
           onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-hour-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_day ?? ''}
           onChange={(e) => setEdit({ ...edit, price_day: e.target.value })}
           onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-day-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_month ?? ''}
           onChange={(e) => setEdit({ ...edit, price_month: e.target.value })}
           onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`equipment-price-month-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input value={edit.wynajmujacy || ''} onChange={(e) => setEdit({ ...edit, wynajmujacy: e.target.value })}
           onBlur={save}
           placeholder="np. Ramirent, własny..."
-          className={`${inputCls} text-[#CBD5E1]`} data-testid={`equipment-wyn-${item.id}`} />
+          className={`${inputCls} text-[#F1F5F9]`} data-testid={`equipment-wyn-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.extra_cost ?? ''}
           onChange={(e) => setEdit({ ...edit, extra_cost: e.target.value })}
           onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#FCA5A5]`}
           data-testid={`equipment-extra-${item.id}`} />
       </td>
-      <td className="border-r border-[#2A3B59]/40 p-1">
+      <td className="border-r border-[#3D5378]/40 p-1">
         <input value={edit.extra_cost_desc || ''} onChange={(e) => setEdit({ ...edit, extra_cost_desc: e.target.value })}
           onBlur={save}
           placeholder="np. transport, paliwo..."
-          className={`${inputCls} text-[#94A3B8]`} data-testid={`equipment-extra-desc-${item.id}`} />
+          className={`${inputCls} text-[#CBD5E1]`} data-testid={`equipment-extra-desc-${item.id}`} />
       </td>
       <td className="text-right pr-1">
-        <button onClick={onDel} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`equipment-del-${item.id}`}>
+        <button onClick={onDel} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`equipment-del-${item.id}`}>
           <Trash2 className="h-3 w-3" />
         </button>
       </td>

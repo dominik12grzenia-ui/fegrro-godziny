@@ -431,7 +431,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   };
 
   if (loading) {
-    return <div className="text-[#94A3B8] text-sm">{t('eq.loading_dots')}</div>;
+    return <div className="text-[#CBD5E1] text-sm">{t('eq.loading_dots')}</div>;
   }
 
   // BLOCKING modal: if there are pending transfers, force foreman to respond before doing anything else
@@ -445,7 +445,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
         data-testid="blocking-confirmation-modal"
       >
-        <Card className="bg-[#19243C] border-2 border-[#D4AF37] w-full max-w-md shadow-2xl">
+        <Card className="bg-[#243049] border-2 border-[#D4AF37] w-full max-w-md shadow-2xl">
           <CardHeader>
             <CardTitle className="text-[#D4AF37] flex items-center gap-2 text-lg">
               <Bell className="h-6 w-6 animate-pulse" />
@@ -453,10 +453,10 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="bg-[#131C2F] border border-[#2A3B59] rounded-lg p-4">
-              <p className="text-[#CBD5E1] text-base">Zostało Ci przypisane:</p>
+            <div className="bg-[#1E2A44] border border-[#3D5378] rounded-lg p-4">
+              <p className="text-[#F1F5F9] text-base">Zostało Ci przypisane:</p>
               <p className="text-2xl font-bold text-[#D4AF37] mt-2">{c.equipment_name}</p>
-              <p className="text-[#CBD5E1] text-lg mt-1">
+              <p className="text-[#F1F5F9] text-lg mt-1">
                 Ilość: <span className="font-bold text-white">{c.quantity} szt.</span>
               </p>
               {hoursLeft !== null && (
@@ -465,7 +465,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 </p>
               )}
             </div>
-            <p className="text-xs text-[#94A3B8] text-center">
+            <p className="text-xs text-[#CBD5E1] text-center">
               Potwierdź odbiór jeśli sprzęt fizycznie posiadasz, lub kliknij „Nie otrzymałem" aby zgłosić spór.
             </p>
             <div className="flex gap-2">
@@ -504,7 +504,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
         data-testid="contest-reason-modal"
       >
-        <Card className="bg-[#19243C] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
+        <Card className="bg-[#243049] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
           <CardHeader>
             <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
               <AlertTriangle className="h-6 w-6" />
@@ -512,27 +512,27 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-[#CBD5E1] text-sm">
+            <p className="text-[#F1F5F9] text-sm">
               Sprzęt: <b>{contestModal.equipment_name} x{contestModal.quantity}</b>
             </p>
             <div>
-              <label className="text-sm text-[#94A3B8] block mb-1">Powód (opcjonalnie)</label>
+              <label className="text-sm text-[#CBD5E1] block mb-1">Powód (opcjonalnie)</label>
               <Input
                 value={contestReason}
                 onChange={(e) => setContestReason(e.target.value)}
                 placeholder="Np. nie odebrałem z magazynu / nie zostało mi przekazane"
-                className="bg-[#131C2F] border-[#2A3B59] text-white"
+                className="bg-[#1E2A44] border-[#3D5378] text-white"
                 data-testid="contest-reason-input"
               />
             </div>
-            <p className="text-xs text-[#94A3B8] text-center">
+            <p className="text-xs text-[#CBD5E1] text-center">
               Admin zostanie powiadomiony i zdecyduje czy zostawić przypisanie, czy je wycofać.
             </p>
             <div className="flex gap-2">
               <Button
                 onClick={() => { setContestModal(null); setContestReason(''); }}
                 variant="ghost"
-                className="flex-1 text-[#94A3B8] hover:bg-[#2A3B59]"
+                className="flex-1 text-[#CBD5E1] hover:bg-[#3D5378]"
                 data-testid="contest-cancel-btn"
               >
                 Anuluj
@@ -560,7 +560,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
           className="fixed inset-0 bg-black/90 z-[9999] flex items-center justify-center p-4"
           data-testid="blocking-transfer-modal"
         >
-          <Card className="bg-[#19243C] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
+          <Card className="bg-[#243049] border-2 border-[#9B2C2C] w-full max-w-md shadow-2xl">
             <CardHeader>
               <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-lg">
                 <Bell className="h-6 w-6 animate-pulse" />
@@ -568,21 +568,21 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-[#131C2F] border border-[#2A3B59] rounded-lg p-4">
-                <p className="text-[#CBD5E1] text-base">
+              <div className="bg-[#1E2A44] border border-[#3D5378] rounded-lg p-4">
+                <p className="text-[#F1F5F9] text-base">
                   <span className="font-bold text-white">{t.from_foreman_name}</span> chce przekazac Ci:
                 </p>
                 <p className="text-2xl font-bold text-[#4F6343] mt-2">
                   {t.equipment_name}
                 </p>
-                <p className="text-[#CBD5E1] text-lg mt-1">
+                <p className="text-[#F1F5F9] text-lg mt-1">
                   Ilość: <span className="font-bold text-white">{t.quantity} szt.</span>
                 </p>
-                <p className="text-xs text-[#64748B] mt-2">
+                <p className="text-xs text-[#94A3B8] mt-2">
                   {new Date(t.created_at).toLocaleString('pl-PL')}
                 </p>
               </div>
-              <p className="text-xs text-[#94A3B8] text-center">
+              <p className="text-xs text-[#CBD5E1] text-center">
                 Musisz zaakceptowac lub odrzucic przekazanie aby kontynuowac.
               </p>
               <div className="flex gap-2">
@@ -620,7 +620,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     <div className="space-y-3" data-testid="equipment-foreman">
       {/* Pending warehouse returns (only visible to designated warehouse keeper) */}
       {pendingReturns.length > 0 && (
-        <Card className="bg-[#19243C] border-[#4F6343]" data-testid="warehouse-keeper-section">
+        <Card className="bg-[#243049] border-[#4F6343]" data-testid="warehouse-keeper-section">
           <CardHeader>
             <CardTitle className="text-[#4F6343] flex items-center gap-2 text-base">
               <Undo2 className="h-5 w-5" /> Zwroty do magazynu — do potwierdzenia ({pendingReturns.length})
@@ -631,16 +631,16 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
               {pendingReturns.map((r) => (
                 <div
                   key={r.id}
-                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#131C2F] rounded border border-[#2A3B59]"
+                  className="flex flex-wrap items-center justify-between gap-3 p-3 bg-[#1E2A44] rounded border border-[#3D5378]"
                   data-testid={`keeper-pending-return-${r.id}`}
                 >
                   <div className="text-sm">
-                    <span className="text-[#CBD5E1] font-semibold">{r.from_foreman_name}</span>
-                    <span className="text-[#94A3B8]"> zwraca </span>
+                    <span className="text-[#F1F5F9] font-semibold">{r.from_foreman_name}</span>
+                    <span className="text-[#CBD5E1]"> zwraca </span>
                     <span className="text-[#4F6343] font-bold">{r.equipment_name}</span>
-                    <span className="text-[#94A3B8]"> x </span>
+                    <span className="text-[#CBD5E1]"> x </span>
                     <span className="text-white font-bold">{r.quantity}</span>
-                    <span className="text-[#64748B] text-xs ml-2">
+                    <span className="text-[#94A3B8] text-xs ml-2">
                       ({new Date(r.created_at).toLocaleString('pl-PL')})
                     </span>
                   </div>
@@ -675,9 +675,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       )}
 
       {/* My equipment table */}
-      <Card className="bg-[#19243C] border-[#2A3B59]" data-testid="my-equipment-card">
+      <Card className="bg-[#243049] border-[#3D5378]" data-testid="my-equipment-card">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <Wrench className="h-5 w-5 text-[#4F6343]" /> {title}
           </CardTitle>
           <div className="flex gap-2 flex-wrap">
@@ -685,7 +685,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             size="sm"
             variant="ghost"
             onClick={openHistory}
-            className="text-[#4F6343] hover:bg-[#2A3B59] text-xs"
+            className="text-[#4F6343] hover:bg-[#3D5378] text-xs"
             data-testid="my-history-btn"
           >
             <HistoryIcon className="h-4 w-4 mr-1" /> Moja historia
@@ -704,7 +704,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         </CardHeader>
         <CardContent>
           {myEquipment.length === 0 ? (
-            <p className="text-[#94A3B8] text-sm">{t('eq.no_assigned')}</p>
+            <p className="text-[#CBD5E1] text-sm">{t('eq.no_assigned')}</p>
           ) : (
             <div className="overflow-x-auto">
               {/* iter95ay: pasek bulk-akcji nad tabelą */}
@@ -726,7 +726,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                     size="sm"
                     variant="ghost"
                     onClick={() => setSelectedIds(new Set())}
-                    className="text-[#94A3B8] hover:text-white text-xs h-7"
+                    className="text-[#CBD5E1] hover:text-white text-xs h-7"
                     data-testid="bulk-clear-btn"
                   >
                     Wyczyść zaznaczenie
@@ -734,9 +734,9 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 </div>
               )}
               <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
-                <thead className="sticky top-0 z-30 bg-[#19243C]">
-                  <tr className="bg-[#131C2F]">
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center w-10">
+                <thead className="sticky top-0 z-30 bg-[#243049]">
+                  <tr className="bg-[#1E2A44]">
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-center w-10">
                       <input
                         type="checkbox"
                         checked={myEquipment.length > 0 && selectedIds.size === myEquipment.length}
@@ -750,16 +750,16 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                         data-testid="bulk-select-all"
                       />
                     </th>
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilość</th>
-                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#CBD5E1]">Akcje</th>
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-left text-[#F1F5F9]">Nazwa</th>
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-left text-[#F1F5F9]">Marka</th>
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-center text-[#F1F5F9]">Ilość</th>
+                    <th className="border border-[#3D5378] p-1 sm:p-2 text-center text-[#F1F5F9]">Akcje</th>
                   </tr>
                 </thead>
                 <tbody>
                   {myEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
-                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-center align-middle">
+                      <td className="border border-[#3D5378] p-1 sm:p-2 text-center align-middle">
                         <input
                           type="checkbox"
                           checked={selectedIds.has(eq.id)}
@@ -774,26 +774,26 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                           data-testid={`bulk-select-${eq.id}`}
                         />
                       </td>
-                      <td className="border border-[#2A3B59] p-1 sm:p-2 align-middle">
+                      <td className="border border-[#3D5378] p-1 sm:p-2 align-middle">
                         <div className="flex items-center gap-2">
                           {eq.photo ? (
                             <img
                               src={eq.photo}
                               alt={eq.name}
-                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded border border-[#2A3B59] shrink-0 bg-[#0B1120] cursor-zoom-in"
+                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain rounded border border-[#3D5378] shrink-0 bg-[#152033] cursor-zoom-in"
                               onClick={() => setPreviewPhoto(eq.photo)}
                             />
                           ) : (
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#131C2F] border border-[#2A3B59] flex items-center justify-center shrink-0">
-                              <Wrench className="h-5 w-5 text-[#2A3B59]" />
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded bg-[#1E2A44] border border-[#3D5378] flex items-center justify-center shrink-0">
+                              <Wrench className="h-5 w-5 text-[#3D5378]" />
                             </div>
                           )}
-                          <span className="text-[#CBD5E1] font-semibold text-[11px] sm:text-sm leading-tight break-words normal-case">{eq.name}</span>
+                          <span className="text-[#F1F5F9] font-semibold text-[11px] sm:text-sm leading-tight break-words normal-case">{eq.name}</span>
                         </div>
                       </td>
-                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-[#94A3B8] text-[11px] sm:text-sm align-middle">{eq.brand || '-'}</td>
-                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#4F6343] font-bold align-middle">{eq.quantity}</td>
-                      <td className="border border-[#2A3B59] p-1 align-middle">
+                      <td className="border border-[#3D5378] p-1 sm:p-2 text-[#CBD5E1] text-[11px] sm:text-sm align-middle">{eq.brand || '-'}</td>
+                      <td className="border border-[#3D5378] p-1 sm:p-2 text-center text-[#4F6343] font-bold align-middle">{eq.quantity}</td>
+                      <td className="border border-[#3D5378] p-1 align-middle">
                         <div className="flex gap-1 flex-col sm:flex-row sm:flex-wrap items-stretch sm:justify-center">
                           <Button
                             size="sm"
@@ -813,7 +813,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                               setReturnModal(eq);
                               setReturnQty(String(eq.quantity));
                             }}
-                            className="text-[#4F6343] hover:bg-[#2A3B59] text-xs h-7 px-2"
+                            className="text-[#4F6343] hover:bg-[#3D5378] text-xs h-7 px-2"
                             data-testid={`return-btn-${eq.id}`}
                           >
                             <Undo2 className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.return_warehouse')}</span>
@@ -825,7 +825,7 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                               setDefectModal(eq);
                               setDefectQty('1');
                             }}
-                            className="text-[#DC4A3A] hover:bg-[#2A3B59] text-xs h-7 px-2"
+                            className="text-[#DC4A3A] hover:bg-[#3D5378] text-xs h-7 px-2"
                             data-testid={`defect-btn-${eq.id}`}
                           >
                             <AlertTriangle className="h-3 w-3 sm:mr-1" /> <span className="hidden sm:inline">{t('eq.defect_short')}</span>

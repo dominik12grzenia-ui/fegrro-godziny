@@ -172,7 +172,7 @@ export const PublicPushButton = ({ token }) => {
       size="sm"
       onClick={handleEnable}
       disabled={busy}
-      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
+      className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-bold"
       data-testid="public-push-enable"
     >
       <Bell className="h-4 w-4 mr-1" />

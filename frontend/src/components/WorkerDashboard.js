@@ -27,7 +27,7 @@ const WarehouseForeman = lazy(warehouseForemanImport);
 // uzywac hooka useLanguage. Tekst po polsku/ukrainsku pokazywany jest tylko
 // na ulamek sekundy podczas lazy-load, wiec hardcoded PL jest akceptowalne.
 const EquipmentSpinner = () => (
-  <div className="p-4 text-center text-[#94A3B8] text-sm">Ładowanie...</div>
+  <div className="p-4 text-center text-[#CBD5E1] text-sm">Ładowanie...</div>
 );
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
@@ -163,8 +163,8 @@ export const WorkerDashboard = () => {
       start_url: '/foreman',
       scope: '/',
       display: 'standalone',
-      background_color: '#0B1120',
-      theme_color: '#0B1120',
+      background_color: '#152033',
+      theme_color: '#152033',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -444,7 +444,7 @@ export const WorkerDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#131C2F] p-4">
+      <div className="min-h-screen bg-[#1E2A44] p-4">
         <div className="max-w-3xl mx-auto space-y-4">
           <SkeletonBox style={{ height: 56 }} />
           <SkeletonCards count={2} />
@@ -458,18 +458,18 @@ export const WorkerDashboard = () => {
   // No sites assigned yet
   if (!foremanData || !foremanData.assigned_sites || foremanData.assigned_sites.length === 0) {
     return (
-      <div className="min-h-screen bg-[#131C2F]">
-        <div className="bg-[#19243C] text-white p-4 shadow-lg flex items-center gap-3 justify-between">
+      <div className="min-h-screen bg-[#1E2A44]">
+        <div className="bg-[#243049] text-white p-4 shadow-lg flex items-center gap-3 justify-between">
           <h1 className="text-xl font-bold flex-1 min-w-0 truncate">{t('foreman.greeting', { name: user?.full_name })}</h1>
           <LanguageToggle />
-          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
+          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#3D5378]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
         </div>
         <div className="flex items-center justify-center p-8">
-          <Card className="bg-[#19243C] border-[#2A3B59] max-w-md w-full">
+          <Card className="bg-[#243049] border-[#3D5378] max-w-md w-full">
             <CardContent className="pt-6 text-center">
               <AlertCircle className="h-16 w-16 text-[#4F6343] mx-auto mb-4" />
-              <h2 className="text-xl font-bold text-[#CBD5E1] mb-2">{t('foreman.greeting', { name: '' })}</h2>
-              <p className="text-[#94A3B8]">
+              <h2 className="text-xl font-bold text-[#F1F5F9] mb-2">{t('foreman.greeting', { name: '' })}</h2>
+              <p className="text-[#CBD5E1]">
                 {t('foreman.no_sites')}
               </p>
             </CardContent>
@@ -483,12 +483,12 @@ export const WorkerDashboard = () => {
   const monthLabel = format(selectedMonth, 'LLLL yyyy', { locale: pl });
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#131C2F]">
+    <div className="min-h-screen flex flex-col bg-[#1E2A44]">
       {/* Inventory check blocking modal */}
       <InventoryCheckModal />
       {/* Impersonation banner */}
       {isImpersonating && (
-        <div className="bg-[#D4AF37] text-[#131C2F] px-4 py-2 text-sm font-semibold flex items-center justify-between gap-2 shrink-0" data-testid="impersonation-banner">
+        <div className="bg-[#D4AF37] text-[#1E2A44] px-4 py-2 text-sm font-semibold flex items-center justify-between gap-2 shrink-0" data-testid="impersonation-banner">
           <span>👁️ Wcielony jako brygadzista <b>{user?.full_name}</b> (sesja 1h)</span>
           <Button
             size="sm"
@@ -501,7 +501,7 @@ export const WorkerDashboard = () => {
                 window.location.href = '/login';
               }
             }}
-            className="bg-[#131C2F] text-white hover:bg-[#0B1120] h-8"
+            className="bg-[#1E2A44] text-white hover:bg-[#152033] h-8"
             data-testid="stop-impersonation-btn"
           >
             ← Wróć do admina
@@ -509,18 +509,18 @@ export const WorkerDashboard = () => {
         </div>
       )}
       {/* Header */}
-      <div className="bg-[#19243C] text-white shadow-lg shrink-0">
+      <div className="bg-[#243049] text-white shadow-lg shrink-0">
         <div className="max-w-full mx-auto p-4 flex items-center gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl sm:text-2xl font-bold truncate">{user?.full_name}</h1>
-            <p className="text-[#94A3B8] text-sm">
+            <p className="text-[#CBD5E1] text-sm">
               {t('common.site')}: {mySites.map(s => s.name).join(', ')} | {monthLabel}
             </p>
           </div>
           <LanguageToggle />
           <LocationsButton />
           <PushNotificationButton compact />
-          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#2A3B59]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
+          <ActionButton onAction={handleLogout} variant="ghost" className="text-white hover:bg-[#3D5378]" data-testid="logout-btn"><LogOut className="h-5 w-5" /></ActionButton>
         </div>
       </div>
 
@@ -530,48 +530,48 @@ export const WorkerDashboard = () => {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setEqTab('electronics')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="foreman-tab-electronics"
             >
               {t('common.tools')}
               {orderCounts.electronics > 0 && (
-                <span className="ml-1.5 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                <span className="ml-1.5 bg-[#D4AF37] text-[#1E2A44] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.electronics}
                 </span>
               )}
             </button>
             <button
               onClick={() => setEqTab('accessories')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'accessories' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'accessories' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="foreman-tab-accessories"
             >
               {t('common.accessories')}
               {orderCounts.accessories > 0 && (
-                <span className="ml-1.5 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                <span className="ml-1.5 bg-[#D4AF37] text-[#1E2A44] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.accessories}
                 </span>
               )}
             </button>
             <button
               onClick={() => setEqTab('formwork')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'formwork' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'formwork' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="foreman-tab-formwork"
             >
               {t('common.formwork')}
               {orderCounts.formwork > 0 && (
-                <span className="ml-1.5 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                <span className="ml-1.5 bg-[#D4AF37] text-[#1E2A44] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.formwork}
                 </span>
               )}
             </button>
             <button
               onClick={() => setEqTab('warehouse')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'warehouse' ? 'bg-[#4F6343] text-white' : 'bg-[#19243C] text-[#94A3B8] hover:bg-[#2A3B59]'}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'warehouse' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="foreman-tab-warehouse"
             >
               Materiały
               {orderCounts.warehouse > 0 && (
-                <span className="ml-1.5 bg-[#D4AF37] text-[#131C2F] text-xs rounded-full px-1.5 py-0.5 font-bold">
+                <span className="ml-1.5 bg-[#D4AF37] text-[#1E2A44] text-xs rounded-full px-1.5 py-0.5 font-bold">
                   {orderCounts.warehouse}
                 </span>
               )}
@@ -623,7 +623,7 @@ export const WorkerDashboard = () => {
                     // devices this foreman uses (was previously per-browser).
                     try { await api.post(`/absences/${a.id}/ack`); } catch (_e) { /* ignore */ }
                   }}
-                  className="shrink-0 px-3 py-1.5 bg-[#2A3B59] text-[#CBD5E1] text-xs font-bold rounded hover:bg-[#4F6343] hover:text-white transition-colors"
+                  className="shrink-0 px-3 py-1.5 bg-[#3D5378] text-[#F1F5F9] text-xs font-bold rounded hover:bg-[#4F6343] hover:text-white transition-colors"
                   data-testid={`dismiss-absence-${a.id}`}
                 >
                   Przyjąłem
@@ -634,15 +634,15 @@ export const WorkerDashboard = () => {
         )}
 
         {/* Info bar */}
-        <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59] flex flex-wrap items-center gap-3 text-sm">
-          <span className="text-[#94A3B8]">{t('worker_dash.can_edit_label')}</span>
+        <div className="mb-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378] flex flex-wrap items-center gap-3 text-sm">
+          <span className="text-[#CBD5E1]">{t('worker_dash.can_edit_label')}</span>
           <span className="px-2 py-1 bg-[#4F6343]/30 text-[#5F7552] rounded font-semibold">{t('common.today')}</span>
           <span className="px-2 py-1 bg-[#4F6343]/30 text-[#5F7552] rounded font-semibold">{t('common.yesterday')}</span>
-          <span className="text-[#64748B]">| Inne dni → wyslij prosbe</span>
+          <span className="text-[#94A3B8]">| Inne dni → wyslij prosbe</span>
         </div>
 
         {/* Bulk mode bar */}
-        <div className="mb-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59]">
+        <div className="mb-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378]">
           {!bulkMode ? (
             <Button
               onClick={() => setBulkMode(true)}
@@ -655,7 +655,7 @@ export const WorkerDashboard = () => {
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="text-[#CBD5E1] font-semibold text-sm">{t('worker_dash.hours_label')}</span>
+                <span className="text-[#F1F5F9] font-semibold text-sm">{t('worker_dash.hours_label')}</span>
                 <Input
                   type="number"
                   min="0"
@@ -663,11 +663,11 @@ export const WorkerDashboard = () => {
                   value={bulkHours}
                   onChange={(e) => setBulkHours(e.target.value)}
                   placeholder="np. 10"
-                  className="w-24 bg-[#131C2F] border-[#4F6343] text-white text-center h-10"
+                  className="w-24 bg-[#1E2A44] border-[#4F6343] text-white text-center h-10"
                   data-testid="bulk-hours-input"
                   autoFocus
                 />
-                <span className="text-[#94A3B8] text-sm">{t('worker_dash.select_workers')}</span>
+                <span className="text-[#CBD5E1] text-sm">{t('worker_dash.select_workers')}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {employees.map(emp => {
@@ -682,7 +682,7 @@ export const WorkerDashboard = () => {
                       className={`px-3 py-2 rounded-lg text-sm font-medium transition-all ${
                         isSelected
                           ? 'bg-[#4F6343] text-white ring-2 ring-[#5F7552]'
-                          : 'bg-[#131C2F] text-[#94A3B8] hover:bg-[#2A3B59]'
+                          : 'bg-[#1E2A44] text-[#CBD5E1] hover:bg-[#3D5378]'
                       }`}
                       data-testid={`bulk-emp-${emp.id}`}
                     >
@@ -701,7 +701,7 @@ export const WorkerDashboard = () => {
                 <Button
                   onClick={() => { setBulkMode(false); setBulkSelected(new Set()); setBulkHours(''); }}
                   variant="outline"
-                  className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+                  className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
                   data-testid="bulk-cancel-btn"
                 >
                   Anuluj
@@ -714,9 +714,9 @@ export const WorkerDashboard = () => {
         {/* Table */}
       </div>
       <div className="flex-1 min-h-0 px-4 pb-4">
-        <Card className="bg-[#19243C] border-[#2A3B59] h-full flex flex-col">
+        <Card className="bg-[#243049] border-[#3D5378] h-full flex flex-col">
           <CardHeader className="pb-2 shrink-0">
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
               <Calendar className="h-5 w-5 text-[#4F6343]" />
               Tabela godzin
             </CardTitle>
@@ -725,30 +725,30 @@ export const WorkerDashboard = () => {
             <div className="overflow-auto h-full">
               <table className="w-full text-sm border-collapse" data-testid="foreman-hours-table">
                 <thead className="sticky top-0 z-30" style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.4)' }}>
-                  <tr className="bg-[#131C2F]">
-                    <th className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] min-w-[35px] sticky left-0 z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                  <tr className="bg-[#1E2A44]">
+                    <th className="border border-[#3D5378] p-1 text-center text-[#CBD5E1] min-w-[35px] sticky left-0 z-40 bg-[#1E2A44]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       L.p.
                     </th>
-                    <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1] min-w-[140px] sticky left-[35px] z-40 bg-[#131C2F]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                    <th className="border border-[#3D5378] p-2 text-left text-[#F1F5F9] min-w-[140px] sticky left-[35px] z-40 bg-[#1E2A44]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                       Pracownik
                     </th>
                     {days.map(d => {
-                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
+                      const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#3D5378';
                       const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : d.isWeekend ? '2px' : '1px';
                       return (
                       <th
                         key={d.day}
                         className="p-1 text-center min-w-[42px] relative"
                         style={{
-                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#131C2F',
+                          backgroundColor: d.isWeekend || d.isHoliday ? WEEKEND_BG : '#1E2A44',
                           borderLeft: `${borderWidth} solid ${borderColor}`,
                           borderRight: `${borderWidth} solid ${borderColor}`,
                           borderTop: `${borderWidth} solid ${borderColor}`,
                           borderBottom: `${borderWidth} solid ${borderColor}`,
                         }}
                       >
-                        <div className="text-[#CBD5E1] font-bold text-xs">{d.day}</div>
-                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
+                        <div className="text-[#F1F5F9] font-bold text-xs">{d.day}</div>
+                        <div className={`text-[10px] ${d.isWeekend || d.isHoliday ? 'text-[#DC4A3A]' : 'text-[#CBD5E1]'}`}>
                           {d.dayName}
                         </div>
                       </th>
@@ -757,13 +757,13 @@ export const WorkerDashboard = () => {
                     {mySites.map((site, idx) => (
                       <th
                         key={`sh-${site.id}`}
-                        className="border border-[#2A3B59] p-1 text-center min-w-[60px]"
+                        className="border border-[#3D5378] p-1 text-center min-w-[60px]"
                         style={{ backgroundColor: SITE_COLORS_HEX[sites.findIndex(s => s.id === site.id) % SITE_COLORS_HEX.length] + '55' }}
                       >
-                        <div className="text-[#CBD5E1] text-[10px] font-semibold leading-tight">{site.name}</div>
+                        <div className="text-[#F1F5F9] text-[10px] font-semibold leading-tight">{site.name}</div>
                       </th>
                     ))}
-                    <th className="border border-[#2A3B59] p-2 text-center text-[#4F6343] font-bold min-w-[60px] bg-[#131C2F]">
+                    <th className="border border-[#3D5378] p-2 text-center text-[#4F6343] font-bold min-w-[60px] bg-[#1E2A44]">
                       SUMA
                     </th>
                   </tr>
@@ -774,11 +774,11 @@ export const WorkerDashboard = () => {
                     const totalHours = Object.values(hoursBySite).reduce((s, h) => s + h, 0) + unassigned;
 
                     return (
-                      <tr key={employee.id} className="border-b border-[#2A3B59]">
-                        <td className="border border-[#2A3B59] p-1 text-center text-[#94A3B8] text-xs font-medium bg-[#131C2F] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
+                      <tr key={employee.id} className="border-b border-[#3D5378]">
+                        <td className="border border-[#3D5378] p-1 text-center text-[#CBD5E1] text-xs font-medium bg-[#1E2A44] sticky left-0 z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }}>
                           {employees.indexOf(employee) + 1}
                         </td>
-                        <td className="border border-[#2A3B59] p-2 text-[#CBD5E1] font-medium bg-[#131C2F] sticky left-[35px] z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
+                        <td className="border border-[#3D5378] p-2 text-[#F1F5F9] font-medium bg-[#1E2A44] sticky left-[35px] z-[15]" style={{ boxShadow: '2px 0 4px rgba(0,0,0,0.3)' }} data-testid={`emp-name-${employee.id}`}>
                           {employee.full_name}
                         </td>
                         {days.map(d => {
@@ -789,7 +789,7 @@ export const WorkerDashboard = () => {
                           const editable = canEditCell(employee.id, d.date);
                           const hasAssignment = !!getCellAssignment(employee.id, d.date);
                           const hasAbsence = isAbsenceDate(employee.id, d.date);
-                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#2A3B59';
+                          const borderColor = d.isToday ? '#22C55E' : d.isHoliday ? HOLIDAY_BORDER : d.isWeekend ? WEEKEND_BORDER : '#3D5378';
                           const borderWidth = d.isToday ? '2px' : d.isHoliday ? '3px' : d.isWeekend ? '2px' : '1px';
 
                           const today = new Date();
@@ -801,7 +801,7 @@ export const WorkerDashboard = () => {
                           const showNN = isPast && isWorkDay && noHours && !hasAbsence;
                           const showNU = isWorkDay && noHours && hasAbsence;
 
-                          const cellBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#19243C');
+                          const cellBg = showNN ? '#7F2229' : showNU ? '#7F1D1D' : hasAbsence ? '#7F1D1D' : (bgColor || '#243049');
 
                           return (
                             <td
@@ -832,7 +832,7 @@ export const WorkerDashboard = () => {
                                     if (e.key === 'Escape') setEditingCell(null);
                                   }}
                                   autoFocus
-                                  className="w-full h-8 text-center bg-[#0B1120] text-white border-[#4F6343] text-sm p-0 rounded-none"
+                                  className="w-full h-8 text-center bg-[#152033] text-white border-[#4F6343] text-sm p-0 rounded-none"
                                   data-testid={`input-${employee.id}-${d.day}`}
                                 />
                               ) : showNN ? (
@@ -853,17 +853,17 @@ export const WorkerDashboard = () => {
                           return (
                             <td
                               key={`t-${employee.id}-${site.id}`}
-                              className="border border-[#2A3B59] p-1 text-center"
+                              className="border border-[#3D5378] p-1 text-center"
                               style={{ backgroundColor: SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length] + '33' }}
                             >
-                              <span className="text-[#CBD5E1] font-semibold text-sm">
+                              <span className="text-[#F1F5F9] font-semibold text-sm">
                                 {hoursBySite[site.id] || 0}
                               </span>
                             </td>
                           );
                         })}
                         {/* Total */}
-                        <td className="border border-[#2A3B59] p-1 text-center bg-[#131C2F]">
+                        <td className="border border-[#3D5378] p-1 text-center bg-[#1E2A44]">
                           <span className="text-[#4F6343] font-bold text-base">{totalHours}</span>
                         </td>
                       </tr>
@@ -874,28 +874,28 @@ export const WorkerDashboard = () => {
             </div>
 
             {/* Legend */}
-            <div className="p-4 border-t border-[#2A3B59]">
-              <p className="text-xs font-semibold mb-2 text-[#CBD5E1]">{t('common.legend')}:</p>
+            <div className="p-4 border-t border-[#3D5378]">
+              <p className="text-xs font-semibold mb-2 text-[#F1F5F9]">{t('common.legend')}:</p>
               <div className="flex flex-wrap gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: WEEKEND_BG }} />
-                  <span className="text-[#94A3B8]">{t('common.weekend')}</span>
+                  <span className="text-[#CBD5E1]">{t('common.weekend')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="inline-block w-4 h-4 rounded-sm border-2 border-[#9B2C2C]" style={{ backgroundColor: WEEKEND_BG }} />
-                  <span className="text-[#94A3B8]">{t('common.holiday')}</span>
+                  <span className="text-[#CBD5E1]">{t('common.holiday')}</span>
                 </div>
                 {mySites.map((site) => {
                   const siteIdx = sites.findIndex(s => s.id === site.id);
                   return (
                     <div key={site.id} className="flex items-center gap-1.5">
                       <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length] }} />
-                      <span className="text-[#94A3B8]">{site.name}</span>
+                      <span className="text-[#CBD5E1]">{site.name}</span>
                     </div>
                   );
                 })}
               </div>
-              <p className="text-[10px] text-[#64748B] mt-2">
+              <p className="text-[10px] text-[#94A3B8] mt-2">
                 Kliknij komorke (dzis/wczoraj) aby wpisac godziny | Inne dni → wyslij prosbe do administratora
               </p>
             </div>
@@ -903,11 +903,11 @@ export const WorkerDashboard = () => {
         </Card>
 
         {employees.length === 0 && (
-          <Card className="bg-[#19243C] border-[#2A3B59] mt-4">
+          <Card className="bg-[#243049] border-[#3D5378] mt-4">
             <CardContent className="pt-6 text-center">
               <AlertCircle className="h-12 w-12 text-[#4F6343] mx-auto mb-3" />
-              <p className="text-[#CBD5E1] font-semibold">{t('worker_dash.no_assigned_workers')}</p>
-              <p className="text-[#94A3B8] text-sm mt-1">{t('worker_dash.admin_must_assign')}</p>
+              <p className="text-[#F1F5F9] font-semibold">{t('worker_dash.no_assigned_workers')}</p>
+              <p className="text-[#CBD5E1] text-sm mt-1">{t('worker_dash.admin_must_assign')}</p>
             </CardContent>
           </Card>
         )}
@@ -916,37 +916,37 @@ export const WorkerDashboard = () => {
       {/* Request Modal */}
       {requestModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setRequestModal(null)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-sm" onClick={e => e.stopPropagation()}>
+          <Card className="bg-[#243049] border-[#3D5378] w-full max-w-sm" onClick={e => e.stopPropagation()}>
             <CardHeader>
-              <CardTitle className="text-[#CBD5E1] text-lg flex items-center gap-2">
+              <CardTitle className="text-[#F1F5F9] text-lg flex items-center gap-2">
                 <Send className="h-5 w-5 text-[#4F6343]" />
                 Prosba o edycje godzin
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-[#94A3B8]">
-                Data: <span className="text-[#CBD5E1] font-semibold">{requestModal.date}</span>
+              <p className="text-sm text-[#CBD5E1]">
+                Data: <span className="text-[#F1F5F9] font-semibold">{requestModal.date}</span>
               </p>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">{t('worker_dash.hours_1_14')}</label>
+                <label className="text-sm text-[#F1F5F9] block mb-1">{t('worker_dash.hours_1_14')}</label>
                 <Input
                   type="number"
                   min="1"
                   max="14"
                   value={requestHours}
                   onChange={e => setRequestHours(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] text-white"
+                  className="bg-[#1E2A44] border-[#3D5378] text-white"
                   data-testid="request-hours-input"
                   autoFocus
                 />
               </div>
               <div>
-                <label className="text-sm text-[#CBD5E1] block mb-1">{t('worker_dash.reason_optional')}</label>
+                <label className="text-sm text-[#F1F5F9] block mb-1">{t('worker_dash.reason_optional')}</label>
                 <Input
                   value={requestReason}
                   onChange={e => setRequestReason(e.target.value)}
                   placeholder="Np. uzupelnienie z poprzedniego tygodnia"
-                  className="bg-[#131C2F] border-[#2A3B59] text-white placeholder:text-[#64748B]"
+                  className="bg-[#1E2A44] border-[#3D5378] text-white placeholder:text-[#94A3B8]"
                   data-testid="request-reason-input"
                 />
               </div>
@@ -964,7 +964,7 @@ export const WorkerDashboard = () => {
                 <Button
                   onClick={() => setRequestModal(null)}
                   variant="outline"
-                  className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+                  className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
                 >
                   Anuluj
                 </Button>

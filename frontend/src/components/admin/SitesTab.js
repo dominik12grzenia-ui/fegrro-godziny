@@ -11,7 +11,7 @@ const CAT_COLORS = {
   budowa: 'bg-[#4F6343] text-white',
   sklep: 'bg-[#92400E] text-[#FED7AA]',
   magazyn: 'bg-[#1E40AF] text-[#BFDBFE]',
-  inne: 'bg-[#2A3B59] text-[#CBD5E1]',
+  inne: 'bg-[#3D5378] text-[#F1F5F9]',
 };
 
 export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocoding, fetchData }) => {
@@ -20,9 +20,9 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
   return (
     <div className="space-y-4">
       {/* Map */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <MapPin className="h-5 w-5 text-[#4F6343]" />
             Mapa lokalizacji
           </CardTitle>
@@ -35,9 +35,9 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
       </Card>
 
       {/* Add Location Form */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <MapPin className="h-5 w-5 text-[#4F6343]" />
             Dodaj nowa lokalizacje
           </CardTitle>
@@ -48,13 +48,13 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
               type="text"
               id="new-site-name"
               placeholder="Nazwa (np. Budowa Krakow, Sklep Castorama)"
-              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] text-sm rounded px-3 py-2 placeholder:text-[#64748B] md:col-span-2"
+              className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] text-sm rounded px-3 py-2 placeholder:text-[#94A3B8] md:col-span-2"
               data-testid="new-site-name"
             />
             <select
               id="new-site-category"
               defaultValue="sklep"
-              className="bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] text-sm rounded px-3 py-2"
+              className="bg-[#1E2A44] border border-[#3D5378] text-[#F1F5F9] text-sm rounded px-3 py-2"
               data-testid="new-site-category"
             >
               <option value="budowa">Budowa</option>
@@ -82,16 +82,16 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
               Dodaj
             </Button>
           </div>
-          <p className="text-xs text-[#94A3B8] mt-2">
+          <p className="text-xs text-[#CBD5E1] mt-2">
             Po dodaniu wpisz adres ponizej karty by ustawic lokalizacje na mapie.
           </p>
         </CardContent>
       </Card>
 
       {/* Sites List */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader>
-          <CardTitle className="text-[#CBD5E1]">Lokalizacje</CardTitle>
+          <CardTitle className="text-[#F1F5F9]">Lokalizacje</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -100,10 +100,10 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
               const catLabel = CAT_LABELS[cat] || cat;
               const catColor = CAT_COLORS[cat] || CAT_COLORS.inne;
               return (
-                <Card key={site.id} className="bg-[#131C2F] border-[#2A3B59]" data-testid={`site-card-${site.id}`}>
+                <Card key={site.id} className="bg-[#1E2A44] border-[#3D5378]" data-testid={`site-card-${site.id}`}>
                   <CardContent className="pt-4 space-y-3">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-base text-[#CBD5E1] flex-1">{site.name}</h3>
+                      <h3 className="font-bold text-base text-[#F1F5F9] flex-1">{site.name}</h3>
                       <select
                         value={cat}
                         onChange={async (e) => {
@@ -131,12 +131,12 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                       </p>
                     ) : (
                       <div className="space-y-2">
-                        <p className="text-xs text-[#94A3B8]">Brak lokalizacji</p>
+                        <p className="text-xs text-[#CBD5E1]">Brak lokalizacji</p>
                         <div className="flex gap-2">
                           <input
                             type="text"
                             placeholder="Wpisz adres..."
-                            className="flex-1 bg-[#0B1120] border border-[#2A3B59] text-[#CBD5E1] text-xs rounded px-2 py-1.5 placeholder:text-[#64748B]"
+                            className="flex-1 bg-[#152033] border border-[#3D5378] text-[#F1F5F9] text-xs rounded px-2 py-1.5 placeholder:text-[#94A3B8]"
                             data-testid={`address-input-${site.id}`}
                             id={`addr-${site.id}`}
                           />
@@ -172,10 +172,10 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                       </div>
                     )}
                     {site.google_maps_url && (
-                      <p className="text-[10px] text-[#64748B] truncate">{site.google_maps_url}</p>
+                      <p className="text-[10px] text-[#94A3B8] truncate">{site.google_maps_url}</p>
                     )}
-                    <div className="flex items-center justify-between pt-2 border-t border-[#2A3B59]">
-                      <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer">
+                    <div className="flex items-center justify-between pt-2 border-t border-[#3D5378]">
+                      <label className="flex items-center gap-2 text-xs text-[#F1F5F9] cursor-pointer">
                         <input
                           type="checkbox"
                           checked={site.visible_to_foremen !== false}
@@ -216,7 +216,7 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
               );
             })}
             {manualSites.length === 0 && (
-              <div className="col-span-full text-center p-8 text-[#94A3B8]">
+              <div className="col-span-full text-center p-8 text-[#CBD5E1]">
                 Brak lokalizacji - dodaj pierwsza powyzej.
               </div>
             )}

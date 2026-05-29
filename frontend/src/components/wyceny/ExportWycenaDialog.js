@@ -62,38 +62,38 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md wyceny-no-spin"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md wyceny-no-spin"
         data-testid="export-wycena-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
             <FileText className="h-5 w-5" /> Eksportuj wycenę
           </DialogTitle>
-          <div className="text-xs text-[#94A3B8]">Wybierz zakres szczegółowości eksportu.</div>
+          <div className="text-xs text-[#CBD5E1]">Wybierz zakres szczegółowości eksportu.</div>
         </DialogHeader>
         <div className="space-y-2 my-3">
-          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'positions' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'positions' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#3D5378] hover:border-[#5F7552]'}`}>
             <input type="radio" name="detail" value="positions"
               checked={detail === 'positions'} onChange={() => setDetail('positions')}
               className="mt-0.5" data-testid="export-radio-positions" />
             <div>
               <div className="text-sm font-semibold text-white">Same pozycje główne</div>
-              <div className="text-[10px] text-[#94A3B8]">
+              <div className="text-[10px] text-[#CBD5E1]">
                 1 wiersz na pozycję, w „Uwagi" lista zawartych podpozycji (Materiały, Robocizna, Sprzęt) — bez ilości i cen.
               </div>
             </div>
           </label>
-          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'full' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'full' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#3D5378] hover:border-[#5F7552]'}`}>
             <input type="radio" name="detail" value="full"
               checked={detail === 'full'} onChange={() => setDetail('full')}
               className="mt-0.5" data-testid="export-radio-full" />
             <div>
               <div className="text-sm font-semibold text-white">Pozycje główne + podpozycje</div>
-              <div className="text-[10px] text-[#94A3B8]">
+              <div className="text-[10px] text-[#CBD5E1]">
                 Każda podpozycja w osobnym wierszu z ilością, ceną, narzutem, marżą, kaucjami proporcjonalnymi i budżetem.
               </div>
             </div>
           </label>
-          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'client' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#2A3B59] hover:border-[#5F7552]'}`}>
+          <label className={`flex items-start gap-3 p-3 border rounded cursor-pointer ${detail === 'client' ? 'border-[#D4AF37] bg-[#D4AF37]/5' : 'border-[#3D5378] hover:border-[#5F7552]'}`}>
             <input type="radio" name="detail" value="client"
               checked={detail === 'client'} onChange={() => setDetail('client')}
               className="mt-0.5" data-testid="export-radio-client" />
@@ -102,7 +102,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
                 Wersja dla klienta
                 <span className="text-[9px] bg-[#5F7552] text-white px-1.5 py-0.5 rounded uppercase">PDF · Excel</span>
               </div>
-              <div className="text-[10px] text-[#94A3B8]">
+              <div className="text-[10px] text-[#CBD5E1]">
                 Schludny dokument z logo: nazwa pozycji, ilość, cena netto, wartość netto. <b className="text-[#9DBC85]">Bez</b> marży, narzutu, kaucji i zysku. Excel z <b className="text-[#9DBC85]">aktywnymi formułami</b> (=ilość×cena, =SUM) — inwestor może podmienić wartości i wszystko się przeliczy.
               </div>
             </div>
@@ -115,19 +115,19 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
             <div className="text-[10px] uppercase text-[#9DBC85] font-semibold mb-1">
               Co załączyć w ofercie:
             </div>
-            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+            <label className="flex items-center gap-2 text-xs text-[#F1F5F9] cursor-pointer hover:text-white">
               <input type="checkbox" checked={includeSurface}
                 onChange={(e) => setIncludeSurface(e.target.checked)}
                 className="accent-[#9DBC85]" data-testid="export-opt-surface" />
               <span><b className="text-[#9DBC85]">Powierzchnie</b> (PC, PC↓ podziemie, PC↑ nadziemie, PUM)</span>
             </label>
-            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+            <label className="flex items-center gap-2 text-xs text-[#F1F5F9] cursor-pointer hover:text-white">
               <input type="checkbox" checked={includeWskazniki}
                 onChange={(e) => setIncludeWskazniki(e.target.checked)}
                 className="accent-[#9DBC85]" data-testid="export-opt-wskazniki" />
               <span><b className="text-[#9DBC85]">Wskaźniki kosztowe</b> (zł/m² dla PC / PC↓ / PC↑ / PUM)</span>
             </label>
-            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+            <label className="flex items-center gap-2 text-xs text-[#F1F5F9] cursor-pointer hover:text-white">
               <input type="checkbox" checked={includeNotes}
                 onChange={(e) => setIncludeNotes(e.target.checked)}
                 className="accent-[#9DBC85]" data-testid="export-opt-notes" />
@@ -136,7 +136,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
           </div>
         )}
         <DialogFooter className="gap-2">
-          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+          <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
             data-testid="export-close">Anuluj</Button>
           <Button onClick={preview} disabled={downloading}
             variant="outline" className="border-[#D4AF37]/60 text-[#D4AF37]"
@@ -150,7 +150,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
           <Button onClick={() => download('xlsx')} disabled={downloading}
-            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#152033] font-semibold"
             data-testid="export-xlsx-btn">
             <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
           </Button>

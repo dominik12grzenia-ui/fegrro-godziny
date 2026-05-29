@@ -53,23 +53,23 @@ export const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
           ⚙ Uzupełnij aby przeliczyć cenę na 1 {posUnit || 'jd. wyrobu'}
         </div>
         <div className="grid grid-cols-12 gap-2 items-center">
-          <label className="col-span-2 text-[10px] text-[#94A3B8]">Ilość w opak.</label>
+          <label className="col-span-2 text-[10px] text-[#CBD5E1]">Ilość w opak.</label>
           <input type="number" step="0.01" value={pkgQty}
             onChange={(e) => setPkgQty(e.target.value)} placeholder="np. 20"
-            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            className="col-span-2 bg-[#152033] border border-[#3D5378] rounded h-7 text-xs text-[#F1F5F9] px-2 outline-none focus:border-[#D4AF37]"
             data-testid={`qf-pkg-qty-${item.id}`} />
           <select value={pkgUnit} onChange={(e) => setPkgUnit(e.target.value)}
-            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            className="col-span-2 bg-[#152033] border border-[#3D5378] rounded h-7 text-xs text-[#F1F5F9] px-2 outline-none focus:border-[#D4AF37]"
             data-testid={`qf-pkg-unit-${item.id}`}>
             {PKG_UNITS.filter((u) => u).map((u) => <option key={u} value={u}>{u}</option>)}
           </select>
-          <label className="col-span-1 text-[10px] text-[#94A3B8]">Zap.</label>
+          <label className="col-span-1 text-[10px] text-[#CBD5E1]">Zap.</label>
           <input type="number" step="0.01" value={zap}
             onChange={(e) => setZap(e.target.value)} placeholder="np. 0.3"
-            className="col-span-2 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            className="col-span-2 bg-[#152033] border border-[#3D5378] rounded h-7 text-xs text-[#F1F5F9] px-2 outline-none focus:border-[#D4AF37]"
             data-testid={`qf-zap-${item.id}`} />
           <select value={zapUnit} onChange={(e) => setZapUnit(e.target.value)}
-            className="col-span-3 bg-[#0B1120] border border-[#2A3B59] rounded h-7 text-xs text-[#CBD5E1] px-2 outline-none focus:border-[#D4AF37]"
+            className="col-span-3 bg-[#152033] border border-[#3D5378] rounded h-7 text-xs text-[#F1F5F9] px-2 outline-none focus:border-[#D4AF37]"
             data-testid={`qf-zap-unit-${item.id}`}>
             {zapUnitOptions.map((u) => (
               <option key={u || 'empty'} value={u}>
@@ -79,7 +79,7 @@ export const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
           </select>
         </div>
         <div className="flex items-center justify-between mt-2">
-          <div className="text-[10px] text-[#94A3B8]">
+          <div className="text-[10px] text-[#CBD5E1]">
             Wzór: (cena + koszty inne) × zap / ilość w opak.
             {preview && (
               <span className={`ml-2 font-semibold ${previewMismatch ? 'text-[#F59E0B]' : 'text-[#9DBC85]'}`}>
@@ -90,12 +90,12 @@ export const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
           </div>
           <div className="flex gap-2">
             <button onClick={onCancel} disabled={saving}
-              className="text-[10px] text-[#94A3B8] hover:text-white px-3 py-1 border border-[#2A3B59] rounded"
+              className="text-[10px] text-[#CBD5E1] hover:text-white px-3 py-1 border border-[#3D5378] rounded"
               data-testid={`qf-cancel-${item.id}`}>
               Anuluj
             </button>
             <button onClick={save} disabled={saving || !preview}
-              className="text-[10px] bg-[#D4AF37] text-[#0B1120] font-semibold px-3 py-1 rounded hover:bg-[#FCD34D] disabled:opacity-40"
+              className="text-[10px] bg-[#D4AF37] text-[#152033] font-semibold px-3 py-1 rounded hover:bg-[#FCD34D] disabled:opacity-40"
               data-testid={`qf-save-${item.id}`}>
               {saving ? '...' : 'Zapisz i przelicz'}
             </button>

@@ -69,26 +69,26 @@ export const QuickAddZapis = ({ open, onClose }) => {
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md">
         <DialogHeader>
           <DialogTitle className="text-[#D4AF37]">Dodaj zapis (koszt bez faktury)</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 text-sm">
           <div>
-            <label className="text-[#94A3B8] text-xs">Data</label>
+            <label className="text-[#CBD5E1] text-xs">Data</label>
             <Input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-date" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="quickadd-date" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Kontrahent (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Kontrahent (opcjonalnie)</label>
             <Input value={kontrahent} onChange={(e) => setKontrahent(e.target.value)}
               placeholder="np. Bricomat sp. z o.o."
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-kontrahent" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="quickadd-kontrahent" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Kod kosztu *</label>
+            <label className="text-[#CBD5E1] text-xs">Kod kosztu *</label>
             <select value={kodId} onChange={(e) => setKodId(e.target.value)}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              className="w-full bg-[#152033] border border-[#3D5378] text-white rounded h-10 px-3"
               data-testid="quickadd-kod">
               <option value="">— wybierz —</option>
               {kody.filter((k) => k.cat !== 'PZS' && k.cat !== 'PZSV').map((k) => (
@@ -97,9 +97,9 @@ export const QuickAddZapis = ({ open, onClose }) => {
             </select>
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Budowa (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Budowa (opcjonalnie)</label>
             <select value={budowaId} onChange={(e) => setBudowaId(e.target.value)}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded h-10 px-3"
+              className="w-full bg-[#152033] border border-[#3D5378] text-white rounded h-10 px-3"
               data-testid="quickadd-budowa">
               <option value="">— nieprzypisane —</option>
               {budowy.filter((b) => !b.is_archived).map((b) => (
@@ -108,21 +108,21 @@ export const QuickAddZapis = ({ open, onClose }) => {
             </select>
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Netto (PLN) *</label>
+            <label className="text-[#CBD5E1] text-xs">Netto (PLN) *</label>
             <Input type="number" step="0.01" value={netto} onChange={(e) => setNetto(e.target.value)}
               placeholder="0,00"
-              className="bg-[#0B1120] border-[#2A3B59] text-white text-lg font-mono tabular-nums"
+              className="bg-[#152033] border-[#3D5378] text-white text-lg font-mono tabular-nums"
               data-testid="quickadd-netto" />
           </div>
           <div>
-            <label className="text-[#94A3B8] text-xs">Opis / uwagi (opcjonalnie)</label>
+            <label className="text-[#CBD5E1] text-xs">Opis / uwagi (opcjonalnie)</label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)}
               placeholder="np. paliwo do koparki"
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="quickadd-notes" />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="quickadd-notes" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#CBD5E1] bg-transparent hover:bg-[#19243C]" data-testid="quickadd-cancel">Anuluj</Button>
+          <Button variant="outline" onClick={onClose} className="border-[#3D5378] text-[#F1F5F9] bg-transparent hover:bg-[#243049]" data-testid="quickadd-cancel">Anuluj</Button>
           <ActionButton onAction={handleSave} disabled={saving}
             className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="quickadd-save">{saving ? 'Zapisywanie...' : 'Zapisz'}</ActionButton>
         </DialogFooter>

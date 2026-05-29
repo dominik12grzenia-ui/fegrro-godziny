@@ -71,7 +71,7 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-xl"
                      data-testid="new-wycena-dialog">
         <DialogHeader>
           <DialogTitle className="text-[#D4AF37] flex items-center gap-2">
@@ -80,10 +80,10 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-[10px] uppercase text-[#94A3B8]">Nazwa wyceny / projektu *</label>
+            <label className="text-[10px] uppercase text-[#CBD5E1]">Nazwa wyceny / projektu *</label>
             <Input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="np. Dom jednorodzinny — Warszawa, ul. Przykładowa"
-              className="bg-[#0B1120] border-[#2A3B59]"
+              className="bg-[#152033] border-[#3D5378]"
               data-testid="new-wycena-name" autoFocus />
           </div>
           <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 space-y-2">
@@ -91,11 +91,11 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
               👤 Dane zamawiającego (opcjonalnie)
             </div>
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">Klient / firma</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Klient / firma</label>
               <Input value={clientName} onChange={(e) => onPickClient(e.target.value)}
                 list="wyceny-clients-datalist"
                 placeholder="zacznij wpisywać aby zobaczyć podpowiedzi z poprzednich wycen"
-                className="bg-[#0B1120] border-[#2A3B59]"
+                className="bg-[#152033] border-[#3D5378]"
                 data-testid="new-wycena-client-name" />
               <datalist id="wyceny-clients-datalist">
                 {clients.map((c) => (
@@ -105,17 +105,17 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
                 ))}
               </datalist>
               {clients.length > 0 && (
-                <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                <div className="text-[10px] text-[#CBD5E1] mt-0.5">
                   📋 Wybierz z {clients.length} {clients.length === 1 ? 'klienta' : 'klientów'} — NIP i adres uzupełnią się automatycznie
                 </div>
               )}
             </div>
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">NIP</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">NIP</label>
               <div className="flex items-center gap-2">
                 <Input value={clientNip} onChange={(e) => setClientNip(e.target.value)}
                   placeholder="1234567890"
-                  className="bg-[#0B1120] border-[#2A3B59] flex-1"
+                  className="bg-[#152033] border-[#3D5378] flex-1"
                   data-testid="new-wycena-client-nip" />
                 <button
                   type="button"
@@ -128,25 +128,25 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
                   {gusLoading ? '⏳ Pobieram…' : '🏛 Pobierz z GUS'}
                 </button>
               </div>
-              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+              <div className="text-[10px] text-[#CBD5E1] mt-0.5">
                 Wpisz NIP i kliknij <b className="text-[#D4AF37]">Pobierz z GUS</b> — nazwa i adres uzupełnią się z Białej Listy MF
               </div>
             </div>
             <div>
-              <label className="text-[10px] uppercase text-[#94A3B8]">Adres</label>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Adres</label>
               <textarea value={clientAddress} onChange={(e) => setClientAddress(e.target.value)}
                 placeholder="ul. Przykładowa 12/5&#10;00-001 Warszawa"
                 rows={2}
-                className="w-full bg-[#0B1120] border border-[#2A3B59] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-[#9DBC85] resize-y"
+                className="w-full bg-[#152033] border border-[#3D5378] rounded px-2 py-1.5 text-sm text-white outline-none focus:border-[#9DBC85] resize-y"
                 data-testid="new-wycena-client-address" />
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+          <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
             data-testid="new-wycena-cancel">Anuluj</Button>
           <Button onClick={submit} disabled={creating || !name.trim()}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
             data-testid="new-wycena-submit">
             <Plus className="h-4 w-4 mr-1" /> {creating ? 'Tworzę…' : 'Utwórz wycenę'}
           </Button>

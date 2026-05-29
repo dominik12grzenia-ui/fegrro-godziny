@@ -51,13 +51,13 @@ export const SchedulePanel = ({ budowaId, onChange }) => {
   }, [tasks]);
 
   return (
-    <Card className="bg-[#131C2F] border-[#2A3B59]">
+    <Card className="bg-[#1E2A44] border-[#3D5378]">
       <CardHeader className="pb-2 flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white text-base">Harmonogram zadań</CardTitle>
         <div className="flex gap-2">
-          <div className="inline-flex rounded overflow-hidden border border-[#2A3B59]">
-            <button onClick={() => setViewMode('list')} className={`px-3 py-1 text-xs ${viewMode === 'list' ? 'bg-[#D4AF37] text-[#0B1120]' : 'bg-[#131C2F] text-[#94A3B8]'}`} data-testid="schedule-view-list">Lista</button>
-            <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-xs ${viewMode === 'gantt' ? 'bg-[#D4AF37] text-[#0B1120]' : 'bg-[#131C2F] text-[#94A3B8]'}`} data-testid="schedule-view-gantt">Gantt</button>
+          <div className="inline-flex rounded overflow-hidden border border-[#3D5378]">
+            <button onClick={() => setViewMode('list')} className={`px-3 py-1 text-xs ${viewMode === 'list' ? 'bg-[#D4AF37] text-[#152033]' : 'bg-[#1E2A44] text-[#CBD5E1]'}`} data-testid="schedule-view-list">Lista</button>
+            <button onClick={() => setViewMode('gantt')} className={`px-3 py-1 text-xs ${viewMode === 'gantt' ? 'bg-[#D4AF37] text-[#152033]' : 'bg-[#1E2A44] text-[#CBD5E1]'}`} data-testid="schedule-view-gantt">Gantt</button>
           </div>
           <Button size="sm" onClick={() => setGenModal(true)} variant="outline"
             className="border-[#5F7552] text-[#9DBC85] hover:bg-[#5F7552]/20 h-8"
@@ -65,21 +65,21 @@ export const SchedulePanel = ({ budowaId, onChange }) => {
             title="Generuje task dla każdej pozycji budżetu (z auto-progresem z protokołu)">
             <Calendar className="h-4 w-4 mr-1" /> Generuj z budżetu
           </Button>
-          <Button size="sm" onClick={() => { setEditTask(null); setModalOpen(true); }} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120] h-8" data-testid="schedule-add-task-btn">
+          <Button size="sm" onClick={() => { setEditTask(null); setModalOpen(true); }} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033] h-8" data-testid="schedule-add-task-btn">
             <Plus className="h-4 w-4 mr-1" /> Dodaj zadanie
           </Button>
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
         {loading ? (
-          <div className="text-[#94A3B8] text-sm">Ładuję...</div>
+          <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         ) : tasks.length === 0 ? (
-          <div className="text-[#94A3B8] text-sm py-6 text-center" data-testid="schedule-empty">
+          <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="schedule-empty">
             Brak zadań. Kliknij „Dodaj zadanie" aby utworzyć harmonogram.
           </div>
         ) : viewMode === 'list' ? (
           <table className="w-full text-xs" data-testid="schedule-list-table">
-            <thead className="text-[#94A3B8] border-b border-[#2A3B59]">
+            <thead className="text-[#CBD5E1] border-b border-[#3D5378]">
               <tr>
                 <th className="text-left p-2">Zadanie</th>
                 <th className="text-left p-2">Start</th>
@@ -97,28 +97,28 @@ export const SchedulePanel = ({ budowaId, onChange }) => {
                 const finishedEarly = t.actual_end_date && t.actual_end_date < t.end_date;
                 const earlyDays = finishedEarly ? Math.ceil((new Date(t.end_date) - new Date(t.actual_end_date)) / (1000 * 60 * 60 * 24)) : 0;
                 return (
-                  <tr key={t.id} className="border-b border-[#2A3B59]/40 hover:bg-[#0B1120]/40">
+                  <tr key={t.id} className="border-b border-[#3D5378]/40 hover:bg-[#152033]/40">
                     <td className="p-2 text-white">
                       <span className="inline-block w-3 h-3 rounded mr-2 align-middle" style={{ backgroundColor: t.color || '#D4AF37' }} />
                       {t.name}
                       {isAuto && <span className="ml-1 text-[10px] text-[#9DBC85]" title="Progres auto z protokołu">🔗</span>}
                     </td>
-                    <td className="p-2 text-[#CBD5E1]">{t.start_date}</td>
-                    <td className="p-2 text-[#CBD5E1]">{t.end_date}</td>
+                    <td className="p-2 text-[#F1F5F9]">{t.start_date}</td>
+                    <td className="p-2 text-[#F1F5F9]">{t.end_date}</td>
                     <td className="p-2 text-[#9DBC85]">
                       {t.actual_end_date ? (
                         <span title={finishedEarly ? `Wcześniej o ${earlyDays} dni` : ''}>
                           {t.actual_end_date}{finishedEarly && <span className="ml-1">⚡</span>}
                         </span>
-                      ) : <span className="text-[#64748B]">—</span>}
+                      ) : <span className="text-[#94A3B8]">—</span>}
                     </td>
-                    <td className="p-2 text-right text-[#94A3B8] tabular-nums">{days}</td>
+                    <td className="p-2 text-right text-[#CBD5E1] tabular-nums">{days}</td>
                     <td className="p-2 text-right text-[#D4AF37] tabular-nums">{(t.progress_pct || 0).toFixed(1)}%</td>
                     <td className="p-2 text-right whitespace-nowrap">
-                      <button onClick={() => { setEditTask(t); setModalOpen(true); }} className="text-[#94A3B8] hover:text-white mr-2" data-testid={`schedule-edit-${t.id}`}>
+                      <button onClick={() => { setEditTask(t); setModalOpen(true); }} className="text-[#CBD5E1] hover:text-white mr-2" data-testid={`schedule-edit-${t.id}`}>
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
-                      <button onClick={() => remove(t.id)} className="text-[#94A3B8] hover:text-[#FCA5A5]" data-testid={`schedule-del-${t.id}`}>
+                      <button onClick={() => remove(t.id)} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`schedule-del-${t.id}`}>
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </td>

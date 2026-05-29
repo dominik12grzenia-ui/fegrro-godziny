@@ -72,24 +72,24 @@ export const ScheduleTaskModal = ({ budowaId, editTask, onClose, onSaved }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md">
         <DialogHeader>
           <DialogTitle>{editTask ? 'Edytuj zadanie' : 'Nowe zadanie'}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
           <div>
-            <label className="text-xs text-[#94A3B8]">Nazwa zadania *</label>
-            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="task-name" />
+            <label className="text-xs text-[#CBD5E1]">Nazwa zadania *</label>
+            <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} className="bg-[#152033] border-[#3D5378]" data-testid="task-name" />
           </div>
           {/* iter95i: link do pozycji budzetu - auto-progres z protokolu */}
           <div>
-            <label className="text-xs text-[#94A3B8] flex items-center gap-1">
-              Powiąż z pozycją budżetu <span className="text-[10px] text-[#64748B]">(opcjonalnie - auto-progres z protokołu)</span>
+            <label className="text-xs text-[#CBD5E1] flex items-center gap-1">
+              Powiąż z pozycją budżetu <span className="text-[10px] text-[#94A3B8]">(opcjonalnie - auto-progres z protokołu)</span>
             </label>
             <select
               value={form.position_id}
               onChange={(e) => setForm({ ...form, position_id: e.target.value })}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] rounded text-white text-sm p-2"
+              className="w-full bg-[#152033] border border-[#3D5378] rounded text-white text-sm p-2"
               data-testid="task-position-id"
             >
               <option value="">— brak (% wpisywane ręcznie) —</option>
@@ -100,17 +100,17 @@ export const ScheduleTaskModal = ({ budowaId, editTask, onClose, onSaved }) => {
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8]">Start *</label>
-              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="task-start" />
+              <label className="text-xs text-[#CBD5E1]">Start *</label>
+              <Input type="date" value={form.start_date} onChange={(e) => setForm({ ...form, start_date: e.target.value })} className="bg-[#152033] border-[#3D5378]" data-testid="task-start" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Planowany koniec *</label>
-              <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" data-testid="task-end" />
+              <label className="text-xs text-[#CBD5E1]">Planowany koniec *</label>
+              <Input type="date" value={form.end_date} onChange={(e) => setForm({ ...form, end_date: e.target.value })} className="bg-[#152033] border-[#3D5378]" data-testid="task-end" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8] flex items-center gap-1">
+              <label className="text-xs text-[#CBD5E1] flex items-center gap-1">
                 % wykonania
                 {isAutoProgress && <span className="text-[10px] text-[#9DBC85]">(auto z protokołu)</span>}
               </label>
@@ -118,22 +118,22 @@ export const ScheduleTaskModal = ({ budowaId, editTask, onClose, onSaved }) => {
                 disabled={isAutoProgress}
                 value={isAutoProgress ? (editTask?.progress_pct || 0) : form.progress_pct}
                 onChange={(e) => setForm({ ...form, progress_pct: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59] disabled:opacity-60"
+                className="bg-[#152033] border-[#3D5378] disabled:opacity-60"
                 data-testid="task-progress" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8]">Kolor</label>
-              <Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="bg-[#0B1120] border-[#2A3B59] h-9" data-testid="task-color" />
+              <label className="text-xs text-[#CBD5E1]">Kolor</label>
+              <Input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} className="bg-[#152033] border-[#3D5378] h-9" data-testid="task-color" />
             </div>
           </div>
           {/* iter95i: data szybszego wykonania - admin only (caly Budget i tak jest admin-only) */}
-          <div className="rounded p-2 border border-[#2A3B59] bg-[#0B1120]/50">
-            <label className="text-xs text-[#94A3B8] flex items-center gap-1">
-              🔐 Data faktycznego zakończenia <span className="text-[10px] text-[#64748B]">(tylko admin - gdy zadanie ukończono wcześniej)</span>
+          <div className="rounded p-2 border border-[#3D5378] bg-[#152033]/50">
+            <label className="text-xs text-[#CBD5E1] flex items-center gap-1">
+              🔐 Data faktycznego zakończenia <span className="text-[10px] text-[#94A3B8]">(tylko admin - gdy zadanie ukończono wcześniej)</span>
             </label>
             <Input type="date" value={form.actual_end_date} onChange={(e) => setForm({ ...form, actual_end_date: e.target.value })}
               max={form.end_date}
-              className="bg-[#0B1120] border-[#2A3B59] mt-1"
+              className="bg-[#152033] border-[#3D5378] mt-1"
               data-testid="task-actual-end" />
             {form.actual_end_date && form.end_date && form.actual_end_date < form.end_date && (
               <div className="text-[10px] text-[#9DBC85] mt-1">
@@ -142,13 +142,13 @@ export const ScheduleTaskModal = ({ budowaId, editTask, onClose, onSaved }) => {
             )}
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8]">Notatki</label>
-            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="bg-[#0B1120] border-[#2A3B59]" />
+            <label className="text-xs text-[#CBD5E1]">Notatki</label>
+            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="bg-[#152033] border-[#3D5378]" />
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Anuluj</Button>
-          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]" data-testid="task-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
+          <Button variant="outline" onClick={onClose} className="border-[#3D5378] text-[#CBD5E1]">Anuluj</Button>
+          <ActionButton onAction={save} disabled={saving} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]" data-testid="task-save">{saving ? 'Zapisuję...' : 'Zapisz'}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>

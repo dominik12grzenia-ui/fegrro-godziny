@@ -43,55 +43,55 @@ export const PositionModal = ({ budowaId, editPosition, stages, onClose, onSaved
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="position-modal">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md" data-testid="position-modal">
         <DialogHeader>
           <DialogTitle>{editPosition ? 'Edytuj pozycję kosztorysową' : 'Nowa pozycja kosztorysowa'}</DialogTitle>
           {!editPosition && (
-            <p className="text-xs text-[#94A3B8] mt-1">
+            <p className="text-xs text-[#CBD5E1] mt-1">
               Po utworzeniu pozycji kliknij <b className="text-[#D4AF37]">+</b> przy nazwie aby dodać podpozycje (Robocizna / Materiał / Sprzęt).
             </p>
           )}
         </DialogHeader>
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Etap budowy *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Etap budowy *</label>
             <select value={stageId} onChange={(e) => setStageId(e.target.value)}
-              className="w-full bg-[#0B1120] border border-[#2A3B59] text-white rounded px-2 py-1.5 text-sm"
+              className="w-full bg-[#152033] border border-[#3D5378] text-white rounded px-2 py-1.5 text-sm"
               data-testid="position-stage-select">
               {stages.length === 0 ? <option value="">-- najpierw utwórz etap --</option> :
                 stages.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa pozycji *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Nazwa pozycji *</label>
             <Input value={name} onChange={(e) => setName(e.target.value)}
               placeholder="np. Wykonanie chodnika"
-              className="bg-[#0B1120] border-[#2A3B59] text-white"
+              className="bg-[#152033] border-[#3D5378] text-white"
               data-testid="position-name-input"
               autoFocus />
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Notatki (opcjonalnie)</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Notatki (opcjonalnie)</label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)}
-              className="bg-[#0B1120] border-[#2A3B59] text-white"
+              className="bg-[#152033] border-[#3D5378] text-white"
               data-testid="position-notes-input" />
           </div>
           {/* Checkbox: zaciagac do protokolu */}
-          <label className="flex items-start gap-2 cursor-pointer p-2 rounded bg-[#0B1120] border border-[#2A3B59] hover:border-[#D4AF37]/60 transition">
+          <label className="flex items-start gap-2 cursor-pointer p-2 rounded bg-[#152033] border border-[#3D5378] hover:border-[#D4AF37]/60 transition">
             <input type="checkbox" checked={includeInProtocol}
               onChange={(e) => setIncludeInProtocol(e.target.checked)}
               className="mt-0.5 accent-[#D4AF37]"
               data-testid="position-include-in-protocol" />
             <div className="flex-1 text-xs">
               <div className="text-white font-semibold">Zaciągaj do protokołu zaawansowania</div>
-              <div className="text-[#94A3B8] mt-0.5">Gdy ZAZNACZONE, pozycja pojawi się w protokole z możliwością wpisania % wykonania. Odznacz dla pozycji pomocniczych (np. „ZUS", „Wynajem biura").</div>
+              <div className="text-[#CBD5E1] mt-0.5">Gdy ZAZNACZONE, pozycja pojawi się w protokole z możliwością wpisania % wykonania. Odznacz dla pozycji pomocniczych (np. „ZUS", „Wynajem biura").</div>
             </div>
           </label>
         </div>
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="ghost" onClick={onClose} data-testid="position-cancel-btn">Anuluj</Button>
           <ActionButton onAction={save} disabled={busy || !name.trim() || !stageId}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
             data-testid="position-save-btn">
             <Plus className="h-4 w-4 mr-1" /> {editPosition ? 'Zapisz' : 'Utwórz pozycję'}
           </ActionButton>

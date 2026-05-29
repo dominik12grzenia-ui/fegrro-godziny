@@ -12,11 +12,11 @@ import { MONTHS_PL } from './_shared';
 
 export const ProtokolControls = ({ month, setMonth, budowaId, year }) => (
   <div className="flex items-center gap-2 flex-wrap">
-    <label className="text-xs text-[#94A3B8]">Miesiąc rozliczeniowy:</label>
+    <label className="text-xs text-[#CBD5E1]">Miesiąc rozliczeniowy:</label>
     <select
       value={month}
       onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-      className="bg-[#0B1120] border border-[#2A3B59] text-white px-2 py-1.5 rounded text-sm"
+      className="bg-[#152033] border border-[#3D5378] text-white px-2 py-1.5 rounded text-sm"
       data-testid="progress-month-select"
     >
       {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}

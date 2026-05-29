@@ -60,10 +60,10 @@ export const SubpositionModal = ({ budowaId, position, stageId, existingLines = 
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid="subposition-modal">
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md" data-testid="subposition-modal">
         <DialogHeader>
           <DialogTitle>Dodaj podpozycję do: {position?.name}</DialogTitle>
-          <p className="text-xs text-[#94A3B8] mt-1">Wybierz kategorię kosztu i wprowadź wartości.</p>
+          <p className="text-xs text-[#CBD5E1] mt-1">Wybierz kategorię kosztu i wprowadź wartości.</p>
         </DialogHeader>
         {existingSlot && (
           <div className="rounded p-2 border border-[#5F7552]/60 bg-[#5F7552]/15 text-[#A7D29E] text-xs mb-2" data-testid="subposition-existing-slot-hint">
@@ -72,7 +72,7 @@ export const SubpositionModal = ({ budowaId, position, stageId, existingLines = 
         )}
         <div className="space-y-3">
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Kategoria *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Kategoria *</label>
             <div className="grid grid-cols-3 gap-2">
               {[
                 { v: 'labor', label: 'Robocizna' },
@@ -94,50 +94,50 @@ export const SubpositionModal = ({ budowaId, position, stageId, existingLines = 
             </div>
           </div>
           <div>
-            <label className="text-xs text-[#94A3B8] mb-1 block">Nazwa podpozycji *</label>
+            <label className="text-xs text-[#CBD5E1] mb-1 block">Nazwa podpozycji *</label>
             <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
               placeholder="np. Beton C8/10 chudziak"
-              className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-name-input" autoFocus />
+              className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-name-input" autoFocus />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Jedn.</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">Jedn.</label>
               <Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })}
                 placeholder="m³, mb, szt"
-                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-unit-input" />
+                className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-unit-input" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Ilość</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">Ilość</label>
               <Input type="number" min="0" step="0.01" value={form.quantity}
                 onChange={(e) => setForm({ ...form, quantity: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-quantity-input" />
+                className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-quantity-input" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Cena netto</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">Cena netto</label>
               <Input type="number" min="0" step="0.01" value={form.unit_price_netto}
                 onChange={(e) => setForm({ ...form, unit_price_netto: e.target.value })}
-                className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-price-input" />
+                className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-price-input" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Kaucja GIR % (opcjonalne)</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">Kaucja GIR % (opcjonalne)</label>
               <Input type="number" min="0" step="0.1" value={form.kaucja_gir_pct}
                 onChange={(e) => setForm({ ...form, kaucja_gir_pct: e.target.value })}
-                placeholder="dziedziczy z budowy" className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-gir-input" />
+                placeholder="dziedziczy z budowy" className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-gir-input" />
             </div>
             <div>
-              <label className="text-xs text-[#94A3B8] mb-1 block">Kaucja DW % (opcjonalne)</label>
+              <label className="text-xs text-[#CBD5E1] mb-1 block">Kaucja DW % (opcjonalne)</label>
               <Input type="number" min="0" step="0.1" value={form.kaucja_dw_pct}
                 onChange={(e) => setForm({ ...form, kaucja_dw_pct: e.target.value })}
-                placeholder="dziedziczy z budowy" className="bg-[#0B1120] border-[#2A3B59] text-white" data-testid="subposition-dw-input" />
+                placeholder="dziedziczy z budowy" className="bg-[#152033] border-[#3D5378] text-white" data-testid="subposition-dw-input" />
             </div>
           </div>
         </div>
         <div className="flex gap-2 justify-end pt-2">
           <Button variant="ghost" onClick={onClose} data-testid="subposition-cancel-btn">Anuluj</Button>
           <ActionButton onAction={save} disabled={busy || !form.name.trim()}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#0B1120]"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
             data-testid="subposition-save-btn">
             <Plus className="h-4 w-4 mr-1" /> Dodaj podpozycję
           </ActionButton>

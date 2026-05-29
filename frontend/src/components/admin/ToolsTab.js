@@ -59,14 +59,14 @@ const FakturowniaActions = ({ onChange }) => {
   };
 
   return (
-    <div className="flex flex-wrap gap-2 pt-2 border-t border-[#2A3B59] mt-2">
+    <div className="flex flex-wrap gap-2 pt-2 border-t border-[#3D5378] mt-2">
       <Button onClick={test} disabled={testing} variant="outline"
-        className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white"
+        className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] hover:text-white"
         data-testid="fakturownia-test-btn">
         {testing ? 'Testowanie...' : 'Test polaczenia'}
       </Button>
       <Button onClick={sync} disabled={syncing}
-        className="bg-[#D4AF37] hover:bg-[#D9A656] text-[#131C2F] font-semibold"
+        className="bg-[#D4AF37] hover:bg-[#D9A656] text-[#1E2A44] font-semibold"
         data-testid="fakturownia-sync-btn">
         {syncing ? 'Pobieranie...' : 'Pobierz faktury (od stycznia 2026)'}
       </Button>
@@ -191,9 +191,9 @@ const EmployeeLinksCard = () => {
   const withTokenCount = employees.filter(e => e.public_token).length;
 
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]">
+    <Card className="bg-[#243049] border-[#3D5378]">
       <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
-        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+        <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
           <LinkIcon className="h-5 w-5 text-[#4F6343]" />
           Linki dla pracownikow ({withTokenCount} z {employees.length})
         </CardTitle>
@@ -210,17 +210,17 @@ const EmployeeLinksCard = () => {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <div className="px-4 py-2 border-b border-[#2A3B59]">
-          <label className="flex items-center gap-2 text-xs text-[#94A3B8] cursor-pointer">
+        <div className="px-4 py-2 border-b border-[#3D5378]">
+          <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer">
             <input type="checkbox" checked={showOnlyWithToken} onChange={(e) => setShowOnlyWithToken(e.target.checked)}
               className="accent-[#4F6343]" data-testid="links-filter-checkbox" />
             Pokaż tylko z aktywnym linkiem
           </label>
         </div>
-        {loading ? <div className="p-4 text-[#94A3B8]">Ładowanie...</div> :
-        filtered.length === 0 ? <div className="p-4 text-[#94A3B8]">{showOnlyWithToken ? 'Zaden pracownik nie ma jeszcze linku' : 'Brak aktywnych pracownikow'}</div> :
+        {loading ? <div className="p-4 text-[#CBD5E1]">Ładowanie...</div> :
+        filtered.length === 0 ? <div className="p-4 text-[#CBD5E1]">{showOnlyWithToken ? 'Zaden pracownik nie ma jeszcze linku' : 'Brak aktywnych pracownikow'}</div> :
         <table className="w-full text-sm">
-          <thead className="bg-[#131C2F] text-[#94A3B8] text-xs">
+          <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs">
             <tr>
               <th className="p-2 text-left">Pracownik</th>
               <th className="p-2 text-center">Status linku</th>
@@ -230,13 +230,13 @@ const EmployeeLinksCard = () => {
           </thead>
           <tbody>
             {filtered.map(emp => (
-              <tr key={emp.id} className="border-t border-[#2A3B59] hover:bg-[#131C2F]/50" data-testid={`emp-link-row-${emp.id}`}>
+              <tr key={emp.id} className="border-t border-[#3D5378] hover:bg-[#1E2A44]/50" data-testid={`emp-link-row-${emp.id}`}>
                 <td className="p-2 text-white">{emp.full_name}</td>
                 <td className="p-2 text-center">
                   {emp.public_token ? (
                     <span className="text-[#4F6343] text-xs">● Aktywny</span>
                   ) : (
-                    <span className="text-[#94A3B8] text-xs">○ Brak</span>
+                    <span className="text-[#CBD5E1] text-xs">○ Brak</span>
                   )}
                 </td>
                 <td className="p-2 text-center">
@@ -248,7 +248,7 @@ const EmployeeLinksCard = () => {
                       className="accent-[#9B2C2C] h-4 w-4"
                       data-testid={`emp-clothing-block-${emp.id}`}
                     />
-                    <span className={`text-[10px] uppercase font-semibold ${emp.clothing_orders_blocked ? 'text-[#FCA5A5]' : 'text-[#94A3B8]'}`}>
+                    <span className={`text-[10px] uppercase font-semibold ${emp.clothing_orders_blocked ? 'text-[#FCA5A5]' : 'text-[#CBD5E1]'}`}>
                       {emp.clothing_orders_blocked ? 'Zablokowane' : 'Dozwolone'}
                     </span>
                   </label>
@@ -257,7 +257,7 @@ const EmployeeLinksCard = () => {
                   <div className="flex gap-1 justify-end">
                     {emp.public_token && (
                       <Button onClick={() => copyLink(emp)} size="sm" variant="outline"
-                        className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59] hover:text-white h-7 px-2"
+                        className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] hover:text-white h-7 px-2"
                         data-testid={`emp-copy-link-${emp.id}`}>
                         <Copy className="h-3 w-3" />
                       </Button>
@@ -333,31 +333,31 @@ const FakturowniaApiCard = () => {
   };
 
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]">
+    <Card className="bg-[#243049] border-[#3D5378]">
       <CardHeader>
-        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+        <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
           <Key className="h-5 w-5 text-[#D4AF37]" />
           Fakturownia - API key
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-sm text-[#94A3B8]">
+        <p className="text-sm text-[#CBD5E1]">
           Klucz API z Fakturowni — używany do automatycznego pobierania kosztów i sprzedaży (faktury wchodzace i wychodzace).
           Auto-sync co 30 min od stycznia 2026.
           Wygeneruj na <a href="https://app.fakturownia.pl" target="_blank" rel="noreferrer" className="text-[#4F6343] underline">app.fakturownia.pl → Ustawienia → API</a>.
         </p>
         <div>
-          <label className="text-xs text-[#94A3B8] block mb-1">Subdomena (np. "mojafirma" dla mojafirma.fakturownia.pl)</label>
+          <label className="text-xs text-[#CBD5E1] block mb-1">Subdomena (np. "mojafirma" dla mojafirma.fakturownia.pl)</label>
           <Input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="mojafirma"
-            className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="fakturownia-domain-input" />
+            className="bg-[#1E2A44] border-[#3D5378] text-white" data-testid="fakturownia-domain-input" />
         </div>
         <div>
-          <label className="text-xs text-[#94A3B8] block mb-1">
+          <label className="text-xs text-[#CBD5E1] block mb-1">
             Klucz API {settings?.fakturownia_api_key_set && <span className="text-[#4F6343]">(zapisany: {settings.fakturownia_api_key_preview})</span>}
           </label>
           <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)}
             placeholder={settings?.fakturownia_api_key_set ? "Wpisz nowy aby zaktualizowac" : "Wklej klucz API"}
-            className="bg-[#131C2F] border-[#2A3B59] text-white" data-testid="fakturownia-api-input" />
+            className="bg-[#1E2A44] border-[#3D5378] text-white" data-testid="fakturownia-api-input" />
         </div>
         <Button onClick={save} disabled={saving} className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
           data-testid="fakturownia-save-btn">
@@ -366,8 +366,8 @@ const FakturowniaApiCard = () => {
         </Button>
         <FakturowniaActions onChange={fetchSettings} />
         {settings?.last_fakturownia_sync_at && (
-          <p className="text-xs text-[#94A3B8] mt-2 pt-2 border-t border-[#2A3B59]">
-            Ostatni auto-sync z Fakturowni: <span className="text-[#CBD5E1]">{settings.last_fakturownia_sync_at.slice(0, 16).replace('T', ' ')}</span>
+          <p className="text-xs text-[#CBD5E1] mt-2 pt-2 border-t border-[#3D5378]">
+            Ostatni auto-sync z Fakturowni: <span className="text-[#F1F5F9]">{settings.last_fakturownia_sync_at.slice(0, 16).replace('T', ' ')}</span>
           </p>
         )}
       </CardContent>
@@ -415,15 +415,15 @@ const WarehouseKeepersCard = () => {
   };
 
   return (
-    <Card className="bg-[#19243C] border-[#2A3B59]" data-testid="warehouse-keepers-card">
+    <Card className="bg-[#243049] border-[#3D5378]" data-testid="warehouse-keepers-card">
       <CardHeader>
-        <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+        <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
           <Warehouse className="h-5 w-5 text-[#D4AF37]" />
           Konta magazynierów (panel /magazynier)
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <p className="text-sm text-[#94A3B8]">
+        <p className="text-sm text-[#CBD5E1]">
           Magazynier wchodzi przez <strong>jeden link</strong> (poniżej) - bez wpisywania hasła.
           Widzi sprzęt, materiały, odzież i BHP - może wydawać i przypisywać. Każda akcja wymaga potwierdzenia.
         </p>
@@ -432,7 +432,7 @@ const WarehouseKeepersCard = () => {
             placeholder="Nazwa użytkownika (np. Jan)"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+            className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
             data-testid="warehouse-keeper-name-input"
           />
           <Input
@@ -440,19 +440,19 @@ const WarehouseKeepersCard = () => {
             placeholder="Hasło (zapasowe logowanie)"
             value={pwd}
             onChange={(e) => setPwd(e.target.value)}
-            className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
+            className="bg-[#1E2A44] border-[#3D5378] text-[#F1F5F9]"
             data-testid="warehouse-keeper-password-input"
           />
           <Button
             onClick={create}
-            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#131C2F] font-bold"
+            className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#1E2A44] font-bold"
             data-testid="warehouse-keeper-create-btn"
           >
             Dodaj / zmień hasło
           </Button>
         </div>
         {keepers.length === 0 ? (
-          <p className="text-xs text-[#64748B]">Brak kont magazynierów. Dodaj pierwsze powyżej.</p>
+          <p className="text-xs text-[#94A3B8]">Brak kont magazynierów. Dodaj pierwsze powyżej.</p>
         ) : (
           <div className="space-y-2">
             {keepers.map((k) => {
@@ -462,11 +462,11 @@ const WarehouseKeepersCard = () => {
               return (
                 <div
                   key={k.id}
-                  className="bg-[#131C2F] rounded p-3 border border-[#2A3B59] space-y-2"
+                  className="bg-[#1E2A44] rounded p-3 border border-[#3D5378] space-y-2"
                   data-testid={`warehouse-keeper-${k.id}`}
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <span className="text-[#CBD5E1] font-medium">{k.full_name}</span>
+                    <span className="text-[#F1F5F9] font-medium">{k.full_name}</span>
                     <div className="flex gap-1">
                       <Button
                         size="sm"
@@ -500,7 +500,7 @@ const WarehouseKeepersCard = () => {
                   </div>
                   {url ? (
                     <div className="flex gap-2 items-center">
-                      <code className="flex-1 text-xs text-[#94A3B8] bg-[#0B1120] p-2 rounded break-all">{url}</code>
+                      <code className="flex-1 text-xs text-[#CBD5E1] bg-[#152033] p-2 rounded break-all">{url}</code>
                       <Button
                         size="sm"
                         onClick={() => {
@@ -514,7 +514,7 @@ const WarehouseKeepersCard = () => {
                       </Button>
                     </div>
                   ) : (
-                    <p className="text-xs text-[#64748B]">Brak linku - kliknij ikonę odświeżania aby wygenerować.</p>
+                    <p className="text-xs text-[#94A3B8]">Brak linku - kliknij ikonę odświeżania aby wygenerować.</p>
                   )}
                 </div>
               );
@@ -537,9 +537,9 @@ export const ToolsTab = ({
   return (
     <div className="space-y-4">
       {/* Shareable system links */}
-      <Card className="bg-[#19243C] border-[#2A3B59]">
+      <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader>
-          <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
+          <CardTitle className="text-[#F1F5F9] flex items-center gap-2">
             <LinkIcon className="h-5 w-5 text-[#4F6343]" />
             Linki dostępowe
           </CardTitle>
@@ -551,10 +551,10 @@ export const ToolsTab = ({
           ].map((item) => {
             const fullUrl = `${window.location.origin}${item.path}`;
             return (
-              <div key={item.path} className="bg-[#131C2F] p-3 rounded-lg border border-[#2A3B59]">
-                <p className="text-[#CBD5E1] font-semibold text-sm mb-2">{item.label}</p>
+              <div key={item.path} className="bg-[#1E2A44] p-3 rounded-lg border border-[#3D5378]">
+                <p className="text-[#F1F5F9] font-semibold text-sm mb-2">{item.label}</p>
                 <div className="flex gap-2 items-center">
-                  <code className="flex-1 text-xs text-[#94A3B8] bg-[#0B1120] p-2 rounded break-all">{fullUrl}</code>
+                  <code className="flex-1 text-xs text-[#CBD5E1] bg-[#152033] p-2 rounded break-all">{fullUrl}</code>
                   <Button
                     size="sm"
                     onClick={() => {
@@ -570,7 +570,7 @@ export const ToolsTab = ({
               </div>
             );
           })}
-          <p className="text-[11px] text-[#64748B]">
+          <p className="text-[11px] text-[#94A3B8]">
             Te linki są stałe. Każdy brygadzista logujący się przez swój link zobaczy tylko panel brygadzisty - nie ma przełącznika do panelu admina.
           </p>
         </CardContent>

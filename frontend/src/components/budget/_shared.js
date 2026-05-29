@@ -34,9 +34,9 @@ export const SUB_TYPE_LABEL = { equipment: 'sprzęt', labor: 'robocizna', materi
 export const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials'];
 
 export const BUDGET_TYPES = {
-  materials: { label: 'Materiały', short: 'M', color: '#D4AF37', bg: '#D4AF37', textOnBg: '#0B1120' },
+  materials: { label: 'Materiały', short: 'M', color: '#D4AF37', bg: '#D4AF37', textOnBg: '#152033' },
   labor:     { label: 'Robocizna', short: 'R', color: '#5F7552', bg: '#5F7552', textOnBg: '#FFFFFF' },
-  equipment: { label: 'Sprzęt',    short: 'S', color: '#94A3B8', bg: '#64748B', textOnBg: '#FFFFFF' },
+  equipment: { label: 'Sprzęt',    short: 'S', color: '#CBD5E1', bg: '#94A3B8', textOnBg: '#FFFFFF' },
 };
 
 export const TYPE_ORDER = ['labor', 'materials', 'equipment'];

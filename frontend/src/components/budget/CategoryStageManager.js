@@ -48,10 +48,10 @@ export const CategoryStageManager = ({ mode, budowaId, items, onClose, onChanged
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-md" data-testid={`manager-${mode}-modal`}>
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-md" data-testid={`manager-${mode}-modal`}>
         <DialogHeader>
           <DialogTitle>{label}</DialogTitle>
-          <p className="text-xs text-[#94A3B8] mt-1">
+          <p className="text-xs text-[#CBD5E1] mt-1">
             {isStages
               ? 'Etapy grupują wizualnie pozycje budżetu (np. „Stan zerowy", „Konstrukcja", „Wykończenia").'
               : 'Kategorie kosztowe to predefiniowane grupy używane w pozycjach budżetu (np. „Beton", „Stal", „Robocizna").'}
@@ -59,16 +59,16 @@ export const CategoryStageManager = ({ mode, budowaId, items, onClose, onChanged
         </DialogHeader>
         <div className="space-y-2 max-h-64 overflow-y-auto">
           {items.length === 0 ? (
-            <div className="text-xs text-[#94A3B8] py-2 text-center">Brak — dodaj pierwszy poniżej</div>
+            <div className="text-xs text-[#CBD5E1] py-2 text-center">Brak — dodaj pierwszy poniżej</div>
           ) : items.map((it) => (
-            <div key={it.id} className="flex items-center justify-between bg-[#0B1120] rounded px-3 py-1.5 text-sm" data-testid={`manager-item-${it.id}`}>
+            <div key={it.id} className="flex items-center justify-between bg-[#152033] rounded px-3 py-1.5 text-sm" data-testid={`manager-item-${it.id}`}>
               <div>
                 <span className="text-white">{it.name}</span>
                 {isStages && (it.start_date || it.end_date) && (
-                  <span className="text-[#94A3B8] text-xs ml-2">({it.start_date || '?'} → {it.end_date || '?'})</span>
+                  <span className="text-[#CBD5E1] text-xs ml-2">({it.start_date || '?'} → {it.end_date || '?'})</span>
                 )}
                 {it.lines_count !== undefined && (
-                  <span className="text-[#94A3B8] text-xs ml-2">[{it.lines_count} poz.]</span>
+                  <span className="text-[#CBD5E1] text-xs ml-2">[{it.lines_count} poz.]</span>
                 )}
               </div>
               <button onClick={() => remove(it.id)} className="text-[#FCA5A5] hover:text-[#F87171]" data-testid={`manager-del-${it.id}`}>
@@ -77,22 +77,22 @@ export const CategoryStageManager = ({ mode, budowaId, items, onClose, onChanged
             </div>
           ))}
         </div>
-        <div className="border-t border-[#2A3B59] pt-3 space-y-2">
+        <div className="border-t border-[#3D5378] pt-3 space-y-2">
           <Input value={name} onChange={(e) => setName(e.target.value)}
             placeholder={isStages ? 'Nazwa etapu, np. Stan surowy' : 'Nazwa kategorii, np. Beton'}
-            className="bg-[#0B1120] border-[#2A3B59]" data-testid={`manager-new-name-${mode}`} />
+            className="bg-[#152033] border-[#3D5378]" data-testid={`manager-new-name-${mode}`} />
           {isStages && (
             <div className="grid grid-cols-2 gap-2">
               <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                placeholder="Start" className="bg-[#0B1120] border-[#2A3B59]" data-testid="manager-stage-start" />
+                placeholder="Start" className="bg-[#152033] border-[#3D5378]" data-testid="manager-stage-start" />
               <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                placeholder="Koniec" className="bg-[#0B1120] border-[#2A3B59]" data-testid="manager-stage-end" />
+                placeholder="Koniec" className="bg-[#152033] border-[#3D5378]" data-testid="manager-stage-end" />
             </div>
           )}
           <ActionButton onAction={add} disabled={busy} className="w-full bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid={`manager-add-${mode}`}><Plus className="h-4 w-4 mr-1" /> Dodaj</ActionButton>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-[#2A3B59] text-[#94A3B8]">Zamknij</Button>
+          <Button variant="outline" onClick={onClose} className="border-[#3D5378] text-[#CBD5E1]">Zamknij</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

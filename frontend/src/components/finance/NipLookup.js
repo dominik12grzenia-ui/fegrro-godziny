@@ -36,7 +36,7 @@ export const NipLookup = ({ onResult, compact = false }) => {
       <Input value={nip} onChange={(e) => setNip(e.target.value)}
         placeholder="NIP (10 cyfr)" maxLength={13}
         onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); fetchGus(); } }}
-        className="h-7 text-xs bg-[#131C2F] border-[#2A3B59] text-white no-spinner"
+        className="h-7 text-xs bg-[#1E2A44] border-[#3D5378] text-white no-spinner"
         data-testid="nip-lookup-input" />
       <Button type="button" size="sm" onClick={fetchGus} disabled={busy}
         className="h-7 px-2 text-xs bg-[#4F6343] hover:bg-[#3F5235] text-white whitespace-nowrap"

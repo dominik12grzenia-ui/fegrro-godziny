@@ -68,28 +68,28 @@ export const SuppliersManagerDialog = ({ onClose }) => {
     }
   };
 
-  const inputCls = "bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white";
+  const inputCls = "bg-[#1E2A44] border-[#3D5378] h-8 text-xs text-white";
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#131C2F] border-[#2A3B59] text-white max-w-4xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-4xl"
                      data-testid="suppliers-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">
             <BookOpen className="h-5 w-5" /> Hurtownie / Dostawcy
           </DialogTitle>
-          <div className="text-xs text-[#94A3B8]">Zarządzaj listą hurtowni: dodawaj, edytuj, usuwaj. Numer telefonu jest opcjonalny.</div>
+          <div className="text-xs text-[#CBD5E1]">Zarządzaj listą hurtowni: dodawaj, edytuj, usuwaj. Numer telefonu jest opcjonalny.</div>
         </DialogHeader>
 
-        <div className="max-h-[55vh] overflow-y-auto border border-[#2A3B59] rounded">
+        <div className="max-h-[55vh] overflow-y-auto border border-[#3D5378] rounded">
           {loading ? (
-            <div className="p-4 text-center text-xs text-[#94A3B8]">Ładowanie…</div>
+            <div className="p-4 text-center text-xs text-[#CBD5E1]">Ładowanie…</div>
           ) : rows.length === 0 && editingId !== 'new' ? (
-            <div className="p-4 text-center text-xs text-[#94A3B8] italic">Brak hurtowni — dodaj pierwszą przyciskiem poniżej.</div>
+            <div className="p-4 text-center text-xs text-[#CBD5E1] italic">Brak hurtowni — dodaj pierwszą przyciskiem poniżej.</div>
           ) : (
             <table className="w-full text-xs">
-              <thead className="bg-[#0B1120] sticky top-0">
-                <tr className="text-[#94A3B8] uppercase text-[10px]">
+              <thead className="bg-[#152033] sticky top-0">
+                <tr className="text-[#CBD5E1] uppercase text-[10px]">
                   <th className="text-left px-2 py-1.5">Nazwa</th>
                   <th className="text-left px-2 py-1.5">Email</th>
                   <th className="text-left px-2 py-1.5">Telefon</th>
@@ -99,7 +99,7 @@ export const SuppliersManagerDialog = ({ onClose }) => {
               </thead>
               <tbody>
                 {editingId === 'new' && (
-                  <tr className="border-t border-[#2A3B59] bg-[#3F5235]/20" data-testid="supplier-row-new">
+                  <tr className="border-t border-[#3D5378] bg-[#3F5235]/20" data-testid="supplier-row-new">
                     <td className="px-2 py-1.5">
                       <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                         placeholder="Nazwa" className={inputCls} data-testid="supplier-form-name" />
@@ -122,14 +122,14 @@ export const SuppliersManagerDialog = ({ onClose }) => {
                           className="text-[10px] bg-[#5F7552] hover:bg-[#3F5235] text-white px-2 py-1 rounded disabled:opacity-50"
                           data-testid="supplier-save-btn">{saving ? '...' : 'Zapisz'}</button>
                         <button onClick={cancelEdit}
-                          className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                          className="text-[10px] border border-[#3D5378] text-[#F1F5F9] px-2 py-1 rounded hover:bg-[#3D5378]"
                           data-testid="supplier-cancel-btn">Anuluj</button>
                       </div>
                     </td>
                   </tr>
                 )}
                 {rows.map((s) => editingId === s.id ? (
-                  <tr key={s.id} className="border-t border-[#2A3B59] bg-[#3F5235]/20" data-testid={`supplier-row-${s.id}`}>
+                  <tr key={s.id} className="border-t border-[#3D5378] bg-[#3F5235]/20" data-testid={`supplier-row-${s.id}`}>
                     <td className="px-2 py-1.5">
                       <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                         className={inputCls} data-testid="supplier-form-name" />
@@ -152,18 +152,18 @@ export const SuppliersManagerDialog = ({ onClose }) => {
                           className="text-[10px] bg-[#5F7552] hover:bg-[#3F5235] text-white px-2 py-1 rounded disabled:opacity-50"
                           data-testid="supplier-save-btn">{saving ? '...' : 'Zapisz'}</button>
                         <button onClick={cancelEdit}
-                          className="text-[10px] border border-[#2A3B59] text-[#CBD5E1] px-2 py-1 rounded hover:bg-[#2A3B59]"
+                          className="text-[10px] border border-[#3D5378] text-[#F1F5F9] px-2 py-1 rounded hover:bg-[#3D5378]"
                           data-testid="supplier-cancel-btn">Anuluj</button>
                       </div>
                     </td>
                   </tr>
                 ) : (
-                  <tr key={s.id} className="border-t border-[#2A3B59] hover:bg-[#0B1120]/40"
+                  <tr key={s.id} className="border-t border-[#3D5378] hover:bg-[#152033]/40"
                       data-testid={`supplier-row-${s.id}`}>
                     <td className="px-2 py-1.5 text-white font-medium">{s.name}</td>
                     <td className="px-2 py-1.5 text-[#9DBC85]">{s.email}</td>
-                    <td className="px-2 py-1.5 text-[#CBD5E1] tabular-nums">{s.phone || <span className="text-[#64748B] italic">—</span>}</td>
-                    <td className="px-2 py-1.5 text-[#94A3B8]">{s.branze || <span className="text-[#64748B] italic">—</span>}</td>
+                    <td className="px-2 py-1.5 text-[#F1F5F9] tabular-nums">{s.phone || <span className="text-[#94A3B8] italic">—</span>}</td>
+                    <td className="px-2 py-1.5 text-[#CBD5E1]">{s.branze || <span className="text-[#94A3B8] italic">—</span>}</td>
                     <td className="px-2 py-1.5 text-right">
                       <div className="flex gap-1 justify-end">
                         <button onClick={() => startEdit(s)} disabled={editingId !== null}
@@ -186,12 +186,12 @@ export const SuppliersManagerDialog = ({ onClose }) => {
         </div>
 
         <DialogFooter className="gap-2">
-          <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
+          <Button onClick={onClose} variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
             data-testid="suppliers-close">Zamknij</Button>
           <Button
             onClick={() => { setEditingId('new'); setForm({ name: '', email: '', phone: '', branze: '', notes: '' }); }}
             disabled={editingId !== null}
-            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold disabled:opacity-40"
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#152033] font-semibold disabled:opacity-40"
             data-testid="supplier-add-new-btn">
             <Plus className="h-4 w-4 mr-1" /> Dodaj hurtownię
           </Button>

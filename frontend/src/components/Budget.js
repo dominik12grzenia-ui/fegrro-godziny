@@ -60,7 +60,7 @@ export const Budget = () => {
 
   return (
     <div className="space-y-4" data-testid="budget-panel">
-      <Card className="bg-[#131C2F] border-[#2A3B59]">
+      <Card className="bg-[#1E2A44] border-[#3D5378]">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-white">
             <Building2 className="h-5 w-5 text-[#D4AF37]" />
@@ -69,11 +69,11 @@ export const Budget = () => {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2 items-center mb-3">
-            <label className="text-sm text-[#94A3B8]">Budowa:</label>
+            <label className="text-sm text-[#CBD5E1]">Budowa:</label>
             <select
               value={selectedBudowaId || ''}
               onChange={(e) => setSelectedBudowaId(e.target.value)}
-              className="bg-[#0B1120] border border-[#2A3B59] text-white px-3 py-1.5 rounded text-sm min-w-[280px]"
+              className="bg-[#152033] border border-[#3D5378] text-white px-3 py-1.5 rounded text-sm min-w-[280px]"
               data-testid="budget-budowa-select"
             >
               <option value="">— wybierz budowę —</option>
@@ -83,17 +83,17 @@ export const Budget = () => {
                 </option>
               ))}
             </select>
-            <label className="text-sm text-[#94A3B8] ml-3">Rok:</label>
+            <label className="text-sm text-[#CBD5E1] ml-3">Rok:</label>
             <Input
               type="number"
               value={year}
               onChange={(e) => setYear(parseInt(e.target.value, 10) || new Date().getFullYear())}
-              className="w-24 bg-[#0B1120] border-[#2A3B59] text-white h-8"
+              className="w-24 bg-[#152033] border-[#3D5378] text-white h-8"
               data-testid="budget-year-input"
             />
           </div>
 
-          {loading && <div className="text-[#94A3B8] text-sm">Ładuję...</div>}
+          {loading && <div className="text-[#CBD5E1] text-sm">Ładuję...</div>}
 
           {selectedBudowa && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
@@ -108,14 +108,14 @@ export const Budget = () => {
 
       {selectedBudowaId && (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="bg-[#131C2F] border border-[#2A3B59] inline-flex">
-            <TabsTrigger value="budget" data-testid="budget-tab-budget" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+          <TabsList className="bg-[#1E2A44] border border-[#3D5378] inline-flex">
+            <TabsTrigger value="budget" data-testid="budget-tab-budget" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               <CheckSquare className="h-4 w-4 mr-1" /> Budżet
             </TabsTrigger>
-            <TabsTrigger value="progress" data-testid="budget-tab-progress" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+            <TabsTrigger value="progress" data-testid="budget-tab-progress" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               % Protokół
             </TabsTrigger>
-            <TabsTrigger value="schedule" data-testid="budget-tab-schedule" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#0B1120]">
+            <TabsTrigger value="schedule" data-testid="budget-tab-schedule" className="data-[state=active]:bg-[#D4AF37] data-[state=active]:text-[#152033]">
               <Calendar className="h-4 w-4 mr-1" /> Harmonogram
             </TabsTrigger>
           </TabsList>
@@ -136,8 +136,8 @@ export const Budget = () => {
 };
 
 const Tile = ({ label, value, testId, highlight }) => (
-  <div className={`bg-[#131C2F] border ${highlight ? 'border-[#D4AF37]/40' : 'border-[#2A3B59]'} rounded p-3`} data-testid={testId}>
-    <div className="text-[10px] text-[#94A3B8] uppercase tracking-wide">{label}</div>
+  <div className={`bg-[#1E2A44] border ${highlight ? 'border-[#D4AF37]/40' : 'border-[#3D5378]'} rounded p-3`} data-testid={testId}>
+    <div className="text-[10px] text-[#CBD5E1] uppercase tracking-wide">{label}</div>
     <div className={`text-lg font-bold tabular-nums ${highlight ? 'text-[#D4AF37]' : 'text-white'}`}>{value}</div>
   </div>
 );
@@ -228,7 +228,7 @@ const ForecastCell = ({ line, computedL, isParent, computedQty, computedCena, co
           }}
           onBlur={save}
           placeholder="liczba lub =ilosc*cena*0.3"
-          className="w-32 bg-[#0B1120] border border-[#D4AF37] text-white text-right text-[10px] px-1 py-0.5 rounded"
+          className="w-32 bg-[#152033] border border-[#D4AF37] text-white text-right text-[10px] px-1 py-0.5 rounded"
           data-testid={`forecast-input-${line.id}`}
         />
       </span>
@@ -245,7 +245,7 @@ const ForecastCell = ({ line, computedL, isParent, computedQty, computedCena, co
         </button>
       ) : (
         !isParent && (
-          <button type="button" onClick={startEdit} className="text-[#64748B] italic hover:text-[#D4AF37]"
+          <button type="button" onClick={startEdit} className="text-[#94A3B8] italic hover:text-[#D4AF37]"
             data-testid={`forecast-empty-${line.id}`}>
             wpisz
           </button>
@@ -254,21 +254,21 @@ const ForecastCell = ({ line, computedL, isParent, computedQty, computedCena, co
       {!isParent && (
         <button type="button"
           onClick={() => setEditingNote(!editingNote)}
-          className="opacity-0 group-hover:opacity-100 text-[#64748B] hover:text-[#D4AF37] transition"
+          className="opacity-0 group-hover:opacity-100 text-[#94A3B8] hover:text-[#D4AF37] transition"
           title={tooltip ? `Notatka: ${tooltip}` : 'Dodaj notatkę (widoczna po najechaniu)'}
           data-testid={`forecast-note-btn-${line.id}`}>
           <span className="text-[8px]">📝</span>
         </button>
       )}
       {editingNote && (
-        <div className="absolute z-50 mt-6 right-0 bg-[#0B1120] border border-[#D4AF37] rounded p-2 shadow-2xl w-56">
+        <div className="absolute z-50 mt-6 right-0 bg-[#152033] border border-[#D4AF37] rounded p-2 shadow-2xl w-56">
           <textarea value={noteValue} onChange={(e) => setNoteValue(e.target.value)}
             placeholder="np. cena z oferty firmy XYZ"
-            className="w-full bg-[#131C2F] text-white text-[10px] p-1 rounded border border-[#2A3B59] min-h-[60px]"
+            className="w-full bg-[#1E2A44] text-white text-[10px] p-1 rounded border border-[#3D5378] min-h-[60px]"
             data-testid={`forecast-note-input-${line.id}`} />
           <div className="flex gap-1 justify-end mt-1">
-            <button onClick={() => setEditingNote(false)} className="text-[10px] text-[#94A3B8] hover:text-white">Anuluj</button>
-            <button onClick={saveNote} className="text-[10px] bg-[#D4AF37] text-[#0B1120] px-2 py-0.5 rounded font-bold" data-testid={`forecast-note-save-${line.id}`}>Zapisz</button>
+            <button onClick={() => setEditingNote(false)} className="text-[10px] text-[#CBD5E1] hover:text-white">Anuluj</button>
+            <button onClick={saveNote} className="text-[10px] bg-[#D4AF37] text-[#152033] px-2 py-0.5 rounded font-bold" data-testid={`forecast-note-save-${line.id}`}>Zapisz</button>
           </div>
         </div>
       )}
@@ -289,9 +289,9 @@ const SUB_TYPE_ORDER = ['equipment', 'labor', 'materials']; // kolejnosc jak w a
 
 // =================== TYPY BUDŻETU ===================
 const BUDGET_TYPES = {
-  materials: { label: 'Materiały', short: 'M', color: '#D4AF37', bg: '#D4AF37', textOnBg: '#0B1120' },
+  materials: { label: 'Materiały', short: 'M', color: '#D4AF37', bg: '#D4AF37', textOnBg: '#152033' },
   labor:     { label: 'Robocizna', short: 'R', color: '#5F7552', bg: '#5F7552', textOnBg: '#FFFFFF' },
-  equipment: { label: 'Sprzęt',    short: 'S', color: '#94A3B8', bg: '#64748B', textOnBg: '#FFFFFF' },
+  equipment: { label: 'Sprzęt',    short: 'S', color: '#CBD5E1', bg: '#94A3B8', textOnBg: '#FFFFFF' },
 };
 
 // Kolejnosc wyswietlania w widoku kosztorysowym

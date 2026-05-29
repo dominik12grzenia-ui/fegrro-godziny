@@ -89,8 +89,8 @@ export const PublicHours = () => {
       start_url: `/hours/${token}`,
       scope: `/hours/${token}`,
       display: 'standalone',
-      background_color: '#0B1120',
-      theme_color: '#0B1120',
+      background_color: '#152033',
+      theme_color: '#152033',
       orientation: 'any',
       icons: [
         { src: '/icon-192x192.png', sizes: '192x192', type: 'image/png', purpose: 'any maskable' },
@@ -168,7 +168,7 @@ export const PublicHours = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#131C2F] p-4">
+      <div className="min-h-screen bg-[#1E2A44] p-4">
         <div className="max-w-2xl mx-auto space-y-4">
           <SkeletonBox style={{ height: 80 }} />
           <SkeletonCards count={2} />
@@ -180,8 +180,8 @@ export const PublicHours = () => {
 
   if (error || !data) {
     return (
-      <div className="min-h-screen bg-[#131C2F] flex items-center justify-center p-6">
-        <Card className="bg-[#19243C] border-[#2A3B59] max-w-sm w-full">
+      <div className="min-h-screen bg-[#1E2A44] flex items-center justify-center p-6">
+        <Card className="bg-[#243049] border-[#3D5378] max-w-sm w-full">
           <CardContent className="pt-6 text-center">
             <p className="text-red-400 text-lg">{error || 'Błąd'}</p>
           </CardContent>
@@ -228,9 +228,9 @@ export const PublicHours = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#131C2F]">
+    <div className="min-h-screen bg-[#1E2A44]">
       {/* Header */}
-      <div className="bg-[#19243C] text-white p-4 shadow-lg">
+      <div className="bg-[#243049] text-white p-4 shadow-lg">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -239,7 +239,7 @@ export const PublicHours = () => {
             </div>
             <LanguageToggle />
           </div>
-          <p className="text-center text-[#94A3B8] text-sm">{t('public.hours_section')}</p>
+          <p className="text-center text-[#CBD5E1] text-sm">{t('public.hours_section')}</p>
         </div>
       </div>
 
@@ -260,7 +260,7 @@ export const PublicHours = () => {
                 <div className={`font-semibold ${titleClass} text-sm mb-1`}>
                   {hasCritical ? 'Pilne: dokumenty wymagają uwagi' : 'Twoje dokumenty wkrótce wygasną'}
                 </div>
-                <ul className="text-xs text-[#CBD5E1] space-y-1">
+                <ul className="text-xs text-[#F1F5F9] space-y-1">
                   {docAlerts.map((a) => (
                     <li key={a.field} data-testid={`public-doc-alert-${a.field}`}>
                       <strong>{a.label}</strong> —{' '}
@@ -272,13 +272,13 @@ export const PublicHours = () => {
                     </li>
                   ))}
                 </ul>
-                <div className="text-[10px] text-[#94A3B8] mt-2">
+                <div className="text-[10px] text-[#CBD5E1] mt-2">
                   Skontaktuj się z biurem, aby przedłużyć dokumenty przed wygaśnięciem.
                 </div>
               </div>
               <button
                 onClick={() => setDocAlertsDismissed(true)}
-                className="text-[#94A3B8] hover:text-white p-1"
+                className="text-[#CBD5E1] hover:text-white p-1"
                 data-testid="public-doc-alerts-dismiss"
                 aria-label="Zamknij">
                 <X className="h-4 w-4" />
@@ -288,30 +288,30 @@ export const PublicHours = () => {
         })()}
 
         {/* Month navigation */}
-        <div className="flex items-center justify-between mb-4 bg-[#19243C] rounded-lg p-3 border border-[#2A3B59]">
-          <Button onClick={() => changeMonth(-1)} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59]" data-testid="prev-month">
+        <div className="flex items-center justify-between mb-4 bg-[#243049] rounded-lg p-3 border border-[#3D5378]">
+          <Button onClick={() => changeMonth(-1)} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378]" data-testid="prev-month">
             <ChevronLeft className="h-5 w-5" />
           </Button>
-          <span className="text-[#CBD5E1] font-semibold capitalize">{monthLabel}</span>
-          <Button onClick={() => changeMonth(1)} variant="ghost" size="sm" className="text-white hover:bg-[#2A3B59]" data-testid="next-month">
+          <span className="text-[#F1F5F9] font-semibold capitalize">{monthLabel}</span>
+          <Button onClick={() => changeMonth(1)} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378]" data-testid="next-month">
             <ChevronRight className="h-5 w-5" />
           </Button>
         </div>
 
         {/* Summary card */}
-        <Card className="bg-[#19243C] border-[#2A3B59] mb-4">
+        <Card className="bg-[#243049] border-[#3D5378] mb-4">
           <CardContent className="pt-4 pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="h-5 w-5 text-[#4F6343]" />
-                <span className="text-[#94A3B8] text-sm">Suma godzin:</span>
+                <span className="text-[#CBD5E1] text-sm">Suma godzin:</span>
               </div>
               <span className="text-[#4F6343] font-bold text-2xl">{monthTotal}</span>
             </div>
             {siteIds.length > 0 && (
               <div className="mt-2 flex flex-wrap gap-2">
                 {siteIds.map((sId, idx) => (
-                  <span key={sId} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: SITE_COLORS[idx % SITE_COLORS.length] + '44', color: '#CBD5E1' }}>
+                  <span key={sId} className="text-xs px-2 py-1 rounded" style={{ backgroundColor: SITE_COLORS[idx % SITE_COLORS.length] + '44', color: '#F1F5F9' }}>
                     {siteNames[sId]}: <strong>{siteTotals[sId] || 0}h</strong>
                   </span>
                 ))}
@@ -321,12 +321,12 @@ export const PublicHours = () => {
         </Card>
 
         {/* Day list */}
-        <Card className="bg-[#19243C] border-[#2A3B59]">
+        <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[#CBD5E1] text-base">{t('public.details')}</CardTitle>
+            <CardTitle className="text-[#F1F5F9] text-base">{t('public.details')}</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y divide-[#2A3B59]">
+            <div className="divide-y divide-[#3D5378]">
               {dayRows.map(row => {
                 const siteIdx = row.siteId ? siteIds.indexOf(row.siteId) : -1;
                 const isAbsenceDay = row.isAbsenceReported && !row.isWeekend && !row.isHoliday;
@@ -358,23 +358,23 @@ export const PublicHours = () => {
                 return (
                   <div
                     key={row.day}
-                    className={`flex items-center px-4 py-2.5 ${canSelect ? 'cursor-pointer hover:bg-[#2A3B59]' : ''} ${isSelected ? 'ring-2 ring-inset ring-[#9B2C2C]' : ''}`}
+                    className={`flex items-center px-4 py-2.5 ${canSelect ? 'cursor-pointer hover:bg-[#3D5378]' : ''} ${isSelected ? 'ring-2 ring-inset ring-[#9B2C2C]' : ''}`}
                     style={{ backgroundColor: isSelected ? '#5A2020' : (nnBg || bgColor), borderLeft: borderStyle }}
                     data-testid={`public-day-${row.day}`}
                     onClick={() => canSelect && toggleAbsenceDate(row.dateStr)}
                   >
                     <div className="w-8 text-center">
-                      <span className={`font-bold text-sm ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#CBD5E1]'}`}>
+                      <span className={`font-bold text-sm ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#F1F5F9]'}`}>
                         {row.day}
                       </span>
                     </div>
                     <div className="flex-1 ml-3">
-                      <span className={`text-sm capitalize ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#94A3B8]'}`}>
+                      <span className={`text-sm capitalize ${row.isWeekend || row.isHoliday ? 'text-[#DC4A3A]' : 'text-[#CBD5E1]'}`}>
                         {row.dayName}
                         {row.isHoliday && <span className="ml-1 text-[10px] text-red-400 font-semibold">SWIETO</span>}
                       </span>
                       {row.siteName && !showNN && !showNU && (
-                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: siteIdx >= 0 ? SITE_COLORS[siteIdx % SITE_COLORS.length] + '55' : '#2A3B59', color: '#CBD5E1' }}>
+                        <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: siteIdx >= 0 ? SITE_COLORS[siteIdx % SITE_COLORS.length] + '55' : '#3D5378', color: '#F1F5F9' }}>
                           {row.siteName}
                         </span>
                       )}
@@ -386,7 +386,7 @@ export const PublicHours = () => {
                     </div>
                     <div className="text-right min-w-[50px]">
                       {absenceMode && canSelect ? (
-                        <span className={`text-xs font-semibold ${isSelected ? 'text-red-400' : 'text-[#64748B]'}`}>
+                        <span className={`text-xs font-semibold ${isSelected ? 'text-red-400' : 'text-[#94A3B8]'}`}>
                           {isSelected ? 'X' : 'Zaznacz'}
                         </span>
                       ) : showNN ? (
@@ -407,23 +407,23 @@ export const PublicHours = () => {
         </Card>
 
         {/* Legend */}
-        <div className="mt-4 p-3 bg-[#19243C] rounded-lg border border-[#2A3B59]">
+        <div className="mt-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378]">
           <div className="flex flex-wrap gap-3 text-xs">
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-3 h-3 rounded-sm border-2 border-[#9B2C2C]" />
-              <span className="text-[#94A3B8]">Swieto ustawowe</span>
+              <span className="text-[#CBD5E1]">Swieto ustawowe</span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="inline-block w-3 h-3 rounded-sm border-2 border-[#6B4444]" style={{ backgroundColor: WEEKEND_BG }} />
-              <span className="text-[#94A3B8]">Weekend</span>
+              <span className="text-[#CBD5E1]">Weekend</span>
             </div>
           </div>
         </div>
 
         {/* Advances section */}
         {advances.advances.length > 0 && (
-          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
-            <CardHeader className="bg-[#131C2F] border-b border-[#2A3B59] px-5 py-4">
+          <Card className="bg-[#243049] border-[#3D5378] shadow-lg">
+            <CardHeader className="bg-[#1E2A44] border-b border-[#3D5378] px-5 py-4">
               <CardTitle className="text-[#F8FAFC] flex items-center gap-2 text-base font-display">
                 <Wallet className="h-5 w-5 text-[#C78B58]" />
                 {t('public.advances_section')}
@@ -431,18 +431,18 @@ export const PublicHours = () => {
             </CardHeader>
             <CardContent className="p-4 space-y-3">
               {advances.advances.map((adv, idx) => (
-                <div key={idx} className="flex items-center justify-between p-3 bg-[#0B1120] rounded-lg border border-[#2A3B59]">
+                <div key={idx} className="flex items-center justify-between p-3 bg-[#152033] rounded-lg border border-[#3D5378]">
                   <div>
                     <span className="text-[#C78B58] font-bold text-lg">{adv.amount} zł</span>
-                    {adv.note && <span className="text-[#94A3B8] text-xs ml-3 block sm:inline">{adv.note}</span>}
+                    {adv.note && <span className="text-[#CBD5E1] text-xs ml-3 block sm:inline">{adv.note}</span>}
                   </div>
-                  <span className="text-[#64748B] text-[10px]">
+                  <span className="text-[#94A3B8] text-[10px]">
                     {adv.created_at ? new Date(adv.created_at).toLocaleString('pl-PL') : ''}
                   </span>
                 </div>
               ))}
-              <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg border border-[#C78B58]/30 mt-4">
-                <span className="text-[#94A3B8] font-medium">{t('public.total')}:</span>
+              <div className="flex items-center justify-between p-4 bg-[#1E2A44] rounded-lg border border-[#C78B58]/30 mt-4">
+                <span className="text-[#CBD5E1] font-medium">{t('public.total')}:</span>
                 <span className="text-[#C78B58] font-display font-bold text-2xl" data-testid="public-advance-total">{advances.total} zł</span>
               </div>
             </CardContent>
@@ -451,8 +451,8 @@ export const PublicHours = () => {
 
         {/* Penalties section */}
         {penalties.penalties.length > 0 && (
-          <Card className="bg-[#19243C] border-[#2A3B59] shadow-lg">
-            <CardHeader className="bg-[#131C2F] border-b border-[#2A3B59] px-5 py-4">
+          <Card className="bg-[#243049] border-[#3D5378] shadow-lg">
+            <CardHeader className="bg-[#1E2A44] border-b border-[#3D5378] px-5 py-4">
               <CardTitle className="text-[#F8FAFC] flex items-center gap-2 text-base font-display">
                 <AlertTriangle className="h-5 w-5 text-[#9B2C2C]" />
                 {t('public.penalties_section')}
@@ -460,13 +460,13 @@ export const PublicHours = () => {
             </CardHeader>
             <CardContent className="p-4 space-y-3">
               {penalties.penalties.map((pen, idx) => (
-                <div key={pen.id || `pen-${idx}`} className="p-3 bg-[#0B1120] rounded-lg border border-[#2A3B59]">
+                <div key={pen.id || `pen-${idx}`} className="p-3 bg-[#152033] rounded-lg border border-[#3D5378]">
                   <div className="flex items-center justify-between mb-1">
                     <div>
                       <span className="text-[#FCA5A5] font-bold text-lg">{pen.amount} zł</span>
-                      {pen.description && <span className="text-[#94A3B8] text-xs ml-3 block sm:inline">{pen.description}</span>}
+                      {pen.description && <span className="text-[#CBD5E1] text-xs ml-3 block sm:inline">{pen.description}</span>}
                     </div>
-                    <span className="text-[#64748B] text-[10px]">
+                    <span className="text-[#94A3B8] text-[10px]">
                       {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
                     </span>
                   </div>
@@ -474,14 +474,14 @@ export const PublicHours = () => {
                     <img
                       src={pen.image_data}
                       alt="Zdjecie kary"
-                      className="w-full max-h-48 object-cover rounded-md cursor-pointer border border-[#2A3B59] mt-3"
+                      className="w-full max-h-48 object-cover rounded-md cursor-pointer border border-[#3D5378] mt-3"
                       onClick={() => setViewPenaltyImage(pen.image_data)}
                     />
                   )}
                 </div>
               ))}
-              <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg border border-[#9B2C2C]/30 mt-4">
-                <span className="text-[#94A3B8] font-medium">{t('public.total')}:</span>
+              <div className="flex items-center justify-between p-4 bg-[#1E2A44] rounded-lg border border-[#9B2C2C]/30 mt-4">
+                <span className="text-[#CBD5E1] font-medium">{t('public.total')}:</span>
                 <span className="text-[#FCA5A5] font-display font-bold text-2xl" data-testid="public-penalty-total">{penalties.total} zł</span>
               </div>
             </CardContent>
@@ -489,9 +489,9 @@ export const PublicHours = () => {
         )}
 
         {/* Absence section */}
-        <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
+        <Card className="mt-4 bg-[#243049] border-[#3D5378]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+            <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
               <CalendarOff className="h-4 w-4 text-[#DC4A3A]" />
               {t('public.report_absence')}
             </CardTitle>
@@ -508,10 +508,10 @@ export const PublicHours = () => {
               </Button>
             ) : (
               <div className="space-y-3">
-                <p className="text-sm text-[#94A3B8]">
+                <p className="text-sm text-[#CBD5E1]">
                   Zaznacz dni powyzej (od jutra) / Позначте днi вище (вiд завтра):
                 </p>
-                <p className="text-xs text-[#64748B]">
+                <p className="text-xs text-[#94A3B8]">
                   Zaznaczono: {selectedAbsenceDates.size} dni / Позначено: {selectedAbsenceDates.size} днiв
                 </p>
                 <div className="flex gap-2">
@@ -526,7 +526,7 @@ export const PublicHours = () => {
                   <Button
                     onClick={() => { setAbsenceMode(false); setSelectedAbsenceDates(new Set()); }}
                     variant="outline"
-                    className="border-[#2A3B59] text-[#CBD5E1] hover:bg-[#2A3B59]"
+                    className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378]"
                     data-testid="absence-cancel-btn"
                   >
                     Anuluj
@@ -537,19 +537,19 @@ export const PublicHours = () => {
 
             {/* List of existing absences */}
             {absences.filter(a => a.status === 'pending').length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#2A3B59]">
-                <p className="text-xs text-[#94A3B8] font-semibold">
+              <div className="space-y-2 pt-2 border-t border-[#3D5378]">
+                <p className="text-xs text-[#CBD5E1] font-semibold">
                   Oczekujace / Очiкуючi:
                 </p>
                 {absences.filter(a => a.status === 'pending').map(a => (
-                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#131C2F] rounded border border-[#9B2C2C]">
+                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#1E2A44] rounded border border-[#9B2C2C]">
                     <div>
                       <span className="text-[#DC4A3A] text-sm font-medium">{a.dates.join(', ')}</span>
-                      <span className="text-[#64748B] text-[10px] ml-2">Oczekuje / Очiкує</span>
+                      <span className="text-[#94A3B8] text-[10px] ml-2">Oczekuje / Очiкує</span>
                     </div>
                     <button
                       onClick={() => handleCancelAbsence(a.id)}
-                      className="text-[#64748B] hover:text-red-400 transition-colors p-1"
+                      className="text-[#94A3B8] hover:text-red-400 transition-colors p-1"
                       title="Anuluj / Скасувати"
                       data-testid={`cancel-absence-${a.id}`}
                     >
@@ -561,19 +561,19 @@ export const PublicHours = () => {
             )}
 
             {absences.filter(a => a.status === 'approved').length > 0 && (
-              <div className="space-y-2 pt-2 border-t border-[#2A3B59]">
-                <p className="text-xs text-[#94A3B8] font-semibold">
+              <div className="space-y-2 pt-2 border-t border-[#3D5378]">
+                <p className="text-xs text-[#CBD5E1] font-semibold">
                   Zatwierdzone / Затвердженi:
                 </p>
                 {absences.filter(a => a.status === 'approved').map(a => (
-                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
+                  <div key={a.id} className="flex items-center justify-between p-2 bg-[#1E2A44] rounded border border-[#3D5378]">
                     <div>
                       <span className="text-[#22C55E] text-sm font-medium">{a.dates.join(', ')}</span>
-                      <span className="text-[#64748B] text-[10px] ml-2">Zatwierdzono / Затверджено</span>
+                      <span className="text-[#94A3B8] text-[10px] ml-2">Zatwierdzono / Затверджено</span>
                     </div>
                     <button
                       onClick={() => handleCancelAbsence(a.id)}
-                      className="text-[#64748B] hover:text-red-400 transition-colors p-1"
+                      className="text-[#94A3B8] hover:text-red-400 transition-colors p-1"
                       title="Cofnij / Скасувати"
                       data-testid={`cancel-approved-${a.id}`}
                     >
@@ -590,12 +590,12 @@ export const PublicHours = () => {
         <ClothingOrderPublic token={token} />
 
         {/* Push notifications opt-in */}
-        <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
+        <Card className="mt-4 bg-[#243049] border-[#3D5378]">
           <CardContent className="pt-4">
             <div className="flex items-start gap-3 flex-wrap">
               <div className="flex-1 min-w-[200px]">
-                <h3 className="text-[#CBD5E1] font-semibold text-sm mb-1">Powiadomienia o zamowieniach</h3>
-                <p className="text-xs text-[#94A3B8]">
+                <h3 className="text-[#F1F5F9] font-semibold text-sm mb-1">Powiadomienia o zamowieniach</h3>
+                <p className="text-xs text-[#CBD5E1]">
                   Włącz aby dostac powiadomienie na telefon gdy Twoja odzież zostanie wydana lub przekazana do dostawcy.
                 </p>
               </div>
@@ -606,9 +606,9 @@ export const PublicHours = () => {
 
         {/* PWA Install Instructions */}
         {!window.matchMedia('(display-mode: standalone)').matches && (
-          <Card className="mt-4 bg-[#19243C] border-[#2A3B59]">
+          <Card className="mt-4 bg-[#243049] border-[#3D5378]">
             <CardHeader className="pb-2">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2 text-base">
+              <CardTitle className="text-[#F1F5F9] flex items-center gap-2 text-base">
                 <Download className="h-4 w-4 text-[#4F6343]" />
                 Dodaj na ekran / Додати на екран
               </CardTitle>
@@ -616,25 +616,25 @@ export const PublicHours = () => {
             <CardContent className="space-y-2">
               {/iPad|iPhone|iPod/.test(navigator.userAgent) ? (
                 <>
-                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
-                    <span className="bg-[#2A3B59] p-1.5 rounded"><Share className="h-4 w-4 text-[#CBD5E1]" /></span>
-                    <span className="text-[#94A3B8] text-xs">1. Kliknij <strong className="text-[#CBD5E1]">Udostepnij</strong> (ikona na dole)</span>
+                  <div className="flex items-center gap-2 bg-[#1E2A44] p-2.5 rounded-lg">
+                    <span className="bg-[#3D5378] p-1.5 rounded"><Share className="h-4 w-4 text-[#F1F5F9]" /></span>
+                    <span className="text-[#CBD5E1] text-xs">1. Kliknij <strong className="text-[#F1F5F9]">Udostepnij</strong> (ikona na dole)</span>
                   </div>
-                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
-                    <span className="bg-[#2A3B59] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#CBD5E1]" /></span>
-                    <span className="text-[#94A3B8] text-xs">2. Wybierz <strong className="text-[#CBD5E1]">Dodaj do ekranu poczatkowego</strong></span>
+                  <div className="flex items-center gap-2 bg-[#1E2A44] p-2.5 rounded-lg">
+                    <span className="bg-[#3D5378] p-1.5 rounded"><PlusSquare className="h-4 w-4 text-[#F1F5F9]" /></span>
+                    <span className="text-[#CBD5E1] text-xs">2. Wybierz <strong className="text-[#F1F5F9]">Dodaj do ekranu poczatkowego</strong></span>
                   </div>
-                  <p className="text-[10px] text-[#64748B] pt-1">
+                  <p className="text-[10px] text-[#94A3B8] pt-1">
                     Натиснiть "Подiлитися" внизу, потiм "На Початковий екран"
                   </p>
                 </>
               ) : (
                 <>
-                  <div className="flex items-center gap-2 bg-[#131C2F] p-2.5 rounded-lg">
-                    <span className="bg-[#2A3B59] p-1.5 rounded"><Download className="h-4 w-4 text-[#CBD5E1]" /></span>
-                    <span className="text-[#94A3B8] text-xs">Kliknij <strong className="text-[#CBD5E1]">menu (3 kropki)</strong> i wybierz <strong className="text-[#CBD5E1]">Zainstaluj aplikacje</strong> lub <strong className="text-[#CBD5E1]">Dodaj do ekranu</strong></span>
+                  <div className="flex items-center gap-2 bg-[#1E2A44] p-2.5 rounded-lg">
+                    <span className="bg-[#3D5378] p-1.5 rounded"><Download className="h-4 w-4 text-[#F1F5F9]" /></span>
+                    <span className="text-[#CBD5E1] text-xs">Kliknij <strong className="text-[#F1F5F9]">menu (3 kropki)</strong> i wybierz <strong className="text-[#F1F5F9]">Zainstaluj aplikacje</strong> lub <strong className="text-[#F1F5F9]">Dodaj do ekranu</strong></span>
                   </div>
-                  <p className="text-[10px] text-[#64748B] pt-1">
+                  <p className="text-[10px] text-[#94A3B8] pt-1">
                     Натиснiть меню (3 крапки) i оберiть "Встановити додаток"
                   </p>
                 </>

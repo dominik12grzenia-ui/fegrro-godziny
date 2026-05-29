@@ -144,11 +144,11 @@ export const AssignmentManager = () => {
 
   const getSiteColor = (siteId) => {
     const colors = [
-      'bg-[#19243C] border-[#4F6343]',
-      'bg-[#19243C] border-[#5F7552]',
-      'bg-[#19243C] border-[#3F5235]',
-      'bg-[#19243C] border-[#2A3B59]',
-      'bg-[#19243C] border-[#4F6343]',
+      'bg-[#243049] border-[#4F6343]',
+      'bg-[#243049] border-[#5F7552]',
+      'bg-[#243049] border-[#3F5235]',
+      'bg-[#243049] border-[#3D5378]',
+      'bg-[#243049] border-[#4F6343]',
     ];
     const index = sites.findIndex(s => s.id === siteId);
     return colors[index % colors.length];
@@ -156,10 +156,10 @@ export const AssignmentManager = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#131C2F] flex items-center justify-center">
+      <div className="min-h-screen bg-[#1E2A44] flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4F6343] mx-auto"></div>
-          <p className="mt-4 text-[#94A3B8]">Wczytywanie...</p>
+          <p className="mt-4 text-[#CBD5E1]">Wczytywanie...</p>
         </div>
       </div>
     );
@@ -171,15 +171,15 @@ export const AssignmentManager = () => {
   const site = sites.find(s => s.id === selectedSite);
 
   return (
-    <div className="min-h-screen bg-[#131C2F]">
+    <div className="min-h-screen bg-[#1E2A44]">
       {/* Header */}
-      <div className="bg-[#131C2F] text-white shadow-lg">
+      <div className="bg-[#1E2A44] text-white shadow-lg">
         <div className="max-w-7xl mx-auto p-4">
           <div className="flex items-center gap-4">
             <Button
               onClick={() => navigate('/admin/dashboard')}
               variant="ghost"
-              className="text-white hover:bg-[#19243C]"
+              className="text-white hover:bg-[#243049]"
               data-testid="back-btn"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -240,12 +240,12 @@ export const AssignmentManager = () => {
             </div>
 
             {/* Full Month Toggle */}
-            <div className="flex items-center justify-between p-4 bg-[#131C2F] rounded-lg">
+            <div className="flex items-center justify-between p-4 bg-[#1E2A44] rounded-lg">
               <div className="space-y-1">
                 <Label htmlFor="full-month" className="text-base font-semibold">
                   Przypisz na cały miesiąc
                 </Label>
-                <p className="text-sm text-[#94A3B8]">
+                <p className="text-sm text-[#CBD5E1]">
                   Automatycznie wybierze wszystkie dni w miesiącu
                 </p>
               </div>
@@ -295,7 +295,7 @@ export const AssignmentManager = () => {
                     Przypisywanie: <span className="font-bold">{employee.full_name}</span>
                     {site && <> → <span className="font-bold text-[#5F7552]">{site.name}</span></>}
                   </p>
-                  <p className="text-xs text-[#94A3B8] mt-1">
+                  <p className="text-xs text-[#CBD5E1] mt-1">
                     Wybrano dni: {selectedDates.length}
                   </p>
                 </div>
@@ -305,7 +305,7 @@ export const AssignmentManager = () => {
               <div className="grid grid-cols-7 gap-2">
                 {/* Day headers */}
                 {['Pon', 'Wt', 'Śr', 'Czw', 'Pt', 'Sob', 'Nie'].map(day => (
-                  <div key={day} className="text-center font-semibold text-sm text-[#94A3B8] p-2">
+                  <div key={day} className="text-center font-semibold text-sm text-[#CBD5E1] p-2">
                     {day}
                   </div>
                 ))}
@@ -330,8 +330,8 @@ export const AssignmentManager = () => {
                       disabled={assignFullMonth}
                       className={`
                         relative p-3 rounded-lg border-2 text-center transition-all
-                        ${isSelected ? 'border-[#4F6343] bg-green-50' : 'border-[#2A3B59] hover:border-[#2A3B59]'}
-                        ${existingSiteId ? getSiteColor(existingSiteId) : 'bg-[#19243C]'}
+                        ${isSelected ? 'border-[#4F6343] bg-green-50' : 'border-[#3D5378] hover:border-[#3D5378]'}
+                        ${existingSiteId ? getSiteColor(existingSiteId) : 'bg-[#243049]'}
                         ${isToday ? 'ring-2 ring-blue-400' : ''}
                         ${assignFullMonth ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}
                       `}
@@ -354,7 +354,7 @@ export const AssignmentManager = () => {
               </div>
 
               {/* Legend */}
-              <div className="mt-6 p-4 bg-[#131C2F] rounded-lg">
+              <div className="mt-6 p-4 bg-[#1E2A44] rounded-lg">
                 <p className="text-sm font-semibold mb-2">Legenda:</p>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                   <div className="flex items-center gap-2">
@@ -403,12 +403,12 @@ export const AssignmentManager = () => {
                   if (siteDays.length === 0) return null;
                   
                   return (
-                    <div key={site.id} className="flex items-center justify-between p-3 bg-[#131C2F] rounded-lg">
+                    <div key={site.id} className="flex items-center justify-between p-3 bg-[#1E2A44] rounded-lg">
                       <div className="flex items-center gap-3">
                         <Building2 className="h-5 w-5 text-[#5F7552]" />
                         <div>
                           <p className="font-semibold">{site.name}</p>
-                          <p className="text-xs text-[#94A3B8]">{siteDays.length} dni w tym miesiącu</p>
+                          <p className="text-xs text-[#CBD5E1]">{siteDays.length} dni w tym miesiącu</p>
                         </div>
                       </div>
                     </div>
