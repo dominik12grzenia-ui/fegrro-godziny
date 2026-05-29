@@ -678,6 +678,33 @@ async def export_bom_xlsx(
     )
 
 
+def _get_logo_path() -> Optional[str]:
+    """iter95av: zwraca pierwszą istniejącą ścieżkę do logo firmy (do PDF/Excel)."""
+    import os as _os
+    candidates = [
+        "/app/frontend/public/icon-512x512.png",
+        "/app/frontend/public/icon-192x192.png",
+        "/app/frontend/public/apple-touch-icon.png",
+    ]
+    return next((p for p in candidates if _os.path.exists(p)), None)
+
+
+def _xlsx_add_logo(ws, anchor: str = "A1", width: int = 110, height: int = 110) -> None:
+    """iter95av: wstawia logo w arkuszu XLSX na danej kotwicy. Cicho ignoruje błąd."""
+    try:
+        path = _get_logo_path()
+        if not path:
+            return
+        from openpyxl.drawing.image import Image as XLImage
+        img = XLImage(path)
+        img.width = width
+        img.height = height
+        img.anchor = anchor
+        ws.add_image(img)
+    except Exception:
+        pass
+
+
 def _filter_bom_rows(data: dict, subcategories: Optional[List[str]] = None) -> dict:
     """iter95ar: filtruj BOM po sub_category (kategoriach materialow)."""
     if not subcategories:
@@ -697,12 +724,15 @@ def _generate_bom_xlsx_bytes(data: dict):
     wb = Workbook()
     ws = wb.active
     ws.title = "Zestawienie materiałów"
-    ws["A1"] = f"Zestawienie materiałów: {data['wycena_name']}"
-    ws["A1"].font = Font(bold=True, size=14, color="D4AF37")
-    ws.merge_cells("A1:E1")
-    ws["A2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-    ws["A2"].font = Font(italic=True, size=10, color="666666")
-    ws.merge_cells("A2:E2")
+    # iter95av: logo w nagłówku
+    _xlsx_add_logo(ws, "A1", width=90, height=90)
+    ws["B1"] = f"Zestawienie materiałów: {data['wycena_name']}"
+    ws["B1"].font = Font(bold=True, size=14, color="D4AF37")
+    ws.merge_cells("B1:E1")
+    ws["B2"] = f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+    ws["B2"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("B2:E2")
+    ws.row_dimensions[1].height = 50
     # iter95ar: usunieto kolumne "Termin dostawy" - klient nie chce
     headers = ["L.p.", "Nazwa materiału", "Ilość zużycia", "Jednostka",
                "Opakowanie", "Wielkość opak.", "Liczba opakowań",
@@ -748,7 +778,7 @@ def _generate_bom_xlsx_bytes(data: dict):
     ws.cell(row=foot_row, column=1,
             value="Prosimy o uzupełnienie kolumn: cena netto, wartość netto i uwagi.").font = Font(italic=True, color="666666")
     ws.merge_cells(start_row=foot_row, start_column=1, end_row=foot_row, end_column=n_cols)
-    widths = {"A": 6, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 20}
+    widths = {"A": 14, "B": 40, "C": 12, "D": 11, "E": 14, "F": 14, "G": 12, "H": 18, "I": 16, "J": 20}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     buf = BytesIO()
@@ -817,12 +847,47 @@ def _generate_bom_pdf_bytes(data: dict):
     title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=15, textColor=colors.HexColor("#3F5235"))
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9, textColor=colors.grey)
     name_st = ParagraphStyle("name", parent=styles["Normal"], fontName=base_font, fontSize=7.5, leading=9)
+    # iter95av: styl nagłówka kolumny - umożliwia zawijanie tekstu
+    head_st = ParagraphStyle("head", parent=styles["Normal"], fontName=bold_font, fontSize=7.5,
+                             leading=9, textColor=colors.white, alignment=1)
     elements = []
-    elements.append(Paragraph(f"Zapytanie ofertowe — Zestawienie materiałów: {data['wycena_name']}", title_st))
-    elements.append(Paragraph(f"Data wygenerowania: {datetime.now().strftime('%Y-%m-%d %H:%M')}", sub_st))
+    # iter95av: nagłówek z logo + tytuł
+    from reportlab.platypus import Image as RLImage
+    logo_path = _get_logo_path()
+    title_cell = []
+    title_cell.append(Paragraph(
+        f"<b>Zapytanie ofertowe — Zestawienie materiałów</b><br/>"
+        f"<font size=10>{data['wycena_name']}</font><br/>"
+        f"<font size=8 color='#666666'>Data: {datetime.now().strftime('%Y-%m-%d %H:%M')}</font>",
+        ParagraphStyle("htitle", parent=styles["Normal"], fontName=base_font, fontSize=13,
+                       leading=15, textColor=colors.HexColor("#3F5235")),
+    ))
+    if logo_path:
+        try:
+            img = RLImage(logo_path, width=22 * mm, height=22 * mm)
+            head_tbl = Table([[img, title_cell[0]]], colWidths=[26 * mm, 160 * mm])
+        except Exception:
+            head_tbl = Table([[title_cell[0]]], colWidths=[186 * mm])
+    else:
+        head_tbl = Table([[title_cell[0]]], colWidths=[186 * mm])
+    head_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(head_tbl)
     elements.append(Spacer(1, 6 * mm))
-    table_data = [["L.p.", "Nazwa materiału", "Ilość", "Jedn.", "Opak.", "Wlk. opak.",
-                   "Liczba opak.", "Cena netto/opak.", "Uwagi"]]
+    table_data = [[
+        Paragraph("L.p.", head_st),
+        Paragraph("Nazwa materiału", head_st),
+        Paragraph("Ilość", head_st),
+        Paragraph("Jedn.", head_st),
+        Paragraph("Opak.", head_st),
+        Paragraph("Wielk.<br/>opak.", head_st),
+        Paragraph("Liczba<br/>opak.", head_st),
+        Paragraph("Cena netto<br/>za opak.", head_st),
+        Paragraph("Uwagi", head_st),
+    ]]
     for idx, row in enumerate(data["rows"], start=1):
         if row.get("qty_in_pkg_unit") is not None:
             qty_str = f"{row['qty_in_pkg_unit']:.3f}".replace(".", ",")
@@ -836,9 +901,10 @@ def _generate_bom_pdf_bytes(data: dict):
             str(idx), Paragraph(row["name"], name_st), qty_str, unit_str,
             row.get("opakowanie") or "—", pkg_size, num_pkg, "", "",
         ])
-    # szerokosci dla A4 portrait (uzyteczna szerokosc ~ 186mm)
-    tbl = Table(table_data, colWidths=[10 * mm, 56 * mm, 16 * mm, 12 * mm, 20 * mm,
-                                        22 * mm, 16 * mm, 20 * mm, 14 * mm], repeatRows=1)
+    # iter95av: szerokości kolumn zoptymalizowane — nagłówki zawijają w 2 linie aby nie nakładać tekstu
+    # Suma = 186mm (A4 portrait - 2*12mm marginesy)
+    tbl = Table(table_data, colWidths=[10 * mm, 52 * mm, 14 * mm, 11 * mm, 20 * mm,
+                                        20 * mm, 18 * mm, 22 * mm, 19 * mm], repeatRows=1)
     tbl.setStyle(TableStyle([
         ("FONT", (0, 0), (-1, -1), base_font, 8),
         ("FONT", (0, 0), (-1, 0), bold_font, 8),
@@ -853,6 +919,10 @@ def _generate_bom_pdf_bytes(data: dict):
         ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8F8F8")]),
         ("TEXTCOLOR", (6, 1), (6, -1), colors.HexColor("#B8860B")),
         ("FONT", (6, 1), (6, -1), bold_font, 8),
+        ("TOPPADDING", (0, 0), (-1, 0), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]))
     elements.append(tbl)
     elements.append(Spacer(1, 8 * mm))
@@ -1090,13 +1160,16 @@ def _generate_wycena_xlsx_bytes(data: dict, detail: str = "positions"):
     ws = wb.active
     ws.title = "Wycena"
     wycena_name = data["wycena"].get("name", "")
-    ws["A1"] = f"Wycena: {wycena_name}"
-    ws["A1"].font = Font(bold=True, size=14, color="3F5235")
-    ws.merge_cells("A1:M1")
-    ws["A2"] = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: " + (
+    # iter95av: logo w nagłówku
+    _xlsx_add_logo(ws, "A1", width=90, height=90)
+    ws["B1"] = f"Wycena: {wycena_name}"
+    ws["B1"].font = Font(bold=True, size=14, color="3F5235")
+    ws.merge_cells("B1:M1")
+    ws["B2"] = f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: " + (
         "Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)")
-    ws["A2"].font = Font(italic=True, size=10, color="666666")
-    ws.merge_cells("A2:M2")
+    ws["B2"].font = Font(italic=True, size=10, color="666666")
+    ws.merge_cells("B2:M2")
+    ws.row_dimensions[1].height = 50
     headers = ["Kod", "Nazwa", "Ilość", "Jedn.", "Cena", "Narzut %", "Marża %",
                "Kaucja GIR", "Kaucja DW", "Koszt budowy", "Budżet zwolniony", "Budżet", "Uwagi"]
     header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
@@ -1169,8 +1242,8 @@ def _generate_wycena_xlsx_bytes(data: dict, detail: str = "positions"):
     ws.cell(row=r, column=11, value="RAZEM:").font = Font(bold=True, size=12)
     ws.cell(row=r, column=11).alignment = Alignment(horizontal="right")
     ws.cell(row=r, column=12, value=round(total_budzet, 2)).font = Font(bold=True, size=12, color="B8860B")
-    widths = {"A": 9, "B": 38, "C": 10, "D": 8, "E": 11, "F": 9, "G": 9,
-              "H": 12, "I": 12, "J": 13, "K": 15, "L": 14, "M": 50}
+    widths = {"A": 12, "B": 38, "C": 10, "D": 8, "E": 12, "F": 9, "G": 9,
+              "H": 13, "I": 13, "J": 14, "K": 16, "L": 15, "M": 40}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
     buf = BytesIO()
@@ -1213,14 +1286,42 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     cell_b = ParagraphStyle("cellb", parent=styles["Normal"], fontName=bold_font, fontSize=7, leading=8)
     elements = []
     wycena_name = data["wycena"].get("name", "")
-    elements.append(Paragraph(f"Wycena: {wycena_name}", title_st))
-    elements.append(Paragraph(
-        f"Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: " +
-        ("Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)"), sub_st))
+    # iter95av: nagłówek z logo + tytuł
+    from reportlab.platypus import Image as RLImage
+    logo_path = _get_logo_path()
+    title_para = Paragraph(
+        f"<b>Wycena: {wycena_name}</b><br/>"
+        f"<font size=9 color='#666666'>Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: "
+        + ("Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)") + "</font>",
+        ParagraphStyle("ht", parent=styles["Normal"], fontName=base_font, fontSize=13,
+                       leading=15, textColor=colors.HexColor("#3F5235")),
+    )
+    if logo_path:
+        try:
+            img = RLImage(logo_path, width=20 * mm, height=20 * mm)
+            head_tbl = Table([[img, title_para]], colWidths=[24 * mm, 257 * mm])
+        except Exception:
+            head_tbl = Table([[title_para]], colWidths=[281 * mm])
+    else:
+        head_tbl = Table([[title_para]], colWidths=[281 * mm])
+    head_tbl.setStyle(TableStyle([
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ("LEFTPADDING", (0, 0), (-1, -1), 0),
+    ]))
+    elements.append(head_tbl)
     elements.append(Spacer(1, 4 * mm))
-    headers = ["Kod", "Nazwa", "Ilość", "Jedn.", "Cena",
-               "Narzut %", "Marża %", "Kaucja GIR", "Kaucja DW", "Koszt bud.",
-               "Bud. zwol.", "Budżet", "Uwagi"]
+    head_cell = ParagraphStyle("headcell", parent=styles["Normal"], fontName=bold_font, fontSize=7,
+                               leading=8, textColor=colors.white, alignment=1)
+    headers = [
+        Paragraph("Kod", head_cell), Paragraph("Nazwa", head_cell),
+        Paragraph("Ilość", head_cell), Paragraph("Jedn.", head_cell),
+        Paragraph("Cena", head_cell),
+        Paragraph("Narzut<br/>%", head_cell), Paragraph("Marża<br/>%", head_cell),
+        Paragraph("Kaucja<br/>GIR", head_cell), Paragraph("Kaucja<br/>DW", head_cell),
+        Paragraph("Koszt<br/>budowy", head_cell),
+        Paragraph("Budżet<br/>zwolniony", head_cell), Paragraph("Budżet", head_cell),
+        Paragraph("Uwagi", head_cell),
+    ]
     table_data = [headers]
     total_budzet = 0.0
     row_styles = []
@@ -1280,6 +1381,11 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#AAAAAA")),
         ("FONT", (10, -1), (-1, -1), bold_font, 9),
         ("TEXTCOLOR", (11, -1), (11, -1), colors.HexColor("#B8860B")),
+        # iter95av: padding + wyrównanie nagłówków
+        ("TOPPADDING", (0, 0), (-1, 0), 5),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 5),
+        ("LEFTPADDING", (0, 0), (-1, -1), 3),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 3),
     ]
     for (idx, kind) in row_styles:
         if kind == 'stage':
@@ -1289,9 +1395,11 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
         elif kind == 'pos':
             tbl_styles.append(("BACKGROUND", (11, idx), (11, idx), colors.HexColor("#FFF8DC")))
             tbl_styles.append(("FONT", (11, idx), (11, idx), bold_font, 7))
-    tbl = Table(table_data, colWidths=[14 * mm, 50 * mm, 14 * mm, 11 * mm, 16 * mm,
-                                         13 * mm, 13 * mm, 16 * mm, 16 * mm, 16 * mm,
-                                         18 * mm, 18 * mm, 65 * mm], repeatRows=1)
+    # iter95av: szerokości zoptymalizowane - więcej miejsca dla kolumn pieniężnych, mniej dla Uwagi
+    # Suma: 12+46+12+10+15+13+13+17+17+19+22+22+50 = 268mm (landscape A4 281mm użyt.)
+    tbl = Table(table_data, colWidths=[12 * mm, 46 * mm, 12 * mm, 10 * mm, 15 * mm,
+                                         13 * mm, 13 * mm, 17 * mm, 17 * mm, 19 * mm,
+                                         22 * mm, 22 * mm, 50 * mm], repeatRows=1)
     tbl.setStyle(TableStyle(tbl_styles))
     elements.append(tbl)
     doc.build(elements)
@@ -1636,11 +1744,13 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     wycena_name = data["wycena"].get("name", "")
     w_full = data["wycena"]
 
-    # naglowek firmowy
-    ws["A1"] = "FeGrro"
-    ws["A1"].font = Font(bold=True, size=14, color="3F5235")
-    ws["A2"] = "biuro@fegrro.pl"
-    ws["A2"].font = Font(italic=True, size=9, color="666666")
+    # iter95av: logo + naglowek firmowy
+    _xlsx_add_logo(ws, "A1", width=90, height=90)
+    ws["B1"] = "FeGrro"
+    ws["B1"].font = Font(bold=True, size=14, color="3F5235")
+    ws["B2"] = "biuro@fegrro.pl"
+    ws["B2"].font = Font(italic=True, size=9, color="666666")
+    ws.row_dimensions[1].height = 50
 
     ws["A4"] = f"Oferta: {wycena_name}"
     ws["A4"].font = Font(bold=True, size=14, color="3F5235")
@@ -1800,8 +1910,8 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
         ws.row_dimensions[r].height = 40
 
-    # szerokosci kolumn
-    widths = {"A": 8, "B": 45, "C": 12, "D": 8, "E": 14, "F": 16}
+    # szerokosci kolumn (A=14 bo logo zajmuje)
+    widths = {"A": 14, "B": 45, "C": 12, "D": 8, "E": 14, "F": 16}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 

@@ -1,0 +1,40 @@
+{
+  "summary": "iter95av — Pełne testy GUS endpoint + Logo w eksportach (PDF/XLSX) + UI Wycen. 12/12 backend testów PASS, UI flow GUS dla 'Nowa wycena' POTWIERDZONY (auto-fill MINISTERSTWO FINANSÓW i adres działa). Stage-bulk chipy renderują się poprawnie inline z 'Zastosuj na etap:' bez nakładania.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/gus/{nip}", "issue": "httpx domyślnie NIE śledził redirectów MF API (302→200) — naprawiono dodaniem follow_redirects=True i custom User-Agent w /app/backend/routes/gus.py. Bez tej poprawki GUS zwracał 502 dla VALID NIP."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Wycena detail", "issues": ["Panel 'DANE KLIENTA' jest collapsed by default (▶) — przycisk wycena-client-gus-btn renderuje się tylko po rozwinięciu, więc test go nie wykrył bez kliknięcia rozwijającego. UX OK, ale automatyzacja musi rozwinąć panel."]},
+      {"screen": "Wycena list", "issues": ["Google Maps na dashboardzie pokazuje 'ApiProjectMapError' / 'This page can't load Google Maps correctly' — nieprawidłowy klucz API w env. Nie wpływa na funkcjonalność wycen, ale widoczne dla użytkownika."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95av_gus_logo_exports.py",
+    "/app/test_reports/pytest/iter95av_results.xml"
+  ],
+  "action_items": [
+    "[OPCJONALNIE] Rozważyć domyślne rozwinięcie panelu 'Dane klienta' w wycenie, aby przycisk GUS był od razu widoczny.",
+    "[NIEZWIĄZANE] Naprawić klucz Google Maps API (ApiProjectMapError na dashboardzie) — niezwiązane z iter95av, ale widoczne dla usera."
+  ],
+  "critical_code_review_comments": [
+    "[FIXED] /app/backend/routes/gus.py — httpx.AsyncClient bez follow_redirects=True nie obsłużył 302 z wl-api.mf.gov.pl, co powodowało nieczytelny błąd 502 dla użytkownika. Dodano follow_redirects=True + User-Agent.",
+    "wyceny.py (~2300 linii) — rekomendowane rozbicie na moduły (exports/, helpers/, queries/) po stabilizacji."
+  ],
+  "updated_files": [
+    "/app/backend/routes/gus.py (dodano follow_redirects + User-Agent)",
+    "/app/backend/tests/test_iter95av_gus_logo_exports.py (nowy plik testowy)"
+  ],
+  "success_rate": {"backend": "100% (12/12)", "frontend": "~90% (GUS auto-fill OK, chipy OK, client-gus-btn niezweryfikowany bo collapsed)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! (POST /api/auth/admin/login → access_token)",
+  "seed_data_creation": "Brak — użyto istniejącej wyceny 'iter95aj export' z bazy.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Backend GUS 502→200 fix był konieczny (follow_redirects). UI flow z 'Nowa wycena' + GUS DZIAŁA — testowany przez Playwright, MINISTERSTWO FINANSÓW i ŚWIĘTOKRZYSKA 12 były wypełnione automatycznie po kliknięciu '🏛 Pobierz z GUS'. Dla wycena-client-gus-btn (panel 'Dane klienta' w otwartej wycenie) — element istnieje w kodzie (Wyceny.js linia ~2070), ale renderuje się dopiero po rozwinięciu collapsed panelu. Playwright musi kliknąć '▶ DANE KLIENTA' żeby button stał się widoczny. Stage-bulk chipy (PC/PC↓/PC↑/PUM) renderują się inline z 'Zastosuj na etap:' bez wizualnego nakładania.",
+  "rca of the issue": "Bug RCA: w /app/backend/routes/gus.py kod używał httpx.AsyncClient(timeout=10) BEZ follow_redirects=True. Ministerstwo Finansów Białą Listę chroni Imperva CDN, które dla nietypowych User-Agent (jak default python-httpx/0.x) zwraca 302. Bez śledzenia redirectu kod widział status 302, traktował jako non-200, łapał exception i zwracał 502. Naprawa: follow_redirects=True + custom User-Agent 'FeGrro-ERP/1.0'. Po fixie test_gus_valid_nip PASS, response zawiera found=true, name='MINISTERSTWO FINANSÓW', address ze ŚWIĘTOKRZYSKA 12."
+}

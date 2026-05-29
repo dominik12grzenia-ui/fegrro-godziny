@@ -176,6 +176,7 @@ const NewWycenaDialog = ({ onClose, onCreated }) => {
   const [clientNip, setClientNip] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [creating, setCreating] = useState(false);
+  const [gusLoading, setGusLoading] = useState(false);
 
   useEffect(() => {
     api.get('/wyceny/clients')
@@ -190,6 +191,25 @@ const NewWycenaDialog = ({ onClose, onCreated }) => {
       setClientNip(found.nip || '');
       setClientAddress(found.address || '');
     }
+  };
+
+  // iter95av: auto-pobieranie z Białej Listy MF po NIP
+  const fetchFromGus = async () => {
+    const clean = (clientNip || '').replace(/\D/g, '');
+    if (clean.length !== 10) { toast.error('NIP musi zawierać 10 cyfr'); return; }
+    setGusLoading(true);
+    try {
+      const r = await api.get(`/gus/${clean}`);
+      if (r.data?.found) {
+        if (r.data.name) setClientName(r.data.name);
+        if (r.data.address) setClientAddress(r.data.address);
+        toast.success(`Pobrano dane: ${r.data.name || '—'}`);
+      } else {
+        toast.error(r.data?.message || 'Nie znaleziono firmy o tym NIP');
+      }
+    } catch (e) {
+      toast.error('Błąd GUS: ' + (e.response?.data?.detail || e.message));
+    } finally { setGusLoading(false); }
   };
 
   const submit = async () => {
@@ -254,10 +274,25 @@ const NewWycenaDialog = ({ onClose, onCreated }) => {
             </div>
             <div>
               <label className="text-[10px] uppercase text-[#94A3B8]">NIP</label>
-              <Input value={clientNip} onChange={(e) => setClientNip(e.target.value)}
-                placeholder="1234567890"
-                className="bg-[#0B1120] border-[#2A3B59]"
-                data-testid="new-wycena-client-nip" />
+              <div className="flex items-center gap-2">
+                <Input value={clientNip} onChange={(e) => setClientNip(e.target.value)}
+                  placeholder="1234567890"
+                  className="bg-[#0B1120] border-[#2A3B59] flex-1"
+                  data-testid="new-wycena-client-nip" />
+                <button
+                  type="button"
+                  onClick={fetchFromGus}
+                  disabled={gusLoading}
+                  title="Pobierz dane firmy z Białej Listy MF (po NIP)"
+                  className="text-[11px] font-bold px-2 py-1.5 rounded border border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37]/25 transition whitespace-nowrap disabled:opacity-50"
+                  data-testid="new-wycena-gus-btn"
+                >
+                  {gusLoading ? '⏳ Pobieram…' : '🏛 Pobierz z GUS'}
+                </button>
+              </div>
+              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                Wpisz NIP i kliknij <b className="text-[#D4AF37]">Pobierz z GUS</b> — nazwa i adres uzupełnią się z Białej Listy MF
+              </div>
             </div>
             <div>
               <label className="text-[10px] uppercase text-[#94A3B8]">Adres</label>
@@ -1497,6 +1532,29 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
+  // iter95av: pobierz dane firmy z Białej Listy MF po NIP
+  const [gusLoading, setGusLoading] = useState(false);
+  const fetchGusForClient = async () => {
+    const nip = (data?.wycena?.client_nip || '').replace(/\D/g, '');
+    if (nip.length !== 10) { toast.error('NIP musi zawierać 10 cyfr'); return; }
+    setGusLoading(true);
+    try {
+      const r = await api.get(`/gus/${nip}`);
+      if (r.data?.found) {
+        const patch = {};
+        if (r.data.name) patch.client_name = r.data.name;
+        if (r.data.address) patch.client_address = r.data.address;
+        await api.patch(`/wyceny/${wycenaId}`, patch);
+        setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, ...patch } } : prev);
+        toast.success(`Pobrano: ${r.data.name || '—'}`);
+      } else {
+        toast.error(r.data?.message || 'Nie znaleziono firmy o tym NIP');
+      }
+    } catch (e) {
+      toast.error('Błąd GUS: ' + (e.response?.data?.detail || e.message));
+    } finally { setGusLoading(false); }
+  };
+
   const grandTotal = useMemo(() => {
     if (!displayData) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0 };
     let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0;
@@ -2026,13 +2084,26 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
             </div>
             <div className="col-span-3">
               <label className="text-[10px] text-[#94A3B8] uppercase">NIP</label>
-              <Input
-                defaultValue={w.client_nip || ''}
-                onBlur={(e) => saveText('client_nip', e.target.value)}
-                placeholder="1234567890"
-                className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white"
-                data-testid="wycena-client-nip"
-              />
+              <div className="flex items-center gap-1">
+                <Input
+                  key={`nip-${w.client_nip || ''}`}
+                  defaultValue={w.client_nip || ''}
+                  onBlur={(e) => saveText('client_nip', e.target.value)}
+                  placeholder="1234567890"
+                  className="bg-[#131C2F] border-[#2A3B59] h-8 text-xs text-white flex-1"
+                  data-testid="wycena-client-nip"
+                />
+                <button
+                  type="button"
+                  onClick={fetchGusForClient}
+                  disabled={gusLoading}
+                  title="Pobierz dane firmy z Białej Listy MF (po NIP)"
+                  className="text-[10px] font-bold px-2 h-8 rounded border border-[#D4AF37] text-[#D4AF37] bg-[#D4AF37]/10 hover:bg-[#D4AF37]/25 transition whitespace-nowrap disabled:opacity-50"
+                  data-testid="wycena-client-gus-btn"
+                >
+                  {gusLoading ? '⏳' : '🏛 GUS'}
+                </button>
+              </div>
             </div>
             <div className="col-span-12">
               <label className="text-[10px] text-[#94A3B8] uppercase">Adres (wielolinijkowy)</label>
@@ -2115,10 +2186,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                         <button onClick={() => addPosition(st.id)} className="text-[10px] text-[#9DBC85] border border-[#5F7552] px-1.5 py-0.5 rounded hover:bg-[#5F7552]/30" data-testid={`pos-add-${st.id}`}>
                           + Pozycja
                         </button>
-                        {/* iter95ao: quick-apply chipy z licznikiem */}
+                        {/* iter95ao + iter95av: quick-apply chipy z licznikiem (flex-wrap by nie nakładało się na tytuł) */}
                         {total > 0 && (
-                          <div className="flex items-center gap-1 ml-3 pl-3 border-l border-[#5F7552]/40" data-testid={`stage-bulk-${st.id}`}>
-                            <span className="text-[9px] text-[#94A3B8] uppercase mr-1">Zastosuj na etap:</span>
+                          <div className="flex items-center gap-1 flex-wrap ml-3 pl-3 border-l border-[#5F7552]/40 basis-full sm:basis-auto" data-testid={`stage-bulk-${st.id}`}>
+                            <span className="text-[9px] text-[#94A3B8] uppercase mr-1 whitespace-nowrap">Zastosuj na etap:</span>
                             {[
                               { key: 'pc', flag: 'include_in_pc', label: 'PC', count: cnt.pc },
                               { key: 'pcPod', flag: 'include_in_pc_podziemie', label: 'PC↓', count: cnt.pcPod },
@@ -2136,7 +2207,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                                     allOn ? `Odznacz ${it.label} we wszystkich pozycjach etapu`
                                           : `Zaznacz ${it.label} we wszystkich pozycjach etapu (${it.count}/${total} obecnie)`
                                   }
-                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition ${
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded border transition whitespace-nowrap ${
                                     allOn
                                       ? 'bg-[#9DBC85] text-[#0B1120] border-[#9DBC85]'
                                       : someOn
