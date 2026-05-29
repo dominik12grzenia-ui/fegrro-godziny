@@ -1229,11 +1229,22 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
 @router.get("/wyceny/{wycena_id}/export.xlsx")
 async def export_wycena_xlsx(
     wycena_id: str,
-    detail: str = Query("positions", regex="^(positions|full)$"),
+    detail: str = Query("positions", regex="^(positions|full|client)$"),
+    include_surface: bool = Query(True),
+    include_wskazniki: bool = Query(True),
+    include_notes: bool = Query(True),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
-    content, filename = _generate_wycena_xlsx_bytes(data, detail)
+    if detail == "client":
+        opts = {
+            "include_surface": include_surface,
+            "include_wskazniki": include_wskazniki,
+            "include_notes": include_notes,
+        }
+        content, filename = _generate_wycena_client_xlsx_bytes(data, opts)
+    else:
+        content, filename = _generate_wycena_xlsx_bytes(data, detail)
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1241,8 +1252,12 @@ async def export_wycena_xlsx(
     )
 
 
-# iter95ak: PDF dla klienta - tylko nazwa, ilosc, cena, wartosc - bez wewnetrznych kalkulacji
-def _generate_wycena_client_pdf_bytes(data: dict):
+# iter95ak/95ap: PDF dla klienta - tylko nazwa, ilosc, cena, wartosc + opcjonalne sekcje
+def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
+    opts = opts or {}
+    include_surface = bool(opts.get("include_surface", True))
+    include_wskazniki = bool(opts.get("include_wskazniki", True))
+    include_notes = bool(opts.get("include_notes", True))
     from io import BytesIO
     from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import mm
@@ -1349,6 +1364,37 @@ def _generate_wycena_client_pdf_bytes(data: dict):
         elements.append(addr_box)
         elements.append(Spacer(1, 6 * mm))
 
+    # iter95ap: sekcja Powierzchnie (PC, PC↓, PC↑, PUM) - jezeli wybrana i sa dane
+    w_full = data["wycena"]
+    pc = w_full.get("pc_m2")
+    pc_pod = w_full.get("pc_podziemie_m2")
+    pc_nad = w_full.get("pc_nadziemie_m2")
+    pum = w_full.get("pum_m2")
+    any_surface = any(v not in (None, "", 0) for v in (pc, pc_pod, pc_nad, pum))
+    if include_surface and any_surface:
+        surf_label_st = ParagraphStyle("surflabel", parent=styles["Normal"], fontName=bold_font,
+                                       fontSize=9, textColor=colors.HexColor("#3F5235"), spaceAfter=2)
+        elements.append(Paragraph("Powierzchnie budynku", surf_label_st))
+        surf_rows = [["Powierzchnia", "Wartość"]]
+        if pc not in (None, "", 0): surf_rows.append(["Powierzchnia całkowita (PC)", f"{float(pc):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
+        if pc_pod not in (None, "", 0): surf_rows.append(["  ↓ w tym podziemie", f"{float(pc_pod):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
+        if pc_nad not in (None, "", 0): surf_rows.append(["  ↑ w tym nadziemie", f"{float(pc_nad):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
+        if pum not in (None, "", 0): surf_rows.append(["Powierzchnia użytkowa mieszkalna (PUM)", f"{float(pum):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
+        surf_tbl = Table(surf_rows, colWidths=[110 * mm, 40 * mm])
+        surf_tbl.setStyle(TableStyle([
+            ("FONT", (0, 0), (-1, -1), base_font, 9),
+            ("FONT", (0, 0), (-1, 0), bold_font, 9),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAF6")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]))
+        elements.append(surf_tbl)
+        elements.append(Spacer(1, 5 * mm))
+
     # Tabela: L.p. | Nazwa | Ilosc | Jedn. | Cena netto | Wartosc netto
     headers = ["L.p.", "Nazwa pozycji", "Ilość", "Jedn.", "Cena netto", "Wartość netto"]
     table_data = [headers]
@@ -1420,17 +1466,51 @@ def _generate_wycena_client_pdf_bytes(data: dict):
     tbl.setStyle(TableStyle(tbl_styles))
     elements.append(tbl)
 
-    elements.append(Spacer(1, 8 * mm))
-    notice_st = ParagraphStyle(
-        "notice", parent=styles["Normal"], fontName=base_font, fontSize=8,
-        textColor=colors.grey, leading=10,
-    )
-    notice = data["wycena"].get("notes") or (
-        "Oferta ważna 30 dni od daty wystawienia. "
-        "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
-        "Zakres prac i warunki realizacji do uzgodnienia."
-    )
-    elements.append(Paragraph(f"<b>Uwagi:</b> {notice}", notice_st))
+    # iter95ap: sekcja Wskazniki kosztowe (zl/m2)
+    if include_wskazniki:
+        wsk_rows = []
+        if pc and float(pc) > 0:
+            wsk_rows.append(["PC — Powierzchnia całkowita", f"{total_netto / float(pc):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
+        if pc_pod and float(pc_pod) > 0:
+            wsk_rows.append(["PC↓ — Podziemie", f"{total_netto / float(pc_pod):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
+        if pc_nad and float(pc_nad) > 0:
+            wsk_rows.append(["PC↑ — Nadziemie", f"{total_netto / float(pc_nad):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
+        if pum and float(pum) > 0:
+            wsk_rows.append(["PUM — Pow. użytkowa mieszkalna", f"{total_netto / float(pum):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
+        if wsk_rows:
+            elements.append(Spacer(1, 5 * mm))
+            wsk_label_st = ParagraphStyle("wsklabel", parent=styles["Normal"], fontName=bold_font,
+                                          fontSize=9, textColor=colors.HexColor("#3F5235"), spaceAfter=2)
+            elements.append(Paragraph("Wskaźniki kosztowe", wsk_label_st))
+            wsk_data = [["Wskaźnik", "Wartość"]] + wsk_rows
+            wsk_tbl = Table(wsk_data, colWidths=[110 * mm, 40 * mm])
+            wsk_tbl.setStyle(TableStyle([
+                ("FONT", (0, 0), (-1, -1), base_font, 9),
+                ("FONT", (0, 0), (-1, 0), bold_font, 9),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
+                ("FONT", (1, 1), (1, -1), bold_font, 9),
+                ("TEXTCOLOR", (1, 1), (1, -1), colors.HexColor("#3F5235")),
+                ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAF6")]),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ]))
+            elements.append(wsk_tbl)
+
+    if include_notes:
+        elements.append(Spacer(1, 8 * mm))
+        notice_st = ParagraphStyle(
+            "notice", parent=styles["Normal"], fontName=base_font, fontSize=8,
+            textColor=colors.grey, leading=10,
+        )
+        notice = data["wycena"].get("notes") or (
+            "Oferta ważna 30 dni od daty wystawienia. "
+            "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
+            "Zakres prac i warunki realizacji do uzgodnienia."
+        )
+        elements.append(Paragraph(f"<b>Uwagi:</b> {notice}", notice_st))
 
     doc.build(elements)
     safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
@@ -1443,11 +1523,19 @@ async def export_wycena_pdf(
     wycena_id: str,
     detail: str = Query("positions", regex="^(positions|full|client)$"),
     inline: bool = Query(False),
+    include_surface: bool = Query(True),
+    include_wskazniki: bool = Query(True),
+    include_notes: bool = Query(True),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
     if detail == "client":
-        content, filename = _generate_wycena_client_pdf_bytes(data)
+        opts = {
+            "include_surface": include_surface,
+            "include_wskazniki": include_wskazniki,
+            "include_notes": include_notes,
+        }
+        content, filename = _generate_wycena_client_pdf_bytes(data, opts)
     else:
         content, filename = _generate_wycena_pdf_bytes(data, detail)
     disposition = "inline" if inline else "attachment"
@@ -1456,3 +1544,202 @@ async def export_wycena_pdf(
         media_type="application/pdf",
         headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
+
+
+# iter95ap: aktywny Excel dla klienta z formulami (ilosc*cena, SUM) - inwestor moze podmieniac wartosci
+def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
+    from io import BytesIO
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    opts = opts or {}
+    include_surface = bool(opts.get("include_surface", True))
+    include_wskazniki = bool(opts.get("include_wskazniki", True))
+    include_notes = bool(opts.get("include_notes", True))
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Oferta"
+    wycena_name = data["wycena"].get("name", "")
+    w_full = data["wycena"]
+
+    # naglowek firmowy
+    ws["A1"] = "FeGrro"
+    ws["A1"].font = Font(bold=True, size=14, color="3F5235")
+    ws["A2"] = "biuro@fegrro.pl"
+    ws["A2"].font = Font(italic=True, size=9, color="666666")
+
+    ws["A4"] = f"Oferta: {wycena_name}"
+    ws["A4"].font = Font(bold=True, size=14, color="3F5235")
+    ws.merge_cells("A4:F4")
+    ws["A5"] = f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}"
+    ws["A5"].font = Font(italic=True, size=9, color="888888")
+    ws.merge_cells("A5:F5")
+
+    r = 7
+    # adresat
+    client_name = (w_full.get("client_name") or "").strip()
+    client_nip = (w_full.get("client_nip") or "").strip()
+    client_address = (w_full.get("client_address") or "").strip()
+    if client_name or client_nip or client_address:
+        ws.cell(row=r, column=1, value="ADRESAT").font = Font(bold=True, size=9, color="3F5235")
+        r += 1
+        if client_name:
+            ws.cell(row=r, column=1, value=client_name).font = Font(bold=True, size=10, color="3F5235")
+            ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=4); r += 1
+        if client_nip:
+            ws.cell(row=r, column=1, value=f"NIP: {client_nip}").font = Font(size=9, color="444444"); r += 1
+        if client_address:
+            for line in client_address.split("\n"):
+                ws.cell(row=r, column=1, value=line).font = Font(size=9, color="444444"); r += 1
+        r += 1
+
+    # powierzchnie
+    pc = w_full.get("pc_m2")
+    pc_pod = w_full.get("pc_podziemie_m2")
+    pc_nad = w_full.get("pc_nadziemie_m2")
+    pum = w_full.get("pum_m2")
+    surf_items = []
+    if pc not in (None, "", 0): surf_items.append(("Powierzchnia całkowita (PC)", float(pc)))
+    if pc_pod not in (None, "", 0): surf_items.append(("  ↓ w tym podziemie", float(pc_pod)))
+    if pc_nad not in (None, "", 0): surf_items.append(("  ↑ w tym nadziemie", float(pc_nad)))
+    if pum not in (None, "", 0): surf_items.append(("Powierzchnia użytkowa mieszkalna (PUM)", float(pum)))
+    surface_row_map = {}  # nazwa -> wiersz dla wskaznikow
+    if include_surface and surf_items:
+        ws.cell(row=r, column=1, value="Powierzchnie budynku").font = Font(bold=True, size=10, color="3F5235")
+        r += 1
+        header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
+        for col, h in enumerate(["Powierzchnia", "Wartość (m²)"], start=1):
+            c = ws.cell(row=r, column=col, value=h)
+            c.font = Font(bold=True, color="FFFFFF"); c.fill = header_fill
+        r += 1
+        for lbl, val in surf_items:
+            ws.cell(row=r, column=1, value=lbl).font = Font(size=10)
+            ws.cell(row=r, column=2, value=val).font = Font(size=10)
+            ws.cell(row=r, column=2).number_format = '#,##0.00" m²"'
+            surface_row_map[lbl] = r
+            r += 1
+        r += 1
+
+    # tabela pozycji z formulami
+    ws.cell(row=r, column=1, value="L.p.")
+    ws.cell(row=r, column=2, value="Nazwa pozycji")
+    ws.cell(row=r, column=3, value="Ilość")
+    ws.cell(row=r, column=4, value="Jedn.")
+    ws.cell(row=r, column=5, value="Cena netto")
+    ws.cell(row=r, column=6, value="Wartość netto")
+    header_row = r
+    header_fill = PatternFill(start_color="3F5235", end_color="3F5235", fill_type="solid")
+    for col in range(1, 7):
+        c = ws.cell(row=header_row, column=col)
+        c.font = Font(bold=True, color="FFFFFF"); c.fill = header_fill
+        c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    r += 1
+
+    thin = Side(border_style="thin", color="CCCCCC")
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    stage_fill = PatternFill(start_color="E8F0E0", end_color="E8F0E0", fill_type="solid")
+
+    lp = 0
+    first_pos_row = None
+    last_pos_row = None
+    for st_idx, st_data in enumerate(data["stages"], start=1):
+        st = st_data["stage"]
+        if not st_data["positions"]:
+            continue
+        st_cell = ws.cell(row=r, column=1, value=f"Etap {st_idx}: {st.get('name', '')}")
+        st_cell.font = Font(bold=True, color="3F5235"); st_cell.fill = stage_fill
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+        # tlo na zlaczonych
+        for col in range(1, 7):
+            ws.cell(row=r, column=col).fill = stage_fill
+        r += 1
+        for pe in st_data["positions"]:
+            p = pe["position"]
+            lp += 1
+            qty = float(pe["qty"] or 0)
+            wartosc = float(pe["budzet"] or 0)
+            cena = wartosc / qty if qty > 0 else 0
+            ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=2, value=p.get("name", ""))
+            ws.cell(row=r, column=3, value=qty).number_format = '#,##0.00'
+            ws.cell(row=r, column=4, value=p.get("unit") or "").alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=5, value=cena).number_format = '#,##0.00" zł"'
+            # iter95ap: AKTYWNA FORMULA wartosc = ilosc * cena
+            ws.cell(row=r, column=6, value=f"=C{r}*E{r}").number_format = '#,##0.00" zł"'
+            ws.cell(row=r, column=6).font = Font(bold=True)
+            for col in range(1, 7):
+                ws.cell(row=r, column=col).border = border
+            if first_pos_row is None:
+                first_pos_row = r
+            last_pos_row = r
+            r += 1
+
+    # wiersz sumy z formula
+    sum_row = r
+    ws.cell(row=r, column=5, value="RAZEM netto:").font = Font(bold=True, size=12)
+    ws.cell(row=r, column=5).alignment = Alignment(horizontal="right")
+    if first_pos_row and last_pos_row:
+        ws.cell(row=r, column=6, value=f"=SUM(F{first_pos_row}:F{last_pos_row})")
+    else:
+        ws.cell(row=r, column=6, value=0)
+    ws.cell(row=r, column=6).font = Font(bold=True, size=12, color="B8860B")
+    ws.cell(row=r, column=6).number_format = '#,##0.00" zł"'
+    ws.cell(row=r, column=6).fill = PatternFill(start_color="FFF8DC", end_color="FFF8DC", fill_type="solid")
+    for col in range(5, 7):
+        ws.cell(row=r, column=col).border = border
+    r += 2
+
+    # wskazniki: dziele SUM przez powierzchnie - aktywne formuly!
+    if include_wskazniki and (pc or pc_pod or pc_nad or pum) and last_pos_row:
+        ws.cell(row=r, column=1, value="Wskaźniki kosztowe").font = Font(bold=True, size=10, color="3F5235")
+        r += 1
+        for col, h in enumerate(["Wskaźnik", "Wartość"], start=1):
+            c = ws.cell(row=r, column=col, value=h)
+            c.font = Font(bold=True, color="FFFFFF"); c.fill = header_fill
+        r += 1
+        sum_cell = f"F{sum_row}"
+        def _wsk(label, val):
+            nonlocal r
+            if val and float(val) > 0 and label in surface_row_map:
+                surf_cell = f"B{surface_row_map[label]}"
+                ws.cell(row=r, column=1, value=label.replace("  ", "") + " (zł/m²)")
+                ws.cell(row=r, column=2, value=f"={sum_cell}/{surf_cell}")
+                ws.cell(row=r, column=2).number_format = '#,##0.00" zł/m²"'
+                ws.cell(row=r, column=2).font = Font(bold=True, color="3F5235")
+                r += 1
+        _wsk("Powierzchnia całkowita (PC)", pc)
+        _wsk("  ↓ w tym podziemie", pc_pod)
+        _wsk("  ↑ w tym nadziemie", pc_nad)
+        _wsk("Powierzchnia użytkowa mieszkalna (PUM)", pum)
+        r += 1
+
+    if include_notes:
+        notice = w_full.get("notes") or (
+            "Oferta ważna 30 dni od daty wystawienia. "
+            "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
+            "Zakres prac i warunki realizacji do uzgodnienia."
+        )
+        ws.cell(row=r, column=1, value="Uwagi:").font = Font(bold=True, size=9, color="666666")
+        r += 1
+        ws.cell(row=r, column=1, value=notice).font = Font(size=8, color="666666")
+        ws.cell(row=r, column=1).alignment = Alignment(wrap_text=True, vertical="top")
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+        ws.row_dimensions[r].height = 40
+
+    # szerokosci kolumn
+    widths = {"A": 8, "B": 45, "C": 12, "D": 8, "E": 14, "F": 16}
+    for col, w in widths.items():
+        ws.column_dimensions[col].width = w
+
+    # info dla inwestora w tooltipie naglowka kolumny F
+    from openpyxl.comments import Comment
+    ws.cell(row=header_row, column=6).comment = Comment(
+        "Formuła: ilość × cena netto. Możesz zmienić ilość lub cenę — wartość przeliczy się automatycznie.",
+        "FeGrro"
+    )
+
+    buf = BytesIO()
+    wb.save(buf)
+    safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
+    filename = f"Oferta_{safe_name}_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return buf.getvalue(), filename

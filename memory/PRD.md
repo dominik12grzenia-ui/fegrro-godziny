@@ -1,3 +1,51 @@
+## Iteration 95ap (2026-02) — Aktywny Excel dla klienta + opcje załączania PC/PUM
+
+### User request
+„Możliwość załączenia w ofercie info o PC/PUM i wybrania co ma się znaleźć w ofercie. Aktywny Excel z formułami pozycji głównych — inwestor może zmienić ilość/cenę i zobaczyć skąd wzięła się cena."
+
+### Backend (`/app/backend/routes/wyceny.py`)
+- `_generate_wycena_client_pdf_bytes(data, opts)` przyjmuje opcje: `include_surface`, `include_wskazniki`, `include_notes`
+  - Sekcja **Powierzchnie budynku** (PC + PC↓/↑ + PUM) — tabela z m² renderowana gdy `include_surface=True`
+  - Sekcja **Wskaźniki kosztowe** (zł/m² dla każdej powierzchni) — wartości statyczne wyliczone z total_netto
+  - `Uwagi` opcjonalne
+- **Nowa funkcja** `_generate_wycena_client_xlsx_bytes(data, opts)`:
+  - Nagłówek firmowy, tytuł oferty, adresat (jeśli wypełniony)
+  - Tabela powierzchni z wartościami m² (z mapą `surface_row_map` dla referencji)
+  - **Tabela pozycji z AKTYWNYMI formułami**:
+    - Kolumna C = ilość (wpisana liczba)
+    - Kolumna E = cena netto (wpisana liczba)
+    - Kolumna F = `=C{r}*E{r}` (formuła!)
+  - Wiersz RAZEM: `=SUM(F{first}:F{last})` — formuła!
+  - Tabela wskaźników: `=F{sum_row}/B{surf_row}` (4 aktywne formuły dla PC/PC↓/PC↑/PUM)
+  - Komentarz na nagłówku kolumny F: „Formuła: ilość × cena netto. Możesz zmienić ilość lub cenę — wartość przeliczy się automatycznie."
+- Endpointy `/export.pdf` i `/export.xlsx` rozszerzone:
+  - `detail` regex teraz akceptuje `client` także dla XLSX (poprzednio 422)
+  - Nowe query params: `include_surface`, `include_wskazniki`, `include_notes` (domyślnie True)
+
+### Frontend (`/app/frontend/src/components/Wyceny.js`)
+- W `ExportWycenaDialog` stan `includeSurface/Wskazniki/Notes` (domyślnie true)
+- Funkcja `buildQuery(extra)` składa URLSearchParams z opcjami gdy `detail==='client'`
+- Badge przy „Wersja dla klienta" zmieniony na **PDF · EXCEL** + opis wzbogacony o aktywnymi formułami
+- Nowy panel `export-client-opts` z 3 checkboxami (Powierzchnie / Wskaźniki / Uwagi) — pokazany tylko gdy `detail==='client'`
+- Excel button odblokowany dla klienta (usunięto `disabled || detail === 'client'`)
+- `preview()` i `download()` używają `buildQuery()` zamiast string concat
+
+### Test
+- Lint JS: ✅
+- Backend curl:
+  - PDF client z domyślnymi opcjami: 63 KB ✅
+  - PDF client bez powierzchni/wskaźników/uwag: 61 KB (mniejsze, sekcje pominięte) ✅
+  - XLSX client: 7.6 KB, magic `PK..` (valid zip/xlsx) ✅
+  - Regresja PDF/XLSX positions+full: wszystkie 200 ✅
+- openpyxl inspekcja: znalezione 6 formuł w XLSX (`=C22*E22`, `=SUM(F22:F22)`, 4× `=F23/B{n}`) — aktywne ✅
+- Frontend smoke: panel opcji pojawia się tylko gdy `client`, wszystkie 3 checkboxy domyślnie ON, Excel odblokowany ✅
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` — `_generate_wycena_client_pdf_bytes(opts)`, `_generate_wycena_client_xlsx_bytes`, endpointy z query opts
+- `/app/frontend/src/components/Wyceny.js` — `buildQuery`, opcje state, panel checkboxów, badge `PDF·EXCEL`
+
+---
+
 ## Iteration 95ao (2026-02) — Quick-apply flag na cały etap + liczniki
 
 ### User request

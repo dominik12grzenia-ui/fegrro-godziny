@@ -339,11 +339,26 @@ const PctInput = ({ label, testId, value, onSave }) => {
 const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
   const [detail, setDetail] = useState('positions');
   const [downloading, setDownloading] = useState(false);
+  // iter95ap: opcje dla wersji "client" - co zalaczyc w ofercie
+  const [includeSurface, setIncludeSurface] = useState(true);
+  const [includeWskazniki, setIncludeWskazniki] = useState(true);
+  const [includeNotes, setIncludeNotes] = useState(true);
+
+  const buildQuery = (extra = {}) => {
+    const params = new URLSearchParams({ detail });
+    if (detail === 'client') {
+      params.set('include_surface', includeSurface ? 'true' : 'false');
+      params.set('include_wskazniki', includeWskazniki ? 'true' : 'false');
+      params.set('include_notes', includeNotes ? 'true' : 'false');
+    }
+    Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+    return params.toString();
+  };
 
   const download = async (format) => {
     setDownloading(true);
     try {
-      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?detail=${detail}`, { responseType: 'blob' });
+      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?${buildQuery()}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([r.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -362,7 +377,7 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
   const preview = async () => {
     setDownloading(true);
     try {
-      const r = await api.get(`/wyceny/${wycenaId}/export.pdf?detail=${detail}&inline=true`, {
+      const r = await api.get(`/wyceny/${wycenaId}/export.pdf?${buildQuery({ inline: 'true' })}`, {
         responseType: 'blob',
       });
       const blob = new Blob([r.data], { type: 'application/pdf' });
@@ -418,14 +433,42 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
             <div>
               <div className="text-sm font-semibold text-white flex items-center gap-2">
                 Wersja dla klienta
-                <span className="text-[9px] bg-[#5F7552] text-white px-1.5 py-0.5 rounded uppercase">PDF</span>
+                <span className="text-[9px] bg-[#5F7552] text-white px-1.5 py-0.5 rounded uppercase">PDF · Excel</span>
               </div>
               <div className="text-[10px] text-[#94A3B8]">
-                Schludny dokument z logo: nazwa pozycji, ilość, cena netto, wartość netto. <b className="text-[#9DBC85]">Bez</b> marży, narzutu, kaucji i zysku — gotowy do wysłania klientowi.
+                Schludny dokument z logo: nazwa pozycji, ilość, cena netto, wartość netto. <b className="text-[#9DBC85]">Bez</b> marży, narzutu, kaucji i zysku. Excel z <b className="text-[#9DBC85]">aktywnymi formułami</b> (=ilość×cena, =SUM) — inwestor może podmienić wartości i wszystko się przeliczy.
               </div>
             </div>
           </label>
         </div>
+
+        {/* iter95ap: opcje wersji "client" */}
+        {detail === 'client' && (
+          <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 -mt-1 space-y-1.5"
+               data-testid="export-client-opts">
+            <div className="text-[10px] uppercase text-[#9DBC85] font-semibold mb-1">
+              Co załączyć w ofercie:
+            </div>
+            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+              <input type="checkbox" checked={includeSurface}
+                onChange={(e) => setIncludeSurface(e.target.checked)}
+                className="accent-[#9DBC85]" data-testid="export-opt-surface" />
+              <span><b className="text-[#9DBC85]">Powierzchnie</b> (PC, PC↓ podziemie, PC↑ nadziemie, PUM)</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+              <input type="checkbox" checked={includeWskazniki}
+                onChange={(e) => setIncludeWskazniki(e.target.checked)}
+                className="accent-[#9DBC85]" data-testid="export-opt-wskazniki" />
+              <span><b className="text-[#9DBC85]">Wskaźniki kosztowe</b> (zł/m² dla PC / PC↓ / PC↑ / PUM)</span>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-[#CBD5E1] cursor-pointer hover:text-white">
+              <input type="checkbox" checked={includeNotes}
+                onChange={(e) => setIncludeNotes(e.target.checked)}
+                className="accent-[#9DBC85]" data-testid="export-opt-notes" />
+              <span><b className="text-[#9DBC85]">Uwagi</b> (notatka oferty lub domyślna klauzula 30 dni)</span>
+            </label>
+          </div>
+        )}
         <DialogFooter className="gap-2">
           <Button onClick={onClose} variant="outline" className="border-[#2A3B59] text-[#CBD5E1]"
             data-testid="export-close">Anuluj</Button>
@@ -440,10 +483,9 @@ const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
             data-testid="export-pdf-btn">
             <FileDown className="h-4 w-4 mr-1" /> PDF
           </Button>
-          <Button onClick={() => download('xlsx')} disabled={downloading || detail === 'client'}
-            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold disabled:opacity-40"
-            data-testid="export-xlsx-btn"
-            title={detail === 'client' ? 'Wersja dla klienta dostępna tylko jako PDF' : ''}>
+          <Button onClick={() => download('xlsx')} disabled={downloading}
+            className="bg-[#D4AF37] hover:bg-[#FCD34D] text-[#0B1120] font-semibold"
+            data-testid="export-xlsx-btn">
             <FileSpreadsheet className="h-4 w-4 mr-1" /> Excel
           </Button>
         </DialogFooter>
