@@ -10,8 +10,13 @@ import { toast } from 'sonner';
 import { useLanguage } from '../i18n/LanguageContext';
 import { EquipmentCatalog } from './EquipmentCatalog';
 
-// iter95bd: BulkTransferModal wydzielony do ./equipment-foreman/BulkTransferModal.js (refaktor)
+// iter95bd/iter95be: modale wydzielone do ./equipment-foreman/ (refaktor split)
 import { BulkTransferModal } from './equipment-foreman/BulkTransferModal';
+import { TransferModal } from './equipment-foreman/TransferModal';
+import { ReturnModal } from './equipment-foreman/ReturnModal';
+import { DefectModal } from './equipment-foreman/DefectModal';
+import { HistoryModal } from './equipment-foreman/HistoryModal';
+import { WarehouseOverviewModal } from './equipment-foreman/WarehouseOverviewModal';
 
 const fileToBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -840,64 +845,15 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       <EquipmentCatalog category={category} />
 
       {/* Transfer Modal */}
-      {transferModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">Przekaz: {transferModal.name}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setTransferModal(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-[#94A3B8]">
-                Posiadasz: <span className="text-[#CBD5E1] font-semibold">{transferModal.quantity} szt.</span>
-              </p>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.foreman_required')}</label>
-                <select
-                  value={transferTo}
-                  onChange={(e) => setTransferTo(e.target.value)}
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
-                  data-testid="transfer-to-select"
-                >
-                  <option value="">-- wybierz --</option>
-                  {foremen.map((f) => (
-                    <option key={f.id} value={f.id}>{f.full_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_required')}</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={transferModal.quantity}
-                  value={transferQty}
-                  onChange={(e) => setTransferQty(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
-                  data-testid="transfer-qty-input"
-                />
-              </div>
-              <p className="text-xs text-[#94A3B8]">
-                Drugi brygadzista musi zaakceptowac przekazanie.
-              </p>
-              <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setTransferModal(null)}>Anuluj</Button>
-                <ActionButton
-                  onAction={handleTransfer}
-                  loadingText="Wysyłam..."
-                  successText="✓ Wysłano"
-                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="confirm-transfer-btn"
-                >
-                  Wyslij
-                </ActionButton>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* iter95be: TransferModal wydzielony do ./equipment-foreman/TransferModal.js */}
+      <TransferModal
+        modal={transferModal}
+        transferTo={transferTo} setTransferTo={setTransferTo}
+        transferQty={transferQty} setTransferQty={setTransferQty}
+        foremen={foremen} t={t}
+        onClose={() => setTransferModal(null)}
+        onConfirm={handleTransfer}
+      />
 
       {/* iter95ay/iter95bd: Bulk Transfer Modal — wydzielony do ./equipment-foreman/BulkTransferModal.js */}
       <BulkTransferModal
@@ -912,259 +868,45 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
         onConfirm={handleBulkTransfer}
       />
 
-      {/* Return Modal */}
-      {returnModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">Zwrot do magazynu: {returnModal.name}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setReturnModal(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-[#94A3B8]">
-                Posiadasz: <span className="text-[#CBD5E1] font-semibold">{returnModal.quantity} szt.</span>
-              </p>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_to_return')}</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={returnModal.quantity}
-                  value={returnQty}
-                  onChange={(e) => setReturnQty(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
-                  data-testid="return-qty-input"
-                />
-              </div>
-              <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setReturnModal(null)}>Anuluj</Button>
-                <ActionButton
-                  onAction={handleReturn}
-                  loadingText="Zwracam..."
-                  successText="✓ Zwrócono"
-                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-                  data-testid="confirm-return-btn"
-                >
-                  Zwroc do magazynu
-                </ActionButton>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* iter95be: ReturnModal wydzielony do ./equipment-foreman/ReturnModal.js */}
+      <ReturnModal
+        modal={returnModal}
+        returnQty={returnQty} setReturnQty={setReturnQty}
+        t={t}
+        onClose={() => setReturnModal(null)}
+        onConfirm={handleReturn}
+      />
 
-      {/* Defect Modal */}
-      {defectModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">Usterka: {defectModal.name}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setDefectModal(null)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.qty_pcs')}</label>
-                <Input
-                  type="number"
-                  min="1"
-                  max={defectModal.quantity}
-                  value={defectQty}
-                  onChange={(e) => setDefectQty(e.target.value)}
-                  className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1]"
-                  data-testid="defect-qty-input"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.defect_description')}</label>
-                <textarea
-                  value={defectDesc}
-                  onChange={(e) => setDefectDesc(e.target.value)}
-                  rows="3"
-                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
-                  data-testid="defect-desc-input"
-                />
-              </div>
-              <div>
-                <label className="text-xs text-[#94A3B8] mb-1 block">{t('eq.photo_2mb')}</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  onChange={handleDefectPhotoUpload}
-                  className="text-xs text-[#CBD5E1]"
-                  data-testid="defect-photo-input"
-                />
-                {defectPhoto && <img src={defectPhoto} alt="podglad" className="mt-2 max-h-64 max-w-full object-contain rounded bg-[#0B1120]" />}
-              </div>
-              <div className="flex gap-2 justify-end pt-2">
-                <Button variant="ghost" onClick={() => setDefectModal(null)}>Anuluj</Button>
-                <ActionButton
-                  onAction={handleDefect}
-                  loadingText="Zgłaszam..."
-                  successText="✓ Zgłoszono"
-                  className="bg-[#DC4A3A] hover:bg-[#C56A52] text-white"
-                  data-testid="confirm-defect-btn"
-                >
-                  Zglos
-                </ActionButton>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* iter95be: DefectModal wydzielony do ./equipment-foreman/DefectModal.js */}
+      <DefectModal
+        modal={defectModal}
+        defectQty={defectQty} setDefectQty={setDefectQty}
+        defectDesc={defectDesc} setDefectDesc={setDefectDesc}
+        defectPhoto={defectPhoto}
+        onPhotoUpload={handleDefectPhotoUpload}
+        t={t}
+        onClose={() => setDefectModal(null)}
+        onConfirm={handleDefect}
+      />
 
-      {/* My History Modal */}
-      {historyModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[80vh] flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1]">{t('eq.history_title')}</CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setHistoryModal(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="overflow-y-auto space-y-3">
-              {/* Transfers */}
-              <div>
-                <h4 className="text-[#4F6343] font-bold text-sm mb-2">{t('eq.transfers')}</h4>
-                {historyData.transfers.length === 0 ? (
-                  <p className="text-[#94A3B8] text-xs">{t('eq.no_transfers')}</p>
-                ) : (
-                  <div className="space-y-1" data-testid="my-history-transfers">
-                    {historyData.transfers.map((t) => {
-                      const isOutgoing = t.from_foreman_name === historyData.foreman_name;
-                      return (
-                        <div key={t.id} className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
-                          <span className={isOutgoing ? 'text-[#DC4A3A]' : 'text-[#4F6343]'}>
-                            {isOutgoing ? '-> Wyslane do' : '<- Otrzymane od'}
-                          </span>{' '}
-                          <span className="text-[#CBD5E1] font-semibold">
-                            {isOutgoing ? t.to_foreman_name : t.from_foreman_name}
-                          </span>{' '}
-                          <span className="text-[#94A3B8]">·</span>{' '}
-                          <span className="text-[#CBD5E1]">{t.equipment_name} x {t.quantity}</span>{' '}
-                          <span className="text-[#94A3B8]">·</span>{' '}
-                          <span className={t.status === 'accepted' ? 'text-[#4F6343]' :
-                                            t.status === 'rejected' ? 'text-[#DC4A3A]' :
-                                            'text-[#FCA5A5]'}>
-                            {t.status === 'pending' ? 'Oczekuje' :
-                             t.status === 'accepted' ? 'Zaakceptowane' : 'Odrzucone'}
-                          </span>{' '}
-                          <span className="text-[#64748B]">
-                            · {new Date(t.created_at).toLocaleString('pl-PL')}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-              {/* Other events */}
-              {historyData.events.length > 0 && (
-                <div>
-                  <h4 className="text-[#4F6343] font-bold text-sm mb-2 mt-3">{t('eq.returns_defects')}</h4>
-                  <div className="space-y-1">
-                    {historyData.events.map((e) => (
-                      <div key={e.id} className="text-xs p-2 bg-[#131C2F] rounded border border-[#2A3B59]">
-                        <span className="text-[#4F6343] font-semibold">
-                          {ACTION_LABELS[e.action] || e.action}
-                        </span>{' '}
-                        <span className="text-[#CBD5E1]">
-                          {e.details?.equipment_name || ''} x {e.details?.quantity || '?'}
-                        </span>
-                        {e.details?.description && (
-                          <span className="text-[#94A3B8]"> · "{e.details.description}"</span>
-                        )}{' '}
-                        <span className="text-[#64748B]">
-                          · {new Date(e.created_at).toLocaleString('pl-PL')}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      {/* Warehouse Overview Modal (warehouse keeper only) */}
-      {warehouseModal && (
-        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-5xl max-h-[90vh] flex flex-col">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Warehouse className="h-5 w-5 text-[#4F6343]" /> Caly magazyn — przeglad
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setWarehouseModal(false)} data-testid="close-warehouse-modal">
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="overflow-y-auto">
-              {allEquipment.length === 0 ? (
-                <p className="text-[#94A3B8] text-sm">{t('eq.no_eq')}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-xs" data-testid="warehouse-overview-table">
-                    <thead className="sticky top-0 z-10 bg-[#19243C]">
-                      <tr className="bg-[#131C2F]">
-                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">Nazwa</th>
-                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">Marka</th>
-                        <th className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1]">Razem</th>
-                        <th className="border border-[#2A3B59] p-2 text-center text-[#DC4A3A]">{t('eq.in_repair')}</th>
-                        <th className="border border-[#2A3B59] p-2 text-center text-[#4F6343]">Magazyn</th>
-                        <th className="border border-[#2A3B59] p-2 text-left text-[#CBD5E1]">{t('eq.who_has')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {allEquipment.map((eq) => {
-                        const holders = allAssignments
-                          .filter((a) => a.equipment_id === eq.id && a.quantity > 0)
-                          .map((a) => {
-                            const f = allForemen.find((x) => x.id === a.foreman_id);
-                            return f ? `${f.full_name} (${a.quantity})` : null;
-                          })
-                          .filter(Boolean);
-                        return (
-                          <tr key={eq.id}>
-                            <td className="border border-[#2A3B59] p-2">
-                              <div className="flex items-center gap-2">
-                                {eq.photo ? (
-                                  <img src={eq.photo} alt={eq.name} className="w-12 h-12 object-contain rounded shrink-0 bg-[#0B1120] cursor-zoom-in" onClick={() => setPreviewPhoto(eq.photo)} />
-                                ) : (
-                                  <div className="w-12 h-12 rounded bg-[#131C2F] flex items-center justify-center shrink-0">
-                                    <Wrench className="h-4 w-4 text-[#2A3B59]" />
-                                  </div>
-                                )}
-                                <span className="text-[#CBD5E1] font-semibold">{eq.name}</span>
-                              </div>
-                            </td>
-                            <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">{eq.brand || '-'}</td>
-                            <td className="border border-[#2A3B59] p-2 text-center text-[#CBD5E1] font-bold">{eq.total_quantity}</td>
-                            <td className="border border-[#2A3B59] p-2 text-center text-[#DC4A3A] font-bold">{eq.broken_quantity || 0}</td>
-                            <td className={`border border-[#2A3B59] p-2 text-center font-bold ${eq.available_quantity > 0 ? 'text-[#4F6343]' : 'text-[#DC4A3A]'}`}>
-                              {eq.available_quantity}
-                            </td>
-                            <td className="border border-[#2A3B59] p-2 text-[#94A3B8]">
-                              {holders.length === 0 ? <span className="text-[#64748B]">nikt</span> : holders.join(', ')}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <p className="text-xs text-[#94A3B8] mt-3">
-                Magazynier widzi cale stany sprzętu i kto co posiada. Aby zarzadzac przypisaniami zwroc sie do administratora.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {/* iter95be: HistoryModal wydzielony do ./equipment-foreman/HistoryModal.js */}
+      <HistoryModal
+        open={historyModal}
+        historyData={historyData}
+        t={t}
+        onClose={() => setHistoryModal(false)}
+      />
+
+      {/* iter95be: WarehouseOverviewModal wydzielony do ./equipment-foreman/WarehouseOverviewModal.js */}
+      <WarehouseOverviewModal
+        open={warehouseModal}
+        allEquipment={allEquipment}
+        allAssignments={allAssignments}
+        allForemen={allForemen}
+        t={t}
+        onClose={() => setWarehouseModal(false)}
+        onPhotoPreview={setPreviewPhoto}
+      />
 
       {/* Photo lightbox */}
       {previewPhoto && (
@@ -1179,3 +921,4 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     </div>
   );
 };
+
