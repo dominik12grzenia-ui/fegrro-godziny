@@ -1,3 +1,42 @@
+## Iteration 95ay (2026-05) — Bug fix listy brygadzistów + multi-select bulk transfer sprzętu
+
+### User report (screenshot mobile)
+„Brygadzista nie może wybrać brygadzisty — zdarza się po większej ilości przekazania sprzętu. Chciałbym też móc przekazać więcej sprzętów naraz."
+
+### Bug fix
+**Root cause:** w `EquipmentForeman.js > fetchAll()` `setForemen()` było wywoływane **dopiero po SECONDARY `Promise.all`**, w którym `/equipment/transfers/pending` **nie miał `.catch()`**. Gdy lista pending transferów rosła (kilka przekazań w bazie) i odpowiedź padała (timeout/4xx/5xx), całe `Promise.all` odrzucało i `setForemen` nigdy się nie wywoływało → select pozostawał pusty.
+
+**Fix:**
+- `setForemen(allF)` wywoływane **natychmiast po PRIMARY** (zaraz po `/foremen`)
+- Każdy SECONDARY request opakowany w `.catch(() => safeDefault)` (5 endpointów)
+- Filtrowanie `me` z listy idzie później (gdy `/foreman/me` się powiedzie), inaczej zostaje pełna lista `allF`
+- `useEffect(cachedForemen)` także wywołuje `setForemen` (instant paint przy remount)
+
+### Feature: Multi-select bulk transfer
+- Tabela „Mój sprzęt" — kolumna z checkboxami:
+  - `bulk-select-all` w nagłówku (z `indeterminate` przy częściowym zaznaczeniu)
+  - `bulk-select-{eqId}` w każdym wierszu
+- Pasek `bulk-toolbar` nad tabelą (widoczny gdy ≥1 zaznaczony): licznik + przyciski „Przekaż zaznaczone" / „Wyczyść"
+- Modal `bulk-transfer-to-select` (klik bulk-transfer-btn):
+  - Select brygadzisty (jeden dla wszystkich pozycji)
+  - Tabela zaznaczonych sprzętów: nazwa, posiadana ilość, edytowalne pole ilości do przekazania (default = max), przycisk usunięcia z bulk
+  - Wyślij → `Promise.allSettled` z N POST `/api/equipment/transfer`. Toast „Przekazano N pozycji" lub „Wysłano X/Y — Z nie poszło"
+
+### Nowe data-testid
+`bulk-toolbar`, `bulk-select-all`, `bulk-select-{id}`, `bulk-transfer-btn`, `bulk-clear-btn`, `bulk-transfer-to-select`, `bulk-item-{id}`, `bulk-qty-{id}`, `bulk-remove-{id}`, `bulk-cancel-btn`, `bulk-confirm-btn`, `bulk-close-btn`
+
+### Test (iteration_41.json)
+- Code review **7/7 PASS**
+- Lint czysty, webpack compiled
+- UI runtime test blocked przez environment-side modals (wszyscy foremen test DB mają pending REPAIR-FLOW + Wymagana inwentaryzacja). To nie regresja kodu — RCA potwierdzone i fix zweryfikowany statycznie
+
+### Backlog
+- 🟡 P3 — EquipmentForeman.js urósł do 1259 linii — rozważyć split (BulkTransferModal, TransfersBanner, InventoryCheckModal do osobnych plików)
+- ⚪ Drobiazg: optymistyczny update w `handleBulkTransfer` nie rolluje per-failed-item (fetchAll synchronizuje z backendu po kilkuset ms — akceptowalne v1)
+
+---
+
+
 ## Iteration 95ax (2026-05) — Smart auto-detect jednostki z formuły wymiarowej
 
 ### User request
