@@ -1,3 +1,53 @@
+## Iteration 95bh (2026-05) — Weryfikacja przepływów BRYGADZISTY (foreman) po fix reload
+
+### User follow-up
+„a u brygadzistów sprawdziłeś przyciski i przeniesienia sprzętu??"
+
+### Statyczna analiza (przed testem)
+**`/app/frontend/src/components/EquipmentForeman.js` + `equipment-foreman/*.js`:**
+- 0 elementów `<form>`
+- 0 raw `<button>` (wszystko przez shadcn `<Button>` z defensywnym `type="button"`)
+- 0 wywołań `window.location.*` / `reload()`
+- Wszystkie 11 handlerów (handleTransfer, handleAccept, handleBulkTransfer, handleReject, handleConfirmReceipt, handleContestSubmit, handleDefect, handleReturn, handleAcknowledgeReturn, handleRejectReturn, handleDefectPhotoUpload) to czyste `async-await + setState`
+
+### Seed danych do testów
+- Roman Chufrida ↔ hasło `Test1234!` (przez admin API `POST /foremen/{id}/password`)
+- Przypisano 2 budowy (Castorama Krakow + LEBA)
+- Zaseedowano 2 pending transfers: TEST_Foreman_A → Roman (Wiertarka udarowa qty 1 do akceptacji, Mlot pneumatyczny qty 1 do odrzucenia)
+
+### Testy (iteration_45.json) — 8/8 przycisków PASS
+Wszystkie przyciski w panelu brygadzisty zweryfikowane techniką dual-detection (`page.on('load')` counter + `window.__marker` per click):
+
+| Przepływ | Reload? | Marker | Status |
+|---|---|---|---|
+| `foreman-login-btn` (`type="submit"` w `<form>`) | NO | INTACT | SPA navigate do `/worker/dashboard` |
+| `reject-transfer-{id}` (odrzucenie sprzętu) | NO | INTACT | Lista zaktualizowana inline |
+| `accept-transfer-{id}` (akceptacja sprzętu) | NO | INTACT | Wiertarka udarowa pojawiła się w „Moje elektronarzędzia" |
+| `transfer-btn-{eq_id}` (Przekaż) → TransferModal | NO | INTACT | Modal otwarł się |
+| `return-btn-{eq_id}` (Zwrot) → ReturnModal | NO | INTACT | |
+| `defect-btn-{eq_id}` (Usterka) → DefectModal | NO | INTACT | |
+| `bulk-select-all` + bulk transfer | NO | INTACT | bulk-toolbar pojawił się |
+| `my-history-btn` → HistoryModal | NO | INTACT | |
+
+**Total page 'load' events przez całą sesję brygadzisty: 1 (inicjalny `/foreman`).**
+
+### Łączny wynik weryfikacji fix reload
+- Admin dashboard (iter44): 8/8 przycisków bez reload
+- Foreman dashboard (iter45): 8/8 przycisków bez reload
+- **Łącznie: 16 przycisków w 2 panelach, 0 niezamierzonych przeładowań**
+
+### Minor uwaga UX (nie blocker)
+- Niektóre modale brygadzisty (TransferModal, ReturnModal, DefectModal) nie zamykają się konsekwentnie po Escape — to NIE jest bug reload, ale przyszły UX polish.
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali Esc w panelu brygadzisty (UX polish)
+- ⚪ Google Maps Marker → AdvancedMarkerElement
+
+---
+
+
+
 ## Iteration 95bg (2026-05) — Fix: przeładowanie strony po klikach Add/Save
 
 ### User report
