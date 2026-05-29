@@ -52,6 +52,12 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
   const [pendingConfirmations, setPendingConfirmations] = useState([]);
   const [contestModal, setContestModal] = useState(null);  // { id, equipment_name, quantity }
   const [contestReason, setContestReason] = useState('');
+  // iter95ay: multi-select sprzętu do bulk-transferu
+  const [selectedIds, setSelectedIds] = useState(new Set());
+  const [bulkModal, setBulkModal] = useState(false);          // open flag
+  const [bulkTo, setBulkTo] = useState('');                   // wybrany odbiorca
+  const [bulkItems, setBulkItems] = useState([]);             // [{id, name, max, qty}]
+  const [bulkSending, setBulkSending] = useState(false);
 
   // Stale-while-revalidate cached data — instant render on tab re-mount (60s)
   const cachedMy = useCachedApi(`/equipment/my?category=${encodeURIComponent(category)}`, 60000);
@@ -65,7 +71,11 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
     }
   }, [cachedMy]);
   useEffect(() => {
-    if (cachedForemen) setAllForemen(cachedForemen);
+    if (cachedForemen) {
+      setAllForemen(cachedForemen);
+      // iter95ay: BUG FIX — natychmiastowy fallback gdy cached lista jest dostępna
+      setForemen(cachedForemen);
+    }
   }, [cachedForemen]);
 
   const fetchAll = useCallback(async () => {
@@ -78,30 +88,39 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setMyEquipment(myRes.data);
       const allF = forRes.data || [];
       setAllForemen(allF);
+      // iter95ay: BUG FIX — ustaw listę brygadzistów OD RAZU (bez czekania na SECONDARY).
+      // Wcześniej setForemen czekało na cały Promise.all SECONDARY; jeśli którykolwiek
+      // (np. /equipment/transfers/pending) odrzucał, lista pozostawała pusta i user
+      // widział pusty select w dialogu przekazania.
+      setForemen(allF);
       setLoading(false);
 
       // SECONDARY - transfers banner, keeper status, pending returns etc.
+      // Każdy ma własny .catch — żaden błąd nie blokuje renderowania listy.
       const [ptRes, meRes, retRes, wkRes, confRes] = await Promise.all([
-        api.get('/equipment/transfers/pending'),
+        api.get('/equipment/transfers/pending').catch(() => ({ data: [] })),
         api.get('/foreman/me').catch(() => ({ data: null })),
         api.get('/equipment/returns/pending').catch(() => ({ data: [] })),
         api.get('/settings/warehouse-keeper').catch(() => ({ data: { foreman_id: null } })),
         api.get('/equipment/confirmations/pending').catch(() => ({ data: { rows: [] } })),
       ]);
       const me = meRes.data;
-      setForemen(allF.filter((f) => !me || f.id !== me.id));
-      setPendingTransfers(ptRes.data);
-      setPendingReturns(retRes.data);
+      // Po pobraniu „me" doszczegóławiamy listę — wykluczamy samego siebie
+      if (me) {
+        setForemen(allF.filter((f) => f.id !== me.id));
+      }
+      setPendingTransfers(ptRes.data || []);
+      setPendingReturns(retRes.data || []);
       setPendingConfirmations(confRes.data?.rows || []);
       const keeperFlag = me && wkRes.data?.foreman_id === me.id;
       setIsWarehouseKeeper(keeperFlag);
       if (keeperFlag) {
         const [eqAll, asgAll] = await Promise.all([
-          api.get(`/equipment?category=${encodeURIComponent(category)}`),
-          api.get('/equipment/assignments/all'),
+          api.get(`/equipment?category=${encodeURIComponent(category)}`).catch(() => ({ data: [] })),
+          api.get('/equipment/assignments/all').catch(() => ({ data: [] })),
         ]);
-        setAllEquipment(eqAll.data);
-        setAllAssignments(asgAll.data);
+        setAllEquipment(eqAll.data || []);
+        setAllAssignments(asgAll.data || []);
       }
     } catch (e) {
       setLoading(false);
@@ -194,6 +213,57 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
       setPendingTransfers(backup); // przywroc
       toast.error(err.response?.data?.detail || 'Błąd');
       throw err;
+    }
+  };
+
+  // iter95ay: otwarcie bulk-modal — przygotuj listę z zaznaczonych pozycji
+  const openBulkTransfer = () => {
+    const items = myEquipment
+      .filter((e) => selectedIds.has(e.id) && (e.quantity || 0) > 0)
+      .map((e) => ({ id: e.id, name: e.name, max: e.quantity, qty: e.quantity }));
+    if (items.length === 0) {
+      toast.error('Zaznacz co najmniej jeden sprzęt');
+      return;
+    }
+    setBulkItems(items);
+    setBulkTo('');
+    setBulkModal(true);
+  };
+
+  const handleBulkTransfer = async () => {
+    if (!bulkTo) { toast.error('Wybierz brygadzistę'); return; }
+    const validItems = bulkItems.filter((it) => it.qty > 0 && it.qty <= it.max);
+    if (validItems.length === 0) { toast.error('Wpisz ilość > 0 dla przynajmniej jednej pozycji'); return; }
+    setBulkSending(true);
+    // Optymistyczny lokalny update — zmniejsz ilości w tabeli
+    const backup = myEquipment;
+    setMyEquipment((prev) => prev.map((e) => {
+      const it = validItems.find((x) => x.id === e.id);
+      return it ? { ...e, quantity: Math.max(0, (e.quantity || 0) - it.qty) } : e;
+    }));
+    setBulkModal(false);
+    setSelectedIds(new Set());
+    try {
+      const results = await Promise.allSettled(validItems.map((it) =>
+        api.post('/equipment/transfer', {
+          equipment_id: it.id,
+          to_foreman_id: bulkTo,
+          quantity: it.qty,
+        })
+      ));
+      const ok = results.filter((r) => r.status === 'fulfilled').length;
+      const failed = results.length - ok;
+      if (failed === 0) {
+        toast.success(`Przekazano ${ok} pozycji sprzętu`);
+      } else {
+        toast.error(`Wysłano ${ok}/${results.length} — ${failed} nie poszło`);
+      }
+      fetchAll();
+    } catch (err) {
+      setMyEquipment(backup);
+      toast.error('Błąd: ' + (err.response?.data?.detail || err.message));
+    } finally {
+      setBulkSending(false);
     }
   };
 
@@ -629,9 +699,49 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
             <p className="text-[#94A3B8] text-sm">{t('eq.no_assigned')}</p>
           ) : (
             <div className="overflow-x-auto">
+              {/* iter95ay: pasek bulk-akcji nad tabelą */}
+              {selectedIds.size > 0 && (
+                <div className="mb-2 flex items-center gap-2 p-2 bg-[#3F5235]/30 border border-[#5F7552]/60 rounded"
+                     data-testid="bulk-toolbar">
+                  <span className="text-sm text-[#9DBC85] font-semibold">
+                    Zaznaczono: {selectedIds.size}
+                  </span>
+                  <Button
+                    size="sm"
+                    onClick={openBulkTransfer}
+                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-7"
+                    data-testid="bulk-transfer-btn"
+                  >
+                    <Send className="h-3 w-3 mr-1" /> Przekaż zaznaczone
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setSelectedIds(new Set())}
+                    className="text-[#94A3B8] hover:text-white text-xs h-7"
+                    data-testid="bulk-clear-btn"
+                  >
+                    Wyczyść zaznaczenie
+                  </Button>
+                </div>
+              )}
               <table className="w-full border-collapse text-xs sm:text-sm" data-testid="my-equipment-table">
                 <thead className="sticky top-0 z-30 bg-[#19243C]">
                   <tr className="bg-[#131C2F]">
+                    <th className="border border-[#2A3B59] p-1 sm:p-2 text-center w-10">
+                      <input
+                        type="checkbox"
+                        checked={myEquipment.length > 0 && selectedIds.size === myEquipment.length}
+                        ref={(el) => { if (el) el.indeterminate = selectedIds.size > 0 && selectedIds.size < myEquipment.length; }}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedIds(new Set(myEquipment.map((x) => x.id)));
+                          else setSelectedIds(new Set());
+                        }}
+                        className="cursor-pointer accent-[#4F6343]"
+                        title={selectedIds.size === myEquipment.length ? 'Odznacz wszystkie' : 'Zaznacz wszystkie'}
+                        data-testid="bulk-select-all"
+                      />
+                    </th>
                     <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Nazwa</th>
                     <th className="border border-[#2A3B59] p-1 sm:p-2 text-left text-[#CBD5E1]">Marka</th>
                     <th className="border border-[#2A3B59] p-1 sm:p-2 text-center text-[#CBD5E1]">Ilość</th>
@@ -641,6 +751,21 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 <tbody>
                   {myEquipment.map((eq) => (
                     <tr key={eq.id} data-testid={`my-equipment-row-${eq.id}`}>
+                      <td className="border border-[#2A3B59] p-1 sm:p-2 text-center align-middle">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(eq.id)}
+                          onChange={(e) => {
+                            setSelectedIds((prev) => {
+                              const next = new Set(prev);
+                              if (e.target.checked) next.add(eq.id); else next.delete(eq.id);
+                              return next;
+                            });
+                          }}
+                          className="cursor-pointer accent-[#4F6343]"
+                          data-testid={`bulk-select-${eq.id}`}
+                        />
+                      </td>
                       <td className="border border-[#2A3B59] p-1 sm:p-2 align-middle">
                         <div className="flex items-center gap-2">
                           {eq.photo ? (
@@ -765,6 +890,99 @@ export const EquipmentForeman = ({ category = 'electronics', title = 'Moje elekt
                 >
                   Wyslij
                 </ActionButton>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* iter95ay: Bulk Transfer Modal — przekaz wielu sprzętów na raz */}
+      {bulkModal && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-2xl max-h-[85vh] overflow-y-auto">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-[#CBD5E1]">
+                Przekaż {bulkItems.length} {bulkItems.length === 1 ? 'sprzęt' : 'sprzętów'}
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setBulkModal(false)} data-testid="bulk-close-btn">
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs text-[#94A3B8] mb-1 block">Brygadzista odbierający *</label>
+                <select
+                  value={bulkTo}
+                  onChange={(e) => setBulkTo(e.target.value)}
+                  className="w-full bg-[#131C2F] border border-[#2A3B59] text-[#CBD5E1] rounded px-3 py-2 text-sm"
+                  data-testid="bulk-transfer-to-select"
+                >
+                  <option value="">-- wybierz --</option>
+                  {foremen.map((f) => (
+                    <option key={f.id} value={f.id}>{f.full_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="border border-[#2A3B59] rounded">
+                <table className="w-full text-xs">
+                  <thead className="bg-[#131C2F]">
+                    <tr className="text-[#94A3B8] uppercase text-[10px]">
+                      <th className="text-left px-2 py-1.5">Sprzęt</th>
+                      <th className="text-center px-2 py-1.5 w-20">Masz</th>
+                      <th className="text-center px-2 py-1.5 w-32">Przekaż</th>
+                      <th className="text-center px-2 py-1.5 w-10"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bulkItems.map((it, idx) => (
+                      <tr key={it.id} className="border-t border-[#2A3B59]" data-testid={`bulk-item-${it.id}`}>
+                        <td className="px-2 py-1.5 text-[#CBD5E1]">{it.name}</td>
+                        <td className="px-2 py-1.5 text-center text-[#94A3B8] tabular-nums">{it.max}</td>
+                        <td className="px-2 py-1.5 text-center">
+                          <Input
+                            type="number"
+                            min="1"
+                            max={it.max}
+                            value={it.qty}
+                            onChange={(e) => {
+                              const v = parseInt(e.target.value, 10);
+                              setBulkItems((prev) => prev.map((x, i) => i === idx
+                                ? { ...x, qty: Number.isNaN(v) ? '' : Math.max(1, Math.min(it.max, v)) }
+                                : x));
+                            }}
+                            className="bg-[#131C2F] border-[#2A3B59] text-[#CBD5E1] h-7 text-center tabular-nums"
+                            data-testid={`bulk-qty-${it.id}`}
+                          />
+                        </td>
+                        <td className="px-2 py-1.5 text-center">
+                          <button
+                            onClick={() => setBulkItems((prev) => prev.filter((x) => x.id !== it.id))}
+                            className="text-[#94A3B8] hover:text-[#FCA5A5]"
+                            title="Usuń z przekazu"
+                            data-testid={`bulk-remove-${it.id}`}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <p className="text-xs text-[#94A3B8]">
+                Drugi brygadzista musi zaakceptować <b className="text-[#CBD5E1]">każdą</b> pozycję osobno.
+              </p>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button variant="ghost" onClick={() => setBulkModal(false)} data-testid="bulk-cancel-btn">Anuluj</Button>
+                <Button
+                  onClick={handleBulkTransfer}
+                  disabled={bulkSending || !bulkTo || bulkItems.length === 0}
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white disabled:opacity-40"
+                  data-testid="bulk-confirm-btn"
+                >
+                  <Send className="h-4 w-4 mr-1" />
+                  {bulkSending ? 'Wysyłam…' : `Wyślij (${bulkItems.length})`}
+                </Button>
               </div>
             </CardContent>
           </Card>
