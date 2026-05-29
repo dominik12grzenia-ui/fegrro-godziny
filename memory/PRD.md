@@ -1,3 +1,39 @@
+## Iteration 95at (2026-02) — Panel Prognoz przyszłych kosztów / zysków
+
+### User request
+„Panel Prognozy: koszty firmowe (ZUS/wypłaty/utrzymanie BEZ budów) + koszty budów z harmonogramów (materiały/sprzęt/robocizna podzielone po datach). Historia 6 msc, prognoza 3 msc, tylko etapy z datami, pełny P&L z przychodami."
+
+### Backend (`/app/backend/routes/finance.py`)
+- **Nowy endpoint** `GET /finance/forecast?back=6&forward=3`:
+  - Sekcja A: koszty firmowe — agregacja `finance_zapisy` po `kod_id` filtrując kategorie **KP/KSB/KSP** (BEZ KBB). Liczy `total_back`, `avg_monthly`, `count` per kod. Sortuje malejąco
+  - Sekcja B: koszty budów — dla każdej aktywnej budowy, etapów z `start_date+end_date`, **liniowe rozłożenie** `plan_netto` z `budget_lines` na miesiące prognozy (`_month_overlap_days`). Rozbicie: materials/labor/equipment/other + total + per_budowa
+  - Sekcja C: przychody — `budget_lines` z `is_income=True` rozłożone analogicznie po harmonogramie
+  - Sekcja D: bilans miesięczny — `income − costs_company − costs_building = profit`
+- Funkcje pomocnicze: `_month_iter`, `_month_overlap_days`, `_parse_date_any` (YYYY-MM-DD / DD.MM.YYYY / DD/MM/YYYY)
+- Wyklucza linie parentów (suma już w dzieciach)
+
+### Frontend (`/app/frontend/src/components/Forecast.js` — NOWY)
+- Pełny dashboard z:
+  - **Sterowanie** Historia (3-24 msc) + Prognoza (1-12 msc)
+  - **4 KPI**: średnie koszty firmowe/msc, koszty budów total, przychody budów, bilans P&L (kolor zielony/czerwony)
+  - **Tabela A — Koszty firmowe**: kategoria badge (KP/KSB/KSP) + kod/nazwa + Σ historyczna + śr/msc + prognoza
+  - **Tabela B — Koszty budów po miesiącach**: Materiały / Robocizna / Sprzęt / Inne + SUMA + lista budów (top 3)
+  - **Tabela C — Bilans**: Przychody (+) / Koszty firmowe (−) / Koszty budów (−) / ZYSK (kolorowy)
+- Empty state gdy brak harmonogramów: prompt do uzupełnienia start_date/end_date w Budżetowaniu
+- W `AdminDashboard.js` nowa zakładka **„Prognozy"** (`forecast-tab`) z lazy-loadem
+
+### Test
+- Lint JS: ✅
+- Backend curl: `back=6 forward=3` zwraca pełny payload z `range:{history_start, history_end}`, `company_costs.categories` (2 wpisy: KSB_ODZIEZ 25k/msc, KP_WYNAGRODZENIA 36,67/msc, total 25 036,67/msc), `forecast_total_period: 75 110 zł`
+- E2E smoke: zakładka widoczna, KPI poprawnie wyliczone (25 036,67 zł / 0 / 0 / −75 110 zł), tabela kosztów firmowych z 2 wierszami, info „Brak harmonogramów" gdy brak dat. Zmiana `forward=6` powoduje render 6 wierszy w tabeli bilansu
+
+### Pliki zmienione / utworzone
+- `/app/backend/routes/finance.py` — endpoint `/finance/forecast` + helpers (~250 linii)
+- `/app/frontend/src/components/Forecast.js` — NOWY komponent (~240 linii)
+- `/app/frontend/src/components/AdminDashboard.js` — lazy import, TabsTrigger, TabsContent
+
+---
+
 ## Iteration 95as (2026-02) — Zaciąganie wyceny do budżetu + auto-fill klienta przy tworzeniu
 
 ### User request
