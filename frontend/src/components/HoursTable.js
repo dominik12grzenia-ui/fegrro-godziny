@@ -5,10 +5,13 @@ import { Button } from './ui/button';
 import { ActionButton } from './ui/action-button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Input } from './ui/input';
-import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Link2, Copy, Wallet, AlertTriangle, Users } from 'lucide-react';
+import { ArrowLeft, Calendar, ChevronLeft, ChevronRight, Users, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, getDaysInMonth, getDay, startOfMonth, isToday as isDateToday } from 'date-fns';
 import { pl } from 'date-fns/locale';
+import { EmployeeLinksModal } from './hours/EmployeeLinksModal';
+import { AdvanceModal } from './hours/AdvanceModal';
+import { PenaltyModal } from './hours/PenaltyModal';
 
 const SITE_COLORS_HEX = ['#3B4F5C', '#3F5235', '#5F4A3B', '#5A4F6C', '#6C5A4F', '#4F6C5A'];
 const WEEKEND_BG = '#3D2E2E';
@@ -1122,312 +1125,46 @@ export const HoursTable = () => {
         </Card>
       </div>
 
-      {/* Employee Links Modal */}
-      {showLinks && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowLinks(false)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-lg max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <CardHeader>
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Link2 className="h-5 w-5 text-[#4F6343]" />
-                Linki z godzinami dla pracownikow
-              </CardTitle>
-              <p className="text-xs text-[#94A3B8]">Skopiuj link i wyslij pracownikowi przez Viber/WhatsApp</p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {employeeLinks.map(link => {
-                const fullUrl = `${window.location.origin}/hours/${link.token}`;
-                return (
-                  <div key={link.employee_id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[#CBD5E1] font-semibold">{link.full_name}</span>
-                      <span className="text-[#64748B] text-xs">{link.phone_number || 'brak tel.'}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <input
-                        readOnly
-                        value={fullUrl}
-                        className="flex-1 bg-[#0B1120] text-[#94A3B8] text-xs rounded px-2 py-1.5 border border-[#2A3B59]"
-                        data-testid={`link-${link.employee_id}`}
-                      />
-                      <Button
-                        onClick={() => { navigator.clipboard.writeText(fullUrl); toast.success(`Link skopiowany: ${link.full_name}`); }}
-                        size="sm"
-                        className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
-                        data-testid={`copy-link-${link.employee_id}`}
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                );
-              })}
-              <Button onClick={() => setShowLinks(false)} className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]">
-                Zamknij
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <EmployeeLinksModal
+        open={showLinks}
+        employeeLinks={employeeLinks}
+        onClose={() => setShowLinks(false)}
+      />
 
-      {/* Advance (Zaliczki) Modal */}
-      {showAdvanceModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowAdvanceModal(null)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <Wallet className="h-5 w-5 text-[#DC4A3A]" />
-                Zaliczki: {showAdvanceModal.full_name}
-              </CardTitle>
-              <p className="text-xs text-[#94A3B8]">
-                {format(selectedMonth, 'LLLL yyyy', { locale: pl })}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {/* Total */}
-              <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59] flex items-center justify-between">
-                <span className="text-[#94A3B8] text-sm">Suma zaliczek:</span>
-                <span className="text-[#DC4A3A] font-bold text-xl" data-testid="advance-total">
-                  {Number(advanceList.reduce((s, a) => s + a.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
-                </span>
-              </div>
+      <AdvanceModal
+        employee={showAdvanceModal}
+        selectedMonth={selectedMonth}
+        advanceList={advanceList}
+        newAdvanceAmount={newAdvanceAmount}
+        setNewAdvanceAmount={setNewAdvanceAmount}
+        newAdvanceNote={newAdvanceNote}
+        setNewAdvanceNote={setNewAdvanceNote}
+        carryForwardId={carryForwardId}
+        setCarryForwardId={setCarryForwardId}
+        carryAmount={carryAmount}
+        setCarryAmount={setCarryAmount}
+        onAdd={handleAddAdvance}
+        onDelete={handleDeleteAdvance}
+        onCarryForward={handleCarryForward}
+        onClose={() => setShowAdvanceModal(null)}
+      />
 
-              {/* Advance list */}
-              {advanceList.length > 0 ? (
-                <div className="space-y-2">
-                  {advanceList.map(adv => (
-                    <div key={adv.id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#CBD5E1] font-bold text-lg">{Number(adv.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
-                        <span className="text-[#64748B] text-[10px]">
-                          {adv.created_at ? new Date(adv.created_at).toLocaleString('pl-PL') : ''}
-                        </span>
-                      </div>
-                      {adv.note && (
-                        <p className="text-[#94A3B8] text-xs mb-2">{adv.note}</p>
-                      )}
-                      {adv.carried_from_month && (
-                        <p className="text-[#5F7552] text-[10px] mb-2">
-                          Przeniesione z {adv.carried_from_month}/{adv.carried_from_year}
-                        </p>
-                      )}
-                      <div className="flex gap-2">
-                        {carryForwardId === adv.id ? (
-                          <div className="flex gap-1 flex-1">
-                            <Input
-                              type="number"
-                              min="0"
-                              max={adv.amount}
-                              value={carryAmount}
-                              onChange={e => setCarryAmount(e.target.value)}
-                              placeholder="Kwota"
-                              className="bg-[#0B1120] text-white border-[#2A3B59] text-xs h-7 flex-1"
-                              data-testid="carry-amount-input"
-                            />
-                            <Button
-                              onClick={() => handleCarryForward(adv.id)}
-                              size="sm"
-                              className="bg-[#4F6343] hover:bg-[#3F5235] text-white h-7 text-xs px-2"
-                              data-testid="carry-confirm-btn"
-                            >
-                              OK
-                            </Button>
-                            <Button
-                              onClick={() => { setCarryForwardId(null); setCarryAmount(''); }}
-                              size="sm"
-                              variant="outline"
-                              className="border-[#2A3B59] text-[#94A3B8] h-7 text-xs px-2"
-                            >
-                              X
-                            </Button>
-                          </div>
-                        ) : (
-                          <>
-                            <Button
-                              onClick={() => { setCarryForwardId(adv.id); setCarryAmount(String(adv.amount)); }}
-                              size="sm"
-                              variant="outline"
-                              className="border-[#2A3B59] text-[#94A3B8] hover:text-[#CBD5E1] h-7 text-[10px] px-2"
-                              data-testid={`carry-btn-${adv.id}`}
-                            >
-                              Przenies
-                            </Button>
-                            <Button
-                              onClick={() => handleDeleteAdvance(adv.id)}
-                              size="sm"
-                              variant="outline"
-                              className="border-[#6B4444] text-[#DC4A3A] hover:bg-[#6B4444] h-7 text-[10px] px-2"
-                              data-testid={`delete-advance-${adv.id}`}
-                            >
-                              Usuń
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#64748B] text-sm text-center py-4">Brak zaliczek w tym miesiącu</p>
-              )}
-
-              {/* Add new advance */}
-              <div className="p-3 bg-[#0B1120] rounded-lg border border-[#4F6343]/30">
-                <p className="text-[#CBD5E1] text-xs font-semibold mb-2">Dodaj nowa zaliczke</p>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newAdvanceAmount}
-                    onChange={e => setNewAdvanceAmount(e.target.value)}
-                    placeholder="Kwota (zł)"
-                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
-                    data-testid="new-advance-amount"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    value={newAdvanceNote}
-                    onChange={e => setNewAdvanceNote(e.target.value)}
-                    placeholder="Notatka (opcjonalnie)"
-                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
-                    data-testid="new-advance-note"
-                  />
-                  <ActionButton
-                    onAction={handleAddAdvance}
-                    className="bg-[#4F6343] hover:bg-[#3F5235] text-white shrink-0"
-                    data-testid="add-advance-btn"
-                  >Dodaj</ActionButton>
-                </div>
-              </div>
-
-              <Button
-                onClick={() => setShowAdvanceModal(null)}
-                className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]"
-              >
-                Zamknij
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-      {/* Penalty (Kary) Modal */}
-      {showPenaltyModal && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowPenaltyModal(null)}>
-          <Card className="bg-[#19243C] border-[#2A3B59] w-full max-w-md max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-[#CBD5E1] flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-[#9B2C2C]" />
-                Kary: {showPenaltyModal.full_name}
-              </CardTitle>
-              <p className="text-xs text-[#94A3B8]">
-                {format(selectedMonth, 'LLLL yyyy', { locale: pl })}
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59] flex items-center justify-between">
-                <span className="text-[#94A3B8] text-sm">Suma kar:</span>
-                <span className="text-[#9B2C2C] font-bold text-xl" data-testid="penalty-total">
-                  {Number(penaltyList.reduce((s, p) => s + p.amount, 0)).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł
-                </span>
-              </div>
-
-              {penaltyList.length > 0 ? (
-                <div className="space-y-2">
-                  {penaltyList.map(pen => (
-                    <div key={pen.id} className="p-3 bg-[#131C2F] rounded-lg border border-[#2A3B59]">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-[#9B2C2C] font-bold text-lg">{Number(pen.amount || 0).toLocaleString('pl-PL', {minimumFractionDigits: 0, maximumFractionDigits: 2}).replace(/\u00A0/g, ' ')} zł</span>
-                        <span className="text-[#64748B] text-[10px]">
-                          {pen.created_at ? new Date(pen.created_at).toLocaleString('pl-PL') : ''}
-                        </span>
-                      </div>
-                      {pen.description && (
-                        <p className="text-[#94A3B8] text-xs mb-2">{pen.description}</p>
-                      )}
-                      {pen.image_data && (
-                        <img
-                          src={pen.image_data}
-                          alt="Zdjecie kary"
-                          className="w-full max-h-40 object-cover rounded cursor-pointer mb-2 border border-[#2A3B59]"
-                          onClick={() => setViewPenaltyImage(pen.image_data)}
-                          data-testid={`penalty-image-${pen.id}`}
-                        />
-                      )}
-                      <Button
-                        onClick={() => handleDeletePenalty(pen.id)}
-                        size="sm"
-                        variant="outline"
-                        className="border-[#6B4444] text-[#9B2C2C] hover:bg-[#6B4444] h-7 text-[10px] px-2"
-                        data-testid={`delete-penalty-${pen.id}`}
-                      >
-                        Usuń
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[#64748B] text-sm text-center py-4">Brak kar w tym miesiącu</p>
-              )}
-
-              <div className="p-3 bg-[#0B1120] rounded-lg border border-[#9B2C2C]/20">
-                <p className="text-[#CBD5E1] text-xs font-semibold mb-2">Dodaj nowa kare</p>
-                <div className="flex gap-2 mb-2">
-                  <Input
-                    type="number"
-                    min="0"
-                    value={newPenaltyAmount}
-                    onChange={e => setNewPenaltyAmount(e.target.value)}
-                    placeholder="Kwota (zł)"
-                    className="bg-[#131C2F] text-white border-[#2A3B59] text-sm flex-1"
-                    data-testid="new-penalty-amount"
-                  />
-                </div>
-                <Input
-                  value={newPenaltyDesc}
-                  onChange={e => setNewPenaltyDesc(e.target.value)}
-                  placeholder="Opis kary"
-                  className="bg-[#131C2F] text-white border-[#2A3B59] text-sm mb-2"
-                  data-testid="new-penalty-desc"
-                />
-                <div className="flex gap-2 items-center mb-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-[#94A3B8] text-xs bg-[#131C2F] border border-[#2A3B59] rounded px-3 py-2 hover:bg-[#2A3B59]">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                      data-testid="penalty-image-upload"
-                    />
-                    {newPenaltyImage ? 'Zdjecie dodane' : 'Dodaj zdjecie'}
-                  </label>
-                  {newPenaltyImage && (
-                    <img src={newPenaltyImage} alt="Preview" className="h-10 w-10 rounded object-cover border border-[#2A3B59]" />
-                  )}
-                </div>
-                <ActionButton
-                  onAction={handleAddPenalty}
-                  className="w-full bg-[#9B2C2C] hover:bg-[#B91C1C] text-white"
-                  data-testid="add-penalty-btn"
-                >Dodaj kare</ActionButton>
-              </div>
-
-              <Button
-                onClick={() => setShowPenaltyModal(null)}
-                className="w-full bg-[#2A3B59] text-[#CBD5E1] hover:bg-[#3D4F63]"
-              >
-                Zamknij
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Full-size penalty image viewer */}
-      {viewPenaltyImage && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4" onClick={() => setViewPenaltyImage(null)}>
-          <img src={viewPenaltyImage} alt="Kara" className="max-w-full max-h-full object-contain rounded-lg" />
-        </div>
-      )}
+      <PenaltyModal
+        employee={showPenaltyModal}
+        selectedMonth={selectedMonth}
+        penaltyList={penaltyList}
+        newPenaltyAmount={newPenaltyAmount}
+        setNewPenaltyAmount={setNewPenaltyAmount}
+        newPenaltyDesc={newPenaltyDesc}
+        setNewPenaltyDesc={setNewPenaltyDesc}
+        newPenaltyImage={newPenaltyImage}
+        onImageUpload={handleImageUpload}
+        viewPenaltyImage={viewPenaltyImage}
+        setViewPenaltyImage={setViewPenaltyImage}
+        onAdd={handleAddPenalty}
+        onDelete={handleDeletePenalty}
+        onClose={() => setShowPenaltyModal(null)}
+      />
     </div>
   );
 };
