@@ -62,6 +62,9 @@ export const evalFormula = (raw) => {
     } else if (m[3]) {
       tokens.push({ type: 'op', val: m[3] });
       cleanExpr += m[3];
+    } else if (m[4]) {
+      // iter95ax: nieznany identyfikator (zmienna/funkcja) → odrzuć
+      return { error: `Niepoprawna formuła: nieznany identyfikator "${m[4]}"` };
     }
   }
   if (!cleanExpr) return { error: 'Brak liczb' };

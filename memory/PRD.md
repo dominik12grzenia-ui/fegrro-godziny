@@ -1,3 +1,39 @@
+## Iteration 95ax (2026-05) — Smart auto-detect jednostki z formuły wymiarowej
+
+### User request
+„Skoro `evalFormula` ma już analizę wymiarową (m × m = m², m³ ÷ m² = m), zrób auto-podpowiedź jednostek: gdy user wpisuje `=100 m² × 0,24 m` i nie wybrał jednostki, auto-wykryj `m³` i ustaw."
+
+### Zmiany w `Wyceny.js` (SubRow)
+**`saveQty` (smart logika, linia ~1483-1515):**
+- Jeśli pole JEDN. jest **puste** → auto-set z analizy wymiarowej + toast „Auto-jednostka: m³"
+- Jeśli pole jest **ustawione i RÓŻNI się od wykrytej** → **NIE nadpisuj** (user wie lepiej)
+- `applyDetectedUnit` — funkcja ręcznej akceptacji (kliknięcie badge'a ⚠)
+
+**Preview badge (3 stany, data-testid=`sub-qty-preview-{id}`):**
+- ✓ **match** (zielony) — jednostka pozycji zgodna z analizą wymiarową
+- ⚠ **mismatch** (pomarańczowy) — klikalny przycisk `data-testid=sub-qty-fix-unit-{id}` z tekstem „użyj m³" → po kliknięciu wywołuje `applyDetectedUnit`
+- **empty** (szary) — info „auto-przypisze m³ po wyjściu z pola"
+
+### Zmiana w `_shared.js` (evalFormula)
+Bug znaleziony przez testing agenta TEST E: `=abc + 5` było po cichu liczone jako `5` (capture group m[4] „nieznany identyfikator" silnie dropped). **Fix:** explicit `return { error: 'Niepoprawna formuła: nieznany identyfikator "abc"' }` gdy m[4] dopasuje.
+
+### Test
+- Lint czysty (Wyceny.js + _shared.js)
+- Webpack compile successful
+- Testing agent (iteration_40.json): **5/6 TESTÓW PASS** (TEST A empty auto-fill m³, TEST B mismatch warning, TEST C fix-unit click, TEST D ✓ match badge, TEST F plain number). TEST E początkowo FAIL, **naprawiony post-test** (commit `evalFormula` m[4] reject).
+
+### Nowe data-testids
+- `sub-qty-fix-unit-{subId}` — przycisk „⚠ użyj m³" widoczny tylko przy mismatch
+- `sub-qty-preview-{subId}` — preview zawiera teraz znak ✓ (match) / italics (empty) / button (mismatch)
+
+### Backlog
+- 🟡 P3 dalej — `Wyceny.js` (2453 linii) — można jeszcze wydzielić `SubRow`, `PosRow`, `StageRow` do osobnych plików (testing agent wielokrotnie sugerował)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Google Maps Marker → AdvancedMarkerElement
+
+---
+
+
 ## Iteration 95aw (2026-05) — Refaktor Wyceny.js (P3) — rozbicie na podkomponenty
 
 ### Cel
