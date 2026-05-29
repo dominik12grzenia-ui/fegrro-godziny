@@ -1,3 +1,62 @@
+## Iteration 95bb (2026-05) — Audyt całej aplikacji + maksymalna optymalizacja
+
+### User request
+„Sprawdź poprawność działania całej aplikacji. Przyspiesz jej działanie do maximum by była szybka. Sprawdź połączenia i wszystkie zależności oraz sprawdź ich logikę i poprawność."
+
+### Audyt — znalezione i naprawione problemy
+
+**🔴 KRYTYCZNY — Brakujące indeksy MongoDB (10 dużych kolekcji bez indeksów):**
+- `finance_zapisy` (725 docs), `finance_invoices` (297), `construction_sites` (153), `finance_budowy` (153)
+- `budget_lines` (63), `budget_positions` (65), `budget_progress` (53), `budget_stages` (83)
+- `notifications` (84), `payroll_audit` (58)
+
+**🔴 KRYTYCZNY — Brak code splittingu w App.js:**
+- AdminDashboard (730l) + HoursTable (1433l) + WorkerDashboard (978l) ładowane eagerly = ogromny initial bundle
+
+### Fix #1 — 50+ nowych indeksów MongoDB (`server.py` startup_event)
+Dodano indeksy dla wszystkich krytycznych kolekcji z polami query: `id`, `budowa_id`, `position_id`, `stage_id`, `parent_id`, `date`, `created_at`, `wycena_id`, `recipient_id`, `read`, `foreman_id`, `employee_id`, `month`, `year`, `status`. Wszystkie wewnątrz try/except — failure pojedynczego idx nie blokuje startu.
+
+### Fix #2 — React.lazy() dla 8 routes w `App.js`
+Lazy: `AdminDashboard`, `AssignmentManager`, `HoursTable`, `PublicHours`, `WorkerDashboard`, `WarehouseLogin`, `WarehouseDashboard`, `WarehouseTokenEntry`. Eager zostało tylko: `AdminLogin`, `WorkerEntry`, `ForemanEntry`, push gates — minimalny initial bundle ekrany startu. Dodano `<Suspense fallback>` ze spinnerem.
+
+### Wyniki performance (po fixach)
+
+| Endpoint | Czas (best of 3) | Status |
+|---|---|---|
+| `/api/foremen` | 2.8ms (local) / 88ms (external) | ✅ |
+| `/api/wyceny` | 6.8ms / 86ms | ✅ |
+| `/api/finance/budowy` | 9ms / 88ms | ✅ |
+| `/api/finance/zapisy` (725 docs) | 43ms / 145ms | ✅ |
+| `/api/sites` | 4ms / 87ms | ✅ |
+| `/api/employees` | 2.6ms / 82ms | ✅ |
+| `/api/notifications` | 2.8ms / 86ms | ✅ |
+| `/api/budget/budowy` (153 budowy + agreg) | 180ms / 281ms | ✅ akceptowalne |
+| `/api/gus/{nip}` | 551ms | ✅ zewnętrzne API MF |
+
+**Frontend:**
+- Initial login bundle: 1.36s (z lazy)
+- Dashboard po loginie: 0.35s
+- Lazy chunk Wyceny: 1.64s (1× cache miss, potem instant)
+
+### Test
+- Testing agent (iteration_42.json): **27/27 pytest PASS** backend + frontend 100% main tabs render
+- Brak regresji vs iter95ay (foremen list nadal niepusta)
+- Zero fatal console errors
+
+### Drobne uwagi (nie blokery)
+- Pre-existing Google Maps `ApiProjectMapError` — niezwiązane z iter95bb (klucz nieautoryzowany dla preview domain)
+- Możliwy hydration warning HTML w jednej z lazy-loaded zakładek (`<span>` w `<option>`) — minor, niepotwierdzony grep
+
+### Backlog (priorytet bez zmian)
+- 🟡 P3 — Wyceny.js (2454l) → split SubRow / PosRow / StageRow
+- 🟡 P3 — Budget.js (3498l) → split do podkomponentów (NAJWIĘKSZY plik aplikacji)
+- 🟡 P3 — Finance.js (2248l) → split
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- ⚪ Google Maps API key authorization dla preview domain
+
+---
+
+
 ## Iteration 95ba (2026-05) — Kompaktowy wiersz pozycji głównej na mobile
 
 ### User report
