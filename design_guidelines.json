@@ -1,75 +1,131 @@
 {
-  "theme": "dark",
-  "archetype": "5 (Jewel & Luxury) with 4 (Swiss & High-Contrast) data tables",
-  "brand_colors": {
-    "background": "#0B1120",
-    "surface": "#131C2F",
-    "card": "#19243C",
-    "primary": "#4F6343",
-    "primary_hover": "#5F7552",
-    "primary_light": "#6B8E4E",
-    "accent_gold": "#D4AF37",
-    "accent_copper": "#C78B58",
-    "destructive": "#9B2C2C",
-    "destructive_light": "#FCA5A5",
-    "border": "#2A3B59",
-    "text_primary": "#F8FAFC",
-    "text_secondary": "#94A3B8",
-    "text_muted": "#64748B"
+  "theme_and_archetype": {
+    "domain": "Construction, ERP, Internal Tool",
+    "theme": "LIGHT (Default) with High-Contrast DARK mode option",
+    "archetype": "Archetype 4 (Swiss & High-Contrast) mixed with Industrial/Safety aesthetics",
+    "reasoning": "The current dashboard is too dark and unreadable. We are migrating to a default Light theme with high-contrast borders and typography, prioritizing data legibility (Control Room Grid). The dark mode is adjusted to a lighter slate background to resolve the 'too dark' complaint."
   },
   "typography": {
-    "headings": {
-      "family": "'Cabinet Grotesk', sans-serif",
-      "weights": ["400", "500", "700", "800"],
-      "letter_spacing": "tracking-tight"
+    "heading_font": "Work Sans",
+    "body_font": "IBM Plex Sans",
+    "monospaced_data_font": "IBM Plex Mono",
+    "hierarchy_rules": {
+      "h1": "text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50",
+      "h2": "text-xl sm:text-2xl font-semibold tracking-tight text-slate-800 dark:text-slate-100",
+      "h3": "text-lg font-medium text-slate-800 dark:text-slate-100",
+      "body": "text-sm text-slate-600 dark:text-slate-300 leading-relaxed",
+      "small_labels": "text-xs font-semibold tracking-[0.05em] uppercase text-slate-500 dark:text-slate-400"
     },
-    "body": {
-      "family": "'Manrope', sans-serif",
-      "weights": ["400", "500", "600", "700"]
+    "fonts_installation": "yarn add @fontsource/work-sans @fontsource/ibm-plex-sans @fontsource/ibm-plex-mono"
+  },
+  "color_palette": {
+    "light_mode": {
+      "background": "#F8FAFC",
+      "foreground": "#0F172A",
+      "card": "#FFFFFF",
+      "card_foreground": "#0F172A",
+      "border": "#E2E8F0",
+      "input": "#E2E8F0",
+      "primary": "#166534",
+      "primary_foreground": "#FFFFFF",
+      "secondary": "#F1F5F9",
+      "secondary_foreground": "#0F172A",
+      "muted": "#F1F5F9",
+      "muted_foreground": "#64748B",
+      "accent": "#F1F5F9",
+      "accent_foreground": "#0F172A",
+      "destructive": "#DC2626",
+      "destructive_foreground": "#FFFFFF",
+      "ring": "#166534",
+      "warning": "#CA8A04",
+      "warning_foreground": "#FFFFFF",
+      "success": "#15803D"
     },
-    "data_tables": {
-      "family": "'JetBrains Mono', monospace",
-      "features": "tabular-nums"
+    "dark_mode": {
+      "background": "#0F172A",
+      "foreground": "#F8FAFC",
+      "card": "#1E293B",
+      "card_foreground": "#F8FAFC",
+      "border": "#334155",
+      "input": "#334155",
+      "primary": "#22C55E",
+      "primary_foreground": "#022C22",
+      "secondary": "#334155",
+      "secondary_foreground": "#F8FAFC",
+      "muted": "#1E293B",
+      "muted_foreground": "#94A3B8",
+      "accent": "#334155",
+      "accent_foreground": "#F8FAFC",
+      "destructive": "#EF4444",
+      "destructive_foreground": "#FFFFFF",
+      "ring": "#22C55E",
+      "warning": "#EAB308",
+      "warning_foreground": "#422006",
+      "success": "#22C55E"
     }
   },
-  "spacing_and_layout": {
-    "grid_system": "4px base",
-    "density": "Dense for Admin/Finance, Generous for Mobile/Public",
-    "border_radius": "rounded-lg (12px) for cards, rounded-md (8px) for buttons/inputs"
+  "css_variables_strategy": {
+    "file_to_modify": "/app/frontend/src/index.css",
+    "instructions_to_main_agent": "1. Replace existing hardcoded hex colors in index.css with CSS variables (e.g. --background, --foreground, etc.) mapping to the provided HSL values. 2. Remove scattered inline hex colors (like bg-[#19243C]) across all 100+ components and replace them with standard Tailwind semantic classes (bg-background, text-foreground, bg-card, border-border). 3. Use 'dark' class on HTML or body to toggle modes. The dark mode must be lighter than previous (#0F172A instead of #0B1120) to ensure readability."
   },
-  "components": {
+  "layout_and_spacing": {
+    "grid_system": "MODE B: THE 'CONTROL ROOM' GRID",
+    "spacing_scale": "Tight and dense for data visibility. Use gap-4 or gap-6 for dashboard panels.",
+    "container_padding": "p-4 sm:p-6 lg:p-8",
+    "border_radius": "max 8px (rounded-md) across the app to maintain an industrial/professional aesthetic."
+  },
+  "component_guidelines": {
     "card": {
-      "background": "bg-[#19243C]",
-      "border": "border border-[#2A3B59]",
-      "shadow": "shadow-lg shadow-black/40",
-      "padding": "p-6"
+      "style": "Flat, 1px subtle border, no heavy shadows. Background should match 'card' variable.",
+      "tailwind_classes": "bg-card text-card-foreground border border-border rounded-md shadow-sm",
+      "hover_state": "None needed for static cards. Interactive cards can use hover:bg-slate-50 dark:hover:bg-slate-800."
+    },
+    "table": {
+      "style": "Dense and highly readable. Zebra striping for rows.",
+      "tailwind_classes": "w-full text-sm text-left border-collapse",
+      "header_classes": "bg-slate-100 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-semibold uppercase tracking-wider text-xs px-4 py-3 border-b border-border",
+      "row_classes": "border-b border-border hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors even:bg-slate-50/50 dark:even:bg-slate-800/20"
     },
     "button": {
-      "primary": "bg-[#4F6343] hover:bg-[#5F7552] text-white rounded-md transition-colors",
-      "secondary": "bg-[#2A3B59] hover:bg-[#374B6D] text-white rounded-md transition-colors"
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 font-medium transition-colors focus:ring-2 focus:ring-ring focus:ring-offset-2",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80 rounded-md px-4 py-2 font-medium transition-colors border border-border"
     },
-    "finance_table": {
-      "header_bg": "bg-[#131C2F]",
-      "header_text": "text-[#94A3B8] text-xs uppercase tracking-wider font-semibold",
-      "row_border": "border-b border-[#2A3B59]",
-      "row_hover": "hover:bg-[#131C2F]/50",
-      "cell_padding": "py-3 px-4",
-      "numbers": "font-mono tabular-nums text-right"
+    "input": {
+      "style": "Clear boundaries, good contrast for forms.",
+      "tailwind_classes": "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
     },
-    "alerts": {
-      "warning": "bg-[#D4AF37]/15 border border-[#D4AF37]/50 text-[#D4AF37]",
-      "critical": "bg-[#9B2C2C]/20 border border-[#9B2C2C]/50 text-[#FCA5A5]"
+    "dialog": {
+      "style": "Modal with semi-transparent overlay.",
+      "overlay": "fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm",
+      "content": "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-background p-6 shadow-lg duration-200 sm:rounded-lg"
     }
   },
-  "mobile_specific": {
-    "touch_targets": "min-h-[48px] min-w-[48px]",
-    "font_sizes": "Base 16px to prevent iOS zoom"
+  "icon_strategy": {
+    "library": "lucide-react",
+    "usage": "Use consistent stroke width (2px) and sizes (16px for inline text, 24px for navigation/buttons)."
   },
-  "instructions_to_main_agent": [
-    "Apply Manrope and JetBrains Mono fonts across the app.",
-    "Update Tailwind config with the new color hexes.",
-    "Refactor AdminDashboard to use Glassmorphism for the sticky header (bg-[#0B1120]/80 backdrop-blur-xl).",
-    "Refactor Finance and Payroll tables to remove heavy vertical borders, use sleek horizontal borders, and apply JetBrains Mono for numbers.",
-    "Ensure PublicHours mobile view has large touch targets, high contrast text for outdoor readability, and clear distinction between days."
-  ]
+  "testing_and_accessibility": {
+    "data_testid": "MANDATORY: All interactive elements must include data-testid. Example: data-testid='login-submit-button'.",
+    "contrast": "All text must pass WCAG AA (4.5:1 for normal text, 3:1 for large text). The primary green (#166534) against white passes with 5.6:1 contrast ratio."
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.unsplash.com/photo-1672748341520-6a839e6c05bb?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwxfHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODAwODg3NTZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_placeholder_1",
+        "description": "Construction worker with red hard hat"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1646227655685-a530813759b3?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwzfHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODAwODg3NTZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_placeholder_2",
+        "description": "Construction worker with white hard hat"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1679679811837-c28b2586f533?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwyfHxjb25zdHJ1Y3Rpb24lMjB3b3JrZXIlMjBwb3J0cmFpdHxlbnwwfHx8fDE3ODAwODg3NTZ8MA&ixlib=rb-4.1.0&q=85",
+        "category": "avatar_placeholder_3",
+        "description": "Construction worker smiling"
+      }
+    ],
+    "logo_path": "/app/frontend/public/icon-192x192.png"
+  }
 }
