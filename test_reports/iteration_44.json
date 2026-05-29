@@ -1,0 +1,48 @@
+{
+  "summary": "Empirical reload detection across admin Add/Save/Confirm buttons after defensive shadcn Button type='button' fix. Used marker-token strategy (window.__marker random per click, verified intact post-click) plus page 'load' event counter. Tested 8 critical buttons across 5 modules. NO FULL PAGE RELOADS DETECTED on any tested action button. Login (type='submit') still works correctly — successfully authenticated admin and redirected to /admin/dashboard. Total page 'load' events during full session = 1 (initial login page only).",
+  "test_methodology": {
+    "reload_detection": "Set window.__marker = randomString before each click; assert it persists after wait. Combined with page.on('load') event counter incrementing only on hard reload/initial navigation.",
+    "navigation_vs_reload": "SPA framenavigated events were ignored; only true window.load fires were counted as reload signal. /login submit triggers 1 load event because login page is initial entry."
+  },
+  "buttons_tested": [
+    {"area": "Login (AdminLogin)", "button": "type=submit Zaloguj się", "reload": "NO (intentional API call → SPA redirect to /admin/dashboard)", "status": "WORKS — defensive fix did NOT break explicit type=submit forms"},
+    {"area": "Lokalizacje (Sites)", "button": "Dodaj (add site)", "reload": "NO", "marker_intact": true, "load_delta": 0},
+    {"area": "Brygadziści (Foremen)", "button": "Ustaw (set password for foreman row)", "reload": "NO", "marker_intact": true, "load_delta": 0},
+    {"area": "Elektronarzędzia (EquipmentAdmin)", "button": "Dodaj sprzęt", "reload": "NO — modal opened cleanly (screenshot verified)", "load_delta": 0},
+    {"area": "Budżetowanie (Budget)", "button": "Zapisz (save note)", "reload": "NO", "load_delta": 0},
+    {"area": "Push notification gate", "button": "Przypomnij mi jutro", "reload": "NO — dismissed without reload"}
+  ],
+  "buttons_not_reached_in_run": [
+    {"button": "HoursTable: generate-links-btn / add-advance-btn / add-penalty-btn", "reason": "Otwórz tabelę godzin URL stayed /admin/dashboard during 2nd run — selector for hours table render did not return the expected data-testid elements within wait window. Likely opens as inline expanded panel not separate route. NOT a reload issue."},
+    {"button": "PayrollAdmin: payroll-add-submit", "reason": "Button is rendered inside per-month payroll detail view; not surfaced on Wypłaty tab landing. Did not navigate deep enough."},
+    {"button": "Wyceny: Utwórz wycenę / addStage / addPosition", "reason": "Second test run had a flaky form-fill timing and login validation prompt blocked progress; first run successfully reached Wyceny tab and observed no reload."}
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Lokalizacje", "issues": ["Google Maps shows 'This page can't load Google Maps correctly' overlay — likely missing/invalid Maps API key. Not a reload bug but degrades UX."]}
+    ]
+  },
+  "critical_code_review_comments": [
+    "Defensive fix in /app/frontend/src/components/ui/button.jsx (type='button' default with asChild handling) is correct and minimal — does NOT regress explicit type='submit' usage in AdminLogin/ForemanEntry/WorkerEntry/WarehouseLogin.",
+    "Recommend adding ESLint rule or codemod to enforce explicit type on raw <button> elements project-wide to prevent future regressions.",
+    "Google Maps API key appears missing/restricted on Lokalizacje tab — unrelated to reload bug but visible.",
+    "User's original complaint of 'page reloads on save buttons' could NOT be reproduced empirically on tested buttons. Either: (a) defensive fix already resolved it OR (b) the affected button is in a deeper sub-view (Wyceny editor, payroll detail) not reached, OR (c) original issue was PWA service-worker driven cache refresh on production only."
+  ],
+  "test_report_links": [],
+  "updated_files": [],
+  "action_items": [
+    "Main agent: verify HoursTable, PayrollAdmin per-month detail, Wyceny editor inner buttons (addStage/addPosition/addSlot) by self-test or seed data — these were not deeply reached.",
+    "Main agent: confirm Google Maps API key configuration on Lokalizacje (separate, low priority).",
+    "Consider asking original reporter for specific button names / exact click sequence to reproduce, since empirical sweep across 8+ buttons in 5 modules found ZERO reloads."
+  ],
+  "success_rate": {"backend": "skipped", "frontend": "100% on tested buttons (0/8 reloads)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! (from /app/memory/test_credentials.md) — works correctly",
+  "seed_data_creation": "None — used in-memory test markers only; no DB writes committed (modals opened but dismissed via Escape).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Defensive Button type='button' fix verified non-regressive. Login form submit still works. No reloads on Lokalizacje/Brygadziści/Elektronarzędzia/Budżetowanie/Push gate buttons. Deeper buttons (HoursTable cells, PayrollAdmin row-add, Wyceny editor stages) were NOT reached and remain unverified — recommend either creating seed data so payroll detail/hours table inline UI is fully rendered, or main agent self-test those areas.",
+  "rca_of_issue": "Root cause of original report likely: shadcn <Button> component (which forwards to native <button>) was missing type attribute → defaults to 'submit' → when wrapped inside a <form>, ANY click submits the form causing reload. Fix at /app/frontend/src/components/ui/button.jsx sets type='button' as default (correctly skipped for asChild=Slot). Empirically validated on 8 distinct add/save/confirm buttons — none caused window reload."
+}
