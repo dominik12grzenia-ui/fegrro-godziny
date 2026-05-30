@@ -94,3 +94,34 @@ async def get_current_admin_or_warehouse(current_user: dict = Depends(get_curren
             detail="Not enough permissions",
         )
     return current_user
+
+
+
+async def get_current_admin_or_accounting(current_user: dict = Depends(get_current_user)):
+    """Admin OR accounting (ksiegowy). Ksiegowy ma read-only dostep do finansow
+    + moze tworzyc/edytowac wlasne zapisy, ale NIE moze:
+    - usuwac (zwlaszcza soft-delete starych miesiecy)
+    - zamykac/otwierac okresow
+    - modyfikowac kodow ksiegowych
+    - administrowac uzytkownikami/budowami/sprzetem
+
+    iter95br: nowa rola "accounting".
+    """
+    if current_user.get("role") not in ("admin", "accounting"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnien (wymagana rola admin lub accounting)",
+        )
+    return current_user
+
+
+async def get_current_finance_reader(current_user: dict = Depends(get_current_user)):
+    """Admin OR accounting (read-only dostep do dashboardu/raportow/audit).
+    Uzywane przez endpointy ktore tylko czytaja dane finansowe.
+    """
+    if current_user.get("role") not in ("admin", "accounting"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnien (wymagana rola admin lub accounting)",
+        )
+    return current_user

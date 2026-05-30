@@ -19,6 +19,9 @@ import { QuickAddZapis } from './finance/QuickAddZapis';
 import { RachunekWynikowPanel } from './finance/RachunekWynikowPanel';
 import { SprzedazPanel } from './finance/SprzedazPanel';
 import { ZapisyPanel } from './finance/ZapisyPanel';
+import { AuditPanel } from './finance/AuditPanel';
+import { PeriodsPanel } from './finance/PeriodsPanel';
+import { KPIDashboard } from './finance/KPIDashboard';
 
 
 const PL_MONTHS_SHORT = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paz','Lis','Gru'];
@@ -52,10 +55,13 @@ const fmtPct = (v) => {
 };
 
 const SUBTABS = [
+  { id: 'kpi', label: 'Dashboard' },
   { id: 'rw', label: 'Rachunek wyników' },
   { id: 'sprzedaz', label: 'Sprzedaż' },
   { id: 'budowy', label: 'Budowy' },
   { id: 'zapisy', label: 'Zapisy' },
+  { id: 'periods', label: 'Okresy' },
+  { id: 'audit', label: 'Audyt' },
 ];
 
 // Slownik kolumn tabeli "Sprzedaz per budowa" - kliknij ikonke (?) zeby zobaczyc pelny opis i wzor
@@ -253,7 +259,7 @@ const InfoHeader = ({ label, info, className = '', align = 'right' }) => {
 
 
 export const Finance = () => {
-  const [active, setActive] = useState('rw');
+  const [active, setActive] = useState('kpi');
   const [year, setYear] = useState(new Date().getFullYear());
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   // Filtr platnosci - lifted state, sterowany z kafelkow w Rachunku Wynikow
@@ -309,6 +315,9 @@ export const Finance = () => {
 
       {active === 'budowy' && <BudowyPanel />}
       {active === 'zapisy' && <ZapisyPanel year={year} paymentFilter={paymentFilter} setPaymentFilter={setPaymentFilter} />}
+      {active === 'kpi' && <KPIDashboard />}
+      {active === 'audit' && <AuditPanel />}
+      {active === 'periods' && <PeriodsPanel />}
       {active === 'rw' && <RachunekWynikowPanel year={year} onTileClick={handleTileClick} />}
       {active === 'sprzedaz' && <SprzedazPanel year={year} />}
     </div>

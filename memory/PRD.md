@@ -1,3 +1,163 @@
+## Iteration 95bs (2026-05) — Pakiet E: COMPLIANCE (eksport CSV + 2FA)
+
+### Implementacja
+**Backend:**
+- `/app/backend/routes/exports.py` - 2 endpoints CSV:
+  - `GET /api/finance/export/csv?year&month` - eksport zapisów + faktur z pełnym joinem nazw budów/kodów
+  - `GET /api/finance/export/budowy-summary?year` - YTD plan vs wykonanie per budowa
+  - Format: UTF-8 BOM (Excel friendly), delimiter `;`, przecinek dziesiętny (PL standard księgowy)
+  - Stopka z metadanymi (kto/kiedy wygenerował)
+- `/app/backend/routes/twofa.py` - 5 endpoints TOTP (Google Authenticator/Authy):
+  - `/auth/2fa/setup` - generuje secret + QR data URI (PNG base64)
+  - `/auth/2fa/verify-setup` - aktywuje 2FA po weryfikacji pierwszego kodu
+  - `/auth/2fa/verify` - weryfikuje kod (przed wrażliwymi operacjami)
+  - `/auth/2fa/disable` - wyłącza 2FA (wymaga aktualnego kodu)
+  - `/auth/2fa/status` - sprawdza czy włączone
+- Nowa zależność: `pyotp 2.9.0`, `qrcode 8.2`
+
+**Frontend:**
+- 2 przyciski eksportu w `KPIDashboard.js` (top right) z token-based download
+- 2FA endpoints gotowe, UI panel można dodać gdy user zechce (10 min pracy)
+
+### Test
+- CSV miesięczny: pierwsza linia z headerami PL, BOM, dane joinują się poprawnie (kontrahent, kod, budowa, daty)
+- 2FA: secret + QR generowane, verify-setup odrzuca zły kod z PL message
+- Smoke test: 13/13 PASS ✅
+
+---
+
+# 🎉 PODSUMOWANIE 5 PAKIETÓW (iter95bo → iter95bs)
+
+| Pakiet | Co dodano | Status |
+|---|---|---|
+| **A** AUDIT TRAIL | audit_log + soft-delete + restore + panel "Audyt" w Finansach | ✅ |
+| **B** INTEGRALNOŚĆ | lock okresów księgowych + walidacja invariantów faktur + panel "Okresy" | ✅ |
+| **C** BIZNES VALUE | KPI dashboard (cash flow/marża/aktywne budowy) + Top 3 kosztów + alerty | ✅ |
+| **D** BEZPIECZEŃSTWO | auto-backup codzienny (14 kolekcji) + role finance_reader | ✅ |
+| **E** COMPLIANCE | eksport CSV (zapisy + budowy YTD) + 2FA TOTP endpoints | ✅ |
+
+**Łącznie dodano:**
+- 7 nowych plików backend (`audit_log.py`, `period_lock.py`, `idempotency.py` + 4 routery)
+- 4 nowe pliki frontend (`AuditPanel`, `PeriodsPanel`, `KPIDashboard`, `KPIDashboard export buttons`)
+- 17 nowych endpointów API
+- 8 nowych indeksów MongoDB
+- 1 cron job (codzienny backup 02:30)
+- 2 nowe role (admin_or_accounting, finance_reader)
+- 1 zewnętrzna integracja (pyotp + qrcode dla 2FA)
+
+
+## Iteration 95br (2026-05) — Pakiet D: BEZPIECZEŃSTWO (auto-backup + role finance reader)
+
+### Implementacja
+**Backend:**
+- `/app/backend/routes/backup.py` - 3 endpoints: GET `/backup/list`, POST `/backup/now`, GET `/backup/download/{id}`
+- Backup obejmuje 14 najważniejszych kolekcji (finance, budget, wyceny, audit_log)
+- Auto-backup cron: codziennie o 02:30 UTC + retencja 30 dni
+- `/app/backend/idempotency.py` (helper, gotowy do podpięcia w POST gdy potrzeba)
+- 2 nowe role w `auth.py`: `get_current_admin_or_accounting` (write) + `get_current_finance_reader` (read-only)
+- Wpięte do dashboard + audit (księgowy może oglądać KPI/historię, ale nie może edytować)
+- Indeksy: `idempotency_cache` (unique + TTL 24h), `backups.created_at`
+
+**Pierwszy backup wykonany:** 1464 dokumenty w 14 kolekcjach.
+
+**Frontend fix:**
+- Naprawiono `localStorage.getItem('admin_token')` → `'token'` w 3 nowych komponentach (AuditPanel, KPIDashboard, PeriodsPanel) — przyczyna 403 podczas smoke testa
+
+### Co NIE zostało zaimplementowane (świadomie):
+- **Idempotency keys w POST** — overhead > value w obecnym stanie (soft-delete + audit pozwala cofnąć pomyłki)
+- **UI dla zarządzania backupami** — endpoints są gotowe, gdy będzie potrzeba dodamy panel "Kopie zapasowe"
+
+### Smoke test: 13/13 PASS ✅
+
+---
+
+
+
+## Iteration 95bq (2026-05) — Pakiet C: BIZNES VALUE (KPI + Top kosztów + Alerty)
+
+### Implementacja
+**Backend** — `/app/backend/routes/dashboard.py`:
+- `GET /api/dashboard/kpi` → cash flow MTD/YTD, revenue/costs MTD/YTD, active_sites, margin_avg_pct
+- `GET /api/dashboard/top-costs?limit=3` → top N kategorii kosztów w okresie (agreguje po kod_id)
+- `GET /api/dashboard/alerts` → 3 typy alertów: nieopłacone faktury >30 dni, sites_over_budget (na podstawie plan vs wykonanie), missing kod_id
+
+**Frontend** — `/app/frontend/src/components/finance/KPIDashboard.js`:
+- 4 KPI cards (Cash flow MTD, Cash flow YTD, Aktywne budowy, Średnia marża)
+- TopCostsCard z paskami progresu (gradient #DC4A3A → #D4AF37) + % udziału
+- AlertsCard z trzema poziomami: critical (czerwony), warning (złoty), info (szary)
+- Nowa subtab "Dashboard" w Finansach jako DOMYŚLNA pierwsza zakładka
+
+### Realne wyniki na danych produkcyjnych
+- Cash flow YTD: -3 534 693 zł (brak revenue oznaczonych jako PZS/PRZ — typowy issue, sygnał dla księgowej)
+- Top koszt #1: 1 022 036 zł "Bez kategorii" — actionable insight (715 zapisów do skategoryzowania)
+- 18 nieopłaconych faktur > 30 dni — natychmiastowa lista do windykacji
+- 153 aktywne budowy
+
+### Wartość dla księgowej
+Jeden ekran zastępuje 3-4 zakładki — od razu widać co wymaga uwagi. „Bez kategorii" trafia jako alert + jako top cost, więc nie sposób przeoczyć.
+
+---
+
+
+
+## Iteration 95bp (2026-05) — Pakiet B: INTEGRALNOŚĆ DANYCH
+
+### Implementacja
+**Backend:**
+- `/app/backend/period_lock.py` (helper) - `is_period_locked()`, `assert_period_open()`, `parse_date_to_period()`, `validate_invoice_integrity()`
+- `/app/backend/routes/periods.py` (router) - 4 endpoints: GET `/finance/periods`, POST `/finance/periods/close`, POST `/finance/periods/open`, GET `/finance/invoices/{id}/validate`
+- Nowy unique index `finance_periods.{year, month}`
+- Lock wpięty w `create_zapis`, `update_zapis`, `delete_zapis` - rzuca HTTP 423 jeśli okres zamknięty
+- Walidacja inwariantu faktury: suma pozycji ≈ netto faktury (tolerancja 1 gr)
+
+**Frontend:**
+- `/app/frontend/src/components/finance/PeriodsPanel.js` - panel 12 miesięcy z ikoną kłódki, wyboru roku, przycisków otwórz/zamknij
+- Nowa subtab "Okresy" w Finanse między Zapisy a Audyt
+- Tip dla księgowej + audit log każdej zmiany
+
+### Test E2E
+- Zamknięto styczeń 2025 → POST `/zapisy` z datą 2025-01-15 → **HTTP 423** z komunikatem
+- Otwarto styczeń → POST zadziałał
+- Walidacja faktury 187.89zł → znaleziono `diff: 187.89` (pozycja bez kod_id)
+- Każde otwarcie/zamknięcie loguje się w audit_log (entity `finance_period`)
+
+### Smoke test: 13/13 PASS, 0 errors ✅
+
+---
+
+
+
+## Iteration 95bo (2026-05) — Pakiet A: AUDIT TRAIL + SOFT-DELETE
+
+### Implementacja
+**Backend:**
+- `/app/backend/audit_log.py` (helper) - `log_audit()`, `soft_delete()`, `restore_soft_deleted()`, `soft_delete_filter()`
+- `/app/backend/routes/audit.py` (router) - 4 endpoints: GET `/audit-log`, GET `/audit-log/entity/{e}/{id}`, GET `/audit-log/deleted`, POST `/audit-log/restore`
+- 3 nowe indeksy MongoDB: `audit_log.{ts}`, `audit_log.{entity,entity_id,ts}`, `audit_log.{user_id,ts}` + `deleted_at` na 3 kolekcjach finansowych
+- Wpięte do CRUD: `finance_zapisy`, `finance_invoices`, `finance_budowy` (create/update/delete/archive/unarchive)
+- Filtry `soft_delete_filter()` w GET list_zapisy, list_invoices, list_budowy
+- Diff w update: tylko zmienione pola, pomijamy techniczne (`updated_at`, `_id` itp.)
+- Bezpieczne fallbacki: `_id` (ObjectId) usuwane przed insert do audit_log
+
+**Frontend:**
+- `/app/frontend/src/components/finance/AuditPanel.js` - read-only panel z 2 zakładkami:
+  - "Historia zmian" - lista wpisów z filtrami (typ rekordu / akcja / okres), pokazuje diff old→new dla każdego pola
+  - "Kosz" - lista soft-deleted z przyciskiem "Przywróć"
+- Dodano jako nowa subtab "Audyt" w `Finanse`
+
+### Test E2E
+Cykl create → update → delete → restore:
+- create zapis `TEST_FULL_AUDIT` (500 zł)
+- update na 750 zł + zmiana kontrahenta → diff: `{netto: 500→750, kontrahent: TEST_FULL_AUDIT→TEST_RENAMED}`
+- delete → soft-deleted (visible in trash)
+- restore → reactywowano, fully visible w listach finance
+
+### Smoke test: 13/13 PASS, 0 errors ✅
+
+---
+
+
+
 ## Iteration 95bn (2026-05) — Optymistyczne updaty: Budżet + Finanse (preemptive)
 
 ### User request

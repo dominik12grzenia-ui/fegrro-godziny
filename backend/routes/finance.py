@@ -28,6 +28,8 @@ from pydantic import BaseModel, Field
 
 from database import db
 from auth import get_current_admin
+from audit_log import log_audit, soft_delete, soft_delete_filter
+from period_lock import assert_period_open, parse_date_to_period
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -341,7 +343,7 @@ async def list_budowy(
     has_budget: Optional[bool] = Query(None, description="iter93: filtr po has_budget"),
     current_user: dict = Depends(get_current_admin),
 ):
-    q: dict = {} if include_archived else {"$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}
+    q: dict = {**soft_delete_filter()} if include_archived else {**soft_delete_filter(), "$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}]}
     if has_budget is True:
         # Default = True dla starszych rekordow ktore nie maja flagi
         q["$and"] = [{"$or": [{"has_budget": {"$ne": False}}]}]
@@ -385,6 +387,7 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
     if payload.show_in_hours:
         await _sync_to_sites(bid, name)
     doc.pop("_id", None)
+    await log_audit(entity="finance_budowa", entity_id=bid, action="create", user=current_user, new=doc)
     return doc
 
 
@@ -394,7 +397,7 @@ async def update_budowa(
     payload: BudowaUpdate,
     current_user: dict = Depends(get_current_admin),
 ):
-    existing = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    existing = await db.finance_budowy.find_one({"id": budowa_id, **soft_delete_filter()}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
     upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
@@ -417,13 +420,19 @@ async def update_budowa(
         await db.construction_sites.update_one(
             {"finance_budowa_id": budowa_id}, {"$set": {"name": new_name}}
         )
+    new_doc = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    await log_audit(entity="finance_budowa", entity_id=budowa_id, action="update",
+                    user=current_user, old=existing, new=new_doc)
     return {"message": "Zaktualizowano"}
 
 
 @router.post("/finance/budowy/{budowa_id}/archive")
 async def archive_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
     """Archiwizuje budowe w finansach. Dane zapisow zostaja. Usuwa z sites (lista godzin)."""
-    res = await db.finance_budowy.update_one(
+    old = await db.finance_budowy.find_one({"id": budowa_id, **soft_delete_filter()}, {"_id": 0})
+    if not old:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    await db.finance_budowy.update_one(
         {"id": budowa_id},
         {"$set": {
             "is_archived": True,
@@ -432,35 +441,42 @@ async def archive_budowa(budowa_id: str, current_user: dict = Depends(get_curren
             "archived_by": current_user["sub"],
         }},
     )
-    if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
     await _remove_from_sites(budowa_id)
+    new_doc = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    await log_audit(entity="finance_budowa", entity_id=budowa_id, action="update",
+                    user=current_user, old=old, new=new_doc, extra={"reason": "archive"})
     return {"message": "Zarchiwizowano"}
 
 
 @router.post("/finance/budowy/{budowa_id}/unarchive")
 async def unarchive_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
-    res = await db.finance_budowy.update_one(
+    old = await db.finance_budowy.find_one({"id": budowa_id, **soft_delete_filter()}, {"_id": 0})
+    if not old:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    await db.finance_budowy.update_one(
         {"id": budowa_id},
         {"$set": {"is_archived": False, "archived_at": None}},
     )
-    if res.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
+    new_doc = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
+    await log_audit(entity="finance_budowa", entity_id=budowa_id, action="update",
+                    user=current_user, old=old, new=new_doc, extra={"reason": "unarchive"})
     return {"message": "Przywrocono"}
 
 
 @router.delete("/finance/budowy/{budowa_id}")
 async def delete_budowa(budowa_id: str, current_user: dict = Depends(get_current_admin)):
-    """Trwale usuniecie. Nie pozwala jezeli sa zapisy z ta budowa."""
-    cnt = await db.finance_zapisy.count_documents({"budowa_id": budowa_id})
+    """iter95bo: soft-delete. Wymaga 0 aktywnych zapisow finansowych."""
+    cnt = await db.finance_zapisy.count_documents({"budowa_id": budowa_id, **soft_delete_filter()})
     if cnt > 0:
         raise HTTPException(
             status_code=400,
-            detail=f"Nie mozna usunac - jest {cnt} zapisow finansowych. Zarchiwizuj zamiast usuwac.",
+            detail=f"Nie mozna usunac - jest {cnt} aktywnych zapisow finansowych. Zarchiwizuj zamiast usuwac.",
         )
-    await db.finance_budowy.delete_one({"id": budowa_id})
+    deleted = await soft_delete("finance_budowy", budowa_id, current_user, entity_label="finance_budowa")
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
     await _remove_from_sites(budowa_id)
-    return {"message": "Usunieto"}
+    return {"message": "Usunieto (mozna przywrocic)"}
 
 
 async def _sync_to_sites(budowa_id: str, name: str):
@@ -497,7 +513,7 @@ async def list_zapisy(
     kod_id: Optional[str] = Query(None),
     current_user: dict = Depends(get_current_admin),
 ):
-    q = {}
+    q = {**soft_delete_filter()}
     if year is not None and month is not None:
         start = f"{year:04d}-{month:02d}-01"
         end = f"{year:04d}-{month:02d}-31"
@@ -519,6 +535,8 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
         d = datetime.strptime(payload.date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Nieprawidlowy format daty (YYYY-MM-DD)")
+    # iter95bp: blokada zamknietego okresu
+    await assert_period_open(d.year, d.month, action="dodawac")
     kod = await db.finance_kody.find_one({"id": payload.kod_id}, {"_id": 0, "id": 1, "category": 1})
     if not kod:
         raise HTTPException(status_code=400, detail=f"Nieznany kod kosztu: {payload.kod_id}")
@@ -553,14 +571,19 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
     }
     await db.finance_zapisy.insert_one(doc)
     doc.pop("_id", None)
+    await log_audit(entity="finance_zapis", entity_id=zid, action="create", user=current_user, new=doc)
     return doc
 
 
 @router.put("/finance/zapisy/{zapis_id}")
 async def update_zapis(zapis_id: str, payload: ZapisUpdate, current_user: dict = Depends(get_current_admin)):
-    existing = await db.finance_zapisy.find_one({"id": zapis_id}, {"_id": 0})
+    existing = await db.finance_zapisy.find_one({"id": zapis_id, **soft_delete_filter()}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Zapis nie znaleziony")
+    # iter95bp: blokada zamknietego okresu (sprawdzamy STAR_DATE oraz NOW_DATE jesli zmieniana)
+    old_y, old_m = parse_date_to_period(existing.get("date") or "")
+    if old_y and old_m:
+        await assert_period_open(old_y, old_m, action="edytowac")
     raw = payload.model_dump(exclude_unset=True)
     # budget_line_id moze byc explicitnie wyzerowany (None) - reszta None traktowana jak brak zmiany
     upd = {k: v for k, v in raw.items() if v is not None or k == "budget_line_id"}
@@ -587,15 +610,25 @@ async def update_zapis(zapis_id: str, payload: ZapisUpdate, current_user: dict =
     upd["updated_at"] = datetime.now().isoformat()
     upd["updated_by"] = current_user["sub"]
     await db.finance_zapisy.update_one({"id": zapis_id}, {"$set": upd})
+    new_doc = await db.finance_zapisy.find_one({"id": zapis_id}, {"_id": 0})
+    await log_audit(entity="finance_zapis", entity_id=zapis_id, action="update",
+                    user=current_user, old=existing, new=new_doc)
     return {"message": "Zaktualizowano"}
 
 
 @router.delete("/finance/zapisy/{zapis_id}")
 async def delete_zapis(zapis_id: str, current_user: dict = Depends(get_current_admin)):
-    res = await db.finance_zapisy.delete_one({"id": zapis_id})
-    if res.deleted_count == 0:
+    # iter95bp: blokada zamknietego okresu
+    existing = await db.finance_zapisy.find_one({"id": zapis_id, **soft_delete_filter()}, {"_id": 0, "date": 1})
+    if existing:
+        y, m = parse_date_to_period(existing.get("date") or "")
+        if y and m:
+            await assert_period_open(y, m, action="usuwac")
+    # iter95bo: soft-delete zamiast fizycznego usuwania - sled w audit_log
+    deleted = await soft_delete("finance_zapisy", zapis_id, current_user, entity_label="finance_zapis")
+    if not deleted:
         raise HTTPException(status_code=404, detail="Zapis nie znaleziony")
-    return {"message": "Usunieto"}
+    return {"message": "Usunieto (mozna przywrocic z panelu Audit)"}
 
 
 # ============= FAKTURY (naglowki) =============
@@ -610,8 +643,8 @@ async def list_invoices(
     Wszystkie wpisy zwracane jako jednolita lista 'rows' posortowana po dacie malejaco
     z polem 'is_invoice' (True/False) i 'positions' (gdy is_invoice=True).
     """
-    q_inv: dict = {}
-    q_zap: dict = {}
+    q_inv: dict = {**soft_delete_filter()}
+    q_zap: dict = {**soft_delete_filter()}
     if year is not None and month is not None:
         start = f"{year:04d}-{month:02d}-01"
         end = f"{year:04d}-{month:02d}-31"
@@ -625,7 +658,7 @@ async def list_invoices(
     inv_ids = [i["id"] for i in invoices]
     # Pozycje z faktur (parent_invoice_id w inv_ids)
     positions = await db.finance_zapisy.find(
-        {"parent_invoice_id": {"$in": inv_ids}}, {"_id": 0}
+        {"parent_invoice_id": {"$in": inv_ids}, **soft_delete_filter()}, {"_id": 0}
     ).to_list(length=None)
     # Standalone zapisy (bez parent_invoice_id) w okresie
     standalone_q = {**q_zap, "$or": [{"parent_invoice_id": None}, {"parent_invoice_id": {"$exists": False}}]}
@@ -660,7 +693,7 @@ async def list_invoices(
 @router.put("/finance/invoices/{invoice_id}")
 async def update_invoice(invoice_id: str, payload: InvoiceUpdate,
                           current_user: dict = Depends(get_current_admin)):
-    existing = await db.finance_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    existing = await db.finance_invoices.find_one({"id": invoice_id, **soft_delete_filter()}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Faktura nie znaleziona")
     upd: dict = {}
@@ -700,6 +733,9 @@ async def update_invoice(invoice_id: str, payload: InvoiceUpdate,
             },
             {"$set": {"budowa_id": new_bid, "updated_at": datetime.now().isoformat()}},
         )
+    new_doc = await db.finance_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    await log_audit(entity="finance_invoice", entity_id=invoice_id, action="update",
+                    user=current_user, old=existing, new=new_doc)
     return {"message": "Zaktualizowano"}
 
 
@@ -751,12 +787,17 @@ async def backfill_invoice_budowa_to_positions(
 
 @router.delete("/finance/invoices/{invoice_id}")
 async def delete_invoice(invoice_id: str, current_user: dict = Depends(get_current_admin)):
-    """Usuwa naglowek faktury + KASKADA wszystkie jej pozycje."""
-    res = await db.finance_invoices.delete_one({"id": invoice_id})
-    if res.deleted_count == 0:
+    """iter95bo: soft-delete naglowka faktury + KASKADA soft-delete pozycji."""
+    deleted = await soft_delete("finance_invoices", invoice_id, current_user, entity_label="finance_invoice")
+    if not deleted:
         raise HTTPException(status_code=404, detail="Faktura nie znaleziona")
-    del_pos = await db.finance_zapisy.delete_many({"parent_invoice_id": invoice_id})
-    return {"message": "Usunieto", "positions_deleted": del_pos.deleted_count}
+    from datetime import timezone as _tz
+    now = datetime.now(_tz.utc)
+    res = await db.finance_zapisy.update_many(
+        {"parent_invoice_id": invoice_id, "deleted_at": None},
+        {"$set": {"deleted_at": now, "deleted_by": current_user.get("sub")}},
+    )
+    return {"message": "Usunieto (mozna przywrocic)", "positions_deleted": res.modified_count}
 
 
 @router.post("/finance/reset-fakturownia-data")

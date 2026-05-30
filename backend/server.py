@@ -41,6 +41,12 @@ from routes.finance import router as finance_router, cron_fakturownia_sync, cron
 from routes.budget import router as budget_router
 from routes.wyceny import router as wyceny_router
 from routes.gus import router as gus_router
+from routes.audit import router as audit_router
+from routes.periods import router as periods_router
+from routes.dashboard import router as dashboard_router
+from routes.backup import router as backup_router
+from routes.exports import router as exports_router
+from routes.twofa import router as twofa_router
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -78,6 +84,12 @@ api_router.include_router(finance_router)
 api_router.include_router(budget_router)
 api_router.include_router(wyceny_router)
 api_router.include_router(gus_router)
+api_router.include_router(audit_router)
+api_router.include_router(periods_router)
+api_router.include_router(dashboard_router)
+api_router.include_router(backup_router)
+api_router.include_router(exports_router)
+api_router.include_router(twofa_router)
 
 
 # Health check
@@ -265,6 +277,15 @@ async def startup_event():
         await db.penalties.create_index([("employee_id", 1), ("month", 1), ("year", 1)])
         await db.bhp_issuances.create_index([("employee_id", 1), ("created_at", -1)])
         await db.push_subscriptions.create_index([("user_id", 1), ("active", 1)])
+        # iter95bo: audit_log + soft-delete indexes
+        await db.audit_log.create_index([("ts", -1)])
+        await db.audit_log.create_index([("entity", 1), ("entity_id", 1), ("ts", -1)])
+        await db.audit_log.create_index([("user_id", 1), ("ts", -1)])
+        await db.finance_zapisy.create_index("deleted_at")
+        await db.finance_invoices.create_index("deleted_at")
+        await db.finance_budowy.create_index("deleted_at")
+        # iter95bp: finance_periods - okresy ksiegowe
+        await db.finance_periods.create_index([("year", 1), ("month", 1)], unique=True)
     except Exception as e:
         logger.warning(f"Index creation warning: {e}")
 
@@ -355,6 +376,20 @@ async def startup_event():
         id="document_expiration_push_daily",
         replace_existing=True,
         misfire_grace_time=3600
+    )
+    # iter95br: auto-backup codzienny o 02:30 UTC (przed payroll)
+    from routes.backup import perform_backup
+    async def _cron_backup():
+        try:
+            await perform_backup()
+        except Exception as e:
+            logger.error(f"[CRON] Auto-backup failed: {e}")
+    scheduler.add_job(
+        _cron_backup,
+        CronTrigger(hour=2, minute=30),
+        id="auto_backup_daily",
+        replace_existing=True,
+        misfire_grace_time=3600,
     )
     scheduler.start()
     set_scheduler(scheduler)
