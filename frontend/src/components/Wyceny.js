@@ -216,8 +216,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   // iter95as: dialog konwersji wyceny do budowy/budzetu
   const [convertOpen, setConvertOpen] = useState(false);
 
-  const fetchData = useCallback(() => {
-    setLoading(true);
+  const fetchData = useCallback((silent = false) => {
+    // iter95bm: tryb silent - nie pokazuj loadera jesli dane juz sa
+    // (uzywany przy odswiezeniu po negocjacji/restore - utrzymuje pozycje scrolla)
+    if (!silent) setLoading(true);
     api.get(`/wyceny/${wycenaId}/template`)
       .then((r) => setData(r.data))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
@@ -452,7 +454,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       toast.success(`Negocjacja przyjęta! Zapisano wersję, ${r.data.lines_modified} linii zmodyfikowano`);
       setNegotiationOn(false);
       setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' });
-      fetchData();
+      fetchData(true);
       loadSnapshots();
     } catch (e) {
       toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
@@ -468,7 +470,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       await api.post(`/wyceny/${wycenaId}/snapshots/${snap.id}/restore`);
       toast.success('Przywrócono wersję');
       setVersionsOpen(false);
-      fetchData();
+      fetchData(true);
       loadSnapshots();
     } catch (e) {
       toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
@@ -478,41 +480,100 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const addStage = async () => {
     if (!newStageName.trim()) return;
     try {
-      await api.post('/wyceny/stages', { wycena_id: wycenaId, name: newStageName.trim(), order: (data?.stages?.length || 0) });
-      setNewStageName(''); fetchData();
+      const r = await api.post('/wyceny/stages', { wycena_id: wycenaId, name: newStageName.trim(), order: (data?.stages?.length || 0) });
+      // iter95bm: optymistyczne dodanie do stanu - bez fetchData (brak skoku do gory)
+      setNewStageName('');
+      setData((prev) => {
+        if (!prev) return prev;
+        return { ...prev, stages: [...(prev.stages || []), { ...r.data, positions: [] }] };
+      });
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
   const delStage = async (id) => {
     if (!window.confirm('Usunąć etap?')) return;
-    try { await api.delete(`/wyceny/stages/${id}`); fetchData(); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    try {
+      await api.delete(`/wyceny/stages/${id}`);
+      setData((prev) => prev ? { ...prev, stages: (prev.stages || []).filter((s) => s.id !== id) } : prev);
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
   const addPosition = async (stageId) => {
     const name = window.prompt('Nazwa pozycji:');
     if (!name) return;
     try {
-      await api.post('/wyceny/positions', { wycena_id: wycenaId, stage_id: stageId, name, order: 0 });
-      fetchData();
+      const r = await api.post('/wyceny/positions', { wycena_id: wycenaId, stage_id: stageId, name, order: 0 });
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stages: (prev.stages || []).map((st) =>
+            st.id === stageId
+              ? { ...st, positions: [...(st.positions || []), { ...r.data, slots: [] }] }
+              : st),
+        };
+      });
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
   const delPosition = async (id) => {
     if (!window.confirm('Usunąć pozycję?')) return;
-    try { await api.delete(`/wyceny/positions/${id}`); fetchData(); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    try {
+      await api.delete(`/wyceny/positions/${id}`);
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stages: (prev.stages || []).map((st) => ({
+            ...st,
+            positions: (st.positions || []).filter((p) => p.id !== id),
+          })),
+        };
+      });
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
   const addSlot = async (posId, stageId, type) => {
     try {
-      await api.post('/wyceny/lines', {
+      const r = await api.post('/wyceny/lines', {
         wycena_id: wycenaId, stage_id: stageId, position_id: posId,
         type, name: SUB_TYPE_LABEL[type], quantity: 0, unit_price_netto: 0, order: 0,
       });
-      fetchData();
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stages: (prev.stages || []).map((st) =>
+            st.id === stageId
+              ? {
+                  ...st,
+                  positions: (st.positions || []).map((p) =>
+                    p.id === posId
+                      ? { ...p, slots: [...(p.slots || []), { ...r.data, children: [] }] }
+                      : p),
+                }
+              : st),
+        };
+      });
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
   const delSlot = async (id) => {
     if (!window.confirm('Usunąć podpozycję?')) return;
-    try { await api.delete(`/wyceny/lines/${id}`); fetchData(); }
-    catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    try {
+      await api.delete(`/wyceny/lines/${id}`);
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          stages: (prev.stages || []).map((st) => ({
+            ...st,
+            positions: (st.positions || []).map((p) => ({
+              ...p,
+              // Usuwamy z top-level slotow ORAZ z children kazdego slotu
+              slots: (p.slots || [])
+                .filter((s) => s.id !== id)
+                .map((s) => ({ ...s, children: (s.children || []).filter((c) => c.id !== id) })),
+            })),
+          })),
+        };
+      });
+    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
 
   // iter95ao: bulk apply flagi PC/PC↓/PC↑/PUM na wszystkie pozycje w etapie
@@ -540,7 +601,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const toggleStage = (id) => { setCollapsedStages((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
   const togglePos = (id) => { setCollapsedPos((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; }); };
 
-  if (loading) return <div className="text-[#CBD5E1]">Ładuję wycenę...</div>;
+  if (loading && !data) return <div className="text-[#F1F5F9]">Ładuję wycenę...</div>;
   if (!data) return null;
   const w = data.wycena;
 

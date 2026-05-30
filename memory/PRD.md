@@ -1,3 +1,43 @@
+## Iteration 95bm (2026-05) — Wyceny editor: optymistyczne updaty (bez skoku do góry)
+
+### User report (screenshot)
+„Po dodaniu pozycji lub czegoś innego strona przeładowuje się i przesuwa do góry. Powinno się od razu po zatwierdzeniu pojawić bez ładowania wyceny."
+
+### Root cause
+W `Wyceny.js → WycenaEditor` 6 akcji edycji wywoływało pełny refetch + reset stanu loadingu:
+- `addStage`, `delStage`
+- `addPosition`, `delPosition`
+- `addSlot`, `delSlot`
+
+Każda kończyła się `fetchData()` → `setLoading(true)` → cały komponent zwracał `<div>Ładuję wycenę...</div>` → DOM był wyburzany → scroll wracał do 0 → render od początku.
+
+### Fix
+
+**6 akcji edycji zamienionych na optymistyczne updaty** — backend POST zwraca pełny obiekt z `id`, dorzucamy go bezpośrednio do `data` przez `setData(prev => ...)`. DELETE — filtrujemy z lokalnego stanu. Brak refetchu, brak skoku scrolla, brak skeletonu.
+
+**`fetchData` zyskał parametr `silent`** — używany przez `applyNegotiation()` i `restoreSnapshot()` (jedyne miejsca gdzie zmiana danych jest tak duża, że refetch ma sens, ale loader już nie powinien się pokazywać).
+
+**Render zmieniony:** `if (loading)` → `if (loading && !data)` — loader pokazuje się TYLKO przy initial loadzie, nigdy gdy mamy już dane.
+
+### Test empiryczny (Playwright + screenshot)
+- Logowanie admin → otwarcie wyceny → scroll na 5px → wpisanie nazwy etapu → klik „Dodaj etap"
+- **Scroll przed:** 5px → **Scroll po:** 5px (zachowany ✅)
+- **Loader „Ładuję wycenę..."?** NIE ✅
+- **Nowy etap widoczny natychmiast w DOM?** TAK (widać `ETAP 1: TEST_ITER95BM_NO_SCROLL` na screenshocie) ✅
+- **Page errors:** 0 ✅
+
+### Wpływ UX
+Edycja wyceny (etapy, pozycje, sloty Robocizna/Materiał/Sprzęt) jest teraz całkowicie reaktywna — zmiany natychmiast widoczne w tym samym miejscu, gdzie user kliknął. Brak frustracji z resetem scrolla.
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- 🟡 P3 — Virtual scrolling HoursTable, lazy load Google Maps, Service Worker cache
+
+---
+
+
+
 ## Iteration 95bl (2026-05) — Smoke test + fix hydration warning
 
 ### User request
