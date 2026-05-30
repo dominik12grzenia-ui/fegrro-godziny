@@ -46,9 +46,11 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
 
   useEffect(() => { fetchAllocations(); }, [fetchAllocations]);
 
-  const fetchAll = useCallback(() => {
+  const fetchAll = useCallback((silent = false) => {
     if (!budowaId) return;
-    setLoading(true);
+    // iter95bn: silent=true uzywany po add/delete - dane sa refetchowane w tle,
+    // ale loader skeleton sie NIE pokazuje, scroll nie wraca do gory
+    if (!silent) setLoading(true);
     Promise.all([
       api.get(`/budget/${budowaId}/lines`),
       api.get(`/budget/${budowaId}/categories`),
@@ -72,7 +74,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
     try {
       await api.delete(`/budget/lines/${id}`);
       toast.success('Pozycja usunięta');
-      fetchAll();
+      fetchAll(true);
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
@@ -82,7 +84,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
     try {
       const r = await api.delete(`/budget/positions/${pos.id}`);
       toast.success(`Pozycja usunięta (${r.data?.deleted_lines || 0} linii)`);
-      fetchAll();
+      fetchAll(true);
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
@@ -93,7 +95,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
     try {
       const r = await api.delete(`/budget/${budowaId}/wipe`);
       toast.success(`Wyczyszczono: ${r.data?.deleted_lines || 0} linii, ${r.data?.deleted_positions || 0} pozycji`);
-      fetchAll();
+      fetchAll(true);
       onChange && onChange();
     } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
   };
@@ -105,10 +107,10 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
     try {
       await api.patch(`/budget/lines/${lineId}`, patch);
       // Cichy fetchAll w tle by przeladowac obliczone pola (plan_netto_computed itp.)
-      fetchAll();
+      fetchAll(true);
     } catch (e) {
       toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
-      fetchAll();
+      fetchAll(true);
       throw e;
     }
   }, [fetchAll]);
@@ -242,7 +244,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           </div>
         )}
 
-        {loading ? (
+        {loading && lines.length === 0 ? (
           <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         ) : lines.length === 0 ? (
           <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="budget-empty">
@@ -258,9 +260,9 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           categories={categories}
           stages={stages}
           budowaInfo={budowaInfo}
-          onCategoriesChanged={fetchAll}
+          onCategoriesChanged={() => fetchAll(true)}
           onClose={() => { setModalOpen(false); setParentLine(null); }}
-          onSaved={() => { setModalOpen(false); setParentLine(null); fetchAll(); onChange && onChange(); }}
+          onSaved={() => { setModalOpen(false); setParentLine(null); fetchAll(true); onChange && onChange(); }}
         />
       )}
       {managerOpen === 'categories' && (
@@ -269,7 +271,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           budowaId={budowaId}
           items={categories}
           onClose={() => setManagerOpen(null)}
-          onChanged={fetchAll}
+          onChanged={() => fetchAll(true)}
         />
       )}
       {managerOpen === 'stages' && (
@@ -278,7 +280,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
           budowaId={budowaId}
           items={stages}
           onClose={() => setManagerOpen(null)}
-          onChanged={fetchAll}
+          onChanged={() => fetchAll(true)}
         />
       )}
     </Card>
@@ -312,7 +314,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
         editPosition={editPosition}
         stages={stages}
         onClose={() => { setPositionModalOpen(false); setEditPosition(null); }}
-        onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(); onChange && onChange(); }}
+        onSaved={() => { setPositionModalOpen(false); setEditPosition(null); fetchAll(true); onChange && onChange(); }}
       />
     )}
     {subpositionFor && (
@@ -322,7 +324,7 @@ export const BudgetLinesPanel = ({ budowaId, year, onChange }) => {
         stageId={subpositionFor.stage_id}
         existingLines={lines}
         onClose={() => setSubpositionFor(null)}
-        onSaved={() => { setSubpositionFor(null); fetchAll(); onChange && onChange(); }}
+        onSaved={() => { setSubpositionFor(null); fetchAll(true); onChange && onChange(); }}
       />
     )}
     </>

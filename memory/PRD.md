@@ -1,3 +1,64 @@
+## Iteration 95bn (2026-05) — Optymistyczne updaty: Budżet + Finanse (preemptive)
+
+### User request
+„zrób na zaś" — w odpowiedzi na propozycję z poprzedniej iteracji że ten sam wzorzec mógł dotyczyć Budżetu i Finansów
+
+### Wzorzec zastosowany
+**Silent refetch** (jak w Wycenach po negocjacji):
+- `fetchData(silent = true/false)` parameter — gdy `silent=true`, NIE ustawia `setLoading(true)` → loader skeleton się nie pokazuje
+- Render `if (loading)` zmieniony na `if (loading && [data się jeszcze nie załadowała])` — loader pojawia się TYLKO na initial load
+- Po każdej akcji add/delete/update → `fetchData(true)` zamiast `fetchData()`
+
+### Naprawione pliki
+
+**`/components/Budget.js`** (parent)
+- `fetchBudowy(silent)` + `onChange={() => fetchBudowy(true)}` przekazywane do `BudgetLinesPanel` i `SchedulePanel`
+- Loader pokazuje się tylko gdy `budowy.length === 0`
+
+**`/components/budget/BudgetLinesPanel.js`**
+- `fetchAll(silent)` — wszystkie 4 panele/modale (`onCategoriesChanged`, `onSaved` x2 dla pozycji + podpozycji, manager etapów/kategorii) używają `fetchAll(true)`
+- Remove pozycji/wipe budżetu → `fetchAll(true)`
+- `saveLineInline` → `fetchAll(true)`
+- Loader: `if (loading && lines.length === 0)`
+
+**`/components/finance/ZapisyPanel.js`**
+- `fetchData(silent)` — wszystkie 6 wywołań (submit, remove zapis, removeInvoice, syncCurrentMonth, syncAllMonths, propagateBudowa) → `fetchData(true)`
+- Loader: `if (loading && rows.length === 0)`
+
+**`/components/finance/BudowyPanel.js`**
+- `fetchData(silent)` — submit, archive, unarchive, remove → `fetchData(true)`
+- Loader: `if (loading && rows.length === 0)`
+
+**`/components/finance/RachunekWynikowPanel.js`**
+- `fetchRW(silent)` — submitNewKod, delete kod → `fetchRW(true)`
+- Loader: `if (loading && !data)`
+
+### Łącznie
+- **5 plików** zaktualizowanych
+- **~15 wywołań `fetchData`** zamienionych na silent variant
+- **5 renderów loadera** dostosowanych — pokazują się TYLKO przy initial load
+
+### Smoke test (po wszystkich zmianach)
+```
+Zakładki: 13 PASS / 0 FAIL
+Page errors (JS runtime): 0
+Console errors: 0
+Page loads: 2 (oczekiwane: 2)
+🎉 SMOKE TEST: PASS
+```
+
+### Wpływ UX
+Wszystkie miejsca gdzie user dodaje/edytuje rzeczy w Budżecie i Finansach (zapisy, faktury, kody, budowy, pozycje budżetowe) — od teraz **bez skoku do góry, bez skeleton flash**. Dane aktualizują się płynnie w tle, scroll pozostaje w tym samym miejscu.
+
+### Backlog (bez zmian)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- 🟡 P3 — Virtual scrolling HoursTable, lazy load Google Maps, Service Worker cache
+
+---
+
+
+
 ## Iteration 95bm (2026-05) — Wyceny editor: optymistyczne updaty (bez skoku do góry)
 
 ### User report (screenshot)

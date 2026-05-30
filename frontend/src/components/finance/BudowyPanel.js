@@ -18,8 +18,8 @@ export const BudowyPanel = () => {
   const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const res = await api.get(`/finance/budowy?include_archived=${includeArchived}`);
       setRows(res.data.rows);
@@ -44,7 +44,7 @@ export const BudowyPanel = () => {
       }
       setShowAdd(false); setEditing(null);
       setForm({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
     }
@@ -101,7 +101,7 @@ export const BudowyPanel = () => {
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        {loading ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
+        {loading && rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Brak budow. Dodaj pierwsza.</div> :
         <table className="w-full text-sm">
           <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs uppercase tracking-wider font-semibold">

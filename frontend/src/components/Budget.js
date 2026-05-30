@@ -41,8 +41,8 @@ export const Budget = () => {
   const [activeTab, setActiveTab] = useState('budget');
   const [loading, setLoading] = useState(true);
 
-  const fetchBudowy = useCallback(() => {
-    setLoading(true);
+  const fetchBudowy = useCallback((silent = false) => {
+    if (!silent) setLoading(true);
     api.get('/budget/budowy')
       .then((r) => {
         setBudowy(r.data?.rows || []);
@@ -93,7 +93,7 @@ export const Budget = () => {
             />
           </div>
 
-          {loading && <div className="text-[#CBD5E1] text-sm">Ładuję...</div>}
+          {loading && budowy.length === 0 && <div className="text-[#CBD5E1] text-sm">Ładuję...</div>}
 
           {selectedBudowa && (
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
@@ -121,13 +121,13 @@ export const Budget = () => {
           </TabsList>
 
           <TabsContent value="budget" className="mt-3">
-            <BudgetLinesPanel budowaId={selectedBudowaId} year={year} onChange={fetchBudowy} />
+            <BudgetLinesPanel budowaId={selectedBudowaId} year={year} onChange={() => fetchBudowy(true)} />
           </TabsContent>
           <TabsContent value="progress" className="mt-3">
             <ProgressPanel budowaId={selectedBudowaId} year={year} />
           </TabsContent>
           <TabsContent value="schedule" className="mt-3">
-            <SchedulePanel budowaId={selectedBudowaId} onChange={fetchBudowy} />
+            <SchedulePanel budowaId={selectedBudowaId} onChange={() => fetchBudowy(true)} />
           </TabsContent>
         </Tabs>
       )}

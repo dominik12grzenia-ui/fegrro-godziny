@@ -48,8 +48,8 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       .catch(() => setBudgetOptionsByBudowa(prev => ({ ...prev, [budowaId]: [] })));
   }, [budgetOptionsByBudowa]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const fetchData = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
       const [iRes, bRes, kRes] = await Promise.all([
@@ -145,7 +145,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       }
       setShowAdd(false); setEditing(null);
       setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
-      fetchData();
+      fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
     }
@@ -221,7 +221,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
 
   const remove = async (z) => {
     if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zł?`)) return;
-    try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(); }
+    try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(true); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
@@ -230,7 +230,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     try {
       const r = await api.delete(`/finance/invoices/${inv.id}`);
       toast.success(`Usunieto fakture + ${r.data.positions_deleted} pozycji`);
-      fetchData();
+      fetchData(true);
     } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
@@ -284,7 +284,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     try {
       const r = await api.post('/finance/sync-current-month');
       toast.success(`Sync OK: ${r.data.g_zapisy} godzin + ${r.data.kp_zapisy} wypłat (${r.data.total_godziny}h, ${r.data.total_kp?.toFixed(2)} zł)`);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
     }
@@ -299,7 +299,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     try {
       const r = await api.post('/finance/sync-all-months?from_year=2026&from_month=1');
       toast.success(`Sync OK: ${r.data.months_processed} mc, ${fmtPLN(r.data.total_kp || 0)}`);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
     } finally { setSyncingPayroll(false); }
@@ -316,7 +316,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     try {
       const r = await api.post('/finance/backfill-invoice-budowa-to-positions');
       toast.success(`Propagacja OK: ${r.data.invoices_processed} faktur, ${r.data.positions_updated} pozycji zaktualizowanych`);
-      fetchData();
+      fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd propagacji');
     }
@@ -508,7 +508,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
         </div>
       )}
       <CardContent className="p-0 overflow-x-auto">
-        {loading ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
+        {loading && rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Brak zapisow w tym okresie.</div> :
         <table className="w-full text-sm">
           <thead className="bg-[#1E2A44] text-[#CBD5E1]">

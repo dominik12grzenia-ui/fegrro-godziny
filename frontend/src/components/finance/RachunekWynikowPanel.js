@@ -49,8 +49,8 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     }
   };
 
-  const fetchRW = () => {
-    setLoading(true);
+  const fetchRW = (silent = false) => {
+    if (!silent) setLoading(true);
     api.get(`/finance/rachunek-wynikow?year=${year}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania rachunku'))
@@ -73,7 +73,7 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
       toast.success('Dodano kod');
       setShowAddKod(false);
       setNewKod({ name: '', category: 'KBB', order: 100 });
-      fetchRW();
+      fetchRW(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
     }
@@ -85,7 +85,7 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
 
-  if (loading) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
+  if (loading && !data) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { summary, ratios, groups } = data;
