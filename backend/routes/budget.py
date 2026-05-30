@@ -22,7 +22,7 @@ import logging
 from urllib.parse import quote
 
 from database import db
-from auth import get_current_admin
+from auth import get_current_admin, get_current_user
 from routes.finance import _compute_sprzedaz_data
 
 logger = logging.getLogger(__name__)
@@ -1207,27 +1207,77 @@ async def create_task(payload: BudgetTaskCreate, current_user: dict = Depends(ge
 
 @router.patch("/budget/tasks/{task_id}")
 async def update_task(task_id: str, payload: BudgetTaskUpdate,
-                       current_user: dict = Depends(get_current_admin)):
+                       current_user: dict = Depends(get_current_user)):
+    # iter95t: Admin = pelna edycja. Brygadzista (foreman) = tylko end_date
+    # (planowany koniec) lub actual_end_date (faktyczny koniec) na zadaniach
+    # w jego przypisanych budowach. Pracownicy (worker) - brak dostepu.
+    role = current_user.get("role")
+    if role not in ("admin", "foreman"):
+        raise HTTPException(403, "Brak uprawnien")
+
     existing = await db.budget_tasks.find_one({"id": task_id}, {"_id": 0})
     if not existing:
         raise HTTPException(404, "Zadanie nie istnieje")
-    # iter95i: walidacja position_id
-    if payload.position_id:
+
+    # Brygadzista: sprawdz ze task nalezy do jego budowy
+    if role == "foreman":
+        u = await db.users.find_one(
+            {"id": current_user["sub"], "role": "foreman"},
+            {"_id": 0, "assigned_sites": 1},
+        )
+        assigned = (u or {}).get("assigned_sites") or []
+        if existing.get("budowa_id") not in assigned:
+            raise HTTPException(403, "Zadanie spoza Twoich przypisanych budow")
+
+    # iter95i: walidacja position_id (tylko admin moze zmienic)
+    if role == "admin" and payload.position_id:
         pos = await db.budget_positions.find_one({"id": payload.position_id}, {"_id": 0, "id": 1})
         if not pos:
             raise HTTPException(400, "Pozycja nie istnieje")
+
     raw = payload.dict(exclude_unset=True)
     updates: dict = {}
-    # Pola opcjonalne - przepisujemy tylko jezeli ustawione (None vs unset)
-    for k in ["name", "start_date", "end_date", "progress_pct", "color",
-              "notes", "dependencies", "order", "position_id", "actual_end_date"]:
-        if k in raw and raw[k] is not None:
-            updates[k] = raw[k]
-    # Specjalne flagi wyczysc-na-None
-    if raw.get("clear_actual_end_date"):
-        updates["actual_end_date"] = None
-    if raw.get("clear_position_id"):
-        updates["position_id"] = None
+
+    # iter95t: walidacja actual_end_date - max dzisiaj (nie moze byc w przyszlosci)
+    if "actual_end_date" in raw and raw["actual_end_date"]:
+        try:
+            d = datetime.strptime(raw["actual_end_date"], "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            raise HTTPException(400, "actual_end_date: nieprawidlowy format (YYYY-MM-DD)")
+        today = datetime.now().date()
+        if d > today:
+            raise HTTPException(400, "Data faktycznego zakonczenia nie moze byc w przyszlosci")
+
+    if role == "admin":
+        # Pelna edycja
+        for k in ["name", "start_date", "end_date", "progress_pct", "color",
+                  "notes", "dependencies", "order", "position_id", "actual_end_date"]:
+            if k in raw and raw[k] is not None:
+                updates[k] = raw[k]
+        # Specjalne flagi wyczysc-na-None
+        if raw.get("clear_actual_end_date"):
+            updates["actual_end_date"] = None
+        if raw.get("clear_position_id"):
+            updates["position_id"] = None
+    else:
+        # Foreman: tylko end_date i actual_end_date
+        allowed_keys = {"end_date", "actual_end_date"}
+        sent_keys = set(raw.keys()) - {"clear_actual_end_date", "clear_position_id"}
+        forbidden = sent_keys - allowed_keys
+        if forbidden:
+            raise HTTPException(
+                403,
+                f"Brygadzista moze edytowac tylko: end_date, actual_end_date (probowano: {sorted(forbidden)})",
+            )
+        for k in ("end_date", "actual_end_date"):
+            if k in raw and raw[k] is not None:
+                updates[k] = raw[k]
+        if raw.get("clear_actual_end_date"):
+            updates["actual_end_date"] = None
+
+    if not updates:
+        return existing
+
     updates["updated_at"] = datetime.now().isoformat()
     updates["updated_by"] = current_user["sub"]
     await db.budget_tasks.update_one({"id": task_id}, {"$set": updates})
@@ -1330,6 +1380,185 @@ async def delete_task(task_id: str, _user: dict = Depends(get_current_admin)):
     if res.deleted_count == 0:
         raise HTTPException(404, "Zadanie nie istnieje")
     return {"ok": True}
+
+
+# ============== ENDPOINT: HARMONOGRAM DLA BRYGADZISTY ==============
+
+@router.get("/budget/my-schedule")
+async def get_my_schedule(
+    days_ahead: int = Query(14, ge=1, le=60),
+    current_user: dict = Depends(get_current_user),
+):
+    """iter95t: Harmonogram zadan dla brygadzisty z budow do ktorych jest przypisany.
+
+    Zwraca zadania spelniajace dowolny warunek:
+      - start_date w zakresie [dzis - 1d, dzis + days_ahead]
+      - end_date   w zakresie [dzis - 1d, dzis + days_ahead]
+      - lub trwajace teraz (start_date <= dzis <= end_date)
+    Pomija zadania juz zakonczone (actual_end_date != null).
+    """
+    role = current_user.get("role")
+    if role not in ("admin", "foreman"):
+        raise HTTPException(403, "Brak uprawnien")
+
+    # Lista budow do filtrowania
+    if role == "admin":
+        site_ids = None  # all
+    else:
+        u = await db.users.find_one(
+            {"id": current_user["sub"], "role": "foreman"},
+            {"_id": 0, "assigned_sites": 1},
+        )
+        site_ids = (u or {}).get("assigned_sites") or []
+        if not site_ids:
+            return {"rows": []}
+
+    today = datetime.now().date()
+    from datetime import timedelta as _td
+    range_start = (today - _td(days=1)).isoformat()
+    range_end = (today + _td(days=days_ahead)).isoformat()
+    today_str = today.isoformat()
+
+    base_filter: dict = {
+        "$and": [
+            {"$or": [
+                {"actual_end_date": None},
+                {"actual_end_date": {"$exists": False}},
+            ]},
+            {"$or": [
+                # zaczyna sie w oknie
+                {"start_date": {"$gte": range_start, "$lte": range_end}},
+                # konczy sie w oknie
+                {"end_date": {"$gte": range_start, "$lte": range_end}},
+                # trwa teraz (start <= dzis <= end)
+                {"$and": [
+                    {"start_date": {"$lte": today_str}},
+                    {"end_date": {"$gte": today_str}},
+                ]},
+            ]},
+        ]
+    }
+    if site_ids is not None:
+        base_filter["budowa_id"] = {"$in": site_ids}
+
+    rows = await db.budget_tasks.find(base_filter, {"_id": 0}).sort(
+        [("start_date", 1), ("order", 1)]
+    ).to_list(length=500)
+
+    # Dolacz nazwy budow
+    bid_set = list({r.get("budowa_id") for r in rows if r.get("budowa_id")})
+    site_names: dict = {}
+    if bid_set:
+        async for s in db.construction_sites.find({"id": {"$in": bid_set}}, {"_id": 0, "id": 1, "name": 1}):
+            site_names[s["id"]] = s.get("name")
+    for r in rows:
+        r["budowa_name"] = site_names.get(r.get("budowa_id"))
+
+    # Linked progress (auto)
+    linked_pos_ids = list({r.get("position_id") for r in rows if r.get("position_id")})
+    if linked_pos_ids:
+        pipe = [
+            {"$match": {"position_id": {"$in": linked_pos_ids}}},
+            {"$group": {"_id": "$position_id", "total": {"$sum": "$progress_pct"}}},
+        ]
+        auto: dict = {}
+        async for r in db.budget_progress.aggregate(pipe):
+            auto[r["_id"]] = min(100.0, float(r["total"]))
+        for row in rows:
+            pid = row.get("position_id")
+            if pid:
+                row["progress_pct"] = round(auto.get(pid, 0.0), 2)
+    return {"rows": rows}
+
+
+# ============== CRON: POWIADOMIENIA HARMONOGRAMU (Pn/Sr) ==============
+
+async def cron_schedule_notify_foremen():
+    """iter95t: Pn/Sr o 07:00 UTC - powiadom brygadzistow o zadaniach na
+    najblizsze 2 tygodnie (start/end w oknie + zadania w toku).
+
+    - Web Push (gdy brygadzista ma aktywne subskrypcje)
+    - In-app notification (dzwoneczek) - typ "schedule_reminder"
+    """
+    from datetime import timedelta as _td
+    try:
+        from routes.push import send_push
+    except Exception:
+        send_push = None  # type: ignore
+
+    today = datetime.now().date()
+    range_start = (today - _td(days=1)).isoformat()
+    range_end = (today + _td(days=14)).isoformat()
+    today_str = today.isoformat()
+
+    total_pushed = 0
+    total_skipped = 0
+
+    cursor = db.users.find(
+        {"role": "foreman", "assigned_sites": {"$exists": True, "$ne": []}},
+        {"_id": 0, "id": 1, "full_name": 1, "assigned_sites": 1},
+    )
+    async for u in cursor:
+        site_ids = u.get("assigned_sites") or []
+        if not site_ids:
+            continue
+        flt = {
+            "budowa_id": {"$in": site_ids},
+            "$and": [
+                {"$or": [
+                    {"actual_end_date": None},
+                    {"actual_end_date": {"$exists": False}},
+                ]},
+                {"$or": [
+                    {"start_date": {"$gte": range_start, "$lte": range_end}},
+                    {"end_date": {"$gte": range_start, "$lte": range_end}},
+                    {"$and": [
+                        {"start_date": {"$lte": today_str}},
+                        {"end_date": {"$gte": today_str}},
+                    ]},
+                ]},
+            ],
+        }
+        count = await db.budget_tasks.count_documents(flt)
+        if count == 0:
+            total_skipped += 1
+            continue
+
+        # In-app notification (dzwoneczek)
+        try:
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()),
+                "type": "schedule_reminder",
+                "recipient_id": u["id"],
+                "created_by": "system",
+                "title": "Harmonogram - najblizsze 2 tygodnie",
+                "body": f"Masz {count} zada\u0144 na najblizsze 2 tygodnie. Sprawdz harmonogram.",
+                "url": "/foreman?tab=schedule",
+                "read": False,
+                "status": "pending",
+                "created_at": datetime.now().isoformat(),
+            })
+        except Exception as e:
+            logger.warning(f"[CRON schedule_notify] in-app notif failed for {u.get('id')}: {e}")
+
+        # Web Push
+        if send_push:
+            try:
+                r = await send_push(
+                    user_id=u["id"],
+                    title="Harmonogram - najblizsze 2 tygodnie",
+                    body=f"Masz {count} zada\u0144 na najblizsze 14 dni. Sprawdz harmonogram budowy.",
+                    url="/foreman?tab=schedule",
+                    tag="schedule_reminder",
+                )
+                total_pushed += int(r.get("sent") or 0)
+            except Exception as e:
+                logger.warning(f"[CRON schedule_notify] push failed for {u.get('id')}: {e}")
+
+    logger.info(
+        f"[CRON schedule_notify_foremen] OK - push_sent={total_pushed} skipped(no_tasks)={total_skipped}"
+    )
+    return {"pushed": total_pushed, "skipped_no_tasks": total_skipped}
 
 
 # ============== PROTOKOL XLSX GENERATOR ==============

@@ -1,0 +1,35 @@
+{
+  "summary": "iter95t backend + frontend testing for foreman Harmonogram (schedule). Created 16 pytest tests covering auth, /api/budget/my-schedule scoping (admin/foreman), PATCH /api/budget/tasks/{id} role-based field whitelist, future-date validation, clear_actual_end_date flag, cross-site denial, and direct invocation of cron_schedule_notify_foremen(). All 16 PASSED. Frontend smoke via Playwright confirmed foreman login flow (3 testid'd inputs), push-gate dismissal, foreman-tab-schedule tab as FIRST tab in WorkerDashboard, empty state copy 'Brak zadań na najbliższe 14 dni', and ?tab=schedule deep-link activating Harmonogram.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95t_schedule.py",
+    "/app/test_reports/pytest/pytest_iter95t.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Two collections track sites: finance_budowy (used everywhere) vs construction_sites (used for budowa_name lookup in /budget/my-schedule). If a finance_budowa exists but no matching construction_sites doc, budowa_name will be null. Consider unifying or falling back to finance_budowy when name missing.",
+    "/app/backend/routes/budget.py exceeds 1500+ lines - should be split (lines/positions/progress/tasks/schedule submodules) per >700-line guideline.",
+    "Pre-existing test-data issue (noted by main agent): Roman.assigned_sites IDs (67c1465e-c4be-4d29-b08b-37094d04b193, 33fc3748-7bbf-4c7e-a193-cbf4b1d9e6f7) do NOT match real construction_sites IDs (Castorama=67c1465e-5f53-4c03-837a-e0d536517cc8, LEBA=33fc3748-2a2e-4715-bd21-22e00af824de). Tests still pass because admin can create tasks directly on those orphan IDs, but production foreman won't see real-site tasks. Not iter95t bug, but fix the seed data so foreman testing works realistically."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95t_schedule.py"
+  ],
+  "success_rate": {
+    "backend": "100% (16/16)",
+    "frontend": "100% smoke (login, push-gate dismiss, foreman-tab-schedule visible, empty-state copy, ?tab=schedule deep-link)"
+  },
+  "test_credentials": "Admin admin@fegrro.pl/Admin123! via /api/auth/admin/login; Foreman 'Roman Chufrida'/Test1234! via /api/auth/foreman/login. UI: Imie='Roman', Nazwisko='Chufrida', Haslo='Test1234!'",
+  "seed_data_creation": "Test created tasks 'TEST_iter95t_task' and 'TEST_iter95t_admin_task' but cleans them up in fixture teardown (DELETE).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Use REACT_APP_BACKEND_URL env var (set via /app/frontend/.env). Pytest needs env var exported before running. All 16 iter95t tests pass cleanly in ~3s. Cron function returns {'pushed': int, 'skipped_no_tasks': int} as documented.",
+  "rca of the issue": "No issues. Implementation matches spec: actual_end_date future rejected with PL 'Data faktycznego zakonczenia nie moze byc w przyszlosci'; foreman whitelist enforced (only end_date + actual_end_date); cross-site PATCH yields 403 'Zadanie spoza Twoich przypisanych budow'; /budget/my-schedule filters by assigned_sites for foreman & all sites for admin; budowa_name lookup from construction_sites; cron callable, returns expected dict shape."
+}

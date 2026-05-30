@@ -21,8 +21,10 @@ import { useCachedApi } from '../context/apiCache';
 // (not on tab click) so the chunks are warm and tab switch = instant render.
 const equipmentForemanImport = () => import('./EquipmentForeman').then((m) => ({ default: m.EquipmentForeman }));
 const warehouseForemanImport = () => import('./WarehouseForeman').then((m) => ({ default: m.WarehouseForeman }));
+const foremanScheduleImport = () => import('./foreman/ForemanSchedule').then((m) => ({ default: m.ForemanSchedule }));
 const EquipmentForeman = lazy(equipmentForemanImport);
 const WarehouseForeman = lazy(warehouseForemanImport);
+const ForemanSchedule = lazy(foremanScheduleImport);
 // Stały (statyczny) tekst spinnera - komponent jest module-level, wiec NIE moze
 // uzywac hooka useLanguage. Tekst po polsku/ukrainsku pokazywany jest tylko
 // na ulamek sekundy podczas lazy-load, wiec hardcoded PL jest akceptowalne.
@@ -69,7 +71,14 @@ export const WorkerDashboard = () => {
   const [bulkSelected, setBulkSelected] = useState(new Set());
   const [bulkSaving, setBulkSaving] = useState(false);
   const [absences, setAbsences] = useState([]);
-  const [eqTab, setEqTab] = useState('electronics');
+  const [eqTab, setEqTab] = useState(() => {
+    try {
+      const p = new URLSearchParams(window.location.search);
+      const t = p.get('tab');
+      if (t && ['schedule', 'electronics', 'accessories', 'formwork', 'warehouse'].includes(t)) return t;
+    } catch (_e) { /* ignore */ }
+    return 'electronics';
+  });
   const [dismissedAbsences, setDismissedAbsences] = useState(() => {
     try { return JSON.parse(localStorage.getItem('dismissed_absences') || '[]'); } catch { return []; }
   });
@@ -188,6 +197,7 @@ export const WorkerDashboard = () => {
     // Warm up lazy chunks immediately (parallel network request for the JS bundle)
     equipmentForemanImport().catch(() => {});
     warehouseForemanImport().catch(() => {});
+    foremanScheduleImport().catch(() => {});
 
     // Prefetch data for all 4 tabs in parallel - fills the apiCache
     // so subsequent component mounts hydrate from cache instantly.
@@ -529,6 +539,14 @@ export const WorkerDashboard = () => {
         <div className="mb-4 space-y-3">
           <div className="flex gap-2 flex-wrap">
             <button
+              onClick={() => setEqTab('schedule')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'schedule' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
+              data-testid="foreman-tab-schedule"
+            >
+              <Calendar className="h-4 w-4 inline mr-1 -mt-0.5" />
+              Harmonogram
+            </button>
+            <button
               onClick={() => setEqTab('electronics')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
               data-testid="foreman-tab-electronics"
@@ -577,6 +595,11 @@ export const WorkerDashboard = () => {
               )}
             </button>
           </div>
+          {eqTab === 'schedule' && (
+            <Suspense fallback={<EquipmentSpinner />}>
+              <ForemanSchedule />
+            </Suspense>
+          )}
           {eqTab === 'electronics' && (
             <Suspense fallback={<EquipmentSpinner />}>
               <EquipmentForeman category="electronics" title="Moje elektronarzędzia" />

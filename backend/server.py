@@ -391,6 +391,15 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    # iter95t: powiadomienia harmonogramu - Poniedzialek + Sroda o 07:00 UTC
+    from routes.budget import cron_schedule_notify_foremen
+    scheduler.add_job(
+        cron_schedule_notify_foremen,
+        CronTrigger(day_of_week="mon,wed", hour=7, minute=0),
+        id="schedule_notify_foremen_mon_wed",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
     scheduler.start()
     set_scheduler(scheduler)
     logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min | Wyplaty codziennie o 03:00 | Powiadomienia dokumentow o 08:00")
