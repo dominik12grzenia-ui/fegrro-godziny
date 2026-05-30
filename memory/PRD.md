@@ -1,3 +1,46 @@
+## Iteration 95t (2026-05) — Harmonogram dla brygadzisty (powiadomienia Pn/Sr)
+
+### Implementacja
+**Backend:**
+- `/app/backend/routes/budget.py`:
+  - `PATCH /api/budget/tasks/{id}` - zmieniony z `get_current_admin` na `get_current_user` z whitelistą pól:
+    - **admin**: pełna edycja (jak dotąd)
+    - **foreman**: tylko `end_date` (replanowanie) i `actual_end_date` (oznaczenie wykonania), tylko na swoich `assigned_sites`
+    - **worker** i inne role: 403
+  - Walidacja: `actual_end_date` ≤ dzisiaj (komunikat PL "Data faktycznego zakonczenia nie moze byc w przyszlosci")
+  - Cross-site PATCH dla foremana → 403 "Zadanie spoza Twoich przypisanych budow"
+  - Nowy `GET /api/budget/my-schedule?days_ahead=14` - zwraca zadania budget_tasks w oknie [-1d, +14d] z polem `budowa_name` (lookup z construction_sites + fallback finance_budowy)
+- `/app/backend/routes/budget.py:cron_schedule_notify_foremen()` - async cron job (Pn/Sr 07:00 UTC):
+  - Dla kazdego foremana z `assigned_sites` zlicza zadania w oknie 14 dni
+  - Wstawia in-app notification (`type: schedule_reminder`) do `db.notifications`
+  - Wysyła Web Push (VAPID) gdy są aktywne subskrypcje
+- `/app/backend/server.py` - rejestracja jobu `schedule_notify_foremen_mon_wed` w APScheduler
+
+**Frontend:**
+- `/app/frontend/src/components/foreman/ForemanSchedule.js` (nowy, ~280 linii):
+  - Lista zadan z `/budget/my-schedule` z kolorowanymi akcentami (spóźnione=czerwone, dziś=złote, soon=brązowe, OK=szare, done=zielone)
+  - Modal edycji z 2 polami daty: planowany koniec (`end_date`) + faktyczny koniec (`actual_end_date` z `max={today}`)
+  - Przycisk "Cofnij zakończenie" gdy task jest wykonany
+  - Optimistic UI updates + fetchData(true) refresh
+  - Pusty stan: "Brak zadań na najbliższe 14 dni"
+- `/app/frontend/src/components/WorkerDashboard.js`:
+  - Nowa zakładka "Harmonogram" (pierwsza, przed Narzędzia/Akcesoria/Szalunki/Materiały) z ikoną Calendar
+  - Lazy-loaded chunk + warmup w prefetch
+  - URL deep-link: `?tab=schedule` aktywuje zakładkę automatycznie (uzywane przez powiadomienia push)
+
+### Test
+- Pytest: 16/16 PASS (`/app/backend/tests/test_iter95t_schedule.py`)
+- Frontend smoke: foreman login → push-gate dismiss → klik tab Harmonogram → pusty stan widoczny
+- Manual curl: future-date rejected (400), foreman whitelist enforced (403), admin pełna edycja OK, cron callable
+
+### User Choices
+- Powiadomienia: in-app dzwoneczek + Web Push (VAPID)
+- Zakres: 2 tygodnie (days_ahead=14)
+- Edycja: Admin pełna; Foreman tylko `end_date` i `actual_end_date`; Worker brak
+
+---
+
+
 ## Iteration 95bs (2026-05) — Pakiet E: COMPLIANCE (eksport CSV + 2FA)
 
 ### Implementacja

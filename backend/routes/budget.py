@@ -1445,12 +1445,18 @@ async def get_my_schedule(
         [("start_date", 1), ("order", 1)]
     ).to_list(length=500)
 
-    # Dolacz nazwy budow
+    # Dolacz nazwy budow - sprobuj construction_sites, potem finance_budowy
+    # (system ma 2 kolekcje synchronizowane przez finance_budowa_id)
     bid_set = list({r.get("budowa_id") for r in rows if r.get("budowa_id")})
     site_names: dict = {}
     if bid_set:
         async for s in db.construction_sites.find({"id": {"$in": bid_set}}, {"_id": 0, "id": 1, "name": 1}):
             site_names[s["id"]] = s.get("name")
+        # Fallback: finance_budowy dla orphaned ID
+        missing = [b for b in bid_set if b not in site_names]
+        if missing:
+            async for s in db.finance_budowy.find({"id": {"$in": missing}}, {"_id": 0, "id": 1, "name": 1}):
+                site_names[s["id"]] = s.get("name")
     for r in rows:
         r["budowa_name"] = site_names.get(r.get("budowa_id"))
 
