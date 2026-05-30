@@ -115,3 +115,89 @@ async def get_polish_holidays(year: int = 2026):
     holidays.append(pentecost.strftime("%Y-%m-%d"))
     
     return {"year": year, "holidays": sorted(holidays)}
+
+
+
+# ============== iter95u: Public schedule for workers ==============
+
+@router.get("/public/schedule/{token}")
+async def get_public_schedule(token: str, days_ahead: int = 14):
+    """Harmonogram dla pracownika (PIN-link).
+
+    Zwraca zadania budget_tasks z budow do ktorych pracownik jest przypisany
+    (employees.assigned_sites), ALE wylacznie z tych budow, na ktorych co
+    najmniej jeden brygadzista ma schedule_visible=True. Okno: [-1d, +days_ahead].
+    """
+    from datetime import timedelta
+    days_ahead = max(1, min(int(days_ahead or 14), 60))
+
+    employee = await db.employees.find_one({"public_token": token}, {"_id": 0, "id": 1, "assigned_sites": 1})
+    if not employee:
+        raise HTTPException(status_code=404, detail="Nieprawidlowy link")
+
+    emp_sites = employee.get("assigned_sites") or []
+    if not emp_sites:
+        return {"rows": [], "visible_sites": []}
+
+    # Znajdz brygadzistow ktorzy maja te budowy i schedule_visible=True
+    # (lub brak pola = default True dla legacy)
+    foremen_cursor = db.users.find(
+        {
+            "role": "foreman",
+            "assigned_sites": {"$in": emp_sites},
+            "$or": [
+                {"schedule_visible": {"$ne": False}},
+                {"schedule_visible": {"$exists": False}},
+            ],
+        },
+        {"_id": 0, "assigned_sites": 1},
+    )
+    visible_sites: set = set()
+    async for f in foremen_cursor:
+        for s in (f.get("assigned_sites") or []):
+            if s in emp_sites:
+                visible_sites.add(s)
+
+    if not visible_sites:
+        return {"rows": [], "visible_sites": []}
+
+    today = datetime.now().date()
+    range_start = (today - timedelta(days=1)).isoformat()
+    range_end = (today + timedelta(days=days_ahead)).isoformat()
+    today_str = today.isoformat()
+
+    rows = await db.budget_tasks.find(
+        {
+            "budowa_id": {"$in": list(visible_sites)},
+            "$and": [
+                {"$or": [
+                    {"actual_end_date": None},
+                    {"actual_end_date": {"$exists": False}},
+                ]},
+                {"$or": [
+                    {"start_date": {"$gte": range_start, "$lte": range_end}},
+                    {"end_date": {"$gte": range_start, "$lte": range_end}},
+                    {"$and": [
+                        {"start_date": {"$lte": today_str}},
+                        {"end_date": {"$gte": today_str}},
+                    ]},
+                ]},
+            ],
+        },
+        {"_id": 0, "id": 1, "budowa_id": 1, "name": 1, "start_date": 1, "end_date": 1, "progress_pct": 1, "actual_end_date": 1},
+    ).sort([("start_date", 1), ("order", 1)]).to_list(length=500)
+
+    # Dolacz nazwy budow
+    bid_set = list({r.get("budowa_id") for r in rows if r.get("budowa_id")})
+    site_names: dict = {}
+    if bid_set:
+        async for s in db.construction_sites.find({"id": {"$in": bid_set}}, {"_id": 0, "id": 1, "name": 1}):
+            site_names[s["id"]] = s.get("name")
+        missing = [b for b in bid_set if b not in site_names]
+        if missing:
+            async for s in db.finance_budowy.find({"id": {"$in": missing}}, {"_id": 0, "id": 1, "name": 1}):
+                site_names[s["id"]] = s.get("name")
+    for r in rows:
+        r["budowa_name"] = site_names.get(r.get("budowa_id"))
+
+    return {"rows": rows, "visible_sites": sorted(list(visible_sites))}

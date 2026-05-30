@@ -1407,8 +1407,11 @@ async def get_my_schedule(
     else:
         u = await db.users.find_one(
             {"id": current_user["sub"], "role": "foreman"},
-            {"_id": 0, "assigned_sites": 1},
+            {"_id": 0, "assigned_sites": 1, "schedule_visible": 1},
         )
+        # iter95u: jezeli admin wylaczyl widocznosc harmonogramu - zwroc pustke
+        if u and u.get("schedule_visible") is False:
+            return {"rows": [], "disabled": True}
         site_ids = (u or {}).get("assigned_sites") or []
         if not site_ids:
             return {"rows": []}
@@ -1502,9 +1505,12 @@ async def cron_schedule_notify_foremen():
 
     cursor = db.users.find(
         {"role": "foreman", "assigned_sites": {"$exists": True, "$ne": []}},
-        {"_id": 0, "id": 1, "full_name": 1, "assigned_sites": 1},
+        {"_id": 0, "id": 1, "full_name": 1, "assigned_sites": 1, "schedule_visible": 1},
     )
     async for u in cursor:
+        # iter95u: pomin brygadzistow z wylaczonym harmonogramem
+        if u.get("schedule_visible") is False:
+            continue
         site_ids = u.get("assigned_sites") or []
         if not site_ids:
             continue

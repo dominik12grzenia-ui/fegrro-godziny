@@ -2,7 +2,7 @@ import React from 'react';
 import { api } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Calendar, CalendarOff } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const ForemenTab = ({
@@ -126,6 +126,39 @@ export const ForemenTab = ({
                     data-testid={`save-foreman-${foreman.id}`}
                   >
                     Zapisz przypisanie
+                  </Button>
+                  <Button
+                    onClick={async () => {
+                      const next = foreman.schedule_visible === false;
+                      try {
+                        await api.patch(`/foremen/${foreman.id}/schedule-visibility`, { schedule_visible: next });
+                        toast.success(next
+                          ? `Harmonogram wlaczony dla ${foreman.full_name}`
+                          : `Harmonogram ukryty dla ${foreman.full_name}`);
+                        fetchData();
+                      } catch (err) {
+                        toast.error(err.response?.data?.detail || 'Nie udalo sie zmienic widocznosci');
+                      }
+                    }}
+                    size="sm"
+                    variant="outline"
+                    className={
+                      foreman.schedule_visible === false
+                        ? 'border-[#9B2C2C] text-[#FCA5A5] hover:bg-[#7F1D1D] hover:text-white'
+                        : 'border-[#4F6343] text-[#5F7552] hover:bg-[#4F6343] hover:text-white'
+                    }
+                    data-testid={`toggle-schedule-${foreman.id}`}
+                    title={
+                      foreman.schedule_visible === false
+                        ? 'Harmonogram UKRYTY - klik aby pokazac'
+                        : 'Harmonogram WIDOCZNY - klik aby ukryc'
+                    }
+                  >
+                    {foreman.schedule_visible === false ? (
+                      <><CalendarOff className="h-4 w-4 mr-1" /> Harmonogram OFF</>
+                    ) : (
+                      <><Calendar className="h-4 w-4 mr-1" /> Harmonogram ON</>
+                    )}
                   </Button>
                   <Button
                     onClick={async () => {

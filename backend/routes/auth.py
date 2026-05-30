@@ -239,12 +239,35 @@ async def admin_set_foreman_password(
 async def get_foremen(current_user: dict = Depends(get_current_user)):
     foremen = await db.users.find(
         {"role": "foreman"},
-        {"_id": 0, "id": 1, "full_name": 1, "assigned_sites": 1, "status": 1, "created_at": 1, "hashed_password": 1}
+        {"_id": 0, "id": 1, "full_name": 1, "assigned_sites": 1, "status": 1, "created_at": 1, "hashed_password": 1, "schedule_visible": 1}
     ).to_list(1000)
     # Expose only a boolean flag, never the hash itself
     for f in foremen:
         f["has_password"] = bool(f.pop("hashed_password", None))
+        # iter95u: default schedule_visible = True dla legacy kont bez tego pola
+        if "schedule_visible" not in f or f["schedule_visible"] is None:
+            f["schedule_visible"] = True
     return foremen
+
+
+@router.patch("/foremen/{foreman_id}/schedule-visibility")
+async def set_foreman_schedule_visibility(
+    foreman_id: str,
+    body: dict,
+    _admin: dict = Depends(get_current_admin),
+):
+    """iter95u: Admin przelacza widocznosc harmonogramu dla brygadzisty.
+    Wlaczone => brygadzista widzi zakladke Harmonogram + pracownicy na tych
+    samych budowach widza harmonogram na publicznym widoku godzin.
+    """
+    visible = bool(body.get("schedule_visible", True))
+    result = await db.users.update_one(
+        {"id": foreman_id, "role": "foreman"},
+        {"$set": {"schedule_visible": visible}},
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Brygadzista nie znaleziony")
+    return {"id": foreman_id, "schedule_visible": visible}
 
 
 @router.post("/foremen/{foreman_id}/sites")
@@ -342,6 +365,9 @@ async def get_foreman_profile(current_user: dict = Depends(get_current_user)):
     )
     if not user:
         raise HTTPException(status_code=404, detail="Foreman not found")
+    # iter95u: default dla starych kont bez flagi
+    if user.get("schedule_visible") is None:
+        user["schedule_visible"] = True
     return user
 
 

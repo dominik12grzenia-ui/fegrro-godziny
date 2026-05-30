@@ -1,3 +1,35 @@
+## Iteration 95u (2026-05) — Toggle widoczności Harmonogramu (per brygadzista)
+
+### Implementacja
+**Backend:**
+- `/app/backend/routes/auth.py`:
+  - `GET /api/foremen` zwraca pole `schedule_visible` (default True dla legacy kont)
+  - `PATCH /api/foremen/{id}/schedule-visibility` (admin-only) - ustawia flag
+  - `GET /api/foreman/me` zwraca `schedule_visible` (default True)
+- `/app/backend/routes/budget.py`:
+  - `GET /api/budget/my-schedule` zwraca `{rows:[], disabled:true}` gdy foreman.schedule_visible=False
+  - `cron_schedule_notify_foremen` pomija brygadzistow z flagą False
+- `/app/backend/routes/public.py`:
+  - `GET /api/public/schedule/{token}` - zadania dla pracownika (PIN-link):
+    - intersects `employee.assigned_sites` ∩ sites foremanow ktorzy maja `schedule_visible!=False`
+    - okno 14 dni, pomija ukonczone zadania (actual_end_date != null)
+
+**Frontend:**
+- `admin/ForemenTab.js`: przycisk "Harmonogram ON/OFF" (zielony/czerwony) z ikoną Calendar/CalendarOff (data-testid=`toggle-schedule-{foreman_id}`)
+- `WorkerDashboard.js`: warunkowy render zakładki "Harmonogram" + auto-fallback gdy admin wyłączy
+- `public/PublicSchedule.js` (nowy): kompaktowy widget tasks na publicznym /hours/{token}, ciche ukrycie gdy brak visible_sites
+- `PublicHours.js`: embed PublicSchedule miedzy Suma godzin a Day list
+
+### Test
+- Pytest: 13/13 PASS (`/app/backend/tests/test_iter95u_schedule_visibility.py`)
+- Smoke 13/13, screenshot admin/foremen pokazuje 7 buttonów "Harmonogram ON" przy każdym brygadziście
+
+### User Choice
+- Wszystkim steruje admin (opcja a)
+
+---
+
+
 ## Iteration 95t (2026-05) — Harmonogram dla brygadzisty (powiadomienia Pn/Sr)
 
 ### Implementacja

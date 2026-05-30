@@ -10,6 +10,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { ClothingOrderPublic } from './ClothingOrderPublic';
 import { PublicPushButton } from './PublicPushButton';
+import { PublicSchedule } from './public/PublicSchedule';
 import { LanguageToggle } from './LanguageToggle';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -319,6 +320,9 @@ export const PublicHours = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* iter95u: Harmonogram (widoczny tylko jezeli admin wlaczyl dla brygadzisty) */}
+        <PublicSchedule token={token} />
 
         {/* Day list */}
         <Card className="bg-[#243049] border-[#3D5378]">

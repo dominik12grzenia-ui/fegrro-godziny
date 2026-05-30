@@ -159,6 +159,14 @@ export const WorkerDashboard = () => {
     fetchData();
   }, [user, navigate, fetchData]);
 
+  // iter95u: jezeli admin wylaczyl harmonogram a uzytkownik mial tab=schedule
+  // (np z linka push notification) - przelacz na electronics
+  useEffect(() => {
+    if (foremanData?.schedule_visible === false && eqTab === 'schedule') {
+      setEqTab('electronics');
+    }
+  }, [foremanData, eqTab]);
+
   // Dynamiczny manifest PWA: brygadzista uzywajacy "Add to Home Screen"
   // ma trafiac na /foreman po kliknieciu ikony, nie na /login admina
   useEffect(() => {
@@ -538,14 +546,16 @@ export const WorkerDashboard = () => {
         {/* Equipment section: 4 sub-tabs (Elektronarzędzia / Akcesoria / Szalunki / Magazyn) */}
         <div className="mb-4 space-y-3">
           <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setEqTab('schedule')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'schedule' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
-              data-testid="foreman-tab-schedule"
-            >
-              <Calendar className="h-4 w-4 inline mr-1 -mt-0.5" />
-              Harmonogram
-            </button>
+            {foremanData?.schedule_visible !== false && (
+              <button
+                onClick={() => setEqTab('schedule')}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'schedule' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
+                data-testid="foreman-tab-schedule"
+              >
+                <Calendar className="h-4 w-4 inline mr-1 -mt-0.5" />
+                Harmonogram
+              </button>
+            )}
             <button
               onClick={() => setEqTab('electronics')}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${eqTab === 'electronics' ? 'bg-[#4F6343] text-white' : 'bg-[#243049] text-[#CBD5E1] hover:bg-[#3D5378]'}`}
@@ -595,7 +605,7 @@ export const WorkerDashboard = () => {
               )}
             </button>
           </div>
-          {eqTab === 'schedule' && (
+          {eqTab === 'schedule' && foremanData?.schedule_visible !== false && (
             <Suspense fallback={<EquipmentSpinner />}>
               <ForemanSchedule />
             </Suspense>
