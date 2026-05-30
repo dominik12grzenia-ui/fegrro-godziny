@@ -137,7 +137,7 @@ const QuickAddZapisModal = ({ open, onClose }) => {
               data-testid="dash-quickadd-kod">
               <option value="">— wybierz —</option>
               {kody.filter((k) => k.category !== 'PZS' && k.category !== 'PZSV').map((k) => (
-                <option key={k.id} value={k.id}>{k.category} – {k.name}</option>
+                <option key={k.id} value={k.id}>{`${k.category} – ${k.name}`}</option>
               ))}
             </select>
           </div>

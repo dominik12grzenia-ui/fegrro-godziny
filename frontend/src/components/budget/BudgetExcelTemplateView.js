@@ -273,8 +273,8 @@ export const BudgetExcelTemplateView = ({ positions, stages, lines, budowaInfo, 
                 onChange={(e) => setAllocMonth(parseInt(e.target.value, 10) || 0)}
                 className="bg-[#152033] border border-[#3D5378] text-white px-2 py-1 rounded text-xs"
                 data-testid="budget-alloc-period">
-                <option value={0}>Cały rok {year}</option>
-                {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{m} {year}</option>)}
+                <option value={0}>{`Cały rok ${year}`}</option>
+                {MONTHS_PL.map((m, i) => <option key={i} value={i + 1}>{`${m} ${year}`}</option>)}
               </select>
             </div>
           )}

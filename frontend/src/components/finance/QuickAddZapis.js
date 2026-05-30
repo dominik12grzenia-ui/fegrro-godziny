@@ -92,7 +92,7 @@ export const QuickAddZapis = ({ open, onClose }) => {
               data-testid="quickadd-kod">
               <option value="">— wybierz —</option>
               {kody.filter((k) => k.cat !== 'PZS' && k.cat !== 'PZSV').map((k) => (
-                <option key={k.id} value={k.id}>{k.cat} – {k.name}</option>
+                <option key={k.id} value={k.id}>{`${k.cat} – ${k.name}`}</option>
               ))}
             </select>
           </div>

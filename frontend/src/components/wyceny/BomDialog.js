@@ -348,7 +348,7 @@ export const BomDialog = ({ wycenaId, onClose }) => {
                   <option value="">— wybierz lub wpisz nowy email poniżej —</option>
                   {suppliers.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.email}){s.phone ? ` · ☎ ${s.phone}` : ''}{s.branze ? ` · ${s.branze}` : ''}
+                      {`${s.name} (${s.email})${s.phone ? ` · ☎ ${s.phone}` : ''}${s.branze ? ` · ${s.branze}` : ''}`}
                     </option>
                   ))}
                 </select>

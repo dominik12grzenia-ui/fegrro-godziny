@@ -73,7 +73,7 @@ export const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
             data-testid={`qf-zap-unit-${item.id}`}>
             {zapUnitOptions.map((u) => (
               <option key={u || 'empty'} value={u}>
-                {u || '—'}{isMatching(u) ? '  ★' : ''}
+                {`${u || '—'}${isMatching(u) ? '  ★' : ''}`}
               </option>
             ))}
           </select>

@@ -1,3 +1,65 @@
+## Iteration 95bl (2026-05) — Smoke test + fix hydration warning
+
+### User request
+„Tak zrób proszę pomyśl" — w odpowiedzi na propozycję CI smoke testu
+
+### Utworzone narzędzie
+
+**`/app/tests/smoke_test.py`** (~250 linii) — Playwright headless test:
+- Loguje admin → sprawdza 12 zakładek (Lokalizacje, Brygadziści, Elektronarzędzia, Akcesoria, Szalunki, Materiały, Odzież, BHP, Wypłaty, Finanse, Budżetowanie, Wyceny)
+- Otwiera pierwszą wycenę (test PosRow/SubRow z `<Td>` — zapobiegnie nawrotom dzisiejszego buga)
+- Detect: `pageerror` (runtime), `console.error` (z ignorlist dla Google Maps/SW/manifest), `page.on('load')` (przeładowania)
+- Exit code: 0=OK, 1=fail, 2=playwright missing
+- Argumenty: `--url`, `--email`, `--password`, `--headed`
+- README: `/app/tests/README.md` z przykładami uruchomienia + GitHub Actions
+
+**Uruchomienie:** `/opt/plugins-venv/bin/python3 /app/tests/smoke_test.py`
+
+### Co smoke test wyłapał na pierwszym uruchomieniu (i naprawiliśmy!)
+
+🟡 **Hydration warning** `<span> cannot be a child of <option>` w 6 plikach:
+- `Budget.js:81` — select 154 budów × 4 wyrażeń `{...}` w każdej opcji
+- `AdminDashboard.js:140` — QuickAddZapis kody select
+- `finance/QuickAddZapis.js:95` — to samo dla Finanse
+- `wyceny/QuickFillRow.js:75` — unit options
+- `wyceny/BomDialog.js:350` — supplier select
+- `budget/BudgetExcelTemplateView.js:277` — period select
+
+**Root cause:** wiele osobnych wyrażeń `{a}{b}{c}` w `<option>` → emergent dev-mode tag injector wstrzykuje `<span x-source-type=computed>` wokół każdego ReactNode → React zauważa że to nielegalny HTML (`<option>` nie może mieć dzieci `<span>`).
+
+**Fix:** scalenie wszystkich wyrażeń w jeden template literal `{`...${var}...`}` — wynik to 1 string = 1 ReactNode → brak injection.
+
+### Wynik smoke test po fix
+```
+✅ Lokalizacje      ✅ Brygadziści    ✅ Elektronarzędzia
+✅ Akcesoria        ✅ Szalunki       ✅ Materiały
+✅ Odzież           ✅ BHP            ✅ Wypłaty
+✅ Finanse          ✅ Budżetowanie   ✅ Wyceny
+✅ Wyceny editor (PosRow + SubRow)
+
+📊 PODSUMOWANIE
+  Zakładki: 13 PASS / 0 FAIL
+  Page errors (JS runtime): 0
+  Console errors: 0
+  Page loads: 2 (oczekiwane: 2)
+🎉 SMOKE TEST: PASS
+```
+
+### Backlog (pomniejszone)
+- 🟡 P2 — Wykres „Top 3 kosztów" w Finanse
+- 🟡 P3 — Spójne zamykanie modali brygadzisty po Esc
+- ⚪ ~~Hydration warning `<span>` w `<option>`~~ ✅ **NAPRAWIONE**
+
+### Rekomendacja
+Uruchamiaj smoke test po każdym `Save to GitHub` (przed wdrożeniem na produkcję):
+```bash
+/opt/plugins-venv/bin/python3 /app/tests/smoke_test.py
+```
+
+---
+
+
+
 ## Iteration 95bk (2026-05) — Bug fix: zgubione komponenty po refaktoryzacji
 
 ### User report (screenshot)

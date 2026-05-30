@@ -79,7 +79,7 @@ export const Budget = () => {
               <option value="">— wybierz budowę —</option>
               {budowy.map((b) => (
                 <option key={b.budowa_id} value={b.budowa_id}>
-                  {b.code ? `[${b.code}] ` : ''}{b.name} — Plan: {fmtNum(b.plan_costs_netto)} / Wyk: {fmtNum(b.execution_netto)} zł
+                  {`${b.code ? `[${b.code}] ` : ''}${b.name} — Plan: ${fmtNum(b.plan_costs_netto)} / Wyk: ${fmtNum(b.execution_netto)} zł`}
                 </option>
               ))}
             </select>
