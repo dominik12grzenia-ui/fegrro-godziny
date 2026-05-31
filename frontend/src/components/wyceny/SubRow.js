@@ -111,8 +111,18 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   const ratio = posComputed.budzetZwolniony > 0 ? r.budzetZwolniony / posComputed.budzetZwolniony : 0;
   const inputCls = "bg-transparent border-0 h-6 text-xs w-full focus:bg-[#152033] outline-none";
   // placeholdery pokazuja domysla z poziomu wyceny
-  const narzutPlaceholder = (defaults.narzut ?? 0) ? String(defaults.narzut) : '0';
-  const marzaPlaceholder = (defaults.marza ?? 0) ? String(defaults.marza) : '0';
+  // iter95bt: placeholder narzutu zalezy od typu linii (materials/labor/equipment)
+  const defaultNarzutForType = sub.type === 'labor'
+    ? (defaults.narzutLabor ?? 0)
+    : sub.type === 'equipment'
+      ? (defaults.narzutEquipment ?? 0)
+      : (defaults.narzut ?? 0);
+  const narzutPlaceholder = defaultNarzutForType ? String(defaultNarzutForType) : '0';
+  // marza tylko dla materials
+  const marzaPlaceholder = (sub.type === 'materials' || !sub.type)
+    ? ((defaults.marza ?? 0) ? String(defaults.marza) : '0')
+    : '—';
+  const marzaDisabled = sub.type === 'labor' || sub.type === 'equipment';
 
   // iter95ab: tooltip historii zmian ceny + ostrzezenie ponizej minimum
   const priceHistory = sub.price_change_history || [];
@@ -355,7 +365,9 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         <input type="number" step="0.1" min="0" value={edit.marza_pct ?? ''}
           onChange={(e) => setEdit({ ...edit, marza_pct: e.target.value })}
           onBlur={() => save()} placeholder={marzaPlaceholder}
-          className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
+          disabled={marzaDisabled}
+          title={marzaDisabled ? 'Marża stosowana tylko do materiałów' : undefined}
+          className={`${inputCls} text-right tabular-nums ${marzaDisabled ? 'text-[#475569] cursor-not-allowed opacity-40' : 'text-[#D4AF37]'}`}
           data-testid={`sub-marza-${sub.id}`} />
       </Td>
       <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>

@@ -37,9 +37,12 @@ class WycenaCreate(BaseModel):
     default_gir_pct: Optional[float] = None
     default_dw_pct: Optional[float] = None
     default_koszt_pct: Optional[float] = None
-    # iter95s: domyslne narzuty dla subpozycji
+    # iter95s: domyslne narzuty dla subpozycji (materials)
     default_narzut_pct: Optional[float] = None
     default_marza_pct: Optional[float] = None
+    # iter95bt: domyslne narzuty dla labor / equipment (rozdzielone)
+    default_narzut_labor_pct: Optional[float] = None
+    default_narzut_equipment_pct: Optional[float] = None
     # iter95as: dane klienta pre-fill przy tworzeniu
     client_name: Optional[str] = None
     client_nip: Optional[str] = None
@@ -54,6 +57,9 @@ class WycenaUpdate(BaseModel):
     default_koszt_pct: Optional[float] = None
     default_narzut_pct: Optional[float] = None
     default_marza_pct: Optional[float] = None
+    # iter95bt: rozdzielone narzuty labor / equipment
+    default_narzut_labor_pct: Optional[float] = None
+    default_narzut_equipment_pct: Optional[float] = None
     # iter95al: dane klienta dla PDF wersji dla klienta
     client_name: Optional[str] = None
     client_nip: Optional[str] = None
@@ -303,6 +309,9 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
         "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 2.0,
         "default_narzut_pct": payload.default_narzut_pct if payload.default_narzut_pct is not None else 0.0,
         "default_marza_pct": payload.default_marza_pct if payload.default_marza_pct is not None else 0.0,
+        # iter95bt: rozdzielone narzuty per typ linii
+        "default_narzut_labor_pct": payload.default_narzut_labor_pct if payload.default_narzut_labor_pct is not None else 0.0,
+        "default_narzut_equipment_pct": payload.default_narzut_equipment_pct if payload.default_narzut_equipment_pct is not None else 0.0,
         # iter95as: dane klienta pre-fill
         "client_name": payload.client_name or "",
         "client_nip": payload.client_nip or "",
@@ -1261,6 +1270,9 @@ async def _build_wycena_export(wycena_id: str):
         "koszt": float(w.get("default_koszt_pct") or 2.0),
         "narzut": float(w.get("default_narzut_pct") or 0.0),
         "marza": float(w.get("default_marza_pct") or 0.0),
+        # iter95bt: rozdzielone narzuty per typ linii
+        "narzut_labor": float(w.get("default_narzut_labor_pct") or 0.0),
+        "narzut_equipment": float(w.get("default_narzut_equipment_pct") or 0.0),
     }
     enriched_stages = []
     for st in stages:
@@ -1276,8 +1288,24 @@ async def _build_wycena_export(wycena_id: str):
             for s in subs:
                 qty = float(s.get("quantity") or 0)
                 cena = float(s.get("unit_price_netto") or 0)
-                narzut = float(s.get("narzut_zapas_pct") if s.get("narzut_zapas_pct") is not None else defaults["narzut"])
-                marza = float(s.get("marza_pct") if s.get("marza_pct") is not None else defaults["marza"])
+                # iter95bt: dobierz default narzutu wg typu linii
+                t_ = s.get("type")
+                if t_ == "labor":
+                    default_narzut_for_type = defaults["narzut_labor"]
+                    default_marza_for_type = 0.0
+                elif t_ == "equipment":
+                    default_narzut_for_type = defaults["narzut_equipment"]
+                    default_marza_for_type = 0.0
+                else:
+                    # materials lub legacy
+                    default_narzut_for_type = defaults["narzut"]
+                    default_marza_for_type = defaults["marza"]
+                narzut = float(s.get("narzut_zapas_pct") if s.get("narzut_zapas_pct") is not None else default_narzut_for_type)
+                # marza_pct tylko dla materials (per-linia override moze ja podac, ale dla labor/equipment ignoruj)
+                if t_ in ("materials", None, ""):
+                    marza = float(s.get("marza_pct") if s.get("marza_pct") is not None else default_marza_for_type)
+                else:
+                    marza = 0.0
                 zwolniony = qty * cena * (1 + narzut / 100 + marza / 100)
                 budzet_zwolniony_pos += zwolniony
                 sub_calcs.append({"line": s, "qty": qty, "cena": cena, "narzut": narzut, "marza": marza, "zwolniony": zwolniony})

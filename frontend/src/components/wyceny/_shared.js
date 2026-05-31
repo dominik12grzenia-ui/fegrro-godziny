@@ -144,8 +144,29 @@ export const evalFormula = (raw) => {
 export const computeSubRow = (sub, defaults = {}) => {
   const qty = parseFloat(sub.quantity) || 0;
   const cena = parseFloat(sub.unit_price_netto) || 0;
-  const narzutPct = parseFloat(sub.narzut_zapas_pct ?? defaults.narzut ?? 0) || 0;
-  const marzaPct = parseFloat(sub.marza_pct ?? defaults.marza ?? 0) || 0;
+  // iter95bt: rozdzielenie defaults wg typu linii.
+  // - materials: narzut + marża (oba aplikowane)
+  // - labor: tylko narzut (default_narzut_labor_pct lub per-linia)
+  // - equipment: tylko narzut (default_narzut_equipment_pct lub per-linia)
+  const t = sub.type;
+  let defaultNarzut;
+  let defaultMarza;
+  if (t === 'labor') {
+    defaultNarzut = defaults.narzutLabor ?? 0;
+    defaultMarza = 0;
+  } else if (t === 'equipment') {
+    defaultNarzut = defaults.narzutEquipment ?? 0;
+    defaultMarza = 0;
+  } else {
+    // materials (lub brak/legacy)
+    defaultNarzut = defaults.narzut ?? 0;
+    defaultMarza = defaults.marza ?? 0;
+  }
+  const narzutPct = parseFloat(sub.narzut_zapas_pct ?? defaultNarzut) || 0;
+  // marza_pct stosowana TYLKO do materialow (per linia nadpisuje, ale dla labor/equipment ignorowana)
+  const marzaPct = (t === 'materials' || !t)
+    ? (parseFloat(sub.marza_pct ?? defaultMarza) || 0)
+    : 0;
   const budzetZwolniony = qty * cena * (1 + narzutPct / 100 + marzaPct / 100);
   const kosztPrognozowany = qty * cena * (1 + narzutPct / 100);
   return { qty, cena, budzetZwolniony, kosztPrognozowany, narzutPct, marzaPct };

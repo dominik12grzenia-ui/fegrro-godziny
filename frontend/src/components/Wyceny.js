@@ -355,8 +355,11 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       gir: data?.wycena?.default_gir_pct ?? 2,
       dw: data?.wycena?.default_dw_pct ?? 2,
       koszt: data?.wycena?.default_koszt_pct ?? 2,
-      narzut: data?.wycena?.default_narzut_pct ?? 0,
-      marza: data?.wycena?.default_marza_pct ?? 0,
+      // iter95bt: rozdzielone defaulty per typ linii
+      narzut: data?.wycena?.default_narzut_pct ?? 0,  // narzut materiał
+      marza: data?.wycena?.default_marza_pct ?? 0,    // marża materiał
+      narzutLabor: data?.wycena?.default_narzut_labor_pct ?? 0,
+      narzutEquipment: data?.wycena?.default_narzut_equipment_pct ?? 0,
     };
     if (negotiationOn) {
       if (neg.narzutOverride !== '') base.narzut = parseFloat(neg.narzutOverride) || 0;
@@ -748,10 +751,15 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           onSave={(v) => saveDefault('default_dw_pct', v)} />
         <PctInput label="Koszt budowy" testId="default-koszt" value={defaults.koszt}
           onSave={(v) => saveDefault('default_koszt_pct', v)} />
-        <PctInput label="Narzut na zapas" testId="default-narzut" value={defaults.narzut}
+        <PctInput label="Narzut materiał" testId="default-narzut" value={defaults.narzut}
           onSave={(v) => saveDefault('default_narzut_pct', v)} />
         <PctInput label="Marża materiał" testId="default-marza" value={defaults.marza}
           onSave={(v) => saveDefault('default_marza_pct', v)} />
+        {/* iter95bt: narzut na robocizne i sprzet (uproszczony, bez marzy) */}
+        <PctInput label="Narzut robocizna" testId="default-narzut-labor" value={defaults.narzutLabor}
+          onSave={(v) => saveDefault('default_narzut_labor_pct', v)} />
+        <PctInput label="Narzut sprzęt" testId="default-narzut-equipment" value={defaults.narzutEquipment}
+          onSave={(v) => saveDefault('default_narzut_equipment_pct', v)} />
         <div className="text-[10px] text-[#CBD5E1] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
