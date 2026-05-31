@@ -135,6 +135,9 @@ export const HoursTable = () => {
   }, [loading]);
 
   const getSiteColorHex = (siteId) => {
+    // iter95x: priorytet custom site.color, fallback do legacy index palette
+    const site = sites.find(s => s.id === siteId);
+    if (site && site.color) return site.color;
     const idx = sites.findIndex(s => s.id === siteId);
     return idx >= 0 ? SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] : null;
   };

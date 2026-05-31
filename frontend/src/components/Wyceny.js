@@ -12,7 +12,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
-import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package, Send, Mail, Eye } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronRight, ChevronDown, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Package, Send, Mail, Eye, BookmarkPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../context/AuthContext';
 
@@ -28,6 +28,7 @@ import { SuppliersManagerDialog } from './wyceny/SuppliersManagerDialog';
 import { BomDialog } from './wyceny/BomDialog';
 import { NegotiationPanel } from './wyceny/NegotiationPanel';
 import { ExcelImportDialog } from './wyceny/ExcelImportDialog';
+import { ScopeTemplatesDialog } from './wyceny/ScopeTemplatesDialog';
 
 // iter95bc: dalsze subkomponenty wydzielone z Wyceny.js (refaktor)
 import { EquipmentPriceBook } from './wyceny/EquipmentPriceBook';
@@ -112,6 +113,8 @@ const WycenyList = ({ onOpen }) => {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
+  // iter95x: zarzadzanie szablonami zakresu
+  const [scopeMgmtListOpen, setScopeMgmtListOpen] = useState(false);
 
   const fetchRows = useCallback(() => {
     setLoading(true);
@@ -133,13 +136,20 @@ const WycenyList = ({ onOpen }) => {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Button onClick={() => setCreating(true)} className="bg-[#D4AF37] hover:bg-[#B8941F] text-[#152033]"
           data-testid="wyceny-create-btn">
           <Plus className="h-4 w-4 mr-1" /> Utwórz wycenę
         </Button>
+        <Button onClick={() => setScopeMgmtListOpen(true)} variant="outline"
+          className="border-[#9DBC85]/60 text-[#9DBC85] hover:bg-[#5F7552]/10"
+          data-testid="wyceny-scope-mgmt-btn"
+          title="Zdefiniuj szablony zakresu (Oferta obejmuje / nie obejmuje)">
+          <BookmarkPlus className="h-4 w-4 mr-1" /> Szablony zakresu
+        </Button>
       </div>
       {creating && <NewWycenaDialog onClose={() => setCreating(false)} onCreated={(id) => { fetchRows(); onOpen(id); }} />}
+      {scopeMgmtListOpen && <ScopeTemplatesDialog mode="manage" onClose={() => setScopeMgmtListOpen(false)} />}
       {loading ? <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         : rows.length === 0 ? (
           <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="wyceny-empty">
@@ -218,6 +228,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const [convertOpen, setConvertOpen] = useState(false);
   // iter95v: dialog importu z Excela
   const [importOpen, setImportOpen] = useState(false);
+  // iter95x: dialog szablonow zakresu (manage/apply)
+  const [scopeMgmtOpen, setScopeMgmtOpen] = useState(false);
+  const [scopeApplyOpen, setScopeApplyOpen] = useState(false);
 
   const fetchData = useCallback((silent = false) => {
     // iter95bm: tryb silent - nie pokazuj loadera jesli dane juz sa
@@ -628,6 +641,12 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           title="Importuj etapy i pozycje z pliku Excel"
           data-testid="wycena-import-btn">
           <FileSpreadsheet className="h-4 w-4 mr-1" /> Import z Excela
+        </Button>
+        <Button onClick={() => setScopeApplyOpen(true)} variant="outline"
+          className="border-[#9DBC85]/60 text-[#9DBC85] hover:bg-[#5F7552]/10 shrink-0"
+          title="Wczytaj szablon zakresu (Oferta obejmuje / nie obejmuje)"
+          data-testid="wycena-scope-apply-btn">
+          <BookmarkPlus className="h-4 w-4 mr-1" /> Szablon zakresu
         </Button>
         <Button onClick={() => setBomOpen(true)} variant="outline"
           className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10 shrink-0"
@@ -1073,6 +1092,24 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           wycenaId={wycenaId}
           onClose={() => setImportOpen(false)}
           onImported={() => fetchData(true)}
+        />
+      )}
+      {scopeApplyOpen && (
+        <ScopeTemplatesDialog
+          mode="apply"
+          onClose={() => setScopeApplyOpen(false)}
+          onApply={async (tpl) => {
+            try {
+              await api.patch(`/wyceny/${wycenaId}`, {
+                scope_includes: tpl.scope_includes || '',
+                scope_excludes: tpl.scope_excludes || '',
+              });
+              toast.success(`Wczytano szablon: ${tpl.name}`);
+              fetchData(true);
+            } catch (e) {
+              toast.error('Nie udało się wczytać szablonu');
+            }
+          }}
         />
       )}
       {convertOpen && (

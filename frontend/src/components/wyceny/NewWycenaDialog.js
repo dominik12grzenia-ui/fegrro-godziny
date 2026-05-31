@@ -32,6 +32,18 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
     setName(`Wycena ${klient}/FeGrro ${dateFmt}`);
   }, [clientName, wycenaDate, nameManuallyEdited]);
 
+  // iter95x: pobierz domyslny szablon zakresu
+  const [defaultScopeTpl, setDefaultScopeTpl] = useState(null);
+  useEffect(() => {
+    api.get('/wyceny/scope-templates')
+      .then((r) => {
+        const list = r.data?.templates || [];
+        const def = list.find((t) => t.is_default) || list[0] || null;
+        if (def) setDefaultScopeTpl(def);
+      })
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     api.get('/wyceny/clients')
       .then((r) => setClients(r.data?.rows || []))
@@ -77,7 +89,16 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
         client_nip: clientNip.trim() || undefined,
         client_address: clientAddress.trim() || undefined,
       });
-      toast.success('Utworzono wycenę');
+      // iter95x: auto-apply default scope template
+      if (defaultScopeTpl && (defaultScopeTpl.scope_includes || defaultScopeTpl.scope_excludes)) {
+        try {
+          await api.patch(`/wyceny/${r.data.id}`, {
+            scope_includes: defaultScopeTpl.scope_includes || '',
+            scope_excludes: defaultScopeTpl.scope_excludes || '',
+          });
+        } catch (_e) { /* nie blokuj */ }
+      }
+      toast.success(defaultScopeTpl ? `Utworzono — zastosowano szablon "${defaultScopeTpl.name}"` : 'Utworzono wycenę');
       onCreated(r.data.id);
       onClose();
     } catch (e) {

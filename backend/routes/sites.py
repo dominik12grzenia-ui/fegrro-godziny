@@ -30,7 +30,7 @@ async def get_sites(
             "id": 1, "name": 1, "location_lat": 1, "location_lng": 1,
             "google_maps_url": 1, "is_active": 1, "month": 1,
             "excel_column": 1, "created_at": 1, "category": 1, "address": 1,
-            "visible_to_foremen": 1, "finance_budowa_id": 1
+            "visible_to_foremen": 1, "finance_budowa_id": 1, "color": 1
         }
     ).to_list(1000)
     return sites
@@ -53,6 +53,7 @@ async def create_site(
         "category": site.category or "budowa",
         "address": site.address,
         "visible_to_foremen": site.visible_to_foremen if site.visible_to_foremen is not None else True,
+        "color": site.color,  # iter95x
         "created_at": datetime.now().isoformat()
     }
     

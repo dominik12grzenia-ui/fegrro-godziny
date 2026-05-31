@@ -100,6 +100,7 @@ class ConstructionSite(BaseModel):
     address: Optional[str] = None
     visible_to_foremen: bool = True
     finance_budowa_id: Optional[str] = None
+    color: Optional[str] = None  # iter95x: hex color np. "#3F5235"
 
 
 class SiteCreate(BaseModel):
@@ -111,6 +112,7 @@ class SiteCreate(BaseModel):
     category: Optional[str] = "budowa"
     address: Optional[str] = None
     visible_to_foremen: Optional[bool] = True
+    color: Optional[str] = None
 
 
 class SiteUpdate(BaseModel):
@@ -122,6 +124,7 @@ class SiteUpdate(BaseModel):
     category: Optional[str] = None
     address: Optional[str] = None
     visible_to_foremen: Optional[bool] = None
+    color: Optional[str] = None
 
 
 # Assignment Models

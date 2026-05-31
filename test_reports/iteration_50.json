@@ -1,0 +1,43 @@
+{
+  "summary": "iter95x backend testing: scope-templates (GET/PUT, admin-only, default dedup, UUID assignment, ID preservation) + sites color field (POST/GET/PUT). 13/14 tests passed. 1 bug found: PUT /api/sites/{id} with color=null does NOT clear the color (backend filters None values).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "PUT /api/sites/{site_id}",
+        "issue": "Sending {\"color\": null} does NOT clear color field. /app/backend/routes/sites.py line 96 uses `{k: v for k, v in site_update.model_dump().items() if v is not None}` which strips all None values from the update payload, so null color is silently ignored. Spec requires PUT to accept null to clear. Fix: distinguish unset vs explicit None using model_dump(exclude_unset=True), e.g. `update_data = site_update.model_dump(exclude_unset=True)`. Same caveat applies to other nullable fields.",
+        "priority": "MEDIUM"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95x_scope_templates_color.py",
+    "/app/test_reports/pytest/iter95x_results.xml"
+  ],
+  "action_items": [
+    "Fix PUT /api/sites/{id} to allow color=null clearing (use model_dump(exclude_unset=True) in routes/sites.py update_site)"
+  ],
+  "critical_code_review_comments": [
+    "routes/sites.py update_site: filters None via `if v is not None` => any nullable field can never be cleared via PUT. Switch to exclude_unset=True (Pydantic v2) to support explicit nulls while ignoring omitted fields.",
+    "wyceny.py scope-templates endpoints look clean: UUID auto-assign, default dedup, upsert. Good.",
+    "GET /api/sites now projects 'color' field; ConstructionSite model defines color Optional[str] => legacy sites return color=None correctly."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95x_scope_templates_color.py"
+  ],
+  "success_rate": {
+    "backend": "92.8% (13/14)",
+    "frontend": "not tested (backend-only request)"
+  },
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! (returns access_token, not 'token'). Foreman: 'Roman Chufrida' / Test1234!.",
+  "seed_data_creation": "Tests use TEST_ prefix and clean up: scope-templates reset to [] at end; site deleted with permanent=true. No leftover data.",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Login returns 'access_token' field (not 'token'). Test file: /app/backend/tests/test_iter95x_scope_templates_color.py covers scope-templates + site color CRUD + foreman 403. Only failing test is color-null-clear, which is a real backend bug in sites.py PUT.",
+  "rca of the issue": "RCA: routes/sites.py line 96 `{k: v for k, v in site_update.model_dump().items() if v is not None}` discards any field set to None in the PUT payload. Repro: 1) POST /api/sites with color=#3F5235, 2) PUT /api/sites/{id} body {\"color\": null}, 3) GET /api/sites returns color=#3F5235 (unchanged). Mitigation: change to `update_data = site_update.model_dump(exclude_unset=True)` so only explicitly omitted fields are skipped, and explicit nulls reach Mongo `$set`."
+}

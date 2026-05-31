@@ -2616,3 +2616,56 @@ async def wyceny_import_apply(
         "positions_created": created_positions,
         "skipped": skipped,
     }
+
+
+
+# =========== iter95x: SZABLONY ZAKRESU OFERTY (Settings) ===========
+
+class ScopeTemplate(BaseModel):
+    id: Optional[str] = None
+    name: str  # np. "Dom jednorodzinny", "Mieszkanie", "Komercja", "Default"
+    scope_includes: str = ""
+    scope_excludes: str = ""
+    is_default: bool = False
+
+
+class ScopeTemplatesPayload(BaseModel):
+    templates: List[ScopeTemplate]
+
+
+SCOPE_SETTINGS_KEY = "wyceny_scope_templates"
+
+
+@router.get("/wyceny/scope-templates")
+async def get_scope_templates(_user: dict = Depends(get_current_admin)):
+    doc = await db.app_settings.find_one({"key": SCOPE_SETTINGS_KEY}, {"_id": 0})
+    if not doc:
+        return {"templates": []}
+    return {"templates": doc.get("templates", [])}
+
+
+@router.put("/wyceny/scope-templates")
+async def save_scope_templates(
+    payload: ScopeTemplatesPayload,
+    _user: dict = Depends(get_current_admin),
+):
+    # Tylko jeden moze byc is_default
+    default_seen = False
+    out_tpl = []
+    for t in payload.templates:
+        td = t.model_dump()
+        if not td.get("id"):
+            td["id"] = str(uuid.uuid4())
+        if td.get("is_default"):
+            if default_seen:
+                td["is_default"] = False
+            else:
+                default_seen = True
+        out_tpl.append(td)
+    await db.app_settings.update_one(
+        {"key": SCOPE_SETTINGS_KEY},
+        {"$set": {"key": SCOPE_SETTINGS_KEY, "templates": out_tpl,
+                  "updated_at": datetime.now().isoformat()}},
+        upsert=True,
+    )
+    return {"templates": out_tpl}
