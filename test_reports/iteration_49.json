@@ -1,0 +1,27 @@
+{
+  "summary": "iter95w (Wyceny export - naglowek firmowy + sekcje 'Oferta obejmuje/nie obejmuje' + szersza kolumna B) - Backend FULLY VERIFIED via pytest (11/11 passed). All spec items confirmed: (1) WycenaUpdate accepts scope_includes/scope_excludes, PATCH persists & GET /template returns them; empty string also accepted to clear. (2) XLSX client variant has B1='FeGrro', B2='NIP: 589-206-61-74', B3='Tel: 885 213 273', B4='biuro@fegrro.pl'. (3) XLSX column widths A=8, B=65, C=13, D=9, E=16, F=18 verified. (4) XLSX position-name cell in column B has wrap_text=True (long name rendered correctly). (5) XLSX scope sections render with U+2022 bullets per line; (6) PDF client variant header text contains FeGrro, NIP, telefon, email; (7) PDF scope sections include 'Oferta obejmuje' and 'Oferta nie obejmuje' with bullet glyphs; (8) PDF contains embedded Image XObject (logo). (9) When scope fields are empty, neither PDF nor XLSX renders the section boxes.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": { "ui_bugs": [], "integration_issues": [], "design_issues": [] },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95w_export_header_scope.py",
+    "/app/test_reports/pytest/pytest_iter95w.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "routes/wyceny.py PDF (_generate_wycena_client_pdf_bytes): header uses 32mm logo + Paragraph with NIP/tel/email on right column (colWidths 40mm logo / 140mm text). Table tbl colWidths 10/102/16/12/25/25 mm matches spec.",
+    "routes/wyceny.py XLSX (_generate_wycena_client_xlsx_bytes): widths {A:8,B:65,C:13,D:9,E:16,F:18} applied AFTER body fill - confirmed by load_workbook. wrap_text=True on position-name cells. Header B1..B4 rendered with correct strings.",
+    "routes/wyceny.py scope rendering: lines split by \\n, each prefixed with U+2022 if not already a bullet/dash/star - good. Background fill (greenish for includes, reddish for excludes) provides visual contrast. Row height auto-scales by line count (max(28, n*18+8)).",
+    "WycenaUpdate model in routes/wyceny.py:49 cleanly extends with scope_includes/scope_excludes as Optional[str] - empty string accepted for clearing.",
+    "Logo path discovery prefers /app/frontend/public/icon-192x192.png then apple-touch-icon.png - file exists, verified PDF embeds Image XObject."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95w_export_header_scope.py (new)"
+  ],
+  "success_rate": { "backend": "100% (11/11)", "frontend": "Not tested - request was backend-only" },
+  "test_credentials": "admin@fegrro.pl / Admin123! via POST /api/auth/admin/login",
+  "seed_data_creation": "Each test creates TEST_iter95w_<uuid> wycena via POST /api/wyceny + 1 stage + 1 position (with deliberately long name). Cleaned via DELETE /api/wyceny/{id} in fixture teardown. No residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run: cd /app && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL frontend/.env|cut -d= -f2-) && python -m pytest backend/tests/test_iter95w_export_header_scope.py -v. PDF text extraction via pypdf 6.10.2 works fine when DejaVu/Liberation TTF fonts are present (they are - /usr/share/fonts/truetype/liberation/). Frontend NewWycenaDialog auto-build name + Wyceny.js scope textarea NOT tested via Playwright (request was backend-only; main agent has visual confirmation per agent_to_agent_context_note).",
+  "rca_of_the_issue": "N/A - all 11 backend assertions pass on first run, behavior matches spec exactly."
+}

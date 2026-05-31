@@ -67,6 +67,9 @@ class WycenaUpdate(BaseModel):
     # iter95ar: zapisany szablon emaila zapytania ofertowego (per wycena)
     bom_email_subject: Optional[str] = None
     bom_email_body: Optional[str] = None
+    # iter95w: zakres oferty - co obejmuje / czego nie obejmuje
+    scope_includes: Optional[str] = None
+    scope_excludes: Optional[str] = None
 
 
 class StageCreate(BaseModel):
@@ -1487,7 +1490,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     elements = []
     wycena_name = data["wycena"].get("name", "")
 
-    # Naglowek: logo + dane firmy (jezeli logo dostepne)
+    # iter95w: Naglowek z wiekszym logo + NIP + telefon
     logo_paths = [
         "/app/frontend/public/icon-192x192.png",
         "/app/frontend/public/apple-touch-icon.png",
@@ -1496,7 +1499,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     header_cells = []
     if logo_path:
         try:
-            img = Image(logo_path, width=22 * mm, height=22 * mm)
+            img = Image(logo_path, width=32 * mm, height=32 * mm)
             header_cells.append(img)
         except Exception:
             header_cells.append("")
@@ -1504,10 +1507,12 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
         header_cells.append("")
     header_cells.append(Paragraph(
         "FeGrro<br/>"
+        "<font size=8 color='#444444'>NIP: 589-206-61-74</font><br/>"
+        "<font size=8 color='#444444'>Tel: 885 213 273</font><br/>"
         "<font size=8 color='#666666'>biuro@fegrro.pl</font>",
         company_st,
     ))
-    header_tbl = Table([header_cells], colWidths=[30 * mm, 150 * mm])
+    header_tbl = Table([header_cells], colWidths=[40 * mm, 140 * mm])
     header_tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (1, 0), (1, 0), "RIGHT"),
@@ -1649,7 +1654,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
 
     tbl = Table(
         table_data,
-        colWidths=[12 * mm, 92 * mm, 18 * mm, 14 * mm, 27 * mm, 27 * mm],
+        colWidths=[10 * mm, 102 * mm, 16 * mm, 12 * mm, 25 * mm, 25 * mm],
         repeatRows=1,
     )
     tbl.setStyle(TableStyle(tbl_styles))
@@ -1687,6 +1692,63 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ]))
             elements.append(wsk_tbl)
+
+    # iter95w: Sekcje "Oferta obejmuje" / "Oferta nie obejmuje"
+    w_doc2 = data["wycena"]
+    scope_inc = (w_doc2.get("scope_includes") or "").strip()
+    scope_exc = (w_doc2.get("scope_excludes") or "").strip()
+    if scope_inc or scope_exc:
+        elements.append(Spacer(1, 6 * mm))
+        scope_label_st = ParagraphStyle("scopelabel", parent=styles["Normal"], fontName=bold_font,
+                                        fontSize=10, textColor=colors.HexColor("#3F5235"),
+                                        spaceAfter=3)
+        scope_inc_st = ParagraphStyle("scopeinc", parent=styles["Normal"], fontName=base_font,
+                                       fontSize=9, textColor=colors.HexColor("#222222"),
+                                       leading=12, leftIndent=4)
+        scope_exc_st = ParagraphStyle("scopeexc", parent=styles["Normal"], fontName=base_font,
+                                       fontSize=9, textColor=colors.HexColor("#7A2E2E"),
+                                       leading=12, leftIndent=4)
+
+        def _scope_paragraph(text: str, style: ParagraphStyle):
+            lines = [ln.strip() for ln in text.replace("\r", "").split("\n") if ln.strip()]
+            if not lines:
+                return None
+            html = "<br/>".join(
+                (ln if ln.startswith(("&bull;", "\u2022", "-", "*")) else f"&bull; {ln}")
+                for ln in lines
+            )
+            return Paragraph(html, style)
+
+        if scope_inc:
+            elements.append(Paragraph("Oferta obejmuje", scope_label_st))
+            p = _scope_paragraph(scope_inc, scope_inc_st)
+            if p is not None:
+                box = Table([[p]], colWidths=[180 * mm])
+                box.setStyle(TableStyle([
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#5F7552")),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F2F7EC")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]))
+                elements.append(box)
+                elements.append(Spacer(1, 3 * mm))
+
+        if scope_exc:
+            elements.append(Paragraph("Oferta nie obejmuje", scope_label_st))
+            p = _scope_paragraph(scope_exc, scope_exc_st)
+            if p is not None:
+                box = Table([[p]], colWidths=[180 * mm])
+                box.setStyle(TableStyle([
+                    ("BOX", (0, 0), (-1, -1), 0.4, colors.HexColor("#9B2C2C")),
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FDF2F2")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                    ("TOPPADDING", (0, 0), (-1, -1), 5),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                ]))
+                elements.append(box)
 
     if include_notes:
         elements.append(Spacer(1, 8 * mm))
@@ -1751,22 +1813,28 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     wycena_name = data["wycena"].get("name", "")
     w_full = data["wycena"]
 
-    # iter95av: logo + naglowek firmowy
-    _xlsx_add_logo(ws, "A1", width=90, height=90)
+    # iter95w: logo + naglowek firmowy z NIP/telefonem
+    _xlsx_add_logo(ws, "A1", width=110, height=110)
     ws["B1"] = "FeGrro"
     ws["B1"].font = Font(bold=True, size=14, color="3F5235")
-    ws["B2"] = "biuro@fegrro.pl"
-    ws["B2"].font = Font(italic=True, size=9, color="666666")
-    ws.row_dimensions[1].height = 50
+    ws["B2"] = "NIP: 589-206-61-74"
+    ws["B2"].font = Font(size=10, color="444444")
+    ws["B3"] = "Tel: 885 213 273"
+    ws["B3"].font = Font(size=10, color="444444")
+    ws["B4"] = "biuro@fegrro.pl"
+    ws["B4"].font = Font(italic=True, size=9, color="666666")
+    ws.row_dimensions[1].height = 24
+    ws.row_dimensions[2].height = 18
+    ws.row_dimensions[3].height = 18
 
-    ws["A4"] = f"Oferta: {wycena_name}"
-    ws["A4"].font = Font(bold=True, size=14, color="3F5235")
-    ws.merge_cells("A4:F4")
-    ws["A5"] = f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}"
-    ws["A5"].font = Font(italic=True, size=9, color="888888")
-    ws.merge_cells("A5:F5")
+    ws["A6"] = f"Oferta: {wycena_name}"
+    ws["A6"].font = Font(bold=True, size=14, color="3F5235")
+    ws.merge_cells("A6:F6")
+    ws["A7"] = f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}"
+    ws["A7"].font = Font(italic=True, size=9, color="888888")
+    ws.merge_cells("A7:F7")
 
-    r = 7
+    r = 9
     # adresat
     client_name = (w_full.get("client_name") or "").strip()
     client_nip = (w_full.get("client_nip") or "").strip()
@@ -1850,16 +1918,24 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
             qty = float(pe["qty"] or 0)
             wartosc = float(pe["budzet"] or 0)
             cena = wartosc / qty if qty > 0 else 0
-            ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center")
-            ws.cell(row=r, column=2, value=p.get("name", ""))
+            ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center", vertical="center")
+            name_cell = ws.cell(row=r, column=2, value=p.get("name", ""))
+            name_cell.alignment = Alignment(wrap_text=True, vertical="center")
             ws.cell(row=r, column=3, value=qty).number_format = '#,##0.00'
-            ws.cell(row=r, column=4, value=p.get("unit") or "").alignment = Alignment(horizontal="center")
+            ws.cell(row=r, column=3).alignment = Alignment(horizontal="right", vertical="center")
+            ws.cell(row=r, column=4, value=p.get("unit") or "").alignment = Alignment(horizontal="center", vertical="center")
             ws.cell(row=r, column=5, value=cena).number_format = '#,##0.00" zł"'
+            ws.cell(row=r, column=5).alignment = Alignment(horizontal="right", vertical="center")
             # iter95ap: AKTYWNA FORMULA wartosc = ilosc * cena
             ws.cell(row=r, column=6, value=f"=C{r}*E{r}").number_format = '#,##0.00" zł"'
             ws.cell(row=r, column=6).font = Font(bold=True)
+            ws.cell(row=r, column=6).alignment = Alignment(horizontal="right", vertical="center")
             for col in range(1, 7):
                 ws.cell(row=r, column=col).border = border
+            # iter95w: auto-rozmiar wiersza dla dlugich nazw
+            name_len = len(p.get("name", "") or "")
+            if name_len > 50:
+                ws.row_dimensions[r].height = min(60, 18 + (name_len // 40) * 12)
             if first_pos_row is None:
                 first_pos_row = r
             last_pos_row = r
@@ -1916,9 +1992,46 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
         ws.cell(row=r, column=1).alignment = Alignment(wrap_text=True, vertical="top")
         ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
         ws.row_dimensions[r].height = 40
+        r += 2
 
-    # szerokosci kolumn (A=14 bo logo zajmuje)
-    widths = {"A": 14, "B": 45, "C": 12, "D": 8, "E": 14, "F": 16}
+    # iter95w: Oferta obejmuje / nie obejmuje
+    scope_inc = (w_full.get("scope_includes") or "").strip()
+    scope_exc = (w_full.get("scope_excludes") or "").strip()
+
+    def _render_scope_xlsx(title: str, text: str, color_text: str, color_bg: str, color_border: str):
+        nonlocal r
+        ws.cell(row=r, column=1, value=title).font = Font(bold=True, size=11, color="3F5235")
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+        r += 1
+        lines = [ln.strip() for ln in (text or "").replace("\r", "").split("\n") if ln.strip()]
+        bullet_text = "\n".join(
+            (ln if ln.startswith(("\u2022", "-", "*")) else f"\u2022 {ln}") for ln in lines
+        )
+        cell = ws.cell(row=r, column=1, value=bullet_text)
+        cell.font = Font(size=10, color=color_text)
+        cell.alignment = Alignment(wrap_text=True, vertical="top")
+        cell.fill = PatternFill(start_color=color_bg, end_color=color_bg, fill_type="solid")
+        thin_border = Border(
+            left=Side(border_style="thin", color=color_border),
+            right=Side(border_style="thin", color=color_border),
+            top=Side(border_style="thin", color=color_border),
+            bottom=Side(border_style="thin", color=color_border),
+        )
+        ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=6)
+        for col in range(1, 7):
+            ws.cell(row=r, column=col).border = thin_border
+            ws.cell(row=r, column=col).fill = PatternFill(start_color=color_bg, end_color=color_bg, fill_type="solid")
+        # wysokosc wiersza wg ilosci linii
+        ws.row_dimensions[r].height = max(28, len(lines) * 18 + 8)
+        r += 2
+
+    if scope_inc:
+        _render_scope_xlsx("Oferta obejmuje", scope_inc, "222222", "F2F7EC", "5F7552")
+    if scope_exc:
+        _render_scope_xlsx("Oferta nie obejmuje", scope_exc, "7A2E2E", "FDF2F2", "9B2C2C")
+
+    # szerokosci kolumn - szersza kolumna Nazwa pozycji dla dlugich opisow
+    widths = {"A": 8, "B": 65, "C": 13, "D": 9, "E": 16, "F": 18}
     for col, w in widths.items():
         ws.column_dimensions[col].width = w
 

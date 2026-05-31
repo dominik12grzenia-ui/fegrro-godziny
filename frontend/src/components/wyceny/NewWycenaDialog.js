@@ -13,8 +13,24 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
   const [clientName, setClientName] = useState('');
   const [clientNip, setClientNip] = useState('');
   const [clientAddress, setClientAddress] = useState('');
+  // iter95w: date picker + auto-build nazwy "Wycena {KLIENT}/FeGrro {DD.MM.RRRR}"
+  const [wycenaDate, setWycenaDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(false);
   const [creating, setCreating] = useState(false);
   const [gusLoading, setGusLoading] = useState(false);
+
+  // iter95w: auto-build nazwy gdy klient/data sie zmienia (chyba ze user edytowal recznie)
+  useEffect(() => {
+    if (nameManuallyEdited) return;
+    const dateFmt = (() => {
+      try {
+        const [y, m, d] = wycenaDate.split('-');
+        return `${d}.${m}.${y}`;
+      } catch { return ''; }
+    })();
+    const klient = clientName.trim() || 'Klient';
+    setName(`Wycena ${klient}/FeGrro ${dateFmt}`);
+  }, [clientName, wycenaDate, nameManuallyEdited]);
 
   useEffect(() => {
     api.get('/wyceny/clients')
@@ -79,12 +95,30 @@ export const NewWycenaDialog = ({ onClose, onCreated }) => {
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <label className="text-[10px] uppercase text-[#CBD5E1]">Nazwa wyceny / projektu *</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)}
-              placeholder="np. Dom jednorodzinny — Warszawa, ul. Przykładowa"
-              className="bg-[#152033] border-[#3D5378]"
-              data-testid="new-wycena-name" autoFocus />
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="sm:col-span-2">
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Nazwa wyceny *</label>
+              <Input value={name}
+                onChange={(e) => { setName(e.target.value); setNameManuallyEdited(true); }}
+                placeholder="Wycena {Klient}/FeGrro {DD.MM.RRRR}"
+                className="bg-[#152033] border-[#3D5378]"
+                data-testid="new-wycena-name" autoFocus />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5">
+                {nameManuallyEdited
+                  ? 'Edytujesz ręcznie — auto-uzupełnianie wyłączone'
+                  : 'Nazwa buduje się sama z klienta + daty poniżej. Edytuj, jeśli chcesz inną.'}
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase text-[#CBD5E1]">Data wyceny *</label>
+              <Input
+                type="date"
+                value={wycenaDate}
+                onChange={(e) => setWycenaDate(e.target.value)}
+                className="bg-[#152033] border-[#3D5378]"
+                data-testid="new-wycena-date"
+              />
+            </div>
           </div>
           <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 space-y-2">
             <div className="text-[10px] uppercase text-[#9DBC85] font-semibold">

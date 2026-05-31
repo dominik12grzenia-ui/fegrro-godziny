@@ -874,6 +874,37 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
             </div>
           </div>
         )}
+        {/* iter95w: Zakres oferty - co obejmuje / czego nie obejmuje */}
+        {clientPanelOpen && (
+          <div className="grid grid-cols-12 gap-2 mt-3" data-testid="wycena-scope-block">
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-[10px] text-[#9DBC85] uppercase font-bold">✓ Oferta obejmuje</label>
+              <textarea
+                key={`inc-${w.id}`}
+                defaultValue={w.scope_includes || ''}
+                onBlur={(e) => saveText('scope_includes', e.target.value)}
+                placeholder="np.&#10;Wykonanie izolacji bitumicznej&#10;Roboty fundamentowe wg projektu&#10;Transport materiałów do 50km"
+                rows={4}
+                className="w-full bg-[#1E2A44] border border-[#5F7552]/60 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#9DBC85] resize-y"
+                data-testid="wycena-scope-includes"
+              />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5">Jedna pozycja na linię — zostanie wypunktowana w ofercie.</div>
+            </div>
+            <div className="col-span-12 sm:col-span-6">
+              <label className="text-[10px] text-[#FCA5A5] uppercase font-bold">✗ Oferta nie obejmuje</label>
+              <textarea
+                key={`exc-${w.id}`}
+                defaultValue={w.scope_excludes || ''}
+                onBlur={(e) => saveText('scope_excludes', e.target.value)}
+                placeholder="np.&#10;Prac projektowych&#10;Materiałów wykończeniowych&#10;Odbiorów technicznych"
+                rows={4}
+                className="w-full bg-[#1E2A44] border border-[#9B2C2C]/60 rounded px-2 py-1.5 text-xs text-white outline-none focus:border-[#FCA5A5] resize-y"
+                data-testid="wycena-scope-excludes"
+              />
+              <div className="text-[10px] text-[#94A3B8] mt-0.5">Wyraźna informacja dla klienta — pojawi się w PDF/Excel oferty.</div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="overflow-x-auto border border-[#3D5378] rounded">
