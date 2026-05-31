@@ -2394,6 +2394,32 @@ async def wyceny_import_apply(
             m = re.search(r"-?\d+(?:\.\d+)?", s)
             return float(m.group(0)) if m else None
 
+    def normalize_unit(v: str) -> Optional[str]:
+        """iter95v: znormalizuj jednostke do formatu uzywanego przez UI.
+        m2 -> m², m3 -> m³, godz/h -> godz, dni -> dzien itp.
+        """
+        if not v:
+            return None
+        s = str(v).strip().lower().replace(" ", "")
+        # Usun kropki ze skroten
+        s = s.replace(".", "")
+        # Mapowania wzajemnie zamienne
+        aliases = {
+            "m2": "m\u00b2", "m^2": "m\u00b2", "m\u00b2": "m\u00b2",
+            "m3": "m\u00b3", "m^3": "m\u00b3", "m\u00b3": "m\u00b3",
+            "mb": "mb", "mp": "mb",
+            "szt": "szt", "sztuk": "szt", "pcs": "szt",
+            "kg": "kg", "kilogram": "kg",
+            "t": "t", "tona": "t", "ton": "t",
+            "godz": "godz", "h": "godz", "rgodz": "godz", "rg": "godz",
+            "dzien": "dzie\u0144", "dzień": "dzie\u0144", "dni": "dzie\u0144", "day": "dzie\u0144", "d": "dzie\u0144",
+            "m-c": "m-c", "mc": "m-c", "miesiac": "m-c", "miesi\u0105c": "m-c", "month": "m-c",
+            "kpl": "kpl", "komplet": "kpl",
+            "l": "l", "litr": "l",
+            "m": "mb",  # samo "m" to zwykle metr biezacy
+        }
+        return aliases.get(s, str(v).strip())  # zachowaj oryginal gdy nie znamy
+
     # Sortuj rows wedlug row_index zeby etapy/pozycje zachowaly kolejnosc
     mapped = sorted(payload.rows, key=lambda r: r.row_index)
 
@@ -2453,7 +2479,7 @@ async def wyceny_import_apply(
                 "name": name,
                 "order": pos_order,
                 "quantity": to_float(cell(m.row_index, payload.quantity_col)) if payload.quantity_col is not None else None,
-                "unit": cell(m.row_index, payload.unit_col) or None if payload.unit_col is not None else None,
+                "unit": normalize_unit(cell(m.row_index, payload.unit_col)) if payload.unit_col is not None else None,
                 "kaucja_gir_pct": 2.0,
                 "kaucja_dw_pct": 2.0,
                 "koszt_budowy_pct": 2.0,

@@ -102,6 +102,10 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
           className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-center text-[#F1F5F9] px-1 outline-none focus:border-[#D4AF37]"
           data-testid={`pos-unit-${position.id}`}>
           {UNITS.map((u) => <option key={u || 'empty'} value={u}>{u || '—'}</option>)}
+          {/* iter95v: zachowaj custom unit zaimportowany z Excela jezeli nie jest w UNITS */}
+          {edit.unit && !UNITS.includes(edit.unit) && (
+            <option key="custom" value={edit.unit}>{edit.unit}</option>
+          )}
         </select>
       </Td>
       <Td right className="text-[#CBD5E1]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>

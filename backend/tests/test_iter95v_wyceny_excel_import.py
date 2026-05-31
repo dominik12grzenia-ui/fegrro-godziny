@@ -238,7 +238,7 @@ class TestApply:
         assert len(s1_pos) == 2
         assert len(s2_pos) == 1
         assert s1_pos[0]["name"] == "Poz 1"
-        assert s1_pos[0]["unit"] == "m2"
+        assert s1_pos[0]["unit"] == "m\u00b2"  # iter95v: normalized m2 -> m²
         assert s1_pos[0]["quantity"] == 12.5
         assert s1_pos[1]["name"] == "Poz 2"
         assert s1_pos[1]["quantity"] == 3.0
