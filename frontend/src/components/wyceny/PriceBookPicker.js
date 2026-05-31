@@ -11,6 +11,7 @@ import { QuickFillRow } from './QuickFillRow';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput,
+  computeMaterialPerWorkUnit,
 } from './_shared';
 
 export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) => {

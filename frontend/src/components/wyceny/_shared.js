@@ -13,6 +13,42 @@ export const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipmen
 
 export const UNITS = ['', 'mb', 'm²', 'm³', 'szt', 'kg', 't', 'godz', 'dzień', 'm-c', 'kpl'];
 
+// iter95bi: PRZENIESIONE z Wyceny.js (zguba po refaktorze iter95bc).
+// Stale dla cennikow materialow + helper przelicznika ceny na jednostke wyrobu.
+export const MATERIAL_SUB_CATS = ['izolacje', 'betony', 'stal', 'murowane', 'drobnica', 'pozostałe'];
+
+export const PKG_UNITS = ['', 'kg', 'l', 'm²', 'm³', 'mb', 'szt', 'kpl', 't', 'rol', 'opak.'];
+
+// jd. do jd. = norma zuzycia (np. kg na 1 m2 ulozonej posadzki)
+export const ZAP_UNITS = [
+  '',
+  'kg/m²', 'kg/m³', 'kg/mb', 'kg/szt', 'kg/kpl',
+  'l/m²', 'l/m³', 'l/mb', 'l/szt',
+  'm²/m²', 'm²/m³', 'm²/mb', 'm²/szt',
+  'm³/m²', 'm³/m³', 'm³/mb', 'm³/szt',
+  'mb/m²', 'mb/m³', 'mb/mb', 'mb/szt',
+  'szt/m²', 'szt/m³', 'szt/mb', 'szt/szt', 'szt/kpl',
+  't/m³',
+];
+
+// ile kosztuje material na 1 jednostke wyrobu (np. m² sciany).
+// Wzor: (cena_oferty + koszty_inne) × zapotrzebowanie / pkg_qty
+// Wymaga: zap_unit konczacy sie na "/" + workUnit (np. "kg/m²"), pkg_qty>0, zap>0.
+// Jezeli workUnit nie podany - uzyj sufiksu zap_unit jako workUnit (np. "kg/m²" -> "m²").
+export const computeMaterialPerWorkUnit = (it, workUnit = null) => {
+  if (!it) return null;
+  const zapUnit = it.zap_unit || '';
+  if (!zapUnit.includes('/')) return null;
+  const effectiveWorkUnit = workUnit || zapUnit.split('/')[1];
+  if (!effectiveWorkUnit) return null;
+  if (!zapUnit.endsWith('/' + effectiveWorkUnit)) return null;
+  const pkg = parseFloat(it.pkg_qty) || 0;
+  const zap = parseFloat(it.zapotrzebowanie) || 0;
+  if (pkg <= 0 || zap <= 0) return null;
+  const base = (parseFloat(it.unit_price_netto) || 0) + (parseFloat(it.koszty_inne_do_jd) || 0);
+  return { price: base * zap / pkg, workUnit: effectiveWorkUnit };
+};
+
 export const UNIT_DIM = {
   'm': { m: 1 }, 'cm': { m: 1, scale: 0.01 }, 'mm': { m: 1, scale: 0.001 },
   'mb': { m: 1 }, 'm²': { m: 2 }, 'm³': { m: 3 },

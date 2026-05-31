@@ -10,6 +10,7 @@ import { api } from '../../context/AuthContext';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput,
+  PKG_UNITS, ZAP_UNITS, computeMaterialPerWorkUnit,
 } from './_shared';
 
 export const QuickFillRow = ({ item, posUnit, onSaved, onCancel }) => {
