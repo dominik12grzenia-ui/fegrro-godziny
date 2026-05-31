@@ -738,6 +738,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           grandTotalOriginal={grandTotalOriginal}
           wskazniki={wskazniki}
           applyNegotiation={applyNegotiation}
+          saveMinMargin={(v) => saveDefault('min_margin_pct', v)}
         />
       )}
 

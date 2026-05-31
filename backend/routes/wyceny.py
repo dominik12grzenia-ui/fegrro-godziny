@@ -76,6 +76,9 @@ class WycenaUpdate(BaseModel):
     # iter95bm: tryb negocjacji - gdy True, ceny < price_min sa odrzucane (HTTP 400).
     # Auto-set price_min przy pierwszym wpisie dla materials/equipment.
     negotiation_mode: Optional[bool] = None
+    # iter95bn: prog ostrzegawczy marzy % w trybie negocjacji (default 10).
+    # Gdy marza po negocjacji spadnie ponizej, panel pokazuje czerwone ostrzezenie.
+    min_margin_pct: Optional[float] = None
 
 
 class StageCreate(BaseModel):
