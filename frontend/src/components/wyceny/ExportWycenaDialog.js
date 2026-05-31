@@ -6,13 +6,14 @@ import { FileText, FileSpreadsheet, FileDown, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 
-export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
+export const ExportWycenaDialog = ({ wycenaId, wycenaName, clientName, onClose }) => {
   const [detail, setDetail] = useState('positions');
   const [downloading, setDownloading] = useState(false);
   const [includeSurface, setIncludeSurface] = useState(true);
   const [includeWskazniki, setIncludeWskazniki] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(true);
   const [template, setTemplate] = useState('classic');  // iter95bh: szablon PDF dla klienta
+  const hasClient = !!(clientName && clientName.trim());  // iter95bj: dla ostrzezenia braku adresata
 
   const buildQuery = (extra = {}) => {
     const params = new URLSearchParams({ detail });
@@ -114,6 +115,18 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
         {detail === 'client' && (
           <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 -mt-1 space-y-2.5"
                data-testid="export-client-opts">
+            {/* iter95bj: ostrzezenie gdy brak danych klienta */}
+            {!hasClient && (
+              <div className="flex items-start gap-2 p-2 rounded bg-[#7A2E0C]/40 border border-[#F59E0B]"
+                   data-testid="export-no-client-warning">
+                <span className="text-[#F59E0B] text-base leading-none">⚠</span>
+                <div className="text-[11px] text-[#FCD34D] flex-1">
+                  <b>Brak danych klienta</b> — PDF nie będzie zawierał bloku adresata.
+                  Zamknij ten dialog i uzupełnij sekcję <b className="text-white">„Dane klienta"</b> nad listą etapów,
+                  by oferta wyglądała profesjonalnie.
+                </div>
+              </div>
+            )}
             <div className="text-[10px] uppercase text-[#9DBC85] font-semibold mb-1">
               Co załączyć w ofercie:
             </div>

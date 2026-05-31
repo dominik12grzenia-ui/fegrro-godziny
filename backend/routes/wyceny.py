@@ -1687,30 +1687,8 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     pc_pod = w_full.get("pc_podziemie_m2")
     pc_nad = w_full.get("pc_nadziemie_m2")
     pum = w_full.get("pum_m2")
-    any_surface = any(v not in (None, "", 0) for v in (pc, pc_pod, pc_nad, pum))
-    if include_surface and any_surface:
-        surf_label_st = ParagraphStyle("surflabel", parent=styles["Normal"], fontName=bold_font,
-                                       fontSize=9, textColor=colors.HexColor(cfg["primary_text"]), spaceAfter=2)
-        elements.append(Paragraph("Powierzchnie budynku", surf_label_st))
-        surf_rows = [["Powierzchnia", "Wartość"]]
-        if pc not in (None, "", 0): surf_rows.append(["Powierzchnia całkowita (PC)", f"{float(pc):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
-        if pc_pod not in (None, "", 0): surf_rows.append(["  ↓ w tym podziemie", f"{float(pc_pod):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
-        if pc_nad not in (None, "", 0): surf_rows.append(["  ↑ w tym nadziemie", f"{float(pc_nad):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
-        if pum not in (None, "", 0): surf_rows.append(["Powierzchnia użytkowa mieszkalna (PUM)", f"{float(pum):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
-        surf_tbl = Table(surf_rows, colWidths=[110 * mm, 40 * mm])
-        surf_tbl.setStyle(TableStyle([
-            ("FONT", (0, 0), (-1, -1), base_font, 9),
-            ("FONT", (0, 0), (-1, 0), bold_font, 9),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(cfg["primary"])),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(cfg["header_bg_alt"])]),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ]))
-        elements.append(surf_tbl)
-        elements.append(Spacer(1, 5 * mm))
+    # iter95bj: scalono "Powierzchnie budynku" + "Wskazniki kosztowe" w jedna tabele
+    # na DOLE oferty (po total pozycji). Zostala tylko 1 tabela: [Powierzchnia | m² | zł/m²]
 
     # Tabela: L.p. | Nazwa | Ilosc | Jedn. | Cena netto | Wartosc netto
     headers = ["L.p.", "Nazwa pozycji", "Ilość", "Jedn.", "Cena netto", "Wartość netto"]
@@ -1789,38 +1767,50 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     tbl.setStyle(TableStyle(tbl_styles))
     elements.append(tbl)
 
-    # iter95ap: sekcja Wskazniki kosztowe (zl/m2)
-    if include_wskazniki:
-        wsk_rows = []
-        if pc and float(pc) > 0:
-            wsk_rows.append(["PC — Powierzchnia całkowita", f"{total_netto / float(pc):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
-        if pc_pod and float(pc_pod) > 0:
-            wsk_rows.append(["PC↓ — Podziemie", f"{total_netto / float(pc_pod):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
-        if pc_nad and float(pc_nad) > 0:
-            wsk_rows.append(["PC↑ — Nadziemie", f"{total_netto / float(pc_nad):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
-        if pum and float(pum) > 0:
-            wsk_rows.append(["PUM — Pow. użytkowa mieszkalna", f"{total_netto / float(pum):,.2f}".replace(",", " ").replace(".", ",") + " zł/m²"])
-        if wsk_rows:
+    # iter95bj: scalona tabela "Powierzchnie i wskazniki kosztowe" na DOLE
+    # 3 kolumny: [Powierzchnia | m² | zł/m²] - bez duplikacji
+    any_surface = any(v not in (None, "", 0) for v in (pc, pc_pod, pc_nad, pum))
+    show_surface_block = (include_surface or include_wskazniki) and any_surface
+    if show_surface_block:
+        def _fmt_num(v, suffix):
+            return f"{float(v):,.2f}".replace(",", " ").replace(".", ",") + f" {suffix}"
+
+        def _zlm2(area):
+            if not area or float(area) <= 0:
+                return "—"
+            return _fmt_num(total_netto / float(area), "zł/m²")
+
+        surf_rows = [["Powierzchnia", "m²", "zł/m²"]]
+        if pc not in (None, "", 0):
+            surf_rows.append(["PC — Powierzchnia całkowita", _fmt_num(pc, "m²"), _zlm2(pc)])
+        if pc_pod not in (None, "", 0):
+            surf_rows.append(["  ↓ w tym podziemie", _fmt_num(pc_pod, "m²"), _zlm2(pc_pod)])
+        if pc_nad not in (None, "", 0):
+            surf_rows.append(["  ↑ w tym nadziemie", _fmt_num(pc_nad, "m²"), _zlm2(pc_nad)])
+        if pum not in (None, "", 0):
+            surf_rows.append(["PUM — Pow. użytkowa mieszkalna", _fmt_num(pum, "m²"), _zlm2(pum)])
+
+        if len(surf_rows) > 1:
             elements.append(Spacer(1, 5 * mm))
-            wsk_label_st = ParagraphStyle("wsklabel", parent=styles["Normal"], fontName=bold_font,
-                                          fontSize=9, textColor=colors.HexColor(cfg["primary_text"]), spaceAfter=2)
-            elements.append(Paragraph("Wskaźniki kosztowe", wsk_label_st))
-            wsk_data = [["Wskaźnik", "Wartość"]] + wsk_rows
-            wsk_tbl = Table(wsk_data, colWidths=[110 * mm, 40 * mm])
-            wsk_tbl.setStyle(TableStyle([
+            block_label_st = ParagraphStyle("blocklabel", parent=styles["Normal"], fontName=bold_font,
+                                            fontSize=9, textColor=colors.HexColor(cfg["primary_text"]), spaceAfter=2)
+            elements.append(Paragraph("Powierzchnie i wskaźniki kosztowe", block_label_st))
+            surf_tbl = Table(surf_rows, colWidths=[100 * mm, 40 * mm, 40 * mm])
+            surf_tbl.setStyle(TableStyle([
                 ("FONT", (0, 0), (-1, -1), base_font, 9),
                 ("FONT", (0, 0), (-1, 0), bold_font, 9),
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(cfg["primary"])),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
-                ("FONT", (1, 1), (1, -1), bold_font, 9),
-                ("TEXTCOLOR", (1, 1), (1, -1), colors.HexColor(cfg["primary_text"])),
+                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("ALIGN", (0, 0), (0, 0), "LEFT"),
+                ("FONT", (2, 1), (2, -1), bold_font, 9),
+                ("TEXTCOLOR", (2, 1), (2, -1), colors.HexColor(cfg["primary_text"])),
                 ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
                 ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(cfg["header_bg_alt"])]),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ]))
-            elements.append(wsk_tbl)
+            elements.append(surf_tbl)
 
     # iter95w: Sekcje "Oferta obejmuje" / "Oferta nie obejmuje"
     w_doc2 = data["wycena"]

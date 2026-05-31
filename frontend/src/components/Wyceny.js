@@ -1085,7 +1085,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         </Button>
       </div>
       {bomOpen && <BomDialog wycenaId={wycenaId} onClose={() => setBomOpen(false)} />}
-      {exportOpen && <ExportWycenaDialog wycenaId={wycenaId} wycenaName={w?.name} onClose={() => setExportOpen(false)} />}
+      {exportOpen && <ExportWycenaDialog wycenaId={wycenaId} wycenaName={w?.name} clientName={w?.client_name} onClose={() => setExportOpen(false)} />}
       {suppliersOpen && <SuppliersManagerDialog onClose={() => setSuppliersOpen(false)} />}
       {importOpen && (
         <ExcelImportDialog
