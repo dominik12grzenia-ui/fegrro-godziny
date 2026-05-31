@@ -77,6 +77,50 @@ async def gus_lookup(nip: str, _user: dict = Depends(get_current_admin)):
     }
 
 
+# iter95z: Lista zapisanych kontrahentow (dla autocomplete w nowej budowie)
+
+@router.get("/finance/kontrahenci")
+async def get_kontrahenci(_user: dict = Depends(get_current_admin)):
+    """Zwraca unikalne wpisy kontrahentow uzytych w finance_budowy (pola zamawiajacy + wykonawca).
+
+    Frontend uzywa do listy rozwijanej zeby nie wpisywac NIP-u kazdorazowo dla
+    znanego kontrahenta.
+    """
+    seen = set()
+    rows = []
+    cursor = db.finance_budowy.find(
+        {"$or": [
+            {"zamawiajacy": {"$exists": True, "$ne": ""}},
+            {"wykonawca": {"$exists": True, "$ne": ""}},
+        ]},
+        {"_id": 0, "zamawiajacy": 1, "wykonawca": 1},
+    )
+    async for d in cursor:
+        for field, kind in (("zamawiajacy", "zamawiajacy"), ("wykonawca", "wykonawca")):
+            text = (d.get(field) or "").strip()
+            if not text:
+                continue
+            key = text.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            # parsuj nip z 'NIP: 1234567890' na koncu
+            import re
+            m = re.search(r"NIP:?\s*(\d{10})", text)
+            nip = m.group(1) if m else None
+            # nazwa = czesc przed pierwszym przecinkiem
+            name = text.split(",", 1)[0].strip()
+            rows.append({
+                "name": name,
+                "nip": nip,
+                "text": text,
+                "kind": kind,
+            })
+    rows.sort(key=lambda x: x["name"].upper())
+    return {"rows": rows}
+
+
+
 # ============= KODY (seed z Excela Kody!B2-B34) =============
 # Kazdy kod ma: id (skrot uzywany w UI), nazwa, kategoria (PZS/PPE/PV/G/KP/KBB/KSB/KSP)
 KODY_SEED = [
