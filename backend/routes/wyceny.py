@@ -184,6 +184,9 @@ class PriceBookCreate(BaseModel):
     # iter95m: pola dla LABOR (robocizna)
     price_m2: Optional[float] = None         # cena za m2
     price_m3: Optional[float] = None         # cena za m3
+    # iter95bo: dodatkowa cena za dowolna jednostke (mb/szt/kpl/godz/dzien/kg/t)
+    price_other: Optional[float] = None
+    unit_other: Optional[str] = None         # np. "mb", "szt", "kpl", "godz"
     # iter95n: pola dla EQUIPMENT (sprzet)
     price_hour: Optional[float] = None       # koszt za godzine
     price_day: Optional[float] = None        # koszt za dzien
@@ -214,6 +217,9 @@ class PriceBookUpdate(BaseModel):
     # iter95m: labor
     price_m2: Optional[float] = None
     price_m3: Optional[float] = None
+    # iter95bo: trzecia jednostka (mb/szt/kpl/godz/dzien/kg/t)
+    price_other: Optional[float] = None
+    unit_other: Optional[str] = None
     # iter95n: equipment
     price_hour: Optional[float] = None
     price_day: Optional[float] = None
@@ -668,6 +674,9 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         # iter95m: labor
         "price_m2": payload.price_m2,
         "price_m3": payload.price_m3,
+        # iter95bo: trzecia jednostka labor (mb/szt/kpl/godz/dzien/kg/t)
+        "price_other": payload.price_other,
+        "unit_other": payload.unit_other,
         # iter95n: equipment
         "price_hour": payload.price_hour,
         "price_day": payload.price_day,
@@ -692,10 +701,10 @@ async def update_price_book(item_id: str, payload: PriceBookUpdate, _user: dict 
     raw = payload.dict(exclude_unset=True)
     updates = dict(raw)
     updates["updated_at"] = datetime.now().isoformat()
-    # iter95m: dla labor - sledz zmiany price_m2/price_m3 w price_history
+    # iter95m: dla labor - sledz zmiany price_m2/price_m3/price_other w price_history
     history_entries = []
     if existing.get("category") == "labor":
-        for field in ("price_m2", "price_m3", "unit_price_netto"):
+        for field in ("price_m2", "price_m3", "price_other", "unit_price_netto"):
             if field in raw:
                 old_val = existing.get(field)
                 new_val = raw[field]
