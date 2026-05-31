@@ -65,7 +65,7 @@ export const HoursTable = () => {
       const monthName = format(selectedMonth, 'MMMM', { locale: pl }).toUpperCase();
       const year = selectedMonth.getFullYear();
       const monthNum = selectedMonth.getMonth() + 1;
-      const [employeesRes, sitesRes, assignmentsRes, hoursRes, holidaysRes, advSummaryRes, penSummaryRes, absencesRes] = await Promise.all([
+      const [employeesRes, sitesRes, assignmentsRes, hoursRes, holidaysRes, advSummaryRes, penSummaryRes, absencesRes, budowyRes] = await Promise.all([
         api.get(`/employees?month=${monthNum}&year=${year}`),
         api.get('/sites'),
         api.get(`/assignments?month=${monthName}&year=${year}`),
@@ -73,14 +73,30 @@ export const HoursTable = () => {
         api.get(`/holidays?year=${year}`),
         api.get(`/advances/summary?month=${monthNum}&year=${year}`),
         api.get(`/penalties/summary?month=${monthNum}&year=${year}`),
-        api.get(`/absences?month=${monthNum}&year=${year}`)
+        api.get(`/absences?month=${monthNum}&year=${year}`),
+        api.get('/finance/budowy'),
       ]);
       setEmployees(employeesRes.data);
-      // Hours table shows:
-      //  1) sites synced from Excel (excel_column set), AND
-      //  2) sites linked to a finance_budowa (manual budowy added via Finanse → Budowy with show_in_hours)
-      // Manual lokalizacje without finance link are filtered out.
-      const onlyExcelBudowy = (sitesRes.data || []).filter((s) => s.excel_column || s.finance_budowa_id);
+      // iter95aa: Pokazujemy WYLACZNIE budowy zsynchronizowane z finance_budowy ktore:
+      //   1) maja show_in_hours = true
+      //   2) NIE sa archived
+      //   3) maja niepusta nazwe (eliminuje fantomy '0', '', null)
+      const allowedBudowyIds = new Set(
+        (budowyRes.data?.rows || [])
+          .filter((b) => b.show_in_hours && !b.is_archived && (b.name || '').trim() && (b.name || '').trim() !== '0')
+          .map((b) => b.id)
+      );
+      // Budowy musza tez przeniesc kolor z finance_budowy na sites (na wszelki wypadek)
+      const budowaColorMap = {};
+      (budowyRes.data?.rows || []).forEach((b) => { budowaColorMap[b.id] = b.color || null; });
+
+      const onlyExcelBudowy = (sitesRes.data || [])
+        .filter((s) => s.excel_column || allowedBudowyIds.has(s.finance_budowa_id))
+        .filter((s) => (s.name || '').trim() && (s.name || '').trim() !== '0')
+        .map((s) => ({
+          ...s,
+          color: s.color || (s.finance_budowa_id ? budowaColorMap[s.finance_budowa_id] : null),
+        }));
       setSites(onlyExcelBudowy);
       setAssignments(assignmentsRes.data);
       setHolidays(holidaysRes.data.holidays || []);
@@ -292,23 +308,33 @@ export const HoursTable = () => {
   };
 
   const getEmployeesPerSite = () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
+    // iter95aa: licz po CALYM widocznym miesiacu (nie tylko 'dziś')
+    // Wczesniej liczylo tylko na dzien dzisiejszy - dlatego user widzial 35 'nieprzypisanych'
+    // gdy wiekszosc miala przypisania na inne dni miesiaca.
     const counts = {};
-    const assignedToday = new Set();
+    const assignedAnyDay = new Set();
     sites.forEach(site => { counts[site.id] = new Set(); });
-    // Use getCellAssignment (same logic as cell colors) - last assignment wins
+    // Jezeli employee ma JAKIEKOLWIEK przypisanie w widocznym miesiacu - liczy sie jako 'przypisany'
     for (const emp of employees) {
-      const assignment = getCellAssignment(emp.id, today);
-      if (assignment && assignment.site_id && counts[assignment.site_id]) {
-        counts[assignment.site_id].add(emp.id);
-        assignedToday.add(emp.id);
-      }
+      const datesByEmp = (assignments || []).filter((a) => a.employee_id === emp.id);
+      const sitesForEmp = new Set();
+      datesByEmp.forEach((a) => {
+        if (a.site_id && counts[a.site_id]) {
+          sitesForEmp.add(a.site_id);
+        }
+      });
+      // Uwzglednij pending (jeszcze nie zapisane)
+      Object.values(pendingAssignments || {}).forEach((siteId) => {
+        if (counts[siteId]) sitesForEmp.add(siteId);
+      });
+      sitesForEmp.forEach((sid) => counts[sid].add(emp.id));
+      if (sitesForEmp.size > 0) assignedAnyDay.add(emp.id);
     }
     const result = {};
     for (const [siteId, empSet] of Object.entries(counts)) {
       result[siteId] = empSet.size;
     }
-    result._unassigned = employees.filter(e => !assignedToday.has(e.id)).length;
+    result._unassigned = employees.filter(e => !assignedAnyDay.has(e.id)).length;
     return result;
   };
 
@@ -1115,7 +1141,7 @@ export const HoursTable = () => {
                 </div>
                 {sites.map((site, idx) => (
                   <div key={site.id} className="flex items-center gap-1.5">
-                    <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] }} />
+                    <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: site.color || SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] }} />
                     <span className="text-[#CBD5E1]">{site.name}</span>
                   </div>
                 ))}
