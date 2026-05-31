@@ -2354,6 +2354,78 @@ class NegotiationApplyRequest(BaseModel):
     snapshot_label: Optional[str] = None  # etykieta auto-snapshota
 
 
+# iter95bs: refresh ceny z cennika dla wszystkich linii w wycenie
+@router.post("/wyceny/{wycena_id}/refresh-prices")
+async def refresh_wycena_prices(
+    wycena_id: str,
+    current_user: dict = Depends(get_current_admin),
+):
+    """Aktualizuje pola (name, unit_price_netto, price_min/max) we wszystkich liniach
+    wyceny ktore maja price_book_id - biorac aktualne wartosci z `wyceny_price_book`.
+    Zwraca licznik zaktualizowanych linii.
+    """
+    wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0, "id": 1})
+    if not wycena:
+        raise HTTPException(404, "Wycena nie istnieje")
+    lines_cursor = db.wyceny_lines.find(
+        {"wycena_id": wycena_id, "price_book_id": {"$ne": None}},
+        {"_id": 0},
+    )
+    updated_count = 0
+    skipped_count = 0
+    async for line in lines_cursor:
+        pb = await db.wyceny_price_book.find_one(
+            {"id": line["price_book_id"]}, {"_id": 0}
+        )
+        if not pb:
+            skipped_count += 1
+            continue
+        ltype = line.get("type")  # materials | labor | equipment
+        updates = {}
+        if pb.get("name") and pb["name"] != line.get("name"):
+            updates["name"] = pb["name"]
+        pb_min = pb.get("price_min")
+        pb_max = pb.get("price_max")
+        if pb_min is not None:
+            cur_min = line.get("price_min")
+            if ltype in ("materials", "equipment"):
+                new_min = max(float(cur_min), float(pb_min)) if cur_min is not None else float(pb_min)
+            else:
+                new_min = float(pb_min)
+            if cur_min != new_min:
+                updates["price_min"] = new_min
+        if pb_max is not None:
+            cur_max = line.get("price_max")
+            if cur_max != pb_max:
+                updates["price_max"] = float(pb_max)
+        new_price = None
+        if ltype == "labor":
+            lu = (line.get("unit") or "").strip()
+            if lu == "m²" and pb.get("price_m2") is not None:
+                new_price = float(pb["price_m2"])
+            elif lu == "m³" and pb.get("price_m3") is not None:
+                new_price = float(pb["price_m3"])
+            elif pb.get("unit_other") and pb["unit_other"] == lu and pb.get("price_other") is not None:
+                new_price = float(pb["price_other"])
+        else:
+            if pb.get("unit_price_netto") is not None:
+                new_price = float(pb["unit_price_netto"])
+        if new_price is not None and abs((line.get("unit_price_netto") or 0) - new_price) > 1e-9:
+            updates["unit_price_netto"] = new_price
+        if not updates:
+            skipped_count += 1
+            continue
+        updates["updated_at"] = datetime.now().isoformat()
+        await db.wyceny_lines.update_one({"id": line["id"]}, {"$set": updates})
+        updated_count += 1
+    return {
+        "updated": updated_count,
+        "skipped": skipped_count,
+        "total_linked": updated_count + skipped_count,
+    }
+
+
+
 @router.post("/wyceny/{wycena_id}/negotiation/apply")
 async def apply_negotiation(
     wycena_id: str,

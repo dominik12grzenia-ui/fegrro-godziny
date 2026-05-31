@@ -292,6 +292,29 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   });
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
+  // iter95bs: synchronizacja cen z cennikow
+  const [refreshingPrices, setRefreshingPrices] = useState(false);
+
+  const refreshPrices = async () => {
+    if (!wycenaId) return;
+    setRefreshingPrices(true);
+    try {
+      const r = await api.post(`/wyceny/${wycenaId}/refresh-prices`);
+      const { updated, skipped, total_linked } = r.data || {};
+      if (total_linked === 0) {
+        toast.info('Brak pozycji powiązanych z cennikiem (price_book_id).');
+      } else if (updated === 0) {
+        toast.info(`Wszystkie ${total_linked} powiązanych pozycji już aktualne.`);
+      } else {
+        toast.success(`Zaktualizowano ${updated} z ${total_linked} pozycji z cennika`);
+      }
+      await fetchData(true);
+    } catch (e) {
+      toast.error('Błąd synchronizacji: ' + (e.response?.data?.detail || e.message));
+    } finally {
+      setRefreshingPrices(false);
+    }
+  };
 
   const negFactors = useMemo(() => ({
     labor: 1 + (parseFloat(neg.labor) || 0) / 100,
@@ -698,6 +721,14 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           title="Historia wersji wyceny — przywróć poprzednią"
           data-testid="wycena-versions-btn">
           🕒 Wersje{snapshots.length > 0 ? ` (${snapshots.length})` : ''}
+        </Button>
+        {/* iter95bs: synchronizacja cen z cenników */}
+        <Button onClick={refreshPrices} variant="outline"
+          disabled={refreshingPrices}
+          className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10 shrink-0 disabled:opacity-50"
+          title="Pobierz aktualne ceny i nazwy z cenników materiałów / robocizny / sprzętu dla wszystkich pozycji"
+          data-testid="wycena-refresh-prices-btn">
+          🔄 {refreshingPrices ? 'Synchronizuję...' : 'Aktualizuj ceny'}
         </Button>
         <div className="text-right shrink-0 ml-auto">
           <div className="text-[10px] text-[#CBD5E1] uppercase">Budżet wyceny</div>
