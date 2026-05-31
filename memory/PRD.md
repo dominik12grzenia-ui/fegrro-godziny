@@ -1,3 +1,35 @@
+## Iteration 95v (2026-05) — Import wyceny z Excela
+
+### Implementacja
+**Backend** (`/app/backend/routes/wyceny.py`, ~+260 linii):
+- `POST /api/wyceny/import/preview` - parsuje XLSX (base64 z client) i zwraca preview wszystkich arkuszy:
+  - Limit 500 wierszy × 30 kolumn
+  - Każda komórka znormalizowana do stringa (z usunięciem trailing spaces, integer-floats konwertowane do int)
+  - Akceptuje data URI prefix (`data:application/...,base64`)
+- `POST /api/wyceny/{wycena_id}/import/apply` - tworzy etapy+pozycje wg mapowania klienta:
+  - `name_col` wymagane, `unit_col/quantity_col/notes_col` opcjonalne (None nie crashuje)
+  - `rows: [{row_index, role}]` gdzie role ∈ `stage|position|skip`
+  - Auto-tworzy default "Etap 1" gdy pozycje pojawiają się przed pierwszym etapem
+  - Polish number parser (`1 000,75` → 1000.75)
+  - Zachowuje `order` (kontynuuje numerację gdy wycena ma już etapy)
+- Admin-only
+
+**Frontend** (`/app/frontend/src/components/wyceny/ExcelImportDialog.js`, nowy ~360 linii):
+- 3-step dialog: upload → mapping → done
+- Auto-detekcja headera ("Lp/Nazwa/Jednostka/Ilość/Uwagi") + heurystyka klasyfikacji rzedow (etap vs pozycja na podstawie obecności jednostki/ilości)
+- Per-row toggle Etap/Pozycja/Pomiń z kolorowaniem (gold/green/grey)
+- 4 selecty kolumn z labelami A/B/C/D/E
+- Bulk operations + live counter (Etapy/Pozycje/Pominięto)
+- Embed w `Wyceny.js` - przycisk "Import z Excela" w toolbarze (data-testid='wycena-import-btn')
+
+### Test
+- Pytest: 13/13 PASS (`/app/backend/tests/test_iter95v_wyceny_excel_import.py`)
+- Frontend smoke 13/13 ✅
+- Screenshot end-to-end: upload→Step2 z auto-detect ✅ (Etapy:2, Pozycje:3, Pominięto:1)
+
+---
+
+
 ## Iteration 95u (2026-05) — Toggle widoczności Harmonogramu (per brygadzista)
 
 ### Implementacja
