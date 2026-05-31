@@ -2867,3 +2867,56 @@ async def save_scope_templates(
         upsert=True,
     )
     return {"templates": out_tpl}
+
+# iter95bq: zarzadzanie custom kategoriami robocizny
+LABOR_CATS_KEY = "wyceny_labor_custom_cats"
+
+
+@router.get("/wyceny/labor-categories")
+async def get_labor_categories(_user: dict = Depends(get_current_admin)):
+    """Zwraca {custom: [...]} z app_settings (default sa po stronie frontendu w LABOR_SUB_CATS)."""
+    doc = await db.app_settings.find_one({"key": LABOR_CATS_KEY}, {"_id": 0})
+    return {"custom": (doc or {}).get("categories", [])}
+
+
+@router.post("/wyceny/labor-categories")
+async def add_labor_category(payload: dict, _user: dict = Depends(get_current_admin)):
+    name = (payload.get("name") or "").strip()
+    if not name:
+        raise HTTPException(400, "Nazwa kategorii nie moze byc pusta")
+    if len(name) > 40:
+        raise HTTPException(400, "Nazwa kategorii max 40 znakow")
+    doc = await db.app_settings.find_one({"key": LABOR_CATS_KEY}, {"_id": 0}) or {}
+    cats = list(doc.get("categories", []))
+    if name in cats:
+        raise HTTPException(400, f"Kategoria '{name}' juz istnieje")
+    cats.append(name)
+    await db.app_settings.update_one(
+        {"key": LABOR_CATS_KEY},
+        {"$set": {"key": LABOR_CATS_KEY, "categories": cats,
+                  "updated_at": datetime.now().isoformat()}},
+        upsert=True,
+    )
+    return {"custom": cats}
+
+
+@router.delete("/wyceny/labor-categories/{name}")
+async def delete_labor_category(name: str, _user: dict = Depends(get_current_admin)):
+    # walidacja: czy nie ma pozycji w tej kategorii
+    count = await db.wyceny_price_book.count_documents(
+        {"category": "labor", "sub_category": name}
+    )
+    if count > 0:
+        raise HTTPException(
+            400,
+            f"Kategoria '{name}' ma {count} pozycji. Usun je najpierw lub przenies do innej kategorii.",
+        )
+    doc = await db.app_settings.find_one({"key": LABOR_CATS_KEY}, {"_id": 0}) or {}
+    cats = [c for c in doc.get("categories", []) if c != name]
+    await db.app_settings.update_one(
+        {"key": LABOR_CATS_KEY},
+        {"$set": {"key": LABOR_CATS_KEY, "categories": cats,
+                  "updated_at": datetime.now().isoformat()}},
+        upsert=True,
+    )
+    return {"custom": cats}
