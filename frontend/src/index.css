@@ -28,6 +28,18 @@ code, .font-mono {
     font-variant-numeric: tabular-nums;
 }
 
+/* iter95z: ukryj scrollbar zachowujac scroll (poziome paski zakladek) */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE/Edge */
+    scrollbar-width: none;     /* Firefox */
+}
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;             /* Chrome/Safari/Opera */
+    width: 0;
+    height: 0;
+}
+
+
 @layer base {
     :root {
         --background: 220 42% 14%; /* #152033 */

@@ -625,7 +625,7 @@ export const PayrollAdmin = () => {
           {loading ? (
             <div className="p-4"><SkeletonTable rows={8} cols={7} /></div>
           ) : (
-            <div className="overflow-x-auto scrollbar-thin">
+            <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-sm" data-testid="payroll-table">
                 <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs uppercase tracking-wider font-semibold">
                   <tr>

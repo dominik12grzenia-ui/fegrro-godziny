@@ -582,7 +582,7 @@ export const AdminDashboard = () => {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-thin">
+          <div className="overflow-x-auto overflow-y-hidden -mx-1 px-1 scrollbar-hide">
             <TabsList className="inline-flex w-auto min-w-max gap-1 flex-nowrap bg-[#243049] p-1 border border-[#3D5378] rounded-lg">
               <TabsTrigger value="sites" data-testid="sites-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">Lokalizacje</TabsTrigger>
               <TabsTrigger value="foremen" data-testid="foremen-tab" className="whitespace-nowrap shrink-0 rounded-md data-[state=active]:bg-[#3D5378] data-[state=active]:text-white transition-all text-[#CBD5E1]">
