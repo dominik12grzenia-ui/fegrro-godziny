@@ -1,3 +1,45 @@
+## Iteration 95bx (2026-02) — Bug fix: HTTP 500 dla wycen z polskimi znakami w nazwie
+
+### Problem (P0 KRYTYCZNY)
+User: pobieranie wyceny ALLCON BUDOWNICTWO zwracało `Internal Server Error` (HTTP 500, 21 bajtów plain text) — także po deployu iter95bv + iter95bw. Stacktrace w logach backend:
+```
+UnicodeEncodeError: 'latin-1' codec can't encode character '\u0141' in position 58: ordinal not in range(256)
+```
+
+### Root cause
+**Starlette koduje wszystkie HTTP headers jako Latin-1** (RFC 7230). Nazwa wyceny `Wycena ALLCON BUDOWNICTWO SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ` zawiera `Ł` (U+0141), `Ó` (U+00D3), `Ą` (U+0104). Filename trafiał do `Content-Disposition: attachment; filename="..."` → Starlette próbował `v.encode("latin-1")` → `UnicodeEncodeError` → unhandled exception → FastAPI zwraca generyczne `Internal Server Error` plain text 21 bajtów. **`try/except` z iter95bw nie pomógł** bo wyjątek leciał DOPIERO przy konstrukcji `StreamingResponse`, czyli już PO opuszczeniu bloku try.
+
+### Fix `/app/backend/routes/wyceny.py`
+
+**1. `_safe_content_disposition(disposition, filename)`** — nowy helper który buduje header zgodny z RFC 5987:
+```
+Content-Disposition: attachment;
+  filename="ASCII_fallback_SPOLKA_Z_OGRANICZONA.pdf";
+  filename*=UTF-8''Wycena_SP%C3%93%C5%81KA_Z_OGRANICZON%C4%84.pdf
+```
+- ASCII fallback: transliteracja PL (`Ł`→`L`, `Ó`→`O`, `Ą`→`A` itd.) — bezpieczne dla Latin-1
+- UTF-8 encoded version (`filename*=UTF-8''...`) — nowoczesne przeglądarki preferują tę wersję i wyświetlają oryginalną polską nazwę
+
+**2. Zastosowane w 4 miejscach**: `_generate_wycena_pdf_bytes` route, `_generate_wycena_client_pdf_bytes` route, XLSX route, BOM PDF route.
+
+**3. Dodatkowo (iter95bx-fonts)** — bundled font `LiberationSans-Regular.ttf` + `Bold.ttf` w `/app/backend/assets/fonts/` (~277 kB w sumie). Nowy helper `_register_pdf_fonts()` ze fallback chain: bundled → systemowy DejaVu → systemowy Liberation → Helvetica + transliteracja PL. Zapobiega innym potencjalnym crashom ReportLab gdy Render Docker image nie ma systemowych fontów.
+
+**4. `_pdf_text(text)`** — auto-transliteracja PL → ASCII gdy fonty fallback. Wszystkie 9 miejsc gdzie user-string trafia do `Paragraph()` zaktualizowane (linie 1560-2049).
+
+### Test (preview backend)
+4/4 PASS dla skopiowanej kopii wyceny ALLCON BUDOWNICTWO z polskimi znakami:
+- PDF positions: 200 / 77 kB
+- PDF client premium: 200 / 63 kB
+- PDF full: 200 / 77 kB
+- XLSX client: 200 / 30 kB
+- Content-Disposition: ASCII filename + UTF-8 encoded version
+
+### Bonus
+Diagnostyka prod backendu `fegrro-backend.onrender.com` via curl z tokenem usera — fix wymaga ponownego pushu do GitHub + redeploy na Render (iter95bv jest już deployed, iter95bw + bx jeszcze nie).
+
+---
+
+
 ## Iteration 95bw (2026-02) — Bug fix: "Internal Server Error" przy PDF/XLSX wycen ze znakami `<` `>` `&`
 
 ### Problem (P0 — krytyczny dla biznesu)

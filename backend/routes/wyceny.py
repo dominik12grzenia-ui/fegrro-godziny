@@ -844,7 +844,7 @@ async def export_bom_xlsx(
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _safe_content_disposition("attachment", filename)},
     )
 
 
@@ -874,6 +874,115 @@ def _pdf_safe(text) -> str:
     # Newline -> <br/> (Paragraph tego nie robi sam)
     s = s.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br/>")
     return s
+
+
+# iter95bx: bezpieczna rejestracja fontu z polskimi znakami w PDF.
+# PROBLEM: ReportLab fallbackuje do Helvetica gdy nie znajdzie TTF -> Helvetica
+# nie obsluguje polskich znakow (ą, ę, ł, ż, ś, ć, ó, ź, ń, ", ², ³) i wywala
+# `KeyError` / `UnicodeEncodeError` przy renderowaniu Paragraph z polskim tekstem.
+# Render.com / niektore Docker images NIE MAJA /usr/share/fonts/truetype/liberation/
+# zainstalowanego -> kazda wycena z polskimi znakami w nazwie konczy sie 500.
+#
+# Rozwiazanie: bundlujemy LiberationSans (regular + bold) w /app/backend/assets/fonts/
+# i probujemy zarejestrowac w kolejnosci:
+#   1. bundled (zawsze obecny - dziala na kazdym deployu)
+#   2. systemowy DejaVu (dev env)
+#   3. systemowy Liberation (Ubuntu dev)
+#   4. fallback: Helvetica + transliteracja polskich znakow do ASCII
+#
+# Wywolywane raz na startup modulu (zamiast w kazdej funkcji generatora PDF).
+_PL_TO_ASCII = str.maketrans({
+    "ą": "a", "ę": "e", "ł": "l", "ż": "z", "ź": "z", "ś": "s", "ć": "c", "ó": "o", "ń": "n",
+    "Ą": "A", "Ę": "E", "Ł": "L", "Ż": "Z", "Ź": "Z", "Ś": "S", "Ć": "C", "Ó": "O", "Ń": "N",
+    "²": "2", "³": "3", "°": " stopni ",
+})
+
+_PDF_FONTS_REGISTERED = None  # (base_font, bold_font, supports_polish)
+
+
+def _register_pdf_fonts():
+    """Rejestruje fonty PDF raz. Zwraca (base, bold, supports_polish_unicode).
+    `supports_polish_unicode=True` gdy TTF zostal zaladowany; False -> trzeba
+    transliterowac polskie znaki do ASCII zeby Helvetica zadzialala.
+    """
+    global _PDF_FONTS_REGISTERED
+    if _PDF_FONTS_REGISTERED is not None:
+        return _PDF_FONTS_REGISTERED
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+    import os as _os
+
+    _backend_dir = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _bundled = _os.path.join(_backend_dir, "assets", "fonts")
+
+    regular_candidates = [
+        _os.path.join(_bundled, "LiberationSans-Regular.ttf"),  # bundled (priority)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ]
+    bold_candidates = [
+        _os.path.join(_bundled, "LiberationSans-Bold.ttf"),  # bundled (priority)
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
+    ]
+
+    base_font, bold_font = "Helvetica", "Helvetica-Bold"
+    supports_unicode = False
+    for fp in regular_candidates:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("PDFBase", fp))
+                base_font = "PDFBase"
+                supports_unicode = True
+                logger.info("PDF font registered (regular): %s", fp)
+                break
+            except Exception as e:
+                logger.warning("Failed to register PDF font %s: %s", fp, e)
+    for fp in bold_candidates:
+        if _os.path.exists(fp):
+            try:
+                pdfmetrics.registerFont(TTFont("PDFBaseBold", fp))
+                bold_font = "PDFBaseBold"
+                break
+            except Exception as e:
+                logger.warning("Failed to register PDF bold font %s: %s", fp, e)
+
+    if not supports_unicode:
+        logger.error(
+            "PDF generator FALLBACK to Helvetica - polskie znaki beda transliterowane do ASCII. "
+            "Dodaj /app/backend/assets/fonts/LiberationSans-Regular.ttf zeby naprawic."
+        )
+
+    _PDF_FONTS_REGISTERED = (base_font, bold_font, supports_unicode)
+    return _PDF_FONTS_REGISTERED
+
+
+def _pdf_text(text) -> str:
+    """Bezpieczny tekst do ReportLab: escape XML + transliteracja PL gdy fonty fallback."""
+    s = _pdf_safe(text)
+    _, _, supports_unicode = _register_pdf_fonts()
+    if not supports_unicode:
+        s = s.translate(_PL_TO_ASCII)
+    return s
+
+
+# iter95bx: bezpieczny Content-Disposition header dla plikow z polskimi znakami.
+# PROBLEM: Starlette koduje HTTP headers jako latin-1 (RFC 7230) -> nazwy plikow
+# z `Ł`, `ó`, `ś` itd. rzucaja UnicodeEncodeError -> HTTP 500.
+# ROZWIAZANIE: RFC 5987 + ASCII-only fallback (oba w jednym headerze).
+# Przegladarki preferuja `filename*=UTF-8''...` z procentowym kodowaniem.
+def _safe_content_disposition(disposition: str, filename: str) -> str:
+    """Buduje `Content-Disposition: <disposition>; filename="<ascii>"; filename*=UTF-8''<encoded>`."""
+    import urllib.parse
+    # ASCII-only fallback (Latin-1 safe) - transliteracja PL
+    ascii_name = (filename or "plik").translate(_PL_TO_ASCII)
+    # Usun wszystko poza ASCII printable
+    ascii_name = "".join(c if 32 <= ord(c) < 127 and c != '"' else "_" for c in ascii_name)
+    # RFC 5987 encoded version dla nowoczesnych przegladarek (UTF-8)
+    utf8_encoded = urllib.parse.quote(filename or "plik", safe="")
+    return f'{disposition}; filename="{ascii_name}"; filename*=UTF-8\'\'{utf8_encoded}'
 
 
 
@@ -989,7 +1098,7 @@ async def export_bom_pdf(
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _safe_content_disposition("attachment", filename)},
     )
 
 
@@ -1001,32 +1110,8 @@ def _generate_bom_pdf_bytes(data: dict):
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    import os as _os
-    font_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-    ]
-    font_bold_paths = [
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/dejavu/DejaVuSans-Bold.ttf",
-        "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    ]
-    base_font, bold_font = "Helvetica", "Helvetica-Bold"
-    for fp in font_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
-            except Exception:
-                pass
-    for fp in font_bold_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
-            except Exception:
-                pass
+    # iter95bx: jeden helper rejestrujacy bundled font (PL znaki)
+    base_font, bold_font, _ = _register_pdf_fonts()
     buf = BytesIO()
     # iter95ar: PDF zapytania ZAWSZE pionowo (A4 portrait), bez kolumny "Termin"
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=12 * mm, leftMargin=12 * mm,
@@ -1473,22 +1558,8 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    import os as _os
-    font_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
-    font_bold_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
-    base_font, bold_font = "Helvetica", "Helvetica-Bold"
-    for fp in font_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
-            except Exception: pass
-    for fp in font_bold_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
-            except Exception: pass
+    # iter95bx: jeden helper rejestrujacy bundled font (PL znaki)
+    base_font, bold_font, _ = _register_pdf_fonts()
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=landscape(A4), rightMargin=8 * mm, leftMargin=8 * mm,
                             topMargin=10 * mm, bottomMargin=10 * mm)
@@ -1503,7 +1574,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     from reportlab.platypus import Image as RLImage
     logo_path = _get_logo_path()
     title_para = Paragraph(
-        f"<b>Wycena: {_pdf_safe(wycena_name)}</b><br/>"
+        f"<b>Wycena: {_pdf_text(wycena_name)}</b><br/>"
         f"<font size=9 color='#666666'>Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: "
         + ("Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)") + "</font>",
         ParagraphStyle("ht", parent=styles["Normal"], fontName=base_font, fontSize=13,
@@ -1547,7 +1618,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
             code = f"{st_idx}.{p_idx}"
             row_styles.append((len(table_data), 'pos'))
             table_data.append([
-                code, Paragraph(_pdf_safe(p.get("name", "")), cell_b),
+                code, Paragraph(_pdf_text(p.get("name", "")), cell_b),
                 f"{pe['qty']:.2f}".replace(".", ","), p.get("unit") or "",
                 f"{pe['cena']:.2f}".replace(".", ","),
                 "—", "—",
@@ -1556,7 +1627,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
                 f"{pe['koszt_budowy']:.2f}".replace(".", ","),
                 f"{pe['budzet_zwolniony']:.2f}".replace(".", ","),
                 f"{pe['budzet']:.2f}".replace(".", ","),
-                Paragraph(_pdf_safe(pe["uwagi"]), cell_st),
+                Paragraph(_pdf_text(pe["uwagi"]), cell_st),
             ])
             total_budzet += pe["budzet"]
             if detail == "full":
@@ -1568,7 +1639,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
                     type_label = {"materials": "Materiał", "labor": "Robocizna", "equipment": "Sprzęt"}.get(s.get("type"), "")
                     row_styles.append((len(table_data), 'sub'))
                     table_data.append([
-                        sub_code, Paragraph(f"\u21B3 {_pdf_safe(s.get('name', ''))}", cell_st),
+                        sub_code, Paragraph(f"\u21B3 {_pdf_text(s.get('name', ''))}", cell_st),
                         f"{sc['qty']:.2f}".replace(".", ","), s.get("unit") or "",
                         f"{sc['cena']:.2f}".replace(".", ","),
                         f"{sc['narzut']:.1f}".replace(".", ",") if sc["narzut"] else "—",
@@ -1656,7 +1727,7 @@ async def export_wycena_xlsx(
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": _safe_content_disposition("attachment", filename)},
     )
 
 
@@ -1690,22 +1761,8 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     from reportlab.lib import colors
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    import os as _os
-    font_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf"]
-    font_bold_paths = ["/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf"]
-    base_font, bold_font = "Helvetica", "Helvetica-Bold"
-    for fp in font_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVu", fp)); base_font = "DejaVu"; break
-            except Exception: pass
-    for fp in font_bold_paths:
-        if _os.path.exists(fp):
-            try:
-                pdfmetrics.registerFont(TTFont("DejaVuBold", fp)); bold_font = "DejaVuBold"; break
-            except Exception: pass
+    # iter95bx: jeden helper rejestrujacy bundled font (PL znaki)
+    base_font, bold_font, _ = _register_pdf_fonts()
 
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
@@ -1726,6 +1783,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
 
     # iter95w: Naglowek z wiekszym logo + NIP + telefon
     # iter95bh: rozmiar logo i tagline z configu szablonu
+    import os as _os
     logo_mm_val = cfg["logo_mm"]
     logo_paths = [
         "/app/frontend/public/icon-192x192.png",
@@ -1769,7 +1827,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
         elements.append(bar)
     elements.append(Spacer(1, 6 * mm))
 
-    elements.append(Paragraph(f"Oferta: {_pdf_safe(wycena_name)}", title_st))
+    elements.append(Paragraph(f"Oferta: {_pdf_text(wycena_name)}", title_st))
     elements.append(Paragraph(
         f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}",
         sub_st,
@@ -1790,11 +1848,11 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
                                        textColor=colors.HexColor("#444444"), leading=12)
         addr_inner = [Paragraph("ADRESAT", addr_label)]
         if client_name:
-            addr_inner.append(Paragraph(_pdf_safe(client_name), addr_body))
+            addr_inner.append(Paragraph(_pdf_text(client_name), addr_body))
         if client_nip:
-            addr_inner.append(Paragraph(f"NIP: {_pdf_safe(client_nip)}", addr_body_sub))
+            addr_inner.append(Paragraph(f"NIP: {_pdf_text(client_nip)}", addr_body_sub))
         if client_address:
-            addr_inner.append(Paragraph(_pdf_safe(client_address), addr_body_sub))
+            addr_inner.append(Paragraph(_pdf_text(client_address), addr_body_sub))
         addr_box = Table([[addr_inner]], colWidths=[85 * mm])
         addr_box.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(cfg["primary"])),
@@ -1827,7 +1885,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
         if not st_data["positions"]:
             continue
         row_styles.append((len(table_data), 'stage'))
-        table_data.append([Paragraph(f"<b>Etap {st_idx}: {_pdf_safe(st.get('name', ''))}</b>", stage_st),
+        table_data.append([Paragraph(f"<b>Etap {st_idx}: {_pdf_text(st.get('name', ''))}</b>", stage_st),
                            "", "", "", "", ""])
         for pe in st_data["positions"]:
             p = pe["position"]
@@ -1839,7 +1897,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             row_styles.append((len(table_data), 'pos'))
             table_data.append([
                 str(lp_counter),
-                Paragraph(_pdf_safe(p.get("name", "")), name_st),
+                Paragraph(_pdf_text(p.get("name", "")), name_st),
                 f"{qty:.2f}".replace(".", ","),
                 p.get("unit") or "",
                 f"{cena:,.2f}".replace(",", " ").replace(".", ",") + " zł",
@@ -1959,7 +2017,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             if not lines:
                 return None
             html = "<br/>".join(
-                (_pdf_safe(ln) if ln.startswith(("&bull;", "\u2022", "-", "*")) else f"&bull; {_pdf_safe(ln)}")
+                (_pdf_text(ln) if ln.startswith(("&bull;", "\u2022", "-", "*")) else f"&bull; {_pdf_text(ln)}")
                 for ln in lines
             )
             return Paragraph(html, style)
@@ -2006,7 +2064,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
             "Zakres prac i warunki realizacji do uzgodnienia."
         )
-        elements.append(Paragraph(f"<b>Uwagi:</b> {_pdf_safe(notice)}", notice_st))
+        elements.append(Paragraph(f"<b>Uwagi:</b> {_pdf_text(notice)}", notice_st))
 
     doc.build(elements)
     safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
@@ -2046,7 +2104,7 @@ async def export_wycena_pdf(
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/pdf",
-        headers={"Content-Disposition": f'{disposition}; filename="{filename}"'},
+        headers={"Content-Disposition": _safe_content_disposition(disposition, filename)},
     )
 
 
