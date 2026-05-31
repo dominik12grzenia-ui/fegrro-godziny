@@ -116,7 +116,9 @@ export const BudowyPanel = () => {
       <CardContent className="p-0">
         {loading && rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Brak budow. Dodaj pierwsza.</div> :
-        <table className="w-full text-sm">
+        /* iter95bl: responsywny wrapper - na mobile tabela przewija sie poziomo */
+        <div className="overflow-x-auto -mx-px">
+        <table className="w-full text-sm min-w-[800px]">
           <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs uppercase tracking-wider font-semibold">
             <tr>
               <th className="py-3 px-4 text-left border-b border-[#3D5378]">Nazwa</th>
@@ -174,7 +176,8 @@ export const BudowyPanel = () => {
               </tr>
             ))}
           </tbody>
-        </table>}
+        </table>
+        </div>}
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
