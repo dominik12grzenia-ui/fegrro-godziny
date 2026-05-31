@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, EmailStr, Field
 import io
+import base64
 
 from database import db
 from auth import get_current_admin
@@ -2240,4 +2241,239 @@ async def convert_wycena_to_budget(
             "positions": pos_count,
             "lines": line_count,
         },
+    }
+
+
+
+# =========== iter95v: IMPORT Z EXCELA ===========
+
+class ExcelImportPreviewBody(BaseModel):
+    file_base64: str  # data URI or pure base64 content of XLSX
+    sheet_name: Optional[str] = None
+
+
+@router.post("/wyceny/import/preview")
+async def wyceny_import_preview(payload: ExcelImportPreviewBody, _user: dict = Depends(get_current_admin)):
+    """iter95v: Sparsuj XLSX i zwroc preview (sheety + wiersze) do mapowania w UI.
+
+    Klient wysyla plik jako base64 (data URI lub czysty base64).
+    Odpowiedz: { sheets: [{ name, rows: [[..],[..]], cols: int }] }
+    """
+    raw = payload.file_base64 or ""
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        data = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(400, "Nieprawidlowy plik base64")
+    if not data:
+        raise HTTPException(400, "Pusty plik")
+
+    try:
+        from openpyxl import load_workbook
+    except ImportError:
+        raise HTTPException(500, "openpyxl niedostepny")
+
+    try:
+        wb = load_workbook(io.BytesIO(data), data_only=True, read_only=True)
+    except Exception as e:
+        raise HTTPException(400, f"Nie udalo sie odczytac pliku XLSX: {e}")
+
+    sheets = []
+    target_sheets = [payload.sheet_name] if payload.sheet_name else wb.sheetnames
+    for sname in target_sheets:
+        if sname not in wb.sheetnames:
+            continue
+        ws = wb[sname]
+        rows_data = []
+        max_cols = 0
+        # Limit do 500 wierszy x 30 kolumn dla preview
+        for r_idx, row in enumerate(ws.iter_rows(values_only=True)):
+            if r_idx >= 500:
+                break
+            cells = []
+            for c_idx, val in enumerate(row[:30]):
+                if val is None:
+                    cells.append("")
+                elif isinstance(val, (int, float)):
+                    # Normalizuj liczby (usun trailing .0)
+                    if isinstance(val, float) and val.is_integer():
+                        cells.append(str(int(val)))
+                    else:
+                        cells.append(str(val))
+                else:
+                    cells.append(str(val).strip())
+            # Usun trailing puste komorki
+            while cells and not cells[-1]:
+                cells.pop()
+            max_cols = max(max_cols, len(cells))
+            rows_data.append(cells)
+        # Wyrownaj wszystkie wiersze do max_cols
+        for i in range(len(rows_data)):
+            while len(rows_data[i]) < max_cols:
+                rows_data[i].append("")
+        sheets.append({
+            "name": sname,
+            "rows": rows_data,
+            "cols": max_cols,
+            "row_count": len(rows_data),
+        })
+
+    return {"sheets": sheets}
+
+
+class ImportRowMap(BaseModel):
+    row_index: int  # 0-based
+    role: str       # "stage" | "position" | "skip"
+
+
+class ExcelImportApplyBody(BaseModel):
+    file_base64: str
+    sheet_name: str
+    name_col: int           # kolumna z nazwa etapu/pozycji
+    unit_col: Optional[int] = None
+    quantity_col: Optional[int] = None
+    notes_col: Optional[int] = None
+    rows: List[ImportRowMap]
+    default_stage_name: str = "Etap 1"  # gdy pozycja pojawi sie przed pierwszym etapem
+
+
+@router.post("/wyceny/{wycena_id}/import/apply")
+async def wyceny_import_apply(
+    wycena_id: str,
+    payload: ExcelImportApplyBody,
+    _user: dict = Depends(get_current_admin),
+):
+    """iter95v: Importuj zmapowane wiersze jako etapy + pozycje do wyceny."""
+    if not await db.wyceny.find_one({"id": wycena_id}, {"_id": 0, "id": 1}):
+        raise HTTPException(404, "Wycena nie istnieje")
+
+    raw = payload.file_base64 or ""
+    if "," in raw:
+        raw = raw.split(",", 1)[1]
+    try:
+        data = base64.b64decode(raw)
+    except Exception:
+        raise HTTPException(400, "Nieprawidlowy plik base64")
+
+    try:
+        from openpyxl import load_workbook
+        wb = load_workbook(io.BytesIO(data), data_only=True, read_only=True)
+    except Exception as e:
+        raise HTTPException(400, f"Blad XLSX: {e}")
+
+    if payload.sheet_name not in wb.sheetnames:
+        raise HTTPException(400, f"Sheet '{payload.sheet_name}' nie istnieje")
+    ws = wb[payload.sheet_name]
+
+    # Zaladuj wszystkie wiersze do listy dla indeksowania
+    all_rows: list = []
+    for row in ws.iter_rows(values_only=True):
+        all_rows.append(list(row))
+
+    def cell(r: int, c: Optional[int]) -> str:
+        if c is None or c < 0 or r >= len(all_rows) or c >= len(all_rows[r]):
+            return ""
+        v = all_rows[r][c]
+        if v is None:
+            return ""
+        if isinstance(v, float) and v.is_integer():
+            return str(int(v))
+        return str(v).strip() if isinstance(v, str) else str(v)
+
+    def to_float(v: str) -> Optional[float]:
+        if not v:
+            return None
+        s = str(v).replace(" ", "").replace(",", ".")
+        # Usun jednostki w nawiasach np. "12 (m2)"
+        try:
+            return float(s)
+        except Exception:
+            # sprobuj pierwszej liczby z napisu
+            import re
+            m = re.search(r"-?\d+(?:\.\d+)?", s)
+            return float(m.group(0)) if m else None
+
+    # Sortuj rows wedlug row_index zeby etapy/pozycje zachowaly kolejnosc
+    mapped = sorted(payload.rows, key=lambda r: r.row_index)
+
+    # Istniejace etapy - zeby kolejnosc nowych byla po nich
+    existing_stages_count = await db.wyceny_stages.count_documents({"wycena_id": wycena_id})
+    existing_positions_count = await db.wyceny_positions.count_documents({"wycena_id": wycena_id})
+
+    current_stage_id: Optional[str] = None
+    stage_order = existing_stages_count
+    pos_order = existing_positions_count
+    created_stages = 0
+    created_positions = 0
+    skipped = 0
+    now = datetime.now().isoformat()
+
+    for m in mapped:
+        if m.role == "skip":
+            skipped += 1
+            continue
+        name = cell(m.row_index, payload.name_col)
+        if not name:
+            skipped += 1
+            continue
+
+        if m.role == "stage":
+            sid = str(uuid.uuid4())
+            await db.wyceny_stages.insert_one({
+                "id": sid,
+                "wycena_id": wycena_id,
+                "name": name,
+                "order": stage_order,
+                "created_at": now,
+            })
+            current_stage_id = sid
+            stage_order += 1
+            created_stages += 1
+        elif m.role == "position":
+            # Gdy nie mamy jeszcze etapu - stworz domyslny
+            if not current_stage_id:
+                sid = str(uuid.uuid4())
+                await db.wyceny_stages.insert_one({
+                    "id": sid,
+                    "wycena_id": wycena_id,
+                    "name": payload.default_stage_name,
+                    "order": stage_order,
+                    "created_at": now,
+                })
+                current_stage_id = sid
+                stage_order += 1
+                created_stages += 1
+
+            pid = str(uuid.uuid4())
+            doc = {
+                "id": pid,
+                "wycena_id": wycena_id,
+                "stage_id": current_stage_id,
+                "name": name,
+                "order": pos_order,
+                "quantity": to_float(cell(m.row_index, payload.quantity_col)) if payload.quantity_col is not None else None,
+                "unit": cell(m.row_index, payload.unit_col) or None if payload.unit_col is not None else None,
+                "kaucja_gir_pct": 2.0,
+                "kaucja_dw_pct": 2.0,
+                "koszt_budowy_pct": 2.0,
+                "koszt_prognozowany": None,
+                "created_at": now,
+            }
+            # uwagi -> dopisz do nazwy w nawiasie jezeli sa
+            if payload.notes_col is not None:
+                notes = cell(m.row_index, payload.notes_col)
+                if notes:
+                    doc["notes"] = notes
+            await db.wyceny_positions.insert_one(doc)
+            pos_order += 1
+            created_positions += 1
+        else:
+            skipped += 1
+
+    return {
+        "ok": True,
+        "stages_created": created_stages,
+        "positions_created": created_positions,
+        "skipped": skipped,
     }

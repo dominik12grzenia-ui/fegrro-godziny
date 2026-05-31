@@ -27,6 +27,7 @@ import { ConvertToBudgetDialog } from './wyceny/ConvertToBudgetDialog';
 import { SuppliersManagerDialog } from './wyceny/SuppliersManagerDialog';
 import { BomDialog } from './wyceny/BomDialog';
 import { NegotiationPanel } from './wyceny/NegotiationPanel';
+import { ExcelImportDialog } from './wyceny/ExcelImportDialog';
 
 // iter95bc: dalsze subkomponenty wydzielone z Wyceny.js (refaktor)
 import { EquipmentPriceBook } from './wyceny/EquipmentPriceBook';
@@ -215,6 +216,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   const [suppliersOpen, setSuppliersOpen] = useState(false);
   // iter95as: dialog konwersji wyceny do budowy/budzetu
   const [convertOpen, setConvertOpen] = useState(false);
+  // iter95v: dialog importu z Excela
+  const [importOpen, setImportOpen] = useState(false);
 
   const fetchData = useCallback((silent = false) => {
     // iter95bm: tryb silent - nie pokazuj loadera jesli dane juz sa
@@ -619,6 +622,12 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           className="border-[#5F7552]/60 text-[#9DBC85] hover:bg-[#5F7552]/10 shrink-0"
           data-testid="wycena-suppliers-btn">
           <BookOpen className="h-4 w-4 mr-1" /> Hurtownie
+        </Button>
+        <Button onClick={() => setImportOpen(true)} variant="outline"
+          className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10 shrink-0"
+          title="Importuj etapy i pozycje z pliku Excel"
+          data-testid="wycena-import-btn">
+          <FileSpreadsheet className="h-4 w-4 mr-1" /> Import z Excela
         </Button>
         <Button onClick={() => setBomOpen(true)} variant="outline"
           className="border-[#D4AF37]/60 text-[#D4AF37] hover:bg-[#D4AF37]/10 shrink-0"
@@ -1028,6 +1037,13 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       {bomOpen && <BomDialog wycenaId={wycenaId} onClose={() => setBomOpen(false)} />}
       {exportOpen && <ExportWycenaDialog wycenaId={wycenaId} wycenaName={w?.name} onClose={() => setExportOpen(false)} />}
       {suppliersOpen && <SuppliersManagerDialog onClose={() => setSuppliersOpen(false)} />}
+      {importOpen && (
+        <ExcelImportDialog
+          wycenaId={wycenaId}
+          onClose={() => setImportOpen(false)}
+          onImported={() => fetchData(true)}
+        />
+      )}
       {convertOpen && (
         <ConvertToBudgetDialog
           wycenaId={wycenaId}

@@ -1,0 +1,35 @@
+{
+  "summary": "iter95v (Wyceny Excel import: preview + apply) - Backend FULLY VERIFIED via pytest (13/13 passed). All endpoints behave per spec: POST /api/wyceny/import/preview parses XLSX, supports data-URI prefix, returns correct sheets/rows/cols/row_count, returns 400 on empty/invalid file, and requires admin auth. POST /api/wyceny/{id}/import/apply requires admin, returns 404 for unknown wycena, creates stages+positions with correct ordering, auto-creates default 'Etap 1' when positions precede first stage, treats skip-role and empty-name-cell as skipped, accepts optional unit_col/quantity_col/notes_col=None without crashing, parses Polish numeric format (commas + thousand spaces -> 1000.75), and appends new stages after existing ones preserving ascending order.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95v_wyceny_excel_import.py",
+    "/app/test_reports/pytest/pytest_iter95v.xml"
+  ],
+  "action_items": [
+    "(Optional) The applied 'notes' value is stored on the wyceny_positions doc under key 'notes' - confirm frontend Wyceny editor surfaces it (the dialog spec mentions notes mapping; backend stores correctly)."
+  ],
+  "critical_code_review_comments": [
+    "routes/wyceny.py preview: properly strips data-URI prefix, validates base64, catches openpyxl load errors with HTTP 400. Limits to 500x30 cells - good safeguard against huge files.",
+    "routes/wyceny.py apply: order preservation via sorted(rows, key=row_index) and per-stage current_stage_id tracking is correct. Auto-default 'Etap 1' creation when positions precede first stage works.",
+    "to_float() handles Polish format ('12,5', '1 000,75') via space-strip + comma-to-dot, with regex fallback for embedded numerics - robust.",
+    "Optional cols (unit_col / quantity_col / notes_col) all guarded with 'is not None' before cell lookup - confirmed no crash when None.",
+    "Apply correctly continues numbering when wycena already has stages (count_documents seeds stage_order/pos_order)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95v_wyceny_excel_import.py (new)"
+  ],
+  "success_rate": {"backend": "100% (13/13)", "frontend": "Not tested - request was backend-only"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via POST /api/auth/admin/login",
+  "seed_data_creation": "Each test creates a TEST_iter95v_<uuid> wycena via POST /api/wyceny and deletes it in fixture teardown (DELETE /api/wyceny/{id}). No residual data.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Run with: cd /app && export REACT_APP_BACKEND_URL=$(grep REACT_APP_BACKEND_URL frontend/.env|cut -d= -f2-) && python -m pytest backend/tests/test_iter95v_wyceny_excel_import.py -v. Note: the GET endpoint to inspect resulting structure is /api/wyceny/{id}/template (not /full) - returns {wycena, stages:[{positions:[...]}]}. Frontend testing not performed (request was backend-only); ExcelImportDialog testids per spec exist in /app/frontend/src/components/wyceny/ExcelImportDialog.js."
+}
