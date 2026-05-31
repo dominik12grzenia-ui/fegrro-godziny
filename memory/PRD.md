@@ -1,3 +1,50 @@
+## Iteration 95bf (2026-05) — Split finance_reports.py + regex→pattern + scrollbar fix verified
+
+### Implementacja
+
+**Split finance.py: dalsza redukcja 1788 → 1291 linii**
+**`/app/backend/routes/finance_reports.py`** (528 linii, NOWY):
+- `_compute_sprzedaz_data` — alokacja kosztów pro-rata, marża I/II/III (~210 linii)
+- `GET /finance/rachunek-wynikow` — tabela 12 miesięcy × kategorie zgodnie z Excelem
+- `GET /finance/payment-summary` — należności, zobowiązania, przeterminowane
+- `GET /finance/sprzedaz` — sprzedaż per budowa
+- Late import `ensure_kody_seed` z `routes.finance` (unika circular import)
+- Re-export `_compute_sprzedaz_data` przez routes.finance dla `routes/budget.py`
+
+**`routes/finance.py`**:
+```python
+# iter95bf: Reports wydzielone (~500 linii)
+from routes.finance_reports import router as _reports_router, _compute_sprzedaz_data  # noqa: F401
+router.include_router(_reports_router)
+```
+
+**Migracja `regex=` → `pattern=`** (FastAPI ≥0.95):
+- `routes/wyceny.py` linie 1484 i 1835 (2 wystąpienia detail param)
+- `routes/finance_forecast.py` linia 297 (kind param)
+- Zero DeprecationWarning w pytest output
+
+**Scrollbar fix — weryfikacja wizualna**:
+- Wykonano playwright + wheel scroll na `.scrollbar-hide` zakładkach Panel Administratora
+- Zakładki przewijają się płynnie, brak widocznego scrollbara w obszarze przewijania (Webkit overlay zniknął)
+- Dodatkowe webkit pseudo-elementy w `index.css` (iter95bd) skutecznie ukrywają scrollbar również w trakcie aktywnego scrollowania
+
+### Stan finalny finance.py i podziałów
+| Plik | Linie | Zawartość |
+|------|-------|-----------|
+| `routes/finance.py` | 1291 | GUS, kontrahenci, kody, budowy, zapisy, invoices, settings, sync (godziny+wypłaty), models |
+| `routes/finance_forecast.py` | 450 | Prognozy P&L (forecast + details) |
+| `routes/finance_fakturownia.py` | 1104 | Fakturownia sync + discrepancy + test + cron |
+| `routes/finance_reports.py` | 528 | Rachunek wyników + payment-summary + sprzedaż |
+| **Suma** | **3373** | (vs oryginalne 3284 linie — wzrost o ~90 linii to nagłówki nowych modułów) |
+
+### Test
+- Pytest: **34/34 PASS, 0 warnings** (zniknęły 2 DeprecationWarning regex=)
+- API smoke: wszystkie 11 endpointów `/finance/*` zwraca 200 (forecast, payment-discrepancy, rachunek-wynikow, sprzedaz, budowy, kody, invoices, zapisy, payment-summary, settings, kontrahenci)
+- Scrollbar wizualny: zakładki przewijają się bez widocznego paska (potwierdzone screenshot)
+
+---
+
+
 ## Iteration 95be (2026-05) — Wyceny: warning min/max + history popover + zaokrąglanie + split finance.py
 
 ### Implementacja Wyceny (frontend)

@@ -1481,7 +1481,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
 @router.get("/wyceny/{wycena_id}/export.xlsx")
 async def export_wycena_xlsx(
     wycena_id: str,
-    detail: str = Query("positions", regex="^(positions|full|client)$"),
+    detail: str = Query("positions", pattern="^(positions|full|client)$"),
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),
     include_notes: bool = Query(True),
@@ -1832,7 +1832,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
 @router.get("/wyceny/{wycena_id}/export.pdf")
 async def export_wycena_pdf(
     wycena_id: str,
-    detail: str = Query("positions", regex="^(positions|full|client)$"),
+    detail: str = Query("positions", pattern="^(positions|full|client)$"),
     inline: bool = Query(False),
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),

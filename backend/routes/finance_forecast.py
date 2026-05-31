@@ -294,7 +294,7 @@ async def get_finance_forecast(
 
 @router.get("/finance/forecast/details")
 async def get_forecast_details(
-    kind: str = Query(..., regex="^(company|company_category|building|income)$"),
+    kind: str = Query(..., pattern="^(company|company_category|building|income)$"),
     back: int = Query(6, ge=1, le=24),
     forward: int = Query(3, ge=1, le=24),
     code: Optional[str] = Query(None),  # kod_id dla company_category
