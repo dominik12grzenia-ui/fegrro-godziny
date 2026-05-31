@@ -109,7 +109,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
         </select>
       </Td>
       <Td right className="text-[#CBD5E1] font-semibold" data-testid={`pos-cena-${position.id}`}>
-        {row.cena ? Math.round(row.cena) : '—'}
+        {row.cena ? new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(row.cena) : '—'}
       </Td>
       <Td right className="text-[#94A3B8]">—</Td>
       <Td right className="text-[#94A3B8]">—</Td>

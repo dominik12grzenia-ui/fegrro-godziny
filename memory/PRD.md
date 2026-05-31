@@ -1,3 +1,65 @@
+## Iteration 95be (2026-05) — Wyceny: warning min/max + history popover + zaokrąglanie + split finance.py
+
+### Implementacja Wyceny (frontend)
+**`/app/frontend/src/components/wyceny/SubRow.js`**:
+- Import `Popover/PopoverTrigger/PopoverContent` z `../ui/popover`
+- Stan `historyOpen` dla popovera
+- Input ceny: gdy `belowMin` → tekst `text-[#FCA5A5]` + `ring-2 ring-[#DC2626]` + `bg-[#3F1A1A]/40`
+- Kropka warning: kolor czerwony `bg-[#DC2626]` (zamiast żółtego `#F59E0B`), animate-pulse gdy belowMin
+- Popover (klik na kropkę) z pełną historią zmian: data, użytkownik, stara→nowa cena, oznaczenie ⚠ PON. MIN, opcjonalnie powód
+- Min/max + history popover wymienne — kropka aktywna gdy `belowMin || priceHistory.length > 0`
+
+**`/app/frontend/src/components/wyceny/PosRow.js`**:
+- Komórka CENA pozycji: `new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(row.cena)` — zaokrąglone, z separatorami tysięcy (np. `1 234`)
+- `data-testid='pos-cena-{id}'`
+
+**`/app/frontend/src/components/Wyceny.js`** (linia 957):
+- `grandTotal.cena` formatowana z `Intl.NumberFormat` z `maximumFractionDigits: 0`
+
+**Backend `/app/backend/routes/wyceny.py`** (~linie 1199-1220):
+- `cena_pos_rounded = round(cena_pos)` — dodatkowe pole w `es_positions`
+- `"cena": cena_pos_rounded` (zaokrąglone) + `"cena_unrounded": cena_pos` (oryginalne dla precision)
+
+### Refaktor: Split finance.py (3284 → 1788 linii)
+Wydzielone 2 self-contained moduły (1532 linii usunięte z `finance.py`):
+
+**`/app/backend/routes/finance_forecast.py`** (450 linii):
+- `_month_iter`, `_month_overlap_days`, `_parse_date_any`
+- `GET /finance/forecast` — Prognoza P&L (back/forward miesięcy)
+- `GET /finance/forecast/details` — szczegóły prognozy per kategoria/budowa
+
+**`/app/backend/routes/finance_fakturownia.py`** (1104 linii):
+- `_iter_months`, `_record_fakturownia_sync_error`, `_do_fakturownia_sync`, `_do_fakturownia_unpaid_sync_global`
+- `POST /finance/sync-fakturownia-unpaid`
+- `GET /finance/payment-discrepancy`
+- `GET /finance/discrepancy-details`
+- `POST /finance/sync-from-fakturownia`
+- `POST /finance/test-fakturownia`
+- `cron_fakturownia_sync` — re-eksportowany przez `routes.finance` (kompatybilność dla `server.py`)
+
+**`routes/finance.py`**:
+```python
+# iter95be: forecast (433 linie) + Fakturownia (1079 linii) wydzielone
+from routes.finance_forecast import router as _forecast_router
+router.include_router(_forecast_router)
+from routes.finance_fakturownia import router as _fakturownia_router, cron_fakturownia_sync
+router.include_router(_fakturownia_router)
+```
+
+### Test
+- Pytest: **34/34 PASS** (iter95bd_wyceny_price + iter95y_finance_budowa_color + iter95x_scope_templates_color)
+- Smoke: **13/13 PASS, 0 JS errors**
+- Testing agent v3 iter52: backend 12/12 PASS, frontend code review PASS
+- Manual: cena pozycji "501" (zaokrąglone, bez decimal), popover history visible
+
+### Action items na przyszłość (opcjonalne)
+- Migracja `Query(regex=...)` → `pattern=` w wyceny.py linie 1484, 1835 i forecast.py linia 297
+- Dalszy split finance.py do <1000 linii: wydzielić `reports` (rachunek-wynikow, sprzedaz, payment-summary) ~525 linii
+- Scrollbar `TabsList` — rozszerzony CSS w index.css (per-element override), wymaga manualnego retestu
+
+---
+
+
 ## Iteration 95y (2026-05) — Kolor budowy przeniesiony do Finanse → Budowy
 
 ### Implementacja
