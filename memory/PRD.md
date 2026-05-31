@@ -1,3 +1,36 @@
+## Iteration 95bw (2026-02) — Bug fix: "Internal Server Error" przy PDF/XLSX wycen ze znakami `<` `>` `&`
+
+### Problem (P0 — krytyczny dla biznesu)
+User po wdrożeniu iter95bv (native download) dalej nie mógł pobrać wyceny ALLCON BUDOWNICTWO — nowa karta przeglądarki pokazywała białą stronę z napisem `Internal Server Error` (HTTP 500 z backendu).
+
+### Root cause
+ReportLab `Paragraph()` interpretuje string jako mini-XML/HTML — znaki `<`, `>`, `&` traktuje jako otwarcie tagu. Typowe nazwy w budowlance (np. **"Ściana < 30cm"**, **"Beton C20/25 & zbrojenie"**, **"Sciana >5m"**) powodowały `xml.parsers.expat.ExpatError` w głębi ReportLab → 500 dla całego endpointu eksportu. Backend log na proda pewnie pokazywał `xml.etree.ElementTree.ParseError` ale my w preview nie mogliśmy odtworzyć (mieliśmy tylko czyste nazwy).
+
+### Fix `/app/backend/routes/wyceny.py`
+**Nowy helper `_pdf_safe(text)`** — escapuje `&`→`&amp;`, `<`→`&lt;`, `>`→`&gt;`, oraz konwertuje `\n` → `<br/>` (czego Paragraph nie robi sam).
+
+**Aplikacja w 9 miejscach** gdzie user-string trafia do `Paragraph()`:
+- `_generate_wycena_pdf_bytes`: tytuł wyceny, nazwa pozycji, nazwa podpozycji, uwagi
+- `_generate_wycena_client_pdf_bytes`: tytuł oferty, dane klienta (nazwa/NIP/adres), nazwa etapu, nazwa pozycji, scope_includes/excludes, notes
+
+**Defense in depth — `try/except` w obu route handlerach** (`/wyceny/{id}/export.pdf` + `export.xlsx`):
+- `logger.exception(...)` z context (wycena_id, detail) → debug w logach
+- `HTTPException(500, "Blad generowania PDF: {type}: {msg}")` zamiast generic 500 → użytkownik widzi konkretną przyczynę w toaście
+
+### Test
+- **5 curl PASS** z wyceną o nazwie `ALLCON BUDOWNICTWO <test> & co.`, etapem `ETAP <1>: Sciana & roboty`, pozycją `Sciana < 30cm > 5m & izolacja`, klientem `AB & C Sp. z o.o.`, NIPem `123<456>`, adresem z `\n`:
+  - PDF client premium: 200 / 62 kB
+  - PDF positions: 200 / 76 kB
+  - PDF full: 200 / 76 kB
+  - XLSX client: 200 / 30 kB
+  - DELETE wycena: 200
+
+### Dlaczego błąd nie pojawiał się w preview wcześniej
+Wszystkie 4 wyceny w preview (Finarto, REFAKTOR, iter95aj, Test Narzut) miały „czyste" nazwy bez `<`, `>`, `&` — testy backend zawsze przechodziły. Bug objawiał się tylko na produkcji gdzie użytkownik wpisywał realne nazwy budowlane.
+
+---
+
+
 ## Iteration 95bv (2026-02) — Bug fix: "Błąd: Network Error" przy pobieraniu wyceny
 
 ### Problem (P0)

@@ -859,6 +859,24 @@ def _get_logo_path() -> Optional[str]:
     return next((p for p in candidates if _os.path.exists(p)), None)
 
 
+# iter95bw: HTML-escape dla ReportLab Paragraph.
+# Paragraph() interpretuje <, >, & jako tagi XML/HTML — jesli nazwa pozycji
+# wyceny zawiera te znaki (typowe w budowlance: "Ściana < 30cm", "Beton C20/25 & zbrojenie"),
+# PDF generator wywala 500. Eskapujemy wszystkie user-strings zanim trafia do Paragraph.
+def _pdf_safe(text) -> str:
+    """Zamienia <, >, & na encje, zachowujac <br/> jako rzeczywisty break."""
+    if text is None:
+        return ""
+    s = str(text)
+    # Najpierw zamien & (zeby nie psuc &lt; ktore wstawimy za chwile)
+    s = s.replace("&", "&amp;")
+    s = s.replace("<", "&lt;").replace(">", "&gt;")
+    # Newline -> <br/> (Paragraph tego nie robi sam)
+    s = s.replace("\r\n", "\n").replace("\r", "\n").replace("\n", "<br/>")
+    return s
+
+
+
 def _xlsx_add_logo(ws, anchor: str = "A1", width: int = 110, height: int = 110) -> None:
     """iter95av: wstawia logo w arkuszu XLSX na danej kotwicy. Cicho ignoruje błąd."""
     try:
@@ -1485,7 +1503,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     from reportlab.platypus import Image as RLImage
     logo_path = _get_logo_path()
     title_para = Paragraph(
-        f"<b>Wycena: {wycena_name}</b><br/>"
+        f"<b>Wycena: {_pdf_safe(wycena_name)}</b><br/>"
         f"<font size=9 color='#666666'>Data: {datetime.now().strftime('%Y-%m-%d %H:%M')} · Tryb: "
         + ("Pozycje główne" if detail == "positions" else "Pełna (z podpozycjami)") + "</font>",
         ParagraphStyle("ht", parent=styles["Normal"], fontName=base_font, fontSize=13,
@@ -1529,7 +1547,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
             code = f"{st_idx}.{p_idx}"
             row_styles.append((len(table_data), 'pos'))
             table_data.append([
-                code, Paragraph(p.get("name", ""), cell_b),
+                code, Paragraph(_pdf_safe(p.get("name", "")), cell_b),
                 f"{pe['qty']:.2f}".replace(".", ","), p.get("unit") or "",
                 f"{pe['cena']:.2f}".replace(".", ","),
                 "—", "—",
@@ -1538,7 +1556,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
                 f"{pe['koszt_budowy']:.2f}".replace(".", ","),
                 f"{pe['budzet_zwolniony']:.2f}".replace(".", ","),
                 f"{pe['budzet']:.2f}".replace(".", ","),
-                Paragraph(pe["uwagi"], cell_st),
+                Paragraph(_pdf_safe(pe["uwagi"]), cell_st),
             ])
             total_budzet += pe["budzet"]
             if detail == "full":
@@ -1550,7 +1568,7 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
                     type_label = {"materials": "Materiał", "labor": "Robocizna", "equipment": "Sprzęt"}.get(s.get("type"), "")
                     row_styles.append((len(table_data), 'sub'))
                     table_data.append([
-                        sub_code, Paragraph(f"\u21B3 {s.get('name', '')}", cell_st),
+                        sub_code, Paragraph(f"\u21B3 {_pdf_safe(s.get('name', ''))}", cell_st),
                         f"{sc['qty']:.2f}".replace(".", ","), s.get("unit") or "",
                         f"{sc['cena']:.2f}".replace(".", ","),
                         f"{sc['narzut']:.1f}".replace(".", ",") if sc["narzut"] else "—",
@@ -1618,16 +1636,23 @@ async def export_wycena_xlsx(
     include_notes: bool = Query(True),
     _user: dict = Depends(get_current_admin_export),
 ):
-    data = await _build_wycena_export(wycena_id)
-    if detail == "client":
-        opts = {
-            "include_surface": include_surface,
-            "include_wskazniki": include_wskazniki,
-            "include_notes": include_notes,
-        }
-        content, filename = _generate_wycena_client_xlsx_bytes(data, opts)
-    else:
-        content, filename = _generate_wycena_xlsx_bytes(data, detail)
+    try:
+        data = await _build_wycena_export(wycena_id)
+        if detail == "client":
+            opts = {
+                "include_surface": include_surface,
+                "include_wskazniki": include_wskazniki,
+                "include_notes": include_notes,
+            }
+            content, filename = _generate_wycena_client_xlsx_bytes(data, opts)
+        else:
+            content, filename = _generate_wycena_xlsx_bytes(data, detail)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # iter95bw: szczegolowy log + zwrot 500 z czytelna wiadomoscia
+        logger.exception("Wycena XLSX export failed wycena_id=%s detail=%s", wycena_id, detail)
+        raise HTTPException(status_code=500, detail=f"Blad generowania Excel: {type(e).__name__}: {str(e)[:200]}")
     return StreamingResponse(
         io.BytesIO(content),
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1744,7 +1769,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
         elements.append(bar)
     elements.append(Spacer(1, 6 * mm))
 
-    elements.append(Paragraph(f"Oferta: {wycena_name}", title_st))
+    elements.append(Paragraph(f"Oferta: {_pdf_safe(wycena_name)}", title_st))
     elements.append(Paragraph(
         f"Data wystawienia: {datetime.now().strftime('%Y-%m-%d')}",
         sub_st,
@@ -1765,11 +1790,11 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
                                        textColor=colors.HexColor("#444444"), leading=12)
         addr_inner = [Paragraph("ADRESAT", addr_label)]
         if client_name:
-            addr_inner.append(Paragraph(client_name.replace("\n", "<br/>"), addr_body))
+            addr_inner.append(Paragraph(_pdf_safe(client_name), addr_body))
         if client_nip:
-            addr_inner.append(Paragraph(f"NIP: {client_nip}", addr_body_sub))
+            addr_inner.append(Paragraph(f"NIP: {_pdf_safe(client_nip)}", addr_body_sub))
         if client_address:
-            addr_inner.append(Paragraph(client_address.replace("\n", "<br/>"), addr_body_sub))
+            addr_inner.append(Paragraph(_pdf_safe(client_address), addr_body_sub))
         addr_box = Table([[addr_inner]], colWidths=[85 * mm])
         addr_box.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(cfg["primary"])),
@@ -1802,7 +1827,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
         if not st_data["positions"]:
             continue
         row_styles.append((len(table_data), 'stage'))
-        table_data.append([Paragraph(f"<b>Etap {st_idx}: {st.get('name', '')}</b>", stage_st),
+        table_data.append([Paragraph(f"<b>Etap {st_idx}: {_pdf_safe(st.get('name', ''))}</b>", stage_st),
                            "", "", "", "", ""])
         for pe in st_data["positions"]:
             p = pe["position"]
@@ -1814,7 +1839,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             row_styles.append((len(table_data), 'pos'))
             table_data.append([
                 str(lp_counter),
-                Paragraph(p.get("name", ""), name_st),
+                Paragraph(_pdf_safe(p.get("name", "")), name_st),
                 f"{qty:.2f}".replace(".", ","),
                 p.get("unit") or "",
                 f"{cena:,.2f}".replace(",", " ").replace(".", ",") + " zł",
@@ -1934,7 +1959,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             if not lines:
                 return None
             html = "<br/>".join(
-                (ln if ln.startswith(("&bull;", "\u2022", "-", "*")) else f"&bull; {ln}")
+                (_pdf_safe(ln) if ln.startswith(("&bull;", "\u2022", "-", "*")) else f"&bull; {_pdf_safe(ln)}")
                 for ln in lines
             )
             return Paragraph(html, style)
@@ -1981,7 +2006,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             "Podane ceny są cenami netto. Płatność wg ustaleń umowy. "
             "Zakres prac i warunki realizacji do uzgodnienia."
         )
-        elements.append(Paragraph(f"<b>Uwagi:</b> {notice}", notice_st))
+        elements.append(Paragraph(f"<b>Uwagi:</b> {_pdf_safe(notice)}", notice_st))
 
     doc.build(elements)
     safe_name = (wycena_name or "wycena").replace("/", "_").replace(" ", "_")[:50]
@@ -1999,17 +2024,24 @@ async def export_wycena_pdf(
     include_notes: bool = Query(True),
     _user: dict = Depends(get_current_admin_export),
 ):
-    data = await _build_wycena_export(wycena_id)
-    if detail == "client":
-        opts = {
-            "include_surface": include_surface,
-            "include_wskazniki": include_wskazniki,
-            "include_notes": include_notes,
-        }
-        # iter95bk: zawsze szablon "premium" (granat + zielony akcent)
-        content, filename = _generate_wycena_client_pdf_bytes(data, opts, template_style="premium")
-    else:
-        content, filename = _generate_wycena_pdf_bytes(data, detail)
+    try:
+        data = await _build_wycena_export(wycena_id)
+        if detail == "client":
+            opts = {
+                "include_surface": include_surface,
+                "include_wskazniki": include_wskazniki,
+                "include_notes": include_notes,
+            }
+            # iter95bk: zawsze szablon "premium" (granat + zielony akcent)
+            content, filename = _generate_wycena_client_pdf_bytes(data, opts, template_style="premium")
+        else:
+            content, filename = _generate_wycena_pdf_bytes(data, detail)
+    except HTTPException:
+        raise
+    except Exception as e:
+        # iter95bw: szczegolowy log + zwrot 500 z czytelna wiadomoscia
+        logger.exception("Wycena PDF export failed wycena_id=%s detail=%s", wycena_id, detail)
+        raise HTTPException(status_code=500, detail=f"Blad generowania PDF: {type(e).__name__}: {str(e)[:200]}")
     disposition = "inline" if inline else "attachment"
     return StreamingResponse(
         io.BytesIO(content),
