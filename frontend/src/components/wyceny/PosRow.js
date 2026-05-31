@@ -108,7 +108,9 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
           )}
         </select>
       </Td>
-      <Td right className="text-[#CBD5E1]">{row.cena ? row.cena.toFixed(2) : '—'}</Td>
+      <Td right className="text-[#CBD5E1] font-semibold" data-testid={`pos-cena-${position.id}`}>
+        {row.cena ? Math.round(row.cena) : '—'}
+      </Td>
       <Td right className="text-[#94A3B8]">—</Td>
       <Td right className="text-[#94A3B8]">—</Td>
       <Td right>{fmtPLN(row.kaucjaGir)}</Td>

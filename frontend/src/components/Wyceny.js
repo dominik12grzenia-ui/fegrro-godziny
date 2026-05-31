@@ -954,7 +954,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#3D5378] px-2 py-2 text-[#F1F5F9]">Wszystkie pozycje wyceny</td>
               <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
-              <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums text-[#CBD5E1]">{grandTotal.cena ? grandTotal.cena.toFixed(0) : '—'}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums text-[#CBD5E1]">{grandTotal.cena ? Math.round(grandTotal.cena) : '—'}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
               <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
               <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>

@@ -1197,6 +1197,8 @@ async def _build_wycena_export(wycena_id: str):
             else:
                 qty_pos = max([sc["qty"] for sc in sub_calcs], default=0)
             cena_pos = budzet / qty_pos if qty_pos > 0 else 0
+            # iter95bd: zaokraglenie ceny jednostkowej finalnej (calkowita)
+            cena_pos_rounded = round(cena_pos) if cena_pos else 0
             by_type = {"materials": [], "labor": [], "equipment": []}
             for s in subs:
                 t = s.get("type")
@@ -1210,7 +1212,8 @@ async def _build_wycena_export(wycena_id: str):
                     uwagi_parts.append(f"{label_map[t]}: " + ", ".join(by_type[t]))
             uwagi = " · ".join(uwagi_parts) or "—"
             es_positions.append({
-                "position": p, "qty": qty_pos, "cena": cena_pos,
+                "position": p, "qty": qty_pos, "cena": cena_pos_rounded,
+                "cena_unrounded": cena_pos,
                 "kaucja_gir": kaucja_gir, "kaucja_dw": kaucja_dw, "koszt_budowy": koszt_budowy,
                 "budzet_zwolniony": budzet_zwolniony_pos, "budzet": budzet,
                 "uwagi": uwagi, "subs_calc": sub_calcs,

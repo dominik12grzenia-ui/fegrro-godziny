@@ -41,6 +41,24 @@ code, .font-mono {
     background: transparent !important;
 }
 
+/* iter95bd: dodatkowy backstop — Webkit pokazuje overlay scrollbar nawet po display:none w niektórych
+   wersjach (Safari 17+, Chrome z opcją "Always show" w Reduce Motion). Wymuś -webkit-appearance:none
+   i opacity 0 na wszystkich pseudo-elementach, plus block scrollbar-buttons. */
+.scrollbar-hide::-webkit-scrollbar-thumb,
+.scrollbar-hide::-webkit-scrollbar-track,
+.scrollbar-hide::-webkit-scrollbar-corner,
+.scrollbar-hide::-webkit-scrollbar-button,
+.scrollbar-hide *::-webkit-scrollbar-thumb,
+.scrollbar-hide *::-webkit-scrollbar-track,
+.scrollbar-hide *::-webkit-scrollbar-corner,
+.scrollbar-hide *::-webkit-scrollbar-button {
+    -webkit-appearance: none !important;
+    display: none !important;
+    background: transparent !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+
 
 @layer base {
     :root {

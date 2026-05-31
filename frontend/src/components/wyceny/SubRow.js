@@ -8,6 +8,7 @@ import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, B
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import { PriceBookPicker } from './PriceBookPicker';
+import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
@@ -16,6 +17,7 @@ import {
 export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   // iter95ae: tekst formuly (gdy input zaczyna sie od "=")
   const [qtyInput, setQtyInput] = useState(sub.quantity_formula || (sub.quantity ?? ''));
   useEffect(() => {
@@ -207,28 +209,87 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
             onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
             onBlur={() => save()}
-            className={`${inputCls} text-right tabular-nums ${belowMin ? 'text-[#F59E0B]' : aboveMax ? 'text-[#FCA5A5]' : 'text-[#F1F5F9]'}`}
+            className={`${inputCls} text-right tabular-nums ${
+              belowMin
+                ? 'text-[#FCA5A5] ring-2 ring-[#DC2626] rounded bg-[#3F1A1A]/40'
+                : aboveMax
+                  ? 'text-[#FCA5A5]'
+                  : 'text-[#F1F5F9]'
+            }`}
             title={
               (effectiveMin != null || effectiveMax != null)
                 ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
                 : undefined
             }
             data-testid={`sub-price-${sub.id}`} />
-          {/* iter95ab: warning dot ponizej min */}
-          {belowMin && (
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-full bg-[#F59E0B] cursor-help animate-pulse"
-              title={`PONIŻEJ MINIMUM (${effectiveMin.toFixed(2)} zł)${historyTooltip ? '\n\nHistoria zmian:\n' + historyTooltip : ''}`}
-              data-testid={`sub-below-min-${sub.id}`}
-            />
-          )}
-          {/* iter95ab: history dot - widoczna gdy sa zmiany ceny */}
-          {!belowMin && priceHistory.length > 0 && (
-            <span
-              className="inline-block h-2 w-2 rounded-full bg-[#5F7552] cursor-help opacity-70 hover:opacity-100"
-              title={`Historia zmian ceny (${priceHistory.length}):\n${historyTooltip}`}
-              data-testid={`sub-history-${sub.id}`}
-            />
+          {/* iter95bd: warning dot ponizej min (czerwony) + popover z historia */}
+          {(belowMin || priceHistory.length > 0) && (
+            <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={`inline-block h-2.5 w-2.5 rounded-full cursor-pointer ${
+                    belowMin
+                      ? 'bg-[#DC2626] animate-pulse'
+                      : 'bg-[#5F7552] opacity-70 hover:opacity-100'
+                  }`}
+                  data-testid={belowMin ? `sub-below-min-${sub.id}` : `sub-history-${sub.id}`}
+                  title={belowMin ? 'Kliknij: historia + ostrzeżenie' : 'Kliknij: historia zmian ceny'}
+                />
+              </PopoverTrigger>
+              <PopoverContent
+                className="w-80 bg-[#152033] border border-[#3D5378] text-[#F1F5F9] p-3 text-xs"
+                align="end"
+                data-testid={`sub-price-history-popover-${sub.id}`}
+              >
+                {belowMin && (
+                  <div className="mb-2 p-2 rounded bg-[#3F1A1A] border border-[#DC2626] text-[#FCA5A5] font-semibold">
+                    ⚠ Cena {currentPrice.toFixed(2)} zł poniżej minimum ({effectiveMin?.toFixed(2)} zł)
+                  </div>
+                )}
+                {effectiveMin != null && (
+                  <div className="text-[#9DBC85]">Min: <span className="font-mono">{effectiveMin.toFixed(2)} zł</span></div>
+                )}
+                {effectiveMax != null && (
+                  <div className="text-[#D4AF37] mb-2">Max: <span className="font-mono">{effectiveMax.toFixed(2)} zł</span></div>
+                )}
+                <div className="font-semibold text-[#D4AF37] mt-2 mb-1">
+                  Historia zmian ({priceHistory.length}):
+                </div>
+                {priceHistory.length === 0 ? (
+                  <div className="text-[#94A3B8] italic">Brak historii</div>
+                ) : (
+                  <div className="max-h-60 overflow-y-auto space-y-1">
+                    {priceHistory.slice().reverse().map((h, idx) => {
+                      const date = (h.ts || '').slice(0, 16).replace('T', ' ');
+                      const user = h.user_email || h.user_id || '—';
+                      return (
+                        <div
+                          key={idx}
+                          className={`p-1.5 rounded border ${
+                            h.below_min ? 'border-[#DC2626] bg-[#3F1A1A]/40' : 'border-[#3D5378] bg-[#0F1828]'
+                          }`}
+                        >
+                          <div className="text-[#94A3B8] text-[10px]">{date} · {user}</div>
+                          <div className="font-mono">
+                            <span className="text-[#94A3B8]">{h.from_price.toFixed(2)}</span>
+                            {' → '}
+                            <span className={h.below_min ? 'text-[#FCA5A5] font-bold' : 'text-[#F1F5F9]'}>
+                              {h.to_price.toFixed(2)} zł
+                            </span>
+                            {h.min_price != null && (
+                              <span className="text-[10px] text-[#94A3B8] ml-2">(min: {h.min_price.toFixed(2)})</span>
+                            )}
+                            {h.below_min && <span className="ml-2 text-[#DC2626] text-[10px]">⚠ PON. MIN</span>}
+                          </div>
+                          {h.reason && <div className="text-[10px] text-[#CBD5E1] mt-0.5">Powód: {h.reason}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </PopoverContent>
+            </Popover>
           )}
           {/* iter95ab: ikona ustawiania min/max */}
           <button
