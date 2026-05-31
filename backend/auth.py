@@ -125,3 +125,43 @@ async def get_current_finance_reader(current_user: dict = Depends(get_current_us
             detail="Brak uprawnien (wymagana rola admin lub accounting)",
         )
     return current_user
+
+
+
+# iter95bv: Bezpieczne pobieranie plikow (PDF/XLSX) przez `<a href>`/window.open.
+# Native browser download nie obsluguje wlasnych nagloowkow (Authorization),
+# wiec dla endpointow eksportu akceptujemy `?token=<jwt>` jako alternatywe.
+# Dzieki temu eksport eliminujemy axios/blob/proxy timeout (Network Error).
+from fastapi import Request
+
+async def get_current_admin_export(request: Request):
+    """Admin auth dla endpointow pobierania plikow (export.pdf, export.xlsx).
+
+    Akceptuje token z:
+      1. Naglowka `Authorization: Bearer <jwt>` (standard, dla XHR/fetch)
+      2. Query param `?token=<jwt>` (native download przez <a href>, window.open)
+
+    Wymagane, bo:
+      * <a href download> i window.open NIE wysylaja Authorization header
+      * Native browser download nie ma axios timeout (proxy/ingress nie ucina po 15-90s)
+      * Eliminujemy "Network Error" gdy plik jest duzy lub serwer wolniejszy
+    """
+    token: Optional[str] = None
+    auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+    if auth_header and auth_header.lower().startswith("bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        token = request.query_params.get("token")
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Brak tokenu (naglowek Authorization lub ?token=)",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    payload = decode_token(token)
+    if payload.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Brak uprawnien (wymagana rola admin)",
+        )
+    return payload

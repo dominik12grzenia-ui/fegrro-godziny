@@ -23,7 +23,7 @@ import io
 import base64
 
 from database import db
-from auth import get_current_admin
+from auth import get_current_admin, get_current_admin_export
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -1616,7 +1616,7 @@ async def export_wycena_xlsx(
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),
     include_notes: bool = Query(True),
-    _user: dict = Depends(get_current_admin),
+    _user: dict = Depends(get_current_admin_export),
 ):
     data = await _build_wycena_export(wycena_id)
     if detail == "client":
@@ -1997,7 +1997,7 @@ async def export_wycena_pdf(
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),
     include_notes: bool = Query(True),
-    _user: dict = Depends(get_current_admin),
+    _user: dict = Depends(get_current_admin_export),
 ):
     data = await _build_wycena_export(wycena_id)
     if detail == "client":

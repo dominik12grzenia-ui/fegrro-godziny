@@ -1,10 +1,15 @@
 // iter95aw: ExportWycenaDialog wyciągnięty z Wyceny.js (refaktor)
+// iter95bv: native browser download — eliminuje "Network Error" z axios/blob
+// (axios responseType:'blob' lapie proxy/ingress timeout dla duzych wycen).
+// Wykorzystujemy <a href download> + ?token=<jwt> w URL, dzieki czemu
+// przegladarka pobiera plik natywnie z wlasnym progress bar i bez timeoutu.
 import React, { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { FileText, FileSpreadsheet, FileDown, Eye } from 'lucide-react';
 import { toast } from 'sonner';
-import { api } from '../../context/AuthContext';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 
 export const ExportWycenaDialog = ({ wycenaId, wycenaName, clientName, onClose }) => {
   const [detail, setDetail] = useState('positions');
@@ -21,50 +26,51 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, clientName, onClose }
       params.set('include_wskazniki', includeWskazniki ? 'true' : 'false');
       params.set('include_notes', includeNotes ? 'true' : 'false');
     }
+    // iter95bv: token w query, bo native <a download> nie wysyla Authorization header
+    const token = localStorage.getItem('token');
+    if (token) params.set('token', token);
     Object.entries(extra).forEach(([k, v]) => params.set(k, v));
     return params.toString();
   };
 
-  const download = async (format) => {
+  // iter95bv: native browser download — przegladarka sama obsluguje pobieranie
+  // (bez axios timeoutu, bez problemu z duzymi blobami, bez Network Error).
+  const download = (format) => {
     setDownloading(true);
     try {
-      // iter95bp: timeout 90s dla eksportu (duze wyceny moga przekroczyc globalne 15s)
-      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?${buildQuery()}`, {
-        responseType: 'blob',
-        timeout: 90000,
-      });
-      const url = window.URL.createObjectURL(new Blob([r.data]));
+      const url = `${BACKEND_URL}/api/wyceny/${wycenaId}/export.${format}?${buildQuery()}`;
       const a = document.createElement('a');
       a.href = url;
       const safe = (wycenaName || 'wycena').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 50);
       const suffix = detail === 'client' ? 'oferta_klient' : (detail === 'full' ? 'pelna' : 'pozycje');
       a.download = `${detail === 'client' ? 'Oferta' : 'Wycena'}_${safe}_${suffix}.${format}`;
-      document.body.appendChild(a); a.click(); a.remove();
-      window.URL.revokeObjectURL(url);
-      toast.success(`Pobrano ${format.toUpperCase()}`);
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast.success(`Pobieranie ${format.toUpperCase()} rozpoczete`);
     } catch (e) {
-      toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
-    } finally { setDownloading(false); }
+      toast.error('Bld pobierania: ' + (e.message || 'nieznany'));
+    } finally {
+      // Odblokuj przyciski po krotkim opoznieniu - przegladarka rozpoczyna download w tle
+      setTimeout(() => setDownloading(false), 1500);
+    }
   };
 
-  const preview = async () => {
+  // iter95bv: podglad otwiera PDF w nowej karcie (inline) - tez native, bez axios
+  const preview = () => {
     setDownloading(true);
     try {
-      // iter95bp: timeout 90s dla eksportu (duze wyceny moga przekroczyc globalne 15s)
-      const r = await api.get(`/wyceny/${wycenaId}/export.pdf?${buildQuery({ inline: 'true' })}`, {
-        responseType: 'blob',
-        timeout: 90000,
-      });
-      const blob = new Blob([r.data], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const win = window.open(url, '_blank');
+      const url = `${BACKEND_URL}/api/wyceny/${wycenaId}/export.pdf?${buildQuery({ inline: 'true' })}`;
+      const win = window.open(url, '_blank', 'noopener');
       if (!win) {
-        toast.error('Wyłącz blokowanie wyskakujących okienek lub kliknij PDF aby pobrać');
+        toast.error('Wylacz blokowanie wyskakujacych okienek lub uzyj PDF aby pobrac');
       }
-      setTimeout(() => window.URL.revokeObjectURL(url), 60000);
     } catch (e) {
-      toast.error('Błąd podglądu: ' + (e.response?.data?.detail || e.message));
-    } finally { setDownloading(false); }
+      toast.error('Bld podgladu: ' + (e.message || 'nieznany'));
+    } finally {
+      setTimeout(() => setDownloading(false), 1000);
+    }
   };
 
   return (

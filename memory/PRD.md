@@ -1,3 +1,35 @@
+## Iteration 95bv (2026-02) — Bug fix: "Błąd: Network Error" przy pobieraniu wyceny
+
+### Problem (P0)
+User: *"nie mogę pobrać wycen wyskakuje błąd Network Error"* — eksport PDF/XLSX kończył się `Network Error` w toaście, bo `axios.get` z `responseType: 'blob'` + `timeout: 90000` był podatny na proxy/ingress timeout (Cloudflare/Vercel/k8s zwykle ~60s) i CORS preflight przy długim Authorization header. Przy dużych wycenach żądanie kończyło się `net::ERR_*` bez dotarcia odpowiedzi do axiosa.
+
+### Fix — przejście na native browser download
+**`/app/backend/auth.py`** — nowy helper `get_current_admin_export`:
+- Akceptuje JWT z `Authorization: Bearer <jwt>` (kompatybilność wsteczna) **lub** z `?token=<jwt>` query param.
+- Pozwala używać `<a href download>` / `window.open` które nie wysyłają nagłówków.
+
+**`/app/backend/routes/wyceny.py`** — endpointy `GET /wyceny/{id}/export.pdf` i `export.xlsx` używają nowego helpera (`Depends(get_current_admin_export)`).
+
+**`/app/frontend/src/components/wyceny/ExportWycenaDialog.js`** — usunięto `axios` + `Blob` + `ObjectURL`:
+- `download(format)` tworzy `<a href="{BACKEND}/api/wyceny/{id}/export.{format}?...&token=<jwt>" download>` i klika natywnie
+- `preview()` używa `window.open(url, '_blank', 'noopener')`
+- Przeglądarka pobiera plik w tle z własnym progress UI, **bez timeoutu axiosa**, bez problemów z dużymi blobami w pamięci, bez CORS preflight
+
+### Test
+- **Backend curl × 5**: Auth header (200), query token (200), XLSX query token (200), brak tokenu (401), zły token (401). Wszystkie PASS, PDF 63 kB / XLSX 28 kB.
+- **Frontend Playwright**: kliknięcie PDF dla iter95aj export → `Pobieranie PDF rozpoczete` toast + plik `Wycena_iter95aj_export_pozycje_20260531.pdf` zapisany przez Playwright `expect_download()`. PASS.
+
+### Dlaczego ten fix rozwiązuje "Network Error"
+| Stara ścieżka (axios+blob) | Nowa ścieżka (native download) |
+|---|---|
+| ~~axios timeout 90s blokuje duże pliki~~ | przeglądarka czeka spokojnie kilka minut |
+| ~~Proxy/ingress ucina >60s połączenie → ERR_ABORTED~~ | natywne pobieranie odporne na slow start |
+| ~~Wymaga CORS preflight (Authorization header)~~ | prosty GET, brak preflight |
+| ~~Cały plik w RAM jako Blob~~ | streaming bezpośrednio na dysk |
+
+---
+
+
 ## Iteration 95bu (2026-02) — Bug fix: PriceBookPicker obsługa price_other/unit_other dla Robocizny
 
 ### Problem (P0)
