@@ -59,13 +59,23 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
         return { price: ownCalc.price, unit: ownCalc.workUnit, source: mismatch ? 'computed-mismatch' : 'computed' };
       }
     }
-    // LABOR: dobierz cene zgodna z posUnit
+    // LABOR: dobierz cene zgodna z posUnit (iter95bu: wsparcie price_other/unit_other - np. kg, mb, szt)
     if (category === 'labor') {
+      // 1. Idealny match z posUnit
       if (posUnit === 'm²' && it.price_m2) return { price: it.price_m2, unit: 'm²', source: 'm2' };
       if (posUnit === 'm³' && it.price_m3) return { price: it.price_m3, unit: 'm³', source: 'm3' };
-      const fallback = it.price_m2 || it.price_m3 || it.unit_price_netto || 0;
-      const fbUnit = it.price_m2 ? 'm²' : it.price_m3 ? 'm³' : (it.unit || '');
-      return { price: fallback, unit: fbUnit, source: 'raw' };
+      if (posUnit && it.unit_other && it.price_other != null && posUnit === it.unit_other) {
+        return { price: Number(it.price_other), unit: it.unit_other, source: 'other' };
+      }
+      // 2. Fallback - bierz pierwsza dostepna cene; jesli wystepuje cena niestandardowa (kg, mb, szt),
+      //    a m2/m3 nie ma - uzyj jej (zamiast 0). Oznacz mismatch jesli rozni sie od posUnit.
+      let fbPrice = 0, fbUnit = '';
+      if (it.price_m2) { fbPrice = Number(it.price_m2); fbUnit = 'm²'; }
+      else if (it.price_m3) { fbPrice = Number(it.price_m3); fbUnit = 'm³'; }
+      else if (it.price_other != null && it.unit_other) { fbPrice = Number(it.price_other); fbUnit = it.unit_other; }
+      else { fbPrice = Number(it.unit_price_netto || 0); fbUnit = it.unit || ''; }
+      const mismatch = !!(posUnit && fbUnit && posUnit !== fbUnit);
+      return { price: fbPrice, unit: fbUnit, source: mismatch ? 'computed-mismatch' : 'raw' };
     }
     // EQUIPMENT: godz/dzień/m-c
     if (category === 'equipment') {
@@ -92,6 +102,8 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
       const parts = [];
       if (it.price_m2) parts.push(`m²: ${fmtPLN(it.price_m2)}`);
       if (it.price_m3) parts.push(`m³: ${fmtPLN(it.price_m3)}`);
+      if (it.price_other != null && it.unit_other) parts.push(`${it.unit_other}: ${fmtPLN(it.price_other)}`);
+      if (it.sub_category) parts.push(it.sub_category);
       return parts.join(' • ');
     }
     if (category === 'equipment') {
