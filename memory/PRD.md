@@ -1,3 +1,33 @@
+## Iteration 95x (2026-05) — Szablony zakresu + Color picker dla budow
+
+### Implementacja
+**Backend** (`/app/backend/routes/wyceny.py`):
+- `GET/PUT /api/wyceny/scope-templates` (admin-only) z `ScopeTemplate` model (id/name/scope_includes/scope_excludes/is_default)
+- Auto-UUID dla nowych, deduplikacja `is_default` (tylko jeden domyslny)
+- Storage: collection `app_settings` (key=`wyceny_scope_templates`)
+
+**Backend** (`/app/backend/models.py` + `routes/sites.py`):
+- `ConstructionSite`, `SiteCreate`, `SiteUpdate`: nowe pole `color: Optional[str]`
+- `GET /api/sites` projection zawiera `color`
+- `PUT /api/sites/{id}` uzywa `model_dump(exclude_unset=True)` zeby `color=null` poprawnie czyscil (fix iter95x bug znaleziony przez testing agent)
+
+**Frontend**:
+- `ui/ColorPicker.js` (nowy, ~140 linii): 30 kolorow w siatce 10×3 (zielone/niebieskie/brazowe/fioletowe/czerwone/tealowe), highlight uzywanych (zlota kropka), checkmark+ring na wybranym, custom hex input, Wyczysc button
+- `admin/SitesTab.js`: ColorPicker w formie nowej budowy + per-site przycisk "Wybierz/Zmień kolor" rozwijajacy inline picker
+- `HoursTable.js`: `getSiteColorHex()` priorytetyzuje `site.color` przed legacy index palette
+- `wyceny/ScopeTemplatesDialog.js` (nowy, ~190 linii): manage mode (CRUD szablonow) + apply mode (one-click wczytanie do wyceny)
+- `Wyceny.js`: 2 przyciski - lista "Szablony zakresu" (manage), edytor "Szablon zakresu" (apply); auto-aplikacja default w NewWycenaDialog
+
+### Test
+- Pytest: 14/14 PASS (`/app/backend/tests/test_iter95x_scope_templates_color.py`) po fix `color=null`
+- Frontend smoke 13/13 ✅
+- Visual screenshots:
+  - ColorPicker pokazuje 30 swatchy + checkmark na `#9B2C2C` + footer z hex `#9B2C2C`
+  - ScopeTemplatesDialog pokazuje 2 szablony (Dom domyslny + Komercja)
+
+---
+
+
 ## Iteration 95w (2026-05) — Export oferty: nagłówek firmowy + scope + czytelne pozycje
 
 ### Implementacja

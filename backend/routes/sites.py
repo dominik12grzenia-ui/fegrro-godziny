@@ -93,7 +93,8 @@ async def update_site(
     site_update: SiteUpdate,
     current_user: dict = Depends(get_current_admin)
 ):
-    update_data = {k: v for k, v in site_update.model_dump().items() if v is not None}
+    # iter95x: uzywamy exclude_unset zeby zachowac explicit None (np. dla wyczyszczenia color)
+    update_data = site_update.model_dump(exclude_unset=True)
     
     if not update_data:
         raise HTTPException(status_code=400, detail="No fields to update")
