@@ -1,3 +1,27 @@
+## Iteration 95y (2026-05) — Kolor budowy przeniesiony do Finanse → Budowy
+
+### Implementacja
+**Backend** (`/app/backend/routes/finance.py`):
+- `BudowaCreate` / `BudowaUpdate`: dodane `color: Optional[str]`
+- `POST /finance/budowy` zapisuje color + propaguje do `construction_sites` przez `_sync_to_sites(color=...)`
+- `PUT /finance/budowy/{id}`:
+  - `color=null` poprawnie czysci (clearable allowlist w filtrze)
+  - Propaguje update color do `construction_sites` poprzez finance_budowa_id link
+- `GET /finance/budowy` zawsze zwraca `color` (None dla legacy bez pola)
+
+**Frontend**:
+- `admin/SitesTab.js` — usunięto ColorPicker (revert iter95x)
+- `finance/BudowyPanel.js` — dodano ColorPicker w modal "Dodaj/Edytuj budowę" (data-testid='finance-budowa-color-block') ze stanem `form.color` + highlight uzywanych kolorow z innych budow
+- `HoursTable.js` bez zmian — nadal czyta z `sites.color` (synced)
+
+### Test
+- Pytest: 8/8 PASS (`/app/backend/tests/test_iter95y_finance_budowa_color.py`) po 2 fixach
+- Smoke 13/13 ✅
+- Visual: Lokalizacje bez koloru, Finance → Budowy modal pokazuje 30-kolorową paletę
+
+---
+
+
 ## Iteration 95x (2026-05) — Szablony zakresu + Color picker dla budow
 
 ### Implementacja

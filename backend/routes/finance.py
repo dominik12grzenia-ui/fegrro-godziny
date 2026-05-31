@@ -352,6 +352,10 @@ async def list_budowy(
     elif has_budget is False:
         q["has_budget"] = False
     rows = await db.finance_budowy.find(q, {"_id": 0}).sort("name", 1).to_list(length=None)
+    # iter95y: zapewnij ze color jest w odpowiedzi (None dla legacy bez tego pola)
+    for r in rows:
+        if "color" not in r:
+            r["color"] = None
     return {"rows": rows}
 
 
@@ -403,8 +407,12 @@ async def update_budowa(
     existing = await db.finance_budowy.find_one({"id": budowa_id, **soft_delete_filter()}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Budowa nie znaleziona")
-    upd = {k: v for k, v in payload.model_dump(exclude_unset=True).items() if v is not None}
-    if "name" in upd:
+    # iter95y: uzywamy exclude_unset zeby zachowac explicit None (np. wyczyszczenie color)
+    raw = payload.model_dump(exclude_unset=True)
+    # Pola ktore moga byc None na czysto (clearable)
+    clearable = {"color"}
+    upd = {k: v for k, v in raw.items() if v is not None or k in clearable}
+    if "name" in upd and upd["name"] is not None:
         upd["name"] = upd["name"].strip()
     upd["updated_at"] = datetime.now().isoformat()
     upd["updated_by"] = current_user["sub"]
