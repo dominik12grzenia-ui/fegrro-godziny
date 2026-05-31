@@ -83,9 +83,16 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
         </div>
       </Td>
       <Td>
-        <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save({ name: edit.name })} className={`${inputCls} text-white font-semibold`}
+        <textarea value={edit.name || ''}
+          onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+          onBlur={() => save({ name: edit.name })}
+          rows={1}
           title={edit.name || ''}
+          className={`bg-transparent border-0 text-xs w-full focus:bg-[#152033] outline-none text-white font-semibold resize-none overflow-hidden leading-tight py-0.5`}
+          style={{ minHeight: '20px', height: 'auto' }}
+          onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+          onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
           data-testid={`pos-name-${position.id}`} />
       </Td>
       <Td right>

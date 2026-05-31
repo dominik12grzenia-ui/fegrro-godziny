@@ -948,7 +948,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       </div>
 
       <div className="overflow-x-auto border border-[#3D5378] rounded">
-        <table className="w-full text-xs border-collapse" data-testid="wycena-excel-table">
+        <table className="text-xs border-collapse min-w-[2400px]" data-testid="wycena-excel-table">
           <thead className="sticky top-0 z-10">
             <tr>
               <Th w="60" tip="Numer pozycji (auto)">KOD</Th>
