@@ -14,7 +14,7 @@ import {
   UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
 } from './_shared';
 
-export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, onLocalUpdate, onDel }) => {
+export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, onLocalUpdate, onDel }) => {
   const [edit, setEdit] = useState(sub);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -121,6 +121,9 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   const currentPrice = parseFloat(edit.unit_price_netto) || 0;
   const belowMin = effectiveMin != null && currentPrice > 0 && currentPrice < effectiveMin;
   const aboveMax = effectiveMax != null && currentPrice > effectiveMax;
+  // iter95bm: w trybie negocjacji - "na granicy minimum" (cena = min ± 0.01)
+  const atMin = negotiationOn && effectiveMin != null && currentPrice > 0
+                && Math.abs(currentPrice - effectiveMin) < 0.01;
   const historyTooltip = priceHistory.length > 0
     ? priceHistory.slice(-5).map((h) => {
         const date = (h.ts || '').slice(0, 16).replace('T', ' ');
@@ -130,7 +133,15 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
     : '';
 
   return (
-    <tr className="bg-[#152033]/30" data-testid={`sub-row-${sub.id}`}>
+    <tr
+      className={
+        atMin
+          ? 'bg-orange-500/15 border-l-4 border-l-orange-400 ring-1 ring-orange-400/40 animate-pulse'
+          : 'bg-[#152033]/30'
+      }
+      data-testid={`sub-row-${sub.id}`}
+      title={atMin ? `⚠ Pozycja na granicy minimum (${effectiveMin?.toFixed(2)} zł). Cena nie może być niższa.` : undefined}
+    >
       <Td className="text-[#CBD5E1]">{code}</Td>
       <Td>
         <span className="text-[10px]" style={{ color: SUB_TYPE_COLOR[sub.type] }}>{SUB_TYPE_LABEL[sub.type]}</span>
@@ -206,20 +217,26 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
             className="text-[#D4AF37] hover:text-[#FCD34D]" data-testid={`sub-book-${sub.id}`}>
             <BookOpen className="h-3.5 w-3.5" />
           </button>
-          <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
+          <input type="number" step="0.01"
+            min={negotiationOn && effectiveMin != null ? effectiveMin : undefined}
+            value={edit.unit_price_netto ?? ''}
             onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
             onBlur={() => save()}
             className={`${inputCls} text-right tabular-nums ${
-              belowMin
-                ? 'text-[#FCA5A5] ring-2 ring-[#DC2626] rounded bg-[#3F1A1A]/40'
-                : aboveMax
-                  ? 'text-[#FCA5A5]'
-                  : 'text-[#F1F5F9]'
+              atMin
+                ? 'text-[#FED7AA] ring-2 ring-orange-400 rounded bg-orange-500/15 font-bold'
+                : belowMin
+                  ? 'text-[#FCA5A5] ring-2 ring-[#DC2626] rounded bg-[#3F1A1A]/40'
+                  : aboveMax
+                    ? 'text-[#FCA5A5]'
+                    : 'text-[#F1F5F9]'
             }`}
             title={
-              (effectiveMin != null || effectiveMax != null)
-                ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
-                : undefined
+              atMin
+                ? `⚠ MINIMUM (${effectiveMin?.toFixed(2)} zł) — nie można zejść niżej w trybie negocjacji`
+                : (effectiveMin != null || effectiveMax != null)
+                  ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
+                  : undefined
             }
             data-testid={`sub-price-${sub.id}`} />
           {/* iter95bd: warning dot ponizej min (czerwony) + popover z historia */}

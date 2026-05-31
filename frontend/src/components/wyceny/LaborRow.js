@@ -22,6 +22,9 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
       name: edit.name || '',
       price_m2: edit.price_m2 === '' || edit.price_m2 == null ? null : parseFloat(edit.price_m2),
       price_m3: edit.price_m3 === '' || edit.price_m3 == null ? null : parseFloat(edit.price_m3),
+      // iter95bm: minimum/maximum godzinowe robocizny (kopiowane do wyceny przy wyborze)
+      price_min: edit.price_min === '' || edit.price_min == null ? null : parseFloat(edit.price_min),
+      price_max: edit.price_max === '' || edit.price_max == null ? null : parseFloat(edit.price_max),
     };
     // iter95p: czy zmienila sie cena? jezeli tak - refetch (zeby zaktualizowac price_history)
     const priceChanged = (item.price_m2 !== payload.price_m2) || (item.price_m3 !== payload.price_m3);
@@ -59,6 +62,23 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
           onBlur={save}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`labor-price-m3-${item.id}`} />
+      </td>
+      {/* iter95bm: cena min/max - kopiuje sie do wyceny przy wyborze pozycji */}
+      <td className="border-r border-[#3D5378]/40 p-1">
+        <input type="number" step="0.01" value={edit.price_min ?? ''}
+          onChange={(e) => setEdit({ ...edit, price_min: e.target.value })}
+          onBlur={save}
+          className={`${inputCls} text-right tabular-nums text-[#FCA5A5]`}
+          placeholder="—" title="Cena minimalna - nie da się zejść niżej w trybie negocjacji"
+          data-testid={`labor-price-min-${item.id}`} />
+      </td>
+      <td className="border-r border-[#3D5378]/40 p-1">
+        <input type="number" step="0.01" value={edit.price_max ?? ''}
+          onChange={(e) => setEdit({ ...edit, price_max: e.target.value })}
+          onBlur={save}
+          className={`${inputCls} text-right tabular-nums text-[#FCD34D]`}
+          placeholder="—" title="Cena maksymalna (info)"
+          data-testid={`labor-price-max-${item.id}`} />
       </td>
       <td className="border-r border-[#3D5378]/40 p-1">
         {history.length === 0 ? (

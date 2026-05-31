@@ -80,6 +80,12 @@ export const LaborPriceBook = () => {
                 <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[260px]">nazwa robocizny</th>
                 <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[120px]">cena za m²</th>
                 <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[120px]">cena za m³</th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[100px]" title="Cena minimalna - blokuje obnizenie w trybie negocjacji">
+                  <span className="text-[#FCA5A5]">cena min</span>
+                </th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[100px]" title="Cena maksymalna (informacja)">
+                  <span className="text-[#FCD34D]">cena max</span>
+                </th>
                 <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[280px]">
                   Wartości historyczne po zmianach (historia)
                 </th>

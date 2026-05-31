@@ -273,8 +273,16 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     });
   }, []);
 
-  // iter95av: tryb negocjacji - lokalne mnozniki bez zapisu w bazie
+  // iter95av: tryb negocjacji - lokalne mnozniki + iter95bm: synchronizowany z DB
+  // (wycena.negotiation_mode) by backend blokowal zapisy ponizej minimum
   const [negotiationOn, setNegotiationOn] = useState(false);
+
+  // iter95bm: synchronizuj negotiationOn z wartoscia z DB po pierwszym fetchu
+  useEffect(() => {
+    if (data?.wycena) {
+      setNegotiationOn(!!data.wycena.negotiation_mode);
+    }
+  }, [data?.wycena?.id]);  // tylko gdy zmieni sie wycena (load), nie przy kazdym save
   const [neg, setNeg] = useState({
     labor: -2,       // % zmiany ceny robocizny (-2 = obniz o 2%)
     materials: 0,
@@ -299,6 +307,18 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       marzaOverride: data?.wycena?.default_marza_pct ?? '',
     }));
     setNegotiationOn(true);
+    // iter95bm: persist do bazy by backend blokowal zapisy < min
+    api.patch(`/wyceny/${wycenaId}`, { negotiation_mode: true })
+      .then(() => setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, negotiation_mode: true } } : prev))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)));
+  };
+
+  // iter95bm: wyjscie z trybu negocjacji - persist do bazy
+  const closeNegotiation = () => {
+    setNegotiationOn(false);
+    api.patch(`/wyceny/${wycenaId}`, { negotiation_mode: false })
+      .then(() => setData((prev) => prev ? { ...prev, wycena: { ...prev.wycena, negotiation_mode: false } } : prev))
+      .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)));
   };
 
   // Czyzn lista zmian aktywna?
@@ -468,7 +488,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       if (neg.marzaOverride !== '') body.marza_pct = parseFloat(neg.marzaOverride);
       const r = await api.post(`/wyceny/${wycenaId}/negotiation/apply`, body);
       toast.success(`Negocjacja przyjęta! Zapisano wersję, ${r.data.lines_modified} linii zmodyfikowano`);
-      setNegotiationOn(false);
+      closeNegotiation();
       setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' });
       fetchData(true);
       loadSnapshots();
@@ -665,7 +685,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           <FileText className="h-4 w-4 mr-1" /> Zaciągnij do budżetu
         </Button>
         {/* iter95av: tryb negocjacji + wersje */}
-        <Button onClick={negotiationOn ? () => setNegotiationOn(false) : openNegotiation} variant="outline"
+        <Button onClick={negotiationOn ? closeNegotiation : openNegotiation} variant="outline"
           className={(negotiationOn
             ? 'border-[#F59E0B] text-[#F59E0B] bg-[#F59E0B]/10 font-semibold animate-pulse'
             : 'border-[#F59E0B]/60 text-[#F59E0B] hover:bg-[#F59E0B]/10') + ' shrink-0'}
@@ -1050,6 +1070,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                           <SubRow key={sub.id} code={`${code}.${subIdx + 1}`} sub={sub}
                             posComputed={r} defaults={defaults}
                             posUnit={p.unit}
+                            negotiationOn={negotiationOn}
                             onLocalUpdate={updateLineLocal}
                             onDel={() => delSlot(sub.id)} />
                         ))}

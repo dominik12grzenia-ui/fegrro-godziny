@@ -1,0 +1,37 @@
+{
+  "summary": "iter95bm backend negotiation_mode tests: 17/17 PASS after fixing one persistence bug in create_price_book. All required scenarios validated: negotiation_mode toggle persistence + /template readback, auto price_min for materials/equipment (incl. MAX(line, book) rule), labor min/max copy from cennik, HTTP 400 block when below price_min with negotiation_mode=true (with PL message containing 'negocjacj'/'minimum'), allow + below_min=true history flag when negotiation_mode=false, below_min_accepted=true override, and price_book_id propagation on PATCH. Reference wycena (52438c80...) negotiation_mode restored to false. Regression suite (iter95bd) also passes (12/12).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [],
+    "fixed_during_testing": [
+      {"endpoint": "POST /api/wyceny/cennik", "issue": "PriceBookCreate model accepted price_min/price_max but the create_price_book endpoint did NOT include them in the MongoDB insert doc, so values were silently dropped. Caused MAX(unit, book_min) for materials/equipment and labor min/max copy from cennik to fail. Fixed by adding 'price_min'/'price_max' keys into the doc dict in /app/backend/routes/wyceny.py create_price_book().", "priority": "HIGH"}
+    ]
+  },
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter95bm_negotiation_mode.py",
+    "/app/test_reports/pytest/iter95bm_negotiation.xml"
+  ],
+  "action_items": [
+    "(Done by test agent) Persist price_min/price_max in POST /api/wyceny/cennik (one-line fix applied).",
+    "Main agent should verify the cennik create persistence fix is intentional (it is the obvious correct behaviour since PriceBookCreate model already exposes those fields and update_price_book uses dict(exclude_unset=True))."
+  ],
+  "critical_code_review_comments": [
+    "BUG (now fixed): /app/backend/routes/wyceny.py create_price_book() omitted price_min/price_max from the inserted document, breaking the iter95bm contract for materials/equipment MAX rule and labor min/max copy.",
+    "/app/backend/routes/wyceny.py is now 2735+ lines and continues to exceed the 700-line guideline; high time to split into wyceny_lines.py, wyceny_pricebook.py, wyceny_export.py.",
+    "create_line auto-min code path for materials/equipment correctly uses MAX(payload.price_min, payload.unit_price_netto, pb.price_min); confirmed via test_materials_with_price_book_takes_max (50 vs book 80 → 80).",
+    "update_line behavior with price_book_id swap also correctly copies book.price_min (200) into a line that previously had no min; confirmed via test_patch_price_book_id_materials_copies_max_min.",
+    "Validation message for HTTP 400 in negotiation mode is in Polish and informative (contains 'negocjacj' and/or 'minimum') — good UX."
+  ],
+  "updated_files": [
+    "/app/backend/routes/wyceny.py (added price_min/price_max to create_price_book doc insert)",
+    "/app/backend/tests/test_iter95bm_negotiation_mode.py (new — 17 tests)"
+  ],
+  "success_rate": {"backend": "100% (17/17 PASS for iter95bm + 12/12 PASS for iter95bd regression)", "frontend": "not tested (per request)"},
+  "test_credentials": "Admin: admin@fegrro.pl / Admin123! (POST /api/auth/admin/login)",
+  "seed_data_creation": "Per-module fixture creates: 1 wycena (TEST_iter95bm_<ts>), 1 stage, 1 position, 3 cennik items (TEST_mat_, TEST_mat200_, TEST_labor_) and several lines. All cleaned up in fixture teardown via DELETE /api/wyceny/{id} and DELETE /api/wyceny/cennik/{id}. Reference wycena 52438c80-a55c-488b-9868-d5969c5b0402 had negotiation_mode toggled during smoke check and is restored to false in the final test (TestZRestoreRefWycena).",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Canonical regression file: /app/backend/tests/test_iter95bm_negotiation_mode.py. Run: pytest backend/tests/test_iter95bm_negotiation_mode.py -v. Combined with /app/backend/tests/test_iter95bd_wyceny_price.py covers price_min/max persistence, history, negotiation_mode toggle+validation, and cennik propagation rules. IMPORTANT: the bug 'POST /api/wyceny/cennik silently dropped price_min/price_max' was fixed in this iteration — if future tests fail with cennik price fields missing, check that the doc dict in create_price_book() still includes these keys.",
+  "rca of the issue": "RCA: PriceBookCreate Pydantic model (lines ~155-180) exposed price_min/price_max, but create_price_book() at lines ~644-686 built the insert doc manually without listing those two keys, so MongoDB stored them as missing. Reproduction: POST /api/wyceny/cennik with price_min=80 → GET cennik list → response has neither price_min nor price_max. Mitigation: explicit 'price_min': payload.price_min and 'price_max': payload.price_max added to the doc dict (between 'notes' and 'sub_category'). Long-term: switch to payload.dict(exclude_unset=False) or a serializer to avoid future drift between model and persisted shape."
+}

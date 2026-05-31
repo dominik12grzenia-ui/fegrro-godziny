@@ -73,6 +73,9 @@ class WycenaUpdate(BaseModel):
     # iter95ab: tryb zaokraglania finalnej ceny jednostkowej w widoku oferty
     # 'none' (default) | 'natural' | 'up' | 'down'
     rounding_mode: Optional[str] = "natural"
+    # iter95bm: tryb negocjacji - gdy True, ceny < price_min sa odrzucane (HTTP 400).
+    # Auto-set price_min przy pierwszym wpisie dla materials/equipment.
+    negotiation_mode: Optional[bool] = None
 
 
 class StageCreate(BaseModel):
@@ -472,6 +475,34 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
     if payload.type not in {"materials", "labor", "equipment"}:
         raise HTTPException(400, "Nieprawidlowy typ")
     lid = str(uuid.uuid4())
+    # iter95bm: auto-set price_min przy tworzeniu linii dla materials/equipment.
+    # Bierze MAX z (ceny wpisanej, price_min z cennika jezeli wybrano).
+    eff_price_min = payload.price_min
+    if payload.type in ("materials", "equipment") and (payload.unit_price_netto or 0) > 0:
+        candidates = []
+        if payload.price_min is not None:
+            candidates.append(float(payload.price_min))
+        if payload.unit_price_netto:
+            candidates.append(float(payload.unit_price_netto))
+        if payload.price_book_id:
+            pb = await db.wyceny_price_book.find_one(
+                {"id": payload.price_book_id}, {"_id": 0, "price_min": 1}
+            )
+            if pb and pb.get("price_min") is not None:
+                candidates.append(float(pb["price_min"]))
+        if candidates:
+            eff_price_min = max(candidates)
+    # iter95bm: dla labor - przy wybraniu z cennika kopiuje price_min/max z cennika
+    eff_price_max = payload.price_max
+    if payload.type == "labor" and payload.price_book_id:
+        pb = await db.wyceny_price_book.find_one(
+            {"id": payload.price_book_id}, {"_id": 0, "price_min": 1, "price_max": 1}
+        )
+        if pb:
+            if eff_price_min is None and pb.get("price_min") is not None:
+                eff_price_min = float(pb["price_min"])
+            if eff_price_max is None and pb.get("price_max") is not None:
+                eff_price_max = float(pb["price_max"])
     doc = {
         "id": lid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "position_id": payload.position_id, "parent_id": payload.parent_id,
@@ -481,6 +512,9 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         "narzut_zapas_pct": payload.narzut_zapas_pct,
         "marza_pct": payload.marza_pct,
         "quantity_formula": payload.quantity_formula,
+        "price_min": eff_price_min,
+        "price_max": eff_price_max,
+        "price_book_id": payload.price_book_id,
         "order": payload.order,
         "created_at": datetime.now().isoformat(),
     }
@@ -501,19 +535,64 @@ async def update_line(line_id: str, payload: LineUpdate, current_user: dict = De
     clearable = {"price_min", "price_max", "below_min_reason"}
     updates = {k: v for k, v in raw.items() if v is not None or k in clearable}
 
+    # iter95bm: gdy zmieniono price_book_id, skopiuj price_min/max z cennika.
+    # Materials/Equipment: MAX(istniejacy, book) | Labor: tylko jak brak.
+    if "price_book_id" in raw and raw.get("price_book_id"):
+        pb = await db.wyceny_price_book.find_one(
+            {"id": raw["price_book_id"]}, {"_id": 0, "price_min": 1, "price_max": 1}
+        )
+        if pb:
+            ltype = existing.get("type")
+            cur_min = updates.get("price_min", existing.get("price_min"))
+            cur_max = updates.get("price_max", existing.get("price_max"))
+            book_min = pb.get("price_min")
+            book_max = pb.get("price_max")
+            if book_min is not None:
+                if ltype in ("materials", "equipment"):
+                    updates["price_min"] = max(float(cur_min) if cur_min is not None else book_min, float(book_min))
+                elif cur_min is None:
+                    updates["price_min"] = float(book_min)
+            if book_max is not None and cur_max is None:
+                updates["price_max"] = float(book_max)
+
     # iter95ab: zapis historii zmian ceny do price_change_history
     new_price = raw.get("unit_price_netto")
     old_price = existing.get("unit_price_netto")
+
+    # Pobierz effective_min (z linii lub cennika)
+    line_min = updates.get("price_min", existing.get("price_min"))
+    pb_min = None
+    if line_min is None and existing.get("price_book_id"):
+        pb_doc = await db.wyceny_price_book.find_one(
+            {"id": existing["price_book_id"]}, {"_id": 0, "price_min": 1}
+        )
+        pb_min = (pb_doc or {}).get("price_min")
+    effective_min = line_min if line_min is not None else pb_min
+
     if new_price is not None and old_price is not None and abs(new_price - old_price) > 1e-9:
-        # Sprawdz czy poniżej minimum (z linii lub cennika)
-        line_min = existing.get("price_min")
-        pb_min = None
-        if existing.get("price_book_id"):
-            pb = await db.wyceny_price_book.find_one(
-                {"id": existing["price_book_id"]}, {"_id": 0, "price_min": 1}
+        # iter95bm: walidacja trybu negocjacji - blokuje zapis ponizej min
+        if not raw.get("below_min_accepted"):
+            wycena = await db.wyceny.find_one(
+                {"id": existing["wycena_id"]}, {"_id": 0, "negotiation_mode": 1}
             )
-            pb_min = (pb or {}).get("price_min")
-        effective_min = line_min if line_min is not None else pb_min
+            neg_mode = (wycena or {}).get("negotiation_mode", False)
+            if neg_mode and effective_min is not None and float(new_price) < float(effective_min) - 1e-9:
+                raise HTTPException(
+                    400,
+                    f"Tryb negocjacji: cena {new_price:.2f} zl < minimum {float(effective_min):.2f} zl. "
+                    f"Wylacz tryb negocjacji lub akceptuj ceny ponizej minimum.",
+                )
+
+        # iter95bm: auto-set price_min przy pierwszym wpisaniu ceny dla materials/equipment
+        # (jezeli price_min jest jeszcze nieustawione)
+        if (
+            existing.get("type") in ("materials", "equipment")
+            and effective_min is None
+            and float(new_price) > 0
+        ):
+            updates["price_min"] = float(new_price)
+            effective_min = float(new_price)
+
         below_min = effective_min is not None and new_price < effective_min
 
         history_entry = {
@@ -570,6 +649,9 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         "id": pid, "category": payload.category, "name": payload.name,
         "unit": payload.unit, "unit_price_netto": payload.unit_price_netto,
         "notes": payload.notes,
+        # iter95ab: ceny graniczne (negocjacje)
+        "price_min": payload.price_min,
+        "price_max": payload.price_max,
         # iter95l: extended fields (materials)
         "sub_category": payload.sub_category,
         "oferent": payload.oferent,
