@@ -112,6 +112,21 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   const narzutPlaceholder = (defaults.narzut ?? 0) ? String(defaults.narzut) : '0';
   const marzaPlaceholder = (defaults.marza ?? 0) ? String(defaults.marza) : '0';
 
+  // iter95ab: tooltip historii zmian ceny + ostrzezenie ponizej minimum
+  const priceHistory = sub.price_change_history || [];
+  const effectiveMin = (sub.price_min != null) ? sub.price_min : null;
+  const effectiveMax = (sub.price_max != null) ? sub.price_max : null;
+  const currentPrice = parseFloat(edit.unit_price_netto) || 0;
+  const belowMin = effectiveMin != null && currentPrice > 0 && currentPrice < effectiveMin;
+  const aboveMax = effectiveMax != null && currentPrice > effectiveMax;
+  const historyTooltip = priceHistory.length > 0
+    ? priceHistory.slice(-5).map((h) => {
+        const date = (h.ts || '').slice(0, 16).replace('T', ' ');
+        const minTxt = h.min_price != null ? ` (min: ${h.min_price.toFixed(2)})` : '';
+        return `${date}: ${h.from_price.toFixed(2)} → ${h.to_price.toFixed(2)}${minTxt}${h.below_min ? ' ⚠ PON. MIN' : ''}`;
+      }).join('\n')
+    : '';
+
   return (
     <tr className="bg-[#152033]/30" data-testid={`sub-row-${sub.id}`}>
       <Td className="text-[#CBD5E1]">{code}</Td>
@@ -191,8 +206,53 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           </button>
           <input type="number" step="0.01" value={edit.unit_price_netto ?? ''}
             onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
-            onBlur={() => save()} className={`${inputCls} text-right tabular-nums text-[#F1F5F9]`}
+            onBlur={() => save()}
+            className={`${inputCls} text-right tabular-nums ${belowMin ? 'text-[#F59E0B]' : aboveMax ? 'text-[#FCA5A5]' : 'text-[#F1F5F9]'}`}
+            title={
+              (effectiveMin != null || effectiveMax != null)
+                ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
+                : undefined
+            }
             data-testid={`sub-price-${sub.id}`} />
+          {/* iter95ab: warning dot ponizej min */}
+          {belowMin && (
+            <span
+              className="inline-block h-2.5 w-2.5 rounded-full bg-[#F59E0B] cursor-help animate-pulse"
+              title={`PONIŻEJ MINIMUM (${effectiveMin.toFixed(2)} zł)${historyTooltip ? '\n\nHistoria zmian:\n' + historyTooltip : ''}`}
+              data-testid={`sub-below-min-${sub.id}`}
+            />
+          )}
+          {/* iter95ab: history dot - widoczna gdy sa zmiany ceny */}
+          {!belowMin && priceHistory.length > 0 && (
+            <span
+              className="inline-block h-2 w-2 rounded-full bg-[#5F7552] cursor-help opacity-70 hover:opacity-100"
+              title={`Historia zmian ceny (${priceHistory.length}):\n${historyTooltip}`}
+              data-testid={`sub-history-${sub.id}`}
+            />
+          )}
+          {/* iter95ab: ikona ustawiania min/max */}
+          <button
+            type="button"
+            onClick={() => {
+              const newMin = window.prompt('Cena minimalna (zł, pusty = brak):', effectiveMin ?? '');
+              if (newMin === null) return;
+              const newMax = window.prompt('Cena maksymalna (zł, pusty = brak):', effectiveMax ?? '');
+              if (newMax === null) return;
+              const minVal = newMin.trim() === '' ? null : parseFloat(newMin.replace(',', '.'));
+              const maxVal = newMax.trim() === '' ? null : parseFloat(newMax.replace(',', '.'));
+              api.patch(`/wyceny/lines/${sub.id}`, { price_min: minVal, price_max: maxVal })
+                .then(() => {
+                  onLocalUpdate(sub.id, { price_min: minVal, price_max: maxVal });
+                  toast.success('Zapisano min/max');
+                })
+                .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)));
+            }}
+            className="text-[#94A3B8] hover:text-[#D4AF37] text-[10px] px-1"
+            title="Ustaw cenę minimalną / maksymalną"
+            data-testid={`sub-minmax-${sub.id}`}
+          >
+            ⓘ
+          </button>
         </div>
         {pickerOpen && (
           <PriceBookPicker category={sub.type} posUnit={posUnit} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />

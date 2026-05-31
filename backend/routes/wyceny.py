@@ -70,6 +70,9 @@ class WycenaUpdate(BaseModel):
     # iter95w: zakres oferty - co obejmuje / czego nie obejmuje
     scope_includes: Optional[str] = None
     scope_excludes: Optional[str] = None
+    # iter95ab: tryb zaokraglania finalnej ceny jednostkowej w widoku oferty
+    # 'none' (default) | 'natural' | 'up' | 'down'
+    rounding_mode: Optional[str] = "natural"
 
 
 class StageCreate(BaseModel):
@@ -127,6 +130,11 @@ class LineCreate(BaseModel):
     marza_pct: Optional[float] = None
     # iter95ae: formula obliczania ilosci (np. "=100 m² * 0,24 m")
     quantity_formula: Optional[str] = None
+    # iter95ab: ceny graniczne (kontrola minimum przy negocjacji)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    # iter95ab: cennik_id - link do CenniK aby propagowac price_min/max
+    price_book_id: Optional[str] = None
 
 
 class LineUpdate(BaseModel):
@@ -139,6 +147,13 @@ class LineUpdate(BaseModel):
     narzut_zapas_pct: Optional[float] = None
     marza_pct: Optional[float] = None
     quantity_formula: Optional[str] = None
+    # iter95ab: ceny graniczne (override z pozycji wyceny)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
+    # iter95ab: czy admin zaakceptowal cene ponizej minimum
+    below_min_accepted: Optional[bool] = None
+    below_min_reason: Optional[str] = None
+    price_book_id: Optional[str] = None
 
 
 class PriceBookCreate(BaseModel):
@@ -146,6 +161,9 @@ class PriceBookCreate(BaseModel):
     name: str
     unit: Optional[str] = None
     unit_price_netto: float = 0
+    # iter95ab: ceny graniczne uzywane przy negocjacjach (kontrola minimum)
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
     notes: Optional[str] = None
     # iter95l: dodatkowe pola dla materials (Excel-style)
     sub_category: Optional[str] = None       # izolacje | betony | stal | murowane | drobnica | pozostale
@@ -173,6 +191,9 @@ class PriceBookUpdate(BaseModel):
     name: Optional[str] = None
     unit: Optional[str] = None
     unit_price_netto: Optional[float] = None
+    # iter95ab: ceny graniczne
+    price_min: Optional[float] = None
+    price_max: Optional[float] = None
     notes: Optional[str] = None
     # iter95l: dodatkowe pola dla materials
     sub_category: Optional[str] = None
@@ -469,8 +490,44 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
 
 
 @router.patch("/wyceny/lines/{line_id}")
-async def update_line(line_id: str, payload: LineUpdate, _user: dict = Depends(get_current_admin)):
-    updates = {k: v for k, v in payload.dict(exclude_unset=True).items() if v is not None}
+async def update_line(line_id: str, payload: LineUpdate, current_user: dict = Depends(get_current_admin)):
+    # iter95ab: zachowaj historie zmian ceny dla audytu negocjacji
+    existing = await db.wyceny_lines.find_one({"id": line_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(404, "Linia nie istnieje")
+
+    raw = payload.dict(exclude_unset=True)
+    # uzywamy exclude_unset zeby None mogly byc zapisane explicit dla price_min/max
+    clearable = {"price_min", "price_max", "below_min_reason"}
+    updates = {k: v for k, v in raw.items() if v is not None or k in clearable}
+
+    # iter95ab: zapis historii zmian ceny do price_change_history
+    new_price = raw.get("unit_price_netto")
+    old_price = existing.get("unit_price_netto")
+    if new_price is not None and old_price is not None and abs(new_price - old_price) > 1e-9:
+        # Sprawdz czy poniżej minimum (z linii lub cennika)
+        line_min = existing.get("price_min")
+        pb_min = None
+        if existing.get("price_book_id"):
+            pb = await db.wyceny_price_book.find_one(
+                {"id": existing["price_book_id"]}, {"_id": 0, "price_min": 1}
+            )
+            pb_min = (pb or {}).get("price_min")
+        effective_min = line_min if line_min is not None else pb_min
+        below_min = effective_min is not None and new_price < effective_min
+
+        history_entry = {
+            "ts": datetime.now().isoformat(),
+            "user_id": current_user.get("sub"),
+            "user_email": current_user.get("email"),
+            "from_price": float(old_price),
+            "to_price": float(new_price),
+            "min_price": float(effective_min) if effective_min is not None else None,
+            "below_min": below_min,
+            "reason": raw.get("below_min_reason"),
+        }
+        updates.setdefault("price_change_history", existing.get("price_change_history", []) + [history_entry])
+
     updates["updated_at"] = datetime.now().isoformat()
     res = await db.wyceny_lines.update_one({"id": line_id}, {"$set": updates})
     if res.matched_count == 0:
