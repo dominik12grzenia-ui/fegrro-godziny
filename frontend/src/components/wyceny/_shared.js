@@ -13,6 +13,14 @@ export const SUB_TYPE_COLOR = { labor: '#9DBC85', materials: '#D4AF37', equipmen
 
 export const UNITS = ['', 'mb', 'm²', 'm³', 'szt', 'kg', 't', 'godz', 'dzień', 'm-c', 'kpl'];
 
+// iter95bl: PRZENIESIONE z Wyceny.js (zguba po refaktorze iter95bc).
+// Format ceny w PLN bez sufiksu "zł", 2 miejsca po przecinku, polskie separatory.
+// Uzywane przez LaborRow w historii zmian cen.
+export const fmtPrice = (v) =>
+  v == null || v === ''
+    ? '—'
+    : new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v);
+
 // iter95bi: PRZENIESIONE z Wyceny.js (zguba po refaktorze iter95bc).
 // Stale dla cennikow materialow + helper przelicznika ceny na jednostke wyrobu.
 export const MATERIAL_SUB_CATS = ['izolacje', 'betony', 'stal', 'murowane', 'drobnica', 'pozostałe'];
