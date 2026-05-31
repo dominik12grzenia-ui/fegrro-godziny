@@ -1,0 +1,45 @@
+{
+  "summary": "iter95y backend testing for color picker moved from sites/Lokalizacje to finance/Budowy. Core flows work (create/sync to sites, propagation on PUT update, omitted color, no sync when show_in_hours=false, GET /api/sites includes color). 2 bugs found: legacy budowy without color field don't expose color=None in GET list; PUT with color=null does NOT clear color (None values filtered out). 6/8 tests pass (75%).",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "PUT /api/finance/budowy/{id}",
+        "issue": "PUT with {\"color\": null} does NOT clear the color in finance_budowy or in linked construction_sites. Root cause: routes/finance.py line 406 filters out None values via 'if v is not None'. Tests required clearing color via null but backend silently keeps old value (still '#FF5733'). Fix: change filter to allow None for fields like 'color', or special-case it. The propagation to sites IS done (line 427-430) but only runs when 'color' is in upd dict, which never happens because None is filtered.",
+        "priority": "HIGH"
+      },
+      {
+        "endpoint": "GET /api/finance/budowy",
+        "issue": "Legacy budowy (created before iter95y) do NOT include 'color' key in the response at all (Mongo doc lacks field). Spec requires: 'GET zwraca pole color dla wszystkich budow (None dla legacy bez koloru)'. Fix: in list_budowy, post-process rows to ensure each row has 'color' key defaulting to None, OR run a one-time migration setting color=None on legacy docs. Tested doc id: 589dc3b6-3cd9-4e49-9820-0c12fd0f2648 (missing 'color' key entirely)."
+      , "priority": "MEDIUM"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95y_finance_budowa_color.py",
+    "/app/test_reports/pytest/iter95y_results.xml"
+  ],
+  "action_items": [
+    "Fix PUT /api/finance/budowy/{id} to allow color=null to clear value (do not filter None for 'color' field). Ensure sites.color is also $set to null in same flow.",
+    "Fix GET /api/finance/budowy to always include 'color' key (default None) for legacy rows without the field."
+  ],
+  "critical_code_review_comments": [
+    "routes/finance.py update_budowa (line 406): blanket 'if v is not None' filter prevents any field from being cleared via explicit null. This breaks not only color but any future Optional field that supports clearing. Consider per-field handling or use exclude_unset only.",
+    "routes/finance.py: file is 3233 lines - exceeds 700 line guideline, should be split into smaller modules (budowy.py, zapisy.py, invoices.py, kody.py).",
+    "list_budowy projection {'_id': 0} returns rows as-is; no normalization. Recommend projecting/defaulting 'color': {'$ifNull': ['$color', None]} in aggregation, or post-processing rows in Python."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95y_finance_budowa_color.py"
+  ],
+  "success_rate": {"backend": "75% (6/8 tests passing)", "frontend": "not tested (backend-only request)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via POST /api/auth/admin/login",
+  "seed_data_creation": "Created 7 test budowy prefixed with TEST_95y_<timestamp>_ and linked sites; all cleaned up in fixture teardown via DELETE /api/finance/budowy/{id} and DELETE /api/sites/{id}?permanent=true",
+  "retest_needed": true,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter95y moved color picker from sites/Lokalizacje to finance/Budowy. Backend endpoint is /api/finance/budowy (NOT /api/budowy/finance). Helper _sync_to_sites accepts color param. PUT propagates color to construction_sites via finance_budowa_id link. Re-run /app/backend/tests/test_iter95y_finance_budowa_color.py after main agent fixes the two issues (PUT color=null clearing + GET legacy color=None defaulting).",
+  "rca of the issue": "1) PUT color=null fails: update_budowa filters dict comprehension drops all None values, so 'color' never reaches the $set or the sites sync block. 2) GET legacy missing color: MongoDB find() returns doc as-is without imputing missing keys. Both require small backend changes in routes/finance.py."
+}

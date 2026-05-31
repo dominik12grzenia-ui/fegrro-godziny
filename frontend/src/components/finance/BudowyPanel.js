@@ -9,14 +9,26 @@ import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import { ActionButton, fmt } from './_shared';
 import { NipLookup } from './NipLookup';
+import { ColorPicker } from '../ui/ColorPicker';
+
+const EMPTY_FORM = { name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '', color: null };
 
 export const BudowyPanel = () => {
   const [rows, setRows] = useState([]);
   const [includeArchived, setIncludeArchived] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [editing, setEditing] = useState(null);  // budowa or null
-  const [form, setForm] = useState({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
   const [loading, setLoading] = useState(true);
+
+  // iter95y: zestaw kolorow uzywanych przez inne budowy (do highlight w pickerze)
+  const usedColors = useMemo(() => {
+    const s = new Set();
+    rows.forEach((b) => {
+      if (b.color && (!editing || b.id !== editing.id)) s.add(b.color);
+    });
+    return s;
+  }, [rows, editing]);
 
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -43,7 +55,7 @@ export const BudowyPanel = () => {
         toast.success('Dodano');
       }
       setShowAdd(false); setEditing(null);
-      setForm({ name: '', code: '', show_in_hours: true, has_budget: true, is_gir: false, kaucja_gir_pct: 2.0, is_dw: false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy: '', umowa_nr: '', umowa_data: '', wykonawca: '' });
+      setForm(EMPTY_FORM);
       fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -65,6 +77,7 @@ export const BudowyPanel = () => {
       umowa_nr: b.umowa_nr || '',
       umowa_data: b.umowa_data || '',
       wykonawca: b.wykonawca || '',
+      color: b.color || null,
     });
     setShowAdd(true);
   };
@@ -94,7 +107,7 @@ export const BudowyPanel = () => {
               className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
-          <Button onClick={() => { setEditing(null); setForm({ name:'', code:'', show_in_hours:true, has_budget:true, is_gir:false, kaucja_gir_pct: 2.0, is_dw:false, kaucja_dw_pct: 2.0, koszt_budowy_pct: 0.0, zamawiajacy:'', umowa_nr:'', umowa_data:'', wykonawca:'' }); setShowAdd(true); }}
+          <Button onClick={() => { setEditing(null); setForm(EMPTY_FORM); setShowAdd(true); }}
             className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe
           </Button>
@@ -165,7 +178,7 @@ export const BudowyPanel = () => {
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
-        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9]" data-testid="finance-budowa-modal">
+        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="finance-budowa-modal">
           <DialogHeader>
             <DialogTitle className="text-white">{editing ? 'Edytuj budowe' : 'Dodaj budowe'}</DialogTitle>
           </DialogHeader>
@@ -225,6 +238,16 @@ export const BudowyPanel = () => {
             </div>
             <div className="text-[10px] text-[#94A3B8] px-2">
               Koszt budowy = % od przychodu pozycji (Przychód × % = Koszt budowy). Liczony tak samo jak kaucje. Odejmowany od Budżetu Zwolnionego (kolumna K = G − H − I − J).
+            </div>
+            {/* iter95y: kolor budowy - widoczny w tabeli godzin */}
+            <div className="p-3 rounded-md border border-[#3D5378] bg-[#1E2A44] mt-2" data-testid="finance-budowa-color-block">
+              <ColorPicker
+                value={form.color || null}
+                onChange={(c) => setForm({ ...form, color: c })}
+                usedColors={usedColors}
+                label="Kolor budowy (opcjonalnie) — widoczny w tabeli godzin"
+                testId="finance-budowa-color"
+              />
             </div>
           </div>
           {/* Dane do generowania protokolu miesiecznego */}

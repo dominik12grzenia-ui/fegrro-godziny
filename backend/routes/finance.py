@@ -148,6 +148,7 @@ class BudowaCreate(BaseModel):
     umowa_nr: Optional[str] = None
     umowa_data: Optional[str] = None  # YYYY-MM-DD lub free text "15.09.2025 + ANEKS NR 1"
     wykonawca: Optional[str] = "FEGRRO SP. Z O.O. NIP: 589-206-61-74"
+    color: Optional[str] = None  # iter95y: hex kolor np. "#3F5235" - uzywany w tabeli godzin
 
 
 class BudowaUpdate(BaseModel):
@@ -165,6 +166,7 @@ class BudowaUpdate(BaseModel):
     umowa_nr: Optional[str] = None
     umowa_data: Optional[str] = None
     wykonawca: Optional[str] = None
+    color: Optional[str] = None  # iter95y
 
 
 class ZapisCreate(BaseModel):
@@ -378,6 +380,7 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "umowa_nr": payload.umowa_nr or "",
         "umowa_data": payload.umowa_data or "",
         "wykonawca": payload.wykonawca or "FEGRRO SP. Z O.O. NIP: 589-206-61-74",
+        "color": payload.color,  # iter95y
         "is_archived": False,
         "created_at": datetime.now().isoformat(),
         "created_by": current_user["sub"],
@@ -385,7 +388,7 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
     await db.finance_budowy.insert_one(doc)
     # Jezeli show_in_hours = True, dodaj do sites collection
     if payload.show_in_hours:
-        await _sync_to_sites(bid, name)
+        await _sync_to_sites(bid, name, color=payload.color)
     doc.pop("_id", None)
     await log_audit(entity="finance_budowa", entity_id=bid, action="create", user=current_user, new=doc)
     return doc
@@ -419,6 +422,11 @@ async def update_budowa(
         # nazwa sie zmienila - update site
         await db.construction_sites.update_one(
             {"finance_budowa_id": budowa_id}, {"$set": {"name": new_name}}
+        )
+    # iter95y: propaguj kolor do sites zeby HoursTable mial dostep
+    if "color" in upd:
+        await db.construction_sites.update_one(
+            {"finance_budowa_id": budowa_id}, {"$set": {"color": upd["color"]}}
         )
     new_doc = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
     await log_audit(entity="finance_budowa", entity_id=budowa_id, action="update",
@@ -479,7 +487,7 @@ async def delete_budowa(budowa_id: str, current_user: dict = Depends(get_current
     return {"message": "Usunieto (mozna przywrocic)"}
 
 
-async def _sync_to_sites(budowa_id: str, name: str):
+async def _sync_to_sites(budowa_id: str, name: str, color: Optional[str] = None):
     """Dodaje budowe do construction_sites jezeli jeszcze nie istnieje (po finance_budowa_id)."""
     existing = await db.construction_sites.find_one(
         {"finance_budowa_id": budowa_id}, {"_id": 0, "id": 1}
@@ -494,9 +502,17 @@ async def _sync_to_sites(budowa_id: str, name: str):
         "address": "",
         "category": "budowa",
         "visible_to_foremen": True,
+        "color": color,  # iter95y
         "created_at": datetime.now().isoformat(),
     }
     await db.construction_sites.insert_one(site_doc)
+
+
+# Sync gdy show_in_hours zmieni sie True->True i przyszla zmiana koloru -> wywoluje sie z PUT poprzez bezposredni update na sites
+async def _sync_color_to_sites(budowa_id: str, color: Optional[str]):
+    await db.construction_sites.update_one(
+        {"finance_budowa_id": budowa_id}, {"$set": {"color": color}}
+    )
 
 
 async def _remove_from_sites(budowa_id: str):

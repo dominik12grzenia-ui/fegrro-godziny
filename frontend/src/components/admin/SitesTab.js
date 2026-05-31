@@ -1,11 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React from 'react';
 import { api } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
-import { MapPin, Trash2, Palette } from 'lucide-react';
+import { MapPin, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SitesMap } from '../SitesMap';
-import { ColorPicker, SITE_COLOR_PALETTE } from '../ui/ColorPicker';
 
 const CAT_LABELS = { budowa: 'Budowa', sklep: 'Sklep', magazyn: 'Magazyn', inne: 'Inne' };
 const CAT_COLORS = {
@@ -17,14 +16,6 @@ const CAT_COLORS = {
 
 export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocoding, fetchData }) => {
   const manualSites = sites.filter((s) => !s.excel_column);
-  // iter95x: set kolorow uzywanych dla highlight w pickerze
-  const usedColors = useMemo(() => {
-    const s = new Set();
-    sites.forEach((x) => { if (x.color) s.add(x.color); });
-    return s;
-  }, [sites]);
-  const [newSiteColor, setNewSiteColor] = useState(null);
-  const [pickerOpenFor, setPickerOpenFor] = useState(null);
 
   return (
     <div className="space-y-4">
@@ -77,10 +68,9 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                 const category = document.getElementById('new-site-category').value;
                 if (!name) { toast.error('Podaj nazwe'); return; }
                 try {
-                  await api.post('/sites', { name, category, color: newSiteColor || undefined });
+                  await api.post('/sites', { name, category });
                   toast.success(`Dodano: ${name}`);
                   document.getElementById('new-site-name').value = '';
-                  setNewSiteColor(null);
                   fetchData();
                 } catch (err) {
                   toast.error(err.response?.data?.detail || 'Błąd');
@@ -91,15 +81,6 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
             >
               Dodaj
             </Button>
-          </div>
-          <div className="mt-3 p-3 rounded-md border border-[#3D5378] bg-[#1E2A44]" data-testid="new-site-color-row">
-            <ColorPicker
-              value={newSiteColor}
-              onChange={setNewSiteColor}
-              usedColors={usedColors}
-              label="Kolor budowy (opcjonalnie) — widoczny w tabeli godzin"
-              testId="new-site-color"
-            />
           </div>
           <p className="text-xs text-[#CBD5E1] mt-2">
             Po dodaniu wpisz adres ponizej karty by ustawic lokalizacje na mapie.
@@ -211,21 +192,6 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                         />
                         <span>Widoczna dla brygadzistow</span>
                       </label>
-                      {/* iter95x: kolor budowy */}
-                      <button
-                        type="button"
-                        onClick={() => setPickerOpenFor(pickerOpenFor === site.id ? null : site.id)}
-                        className="flex items-center gap-1.5 text-xs text-[#CBD5E1] hover:text-white px-2 py-1 rounded border border-[#3D5378] hover:bg-[#3D5378]/40"
-                        title="Zmień kolor budowy"
-                        data-testid={`site-color-btn-${site.id}`}
-                      >
-                        <span
-                          className="h-4 w-6 rounded border border-[#152033]"
-                          style={{ backgroundColor: site.color || '#3D5378' }}
-                        />
-                        <Palette className="h-3 w-3" />
-                        {site.color ? 'Zmień' : 'Wybierz'}
-                      </button>
                       <Button
                         size="sm"
                         variant="ghost"
@@ -245,25 +211,6 @@ export const SitesTab = ({ sites, employees, assignments, geocoding, setGeocodin
                         <Trash2 className="h-3 w-3 mr-1" /> Usuń
                       </Button>
                     </div>
-                    {pickerOpenFor === site.id && (
-                      <div className="pt-2 mt-2 border-t border-[#3D5378]">
-                        <ColorPicker
-                          value={site.color || null}
-                          onChange={async (color) => {
-                            try {
-                              await api.put(`/sites/${site.id}`, { color: color || null });
-                              toast.success(color ? `Kolor ${color} przypisany` : 'Kolor usunięty');
-                              fetchData();
-                              setPickerOpenFor(null);
-                            } catch (err) {
-                              toast.error(err.response?.data?.detail || 'Błąd');
-                            }
-                          }}
-                          usedColors={usedColors}
-                          testId={`site-color-picker-${site.id}`}
-                        />
-                      </div>
-                    )}
                   </CardContent>
                 </Card>
               );
