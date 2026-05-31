@@ -1,3 +1,24 @@
+## Iteration 95bu (2026-02) — Bug fix: PriceBookPicker obsługa price_other/unit_other dla Robocizny
+
+### Problem (P0)
+User: *"…przygotowanie zbrojenia i inne elementy nie zaciągają ceny z cennika jeśli jest wpisana cena za inną jednostkę"* — pozycje cennika Robocizny z `price_other` (np. 10 zł/kg) i `unit_other='kg'` nie były wstawiane do wiersza wyceny. `getEffective()` w `PriceBookPicker.js` dla `category='labor'` rozpatrywało tylko `price_m2`/`price_m3` i fallback `unit_price_netto`.
+
+### Fix `/app/frontend/src/components/wyceny/PriceBookPicker.js`
+- `getEffective()` dla `labor` rozszerzone:
+  - **Idealny match**: jeśli `posUnit === unit_other` i `price_other != null` → `{price: price_other, unit: unit_other, source: 'other'}` (zielony)
+  - **Fallback chain**: m² → m³ → other → unit_price_netto (z mismatch flag gdy posUnit różni się od dostępnej jednostki → amber `≠posUnit`)
+- `getExtraInfo()` dla `labor` dorzuca `${unit_other}: ${fmtPLN(price_other)}` aby było widać w kolumnie Info
+
+### Test (testing_agent_v3_fork iter54)
+- 100% success_rate frontend, `retest_needed: false`
+- Scenariusze PASS:
+  - `labor_price_other_idealny_match`: kliknięcie pozycji z `price_other=10, unit_other='kg'` → wiersz dostaje `unit_price_netto=10, unit='kg'`
+  - `labor_price_m2_regression_with_mismatch`: pozycja z `price_m2=35` przy `posUnit='kg'` pokazuje `≠kg` mismatch tag
+  - `ui_state_after_pick`: green toast + wiersz aktualizuje cenę i jednostkę
+
+---
+
+
 ## Iteration 95bh (2026-05) — Wybór szablonu PDF w eksporcie Wycen (Klasyczny / Markowy / Premium)
 
 ### Implementacja
