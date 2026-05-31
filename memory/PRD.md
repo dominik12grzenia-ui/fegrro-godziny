@@ -1,3 +1,40 @@
+## Iteration 95bh (2026-05) — Wybór szablonu PDF w eksporcie Wycen (Klasyczny / Markowy / Premium)
+
+### Implementacja
+
+**Backend `/app/backend/routes/wyceny.py`**:
+- Dictionary `_TEMPLATE_CONFIGS` z 3 stylami (primary color, primary_text, accent, header_bg_alt, logo_mm, tagline, show_gold_bar, total_bg, total_text):
+  - **classic** — zielony `#3F5235`, logo 32mm, bez tagline, total `#FFF8DC` → `#B8860B`
+  - **branded** — złoty `#D4AF37`, logo 48mm, tagline "Profesjonalne usługi budowlane · od 2017", złoty pasek pod headerem, total `#FFE9A3` → `#7A5A00`
+  - **premium** — granat `#152033`, logo 42mm, tagline "PREMIUM CONSTRUCTION SERVICES", złoty pasek (akcent #D4AF37), total na ciemnym tle z złotym tekstem (eleganckie)
+- `_generate_wycena_client_pdf_bytes(data, opts, template_style: str = "classic")` — nowy parametr; cfg pobiera kolory/parametry z dict
+- Wszystkie hardcoded `#3F5235`, `#F8FAF6`, `#FFF8DC`, `#B8860B` zamienione na `cfg["primary"]`, `cfg["header_bg_alt"]`, `cfg["total_bg"]`, `cfg["total_text"]`
+- Logo size dynamiczne (32/42/48 mm), tagline opcjonalny pod nazwą firmy, gold-bar opcjonalny `Table` z 1.4mm wysokości
+- Endpoint `/wyceny/{id}/export.pdf` — nowy Query param: `template: str = Query("classic", pattern="^(classic|branded|premium)$")` przekazywany do `template_style`
+
+**Frontend `/app/frontend/src/components/wyceny/ExportWycenaDialog.js`**:
+- Stan `[template, setTemplate] = useState('classic')`
+- `buildQuery` dodaje `params.set('template', template)` gdy `detail === 'client'`
+- W bloku opcji dla klienta (po włączaniu Powierzchnie/Wskaźniki/Uwagi) — nowa sekcja "Szablon PDF" z grid 3 kart:
+  - Każda karta: kolorowy swatch (h-6 w-6 rounded-full), label, opis
+  - Aktywna: `ring-1 ring-[#D4AF37] + bg-[#D4AF37]/10`
+  - `data-testid='export-template-classic|branded|premium'`
+- Info: "Excel nie zależy od szablonu — zawsze klasyczny, z aktywnymi formułami"
+
+### Test
+- Pytest **12/12 PASS** (test_iter95bd_wyceny_price.py + smoke export)
+- Curl test: wszystkie 3 templates (classic/branded/premium) zwracają **HTTP 200** z PDF rozmiaru 63-64 kB
+- `template=invalid` zwraca **HTTP 422** (validation FastAPI)
+- Manualnie zweryfikowane (analyze_file_tool): branded PDF ma tagline "Profesjonalne usługi budowlane od 2017" oraz złoty poziomy pasek pod nagłówkiem
+- Screenshot dialogu: 3 karty szablonów z kolorowymi kółkami, aktywna karta podświetlona złotą ramką
+
+### Pliki zmienione
+- `/app/backend/routes/wyceny.py` (~50 linii diff)
+- `/app/frontend/src/components/wyceny/ExportWycenaDialog.js` (~50 linii diff)
+
+---
+
+
 ## Iteration 95bg (2026-05) — Fix: "RAZEM netto:" wychodzi poza komórkę w XLSX/PDF Wycen
 
 ### Problem (zgłoszony przez użytkownika)

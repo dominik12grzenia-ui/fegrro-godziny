@@ -12,6 +12,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
   const [includeSurface, setIncludeSurface] = useState(true);
   const [includeWskazniki, setIncludeWskazniki] = useState(true);
   const [includeNotes, setIncludeNotes] = useState(true);
+  const [template, setTemplate] = useState('classic');  // iter95bh: szablon PDF dla klienta
 
   const buildQuery = (extra = {}) => {
     const params = new URLSearchParams({ detail });
@@ -19,6 +20,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
       params.set('include_surface', includeSurface ? 'true' : 'false');
       params.set('include_wskazniki', includeWskazniki ? 'true' : 'false');
       params.set('include_notes', includeNotes ? 'true' : 'false');
+      params.set('template', template);
     }
     Object.entries(extra).forEach(([k, v]) => params.set(k, v));
     return params.toString();
@@ -110,7 +112,7 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
         </div>
 
         {detail === 'client' && (
-          <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 -mt-1 space-y-1.5"
+          <div className="border border-[#5F7552]/40 bg-[#3F5235]/15 rounded p-3 -mt-1 space-y-2.5"
                data-testid="export-client-opts">
             <div className="text-[10px] uppercase text-[#9DBC85] font-semibold mb-1">
               Co załączyć w ofercie:
@@ -133,6 +135,46 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, onClose }) => {
                 className="accent-[#9DBC85]" data-testid="export-opt-notes" />
               <span><b className="text-[#9DBC85]">Uwagi</b> (notatka oferty lub domyślna klauzula 30 dni)</span>
             </label>
+
+            {/* iter95bh: wybor szablonu PDF (tylko dla wersji klienta) */}
+            <div className="pt-2 border-t border-[#5F7552]/30">
+              <div className="text-[10px] uppercase text-[#9DBC85] font-semibold mb-1.5">
+                Szablon PDF:
+              </div>
+              <div className="grid grid-cols-3 gap-2" data-testid="export-template-group">
+                {[
+                  { v: 'classic', label: 'Klasyczny', desc: 'Zielony · prosty', sw: '#3F5235' },
+                  { v: 'branded', label: 'Markowy', desc: 'Złoty · z tagline', sw: '#D4AF37' },
+                  { v: 'premium', label: 'Premium', desc: 'Granat + akcent', sw: '#152033' },
+                ].map((t) => (
+                  <label
+                    key={t.v}
+                    className={`flex flex-col items-center gap-1 p-2 border rounded cursor-pointer transition ${
+                      template === t.v
+                        ? 'border-[#D4AF37] bg-[#D4AF37]/10 ring-1 ring-[#D4AF37]'
+                        : 'border-[#3D5378] hover:border-[#5F7552]'
+                    }`}
+                    data-testid={`export-template-${t.v}`}
+                  >
+                    <input
+                      type="radio" name="template" value={t.v}
+                      checked={template === t.v}
+                      onChange={() => setTemplate(t.v)}
+                      className="sr-only"
+                    />
+                    <span
+                      className="block h-6 w-6 rounded-full border-2 border-white/30 shadow-inner"
+                      style={{ background: t.sw }}
+                    />
+                    <span className="text-[11px] font-semibold text-[#F1F5F9] leading-tight">{t.label}</span>
+                    <span className="text-[9px] text-[#94A3B8] leading-tight text-center">{t.desc}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="text-[9px] text-[#94A3B8] italic mt-1.5">
+                Excel nie zależy od szablonu — zawsze klasyczny, z aktywnymi formułami.
+              </div>
+            </div>
           </div>
         )}
         <DialogFooter className="gap-2">

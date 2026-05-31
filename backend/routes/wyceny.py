@@ -1514,8 +1514,47 @@ async def export_wycena_xlsx(
 
 
 # iter95ak/95ap: PDF dla klienta - tylko nazwa, ilosc, cena, wartosc + opcjonalne sekcje
-def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
+# iter95bh: 3 szablony - classic (zielony), branded (zloty FeGrro), premium (granat + zloty akcent)
+_TEMPLATE_CONFIGS = {
+    "classic": {
+        "primary": "#3F5235",       # zielony FeGrro (header tabeli, ramki)
+        "primary_text": "#3F5235",  # tytul, etapy
+        "accent": "#3F5235",        # akcenty (label addr, podsumowanie)
+        "header_bg_alt": "#F8FAF6", # zebra w tabeli
+        "logo_mm": 32,
+        "tagline": "",              # brak
+        "show_gold_bar": False,
+        "total_bg": "#FFF8DC",
+        "total_text": "#B8860B",
+    },
+    "branded": {
+        "primary": "#D4AF37",       # zloty FeGrro
+        "primary_text": "#8B7500",  # ciemnozloty (ciemniejszy do czytania)
+        "accent": "#D4AF37",
+        "header_bg_alt": "#FFF8E1", # delikatne kremowe zebra
+        "logo_mm": 48,              # duze logo
+        "tagline": "Profesjonalne usługi budowlane · od 2017",
+        "show_gold_bar": True,      # zloty pasek pod headerem
+        "total_bg": "#FFE9A3",
+        "total_text": "#7A5A00",
+    },
+    "premium": {
+        "primary": "#152033",       # granat
+        "primary_text": "#152033",
+        "accent": "#D4AF37",        # zloty akcent
+        "header_bg_alt": "#F1F4F9", # cool gray zebra
+        "logo_mm": 42,
+        "tagline": "PREMIUM CONSTRUCTION SERVICES",
+        "show_gold_bar": True,
+        "total_bg": "#152033",      # ciemne tlo total
+        "total_text": "#D4AF37",    # zloty tekst total
+    },
+}
+
+
+def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, template_style: str = "classic"):
     opts = opts or {}
+    cfg = _TEMPLATE_CONFIGS.get(template_style) or _TEMPLATE_CONFIGS["classic"]
     include_surface = bool(opts.get("include_surface", True))
     include_wskazniki = bool(opts.get("include_wskazniki", True))
     include_notes = bool(opts.get("include_notes", True))
@@ -1547,19 +1586,21 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
                             topMargin=15 * mm, bottomMargin=15 * mm)
     styles = getSampleStyleSheet()
     title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=18,
-                              textColor=colors.HexColor("#3F5235"), alignment=0, spaceAfter=2)
+                              textColor=colors.HexColor(cfg["primary_text"]), alignment=0, spaceAfter=2)
     company_st = ParagraphStyle("company", parent=styles["Normal"], fontName=bold_font, fontSize=11,
-                                textColor=colors.HexColor("#3F5235"), alignment=2)
+                                textColor=colors.HexColor(cfg["primary_text"]), alignment=2)
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9,
                             textColor=colors.grey)
     name_st = ParagraphStyle("name", parent=styles["Normal"], fontName=base_font, fontSize=9, leading=11)
     stage_st = ParagraphStyle("stage", parent=styles["Normal"], fontName=bold_font, fontSize=10,
-                              textColor=colors.HexColor("#3F5235"))
+                              textColor=colors.HexColor(cfg["primary_text"]))
 
     elements = []
     wycena_name = data["wycena"].get("name", "")
 
     # iter95w: Naglowek z wiekszym logo + NIP + telefon
+    # iter95bh: rozmiar logo i tagline z configu szablonu
+    logo_mm_val = cfg["logo_mm"]
     logo_paths = [
         "/app/frontend/public/icon-192x192.png",
         "/app/frontend/public/apple-touch-icon.png",
@@ -1568,25 +1609,38 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     header_cells = []
     if logo_path:
         try:
-            img = Image(logo_path, width=32 * mm, height=32 * mm)
+            img = Image(logo_path, width=logo_mm_val * mm, height=logo_mm_val * mm)
             header_cells.append(img)
         except Exception:
             header_cells.append("")
     else:
         header_cells.append("")
+    tagline_html = ""
+    if cfg["tagline"]:
+        tagline_html = f"<br/><font size=7 color='{cfg['accent']}'><b>{cfg['tagline']}</b></font>"
     header_cells.append(Paragraph(
-        "FeGrro<br/>"
+        "FeGrro"
+        f"{tagline_html}<br/>"
         "<font size=8 color='#444444'>NIP: 589-206-61-74</font><br/>"
         "<font size=8 color='#444444'>Tel: 885 213 273</font><br/>"
         "<font size=8 color='#666666'>biuro@fegrro.pl</font>",
         company_st,
     ))
-    header_tbl = Table([header_cells], colWidths=[40 * mm, 140 * mm])
+    header_tbl = Table([header_cells], colWidths=[(logo_mm_val + 8) * mm, (180 - logo_mm_val - 8) * mm])
     header_tbl.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (1, 0), (1, 0), "RIGHT"),
     ]))
     elements.append(header_tbl)
+    # iter95bh: zloty pasek pod naglowkiem (branded / premium)
+    if cfg["show_gold_bar"]:
+        bar = Table([[""]], colWidths=[180 * mm], rowHeights=[1.4 * mm])
+        bar.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(cfg["accent"])),
+            ("LINEABOVE", (0, 0), (-1, 0), 0, colors.white),
+        ]))
+        elements.append(Spacer(1, 2 * mm))
+        elements.append(bar)
     elements.append(Spacer(1, 6 * mm))
 
     elements.append(Paragraph(f"Oferta: {wycena_name}", title_st))
@@ -1605,7 +1659,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
         addr_label = ParagraphStyle("addrlabel", parent=styles["Normal"], fontName=base_font, fontSize=7,
                                     textColor=colors.HexColor("#94A3B8"), spaceAfter=2)
         addr_body = ParagraphStyle("addrbody", parent=styles["Normal"], fontName=bold_font, fontSize=10,
-                                   textColor=colors.HexColor("#3F5235"), leading=13)
+                                   textColor=colors.HexColor(cfg["primary_text"]), leading=13)
         addr_body_sub = ParagraphStyle("addrbodysub", parent=styles["Normal"], fontName=base_font, fontSize=9,
                                        textColor=colors.HexColor("#444444"), leading=12)
         addr_inner = [Paragraph("ADRESAT", addr_label)]
@@ -1617,8 +1671,8 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
             addr_inner.append(Paragraph(client_address.replace("\n", "<br/>"), addr_body_sub))
         addr_box = Table([[addr_inner]], colWidths=[85 * mm])
         addr_box.setStyle(TableStyle([
-            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#3F5235")),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F8FAF6")),
+            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(cfg["primary"])),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(cfg["header_bg_alt"])),
             ("LEFTPADDING", (0, 0), (-1, -1), 8),
             ("RIGHTPADDING", (0, 0), (-1, -1), 8),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
@@ -1636,7 +1690,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     any_surface = any(v not in (None, "", 0) for v in (pc, pc_pod, pc_nad, pum))
     if include_surface and any_surface:
         surf_label_st = ParagraphStyle("surflabel", parent=styles["Normal"], fontName=bold_font,
-                                       fontSize=9, textColor=colors.HexColor("#3F5235"), spaceAfter=2)
+                                       fontSize=9, textColor=colors.HexColor(cfg["primary_text"]), spaceAfter=2)
         elements.append(Paragraph("Powierzchnie budynku", surf_label_st))
         surf_rows = [["Powierzchnia", "Wartość"]]
         if pc not in (None, "", 0): surf_rows.append(["Powierzchnia całkowita (PC)", f"{float(pc):,.2f}".replace(",", " ").replace(".", ",") + " m²"])
@@ -1647,11 +1701,11 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
         surf_tbl.setStyle(TableStyle([
             ("FONT", (0, 0), (-1, -1), base_font, 9),
             ("FONT", (0, 0), (-1, 0), bold_font, 9),
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(cfg["primary"])),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("ALIGN", (1, 1), (1, -1), "RIGHT"),
             ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAF6")]),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(cfg["header_bg_alt"])]),
             ("TOPPADDING", (0, 0), (-1, -1), 3),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
         ]))
@@ -1697,7 +1751,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     tbl_styles = [
         ("FONT", (0, 0), (-1, -1), base_font, 9),
         ("FONT", (0, 0), (-1, 0), bold_font, 9),
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(cfg["primary"])),
         ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ("ALIGN", (0, 0), (0, -1), "CENTER"),
@@ -1705,22 +1759,24 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
         ("ALIGN", (3, 1), (3, -1), "CENTER"),
         ("ALIGN", (4, 1), (5, -1), "RIGHT"),
         ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor("#F8FAF6")]),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -2), [colors.white, colors.HexColor(cfg["header_bg_alt"])]),
         ("TOPPADDING", (0, 0), (-1, -1), 4),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
     ]
+    # iter95bh: dla 'stage' wiersza kolor tla zalezny od configu (lekko jasniejszy niz tlo zebry)
+    stage_bg_hex = cfg["header_bg_alt"]
     for (idx, kind) in row_styles:
         if kind == 'stage':
-            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#E8F0E0")))
+            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor(stage_bg_hex)))
             tbl_styles.append(("SPAN", (0, idx), (-1, idx)))
             tbl_styles.append(("LEFTPADDING", (0, idx), (0, idx), 6))
         elif kind == 'total':
-            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFF8DC")))
+            tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor(cfg["total_bg"])))
             # iter95bg: scal kolumny 0-4 dla "RAZEM netto:" zeby dlugi tekst sie zmiescil
             tbl_styles.append(("SPAN", (0, idx), (4, idx)))
             tbl_styles.append(("ALIGN", (0, idx), (4, idx), "RIGHT"))
             tbl_styles.append(("FONT", (0, idx), (-1, idx), bold_font, 11))
-            tbl_styles.append(("TEXTCOLOR", (5, idx), (5, idx), colors.HexColor("#B8860B")))
+            tbl_styles.append(("TEXTCOLOR", (0, idx), (-1, idx), colors.HexColor(cfg["total_text"])))
             tbl_styles.append(("RIGHTPADDING", (4, idx), (4, idx), 6))
             tbl_styles.append(("TOPPADDING", (0, idx), (-1, idx), 8))
             tbl_styles.append(("BOTTOMPADDING", (0, idx), (-1, idx), 8))
@@ -1747,20 +1803,20 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
         if wsk_rows:
             elements.append(Spacer(1, 5 * mm))
             wsk_label_st = ParagraphStyle("wsklabel", parent=styles["Normal"], fontName=bold_font,
-                                          fontSize=9, textColor=colors.HexColor("#3F5235"), spaceAfter=2)
+                                          fontSize=9, textColor=colors.HexColor(cfg["primary_text"]), spaceAfter=2)
             elements.append(Paragraph("Wskaźniki kosztowe", wsk_label_st))
             wsk_data = [["Wskaźnik", "Wartość"]] + wsk_rows
             wsk_tbl = Table(wsk_data, colWidths=[110 * mm, 40 * mm])
             wsk_tbl.setStyle(TableStyle([
                 ("FONT", (0, 0), (-1, -1), base_font, 9),
                 ("FONT", (0, 0), (-1, 0), bold_font, 9),
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#3F5235")),
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor(cfg["primary"])),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("ALIGN", (1, 1), (1, -1), "RIGHT"),
                 ("FONT", (1, 1), (1, -1), bold_font, 9),
-                ("TEXTCOLOR", (1, 1), (1, -1), colors.HexColor("#3F5235")),
+                ("TEXTCOLOR", (1, 1), (1, -1), colors.HexColor(cfg["primary_text"])),
                 ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#CCCCCC")),
-                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAF6")]),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor(cfg["header_bg_alt"])]),
                 ("TOPPADDING", (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
             ]))
@@ -1773,7 +1829,7 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
     if scope_inc or scope_exc:
         elements.append(Spacer(1, 6 * mm))
         scope_label_st = ParagraphStyle("scopelabel", parent=styles["Normal"], fontName=bold_font,
-                                        fontSize=10, textColor=colors.HexColor("#3F5235"),
+                                        fontSize=10, textColor=colors.HexColor(cfg["primary_text"]),
                                         spaceAfter=3)
         scope_inc_st = ParagraphStyle("scopeinc", parent=styles["Normal"], fontName=base_font,
                                        fontSize=9, textColor=colors.HexColor("#222222"),
@@ -1850,6 +1906,7 @@ async def export_wycena_pdf(
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),
     include_notes: bool = Query(True),
+    template: str = Query("classic", pattern="^(classic|branded|premium)$"),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
@@ -1859,7 +1916,7 @@ async def export_wycena_pdf(
             "include_wskazniki": include_wskazniki,
             "include_notes": include_notes,
         }
-        content, filename = _generate_wycena_client_pdf_bytes(data, opts)
+        content, filename = _generate_wycena_client_pdf_bytes(data, opts, template_style=template)
     else:
         content, filename = _generate_wycena_pdf_bytes(data, detail)
     disposition = "inline" if inline else "attachment"
