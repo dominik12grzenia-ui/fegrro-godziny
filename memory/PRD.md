@@ -1,3 +1,34 @@
+## Iteration 95w (2026-05) — Export oferty: nagłówek firmowy + scope + czytelne pozycje
+
+### Implementacja
+**Backend** (`/app/backend/routes/wyceny.py`):
+- `WycenaUpdate` model: nowe `scope_includes`, `scope_excludes` (Optional[str])
+- `_generate_wycena_client_pdf_bytes`:
+  - Logo powiększone z 22→32mm (icon-192x192.png)
+  - Nagłówek: `FeGrro` + `NIP: 589-206-61-74` + `Tel: 885 213 273` + `biuro@fegrro.pl`
+  - Tabela colWidths 10/102/16/12/25/25mm (szersza "Nazwa pozycji")
+  - Sekcje **Oferta obejmuje** (zielone tło) / **Oferta nie obejmuje** (czerwone tło) z bulletami `•`
+- `_generate_wycena_client_xlsx_bytes`:
+  - Nagłówek A1-B4 z logo (110×110px) + dane firmowe
+  - Column widths: A=8, B=65, C=13, D=9, E=16, F=18
+  - `wrap_text=True` + auto row-height na długich nazwach pozycji
+  - Sekcje scope z kolorowanym tłem (F2F7EC / FDF2F2) + obramowanie
+
+**Frontend**:
+- `NewWycenaDialog.js`:
+  - Date picker (`new-wycena-date`) — domyślnie dzisiaj
+  - Auto-build nazwy: `Wycena {KLIENT}/FeGrro {DD.MM.RRRR}` — reaguje na zmiany klienta i daty
+  - Flaga `nameManuallyEdited` — gdy user edytuje ręcznie, auto-build się wyłącza
+- `Wyceny.js` (edytor): 2 nowe textarea `scope_includes` + `scope_excludes` w panelu klienta z onBlur autozapisem; hint "Jedna pozycja na linię — zostanie wypunktowana w ofercie"
+
+### Test
+- Pytest 11/11 PASS (`/app/backend/tests/test_iter95w_export_header_scope.py`)
+- Visual: dialog "Nowa wycena" pokazuje auto-build name "Wycena Finarto/FeGrro 31.05.2026" + date picker
+- XLSX manual: rows 1-4 = FeGrro/NIP/Tel/email; scope rendered z bulletami `• linia 1`
+
+---
+
+
 ## Iteration 95v (2026-05) — Import wyceny z Excela
 
 ### Implementacja
