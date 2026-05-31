@@ -28,7 +28,11 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, clientName, onClose }
   const download = async (format) => {
     setDownloading(true);
     try {
-      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?${buildQuery()}`, { responseType: 'blob' });
+      // iter95bp: timeout 90s dla eksportu (duze wyceny moga przekroczyc globalne 15s)
+      const r = await api.get(`/wyceny/${wycenaId}/export.${format}?${buildQuery()}`, {
+        responseType: 'blob',
+        timeout: 90000,
+      });
       const url = window.URL.createObjectURL(new Blob([r.data]));
       const a = document.createElement('a');
       a.href = url;
@@ -46,8 +50,10 @@ export const ExportWycenaDialog = ({ wycenaId, wycenaName, clientName, onClose }
   const preview = async () => {
     setDownloading(true);
     try {
+      // iter95bp: timeout 90s dla eksportu (duze wyceny moga przekroczyc globalne 15s)
       const r = await api.get(`/wyceny/${wycenaId}/export.pdf?${buildQuery({ inline: 'true' })}`, {
         responseType: 'blob',
+        timeout: 90000,
       });
       const blob = new Blob([r.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);

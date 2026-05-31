@@ -25,6 +25,12 @@ export const fmtPrice = (v) =>
 // Stale dla cennikow materialow + helper przelicznika ceny na jednostke wyrobu.
 export const MATERIAL_SUB_CATS = ['izolacje', 'betony', 'stal', 'murowane', 'drobnica', 'pozostałe'];
 
+// iter95bp: domyslne kategorie robocizny (user moze dodawac dowolne wlasne)
+export const LABOR_SUB_CATS = [
+  'fundamenty', 'mury', 'stropy', 'dachy', 'izolacje', 'tynki', 'posadzki',
+  'wykończenia', 'instalacje', 'zewnętrzne', 'pozostałe',
+];
+
 export const PKG_UNITS = ['', 'kg', 'l', 'm²', 'm³', 'mb', 'szt', 'kpl', 't', 'rol', 'opak.'];
 
 // jd. do jd. = norma zuzycia (np. kg na 1 m2 ulozonej posadzki)

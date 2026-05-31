@@ -85,6 +85,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
       <Td>
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
           onBlur={() => save({ name: edit.name })} className={`${inputCls} text-white font-semibold`}
+          title={edit.name || ''}
           data-testid={`pos-name-${position.id}`} />
       </Td>
       <Td right>

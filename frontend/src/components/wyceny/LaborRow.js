@@ -10,14 +10,14 @@ import { api } from '../../context/AuthContext';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, PctInput,
-  fmtPrice,
+  fmtPrice, LABOR_SUB_CATS,
 } from './_shared';
 
-export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
+export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onCategoryChange, customCategories = [], onDel }) => {
   const [edit, setEdit] = useState(item);
   useEffect(() => { setEdit(item); }, [item]);
 
-  const save = async () => {
+  const save = async (extra = {}) => {
     const payload = {
       name: edit.name || '',
       price_m2: edit.price_m2 === '' || edit.price_m2 == null ? null : parseFloat(edit.price_m2),
@@ -28,6 +28,9 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
       // iter95bm: minimum/maximum godzinowe robocizny (kopiowane do wyceny przy wyborze)
       price_min: edit.price_min === '' || edit.price_min == null ? null : parseFloat(edit.price_min),
       price_max: edit.price_max === '' || edit.price_max == null ? null : parseFloat(edit.price_max),
+      // iter95bp: sub_category jak w materialach
+      sub_category: edit.sub_category || null,
+      ...extra,
     };
     // iter95p: czy zmienila sie cena? jezeli tak - refetch (zeby zaktualizowac price_history)
     const priceChanged = (item.price_m2 !== payload.price_m2)
@@ -48,23 +51,39 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
 
   return (
     <tr className="border-b border-[#3D5378]/40 hover:bg-[#152033]/30 align-top" data-testid={`labor-row-${item.id}`}>
+      {/* iter95bp: kategoria - jak w cenniku materialow */}
+      <td className="border-r border-[#3D5378]/40 p-1">
+        <select value={edit.sub_category || ''}
+          onChange={(e) => {
+            const newCat = e.target.value;
+            setEdit({ ...edit, sub_category: newCat });
+            save({ sub_category: newCat }).then(() => onCategoryChange && onCategoryChange());
+          }}
+          className={`${inputCls} text-[#F1F5F9]`}
+          data-testid={`labor-cat-${item.id}`}>
+          <option value="">— wybierz —</option>
+          {[...new Set([...LABOR_SUB_CATS, ...customCategories])].map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </td>
       <td className="border-r border-[#3D5378]/40 p-1">
         <input value={edit.name || ''} onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={save}
+          onBlur={() => save()}
           placeholder="np. tynkowanie ścian, malowanie..."
           className={`${inputCls} text-white`} data-testid={`labor-name-${item.id}`} />
       </td>
       <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_m2 ?? ''}
           onChange={(e) => setEdit({ ...edit, price_m2: e.target.value })}
-          onBlur={save}
+          onBlur={() => save()}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`labor-price-m2-${item.id}`} />
       </td>
       <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_m3 ?? ''}
           onChange={(e) => setEdit({ ...edit, price_m3: e.target.value })}
-          onBlur={save}
+          onBlur={() => save()}
           className={`${inputCls} text-right tabular-nums text-[#D4AF37] font-semibold`}
           data-testid={`labor-price-m3-${item.id}`} />
       </td>
@@ -73,15 +92,15 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
         <div className="flex items-center gap-0.5">
           <input type="number" step="0.01" value={edit.price_other ?? ''}
             onChange={(e) => setEdit({ ...edit, price_other: e.target.value })}
-            onBlur={save}
+            onBlur={() => save()}
             className={`${inputCls} text-right tabular-nums text-[#9DBC85] font-semibold flex-1`}
             placeholder="—"
             data-testid={`labor-price-other-${item.id}`} />
           <span className="text-[10px] text-[#94A3B8] px-0.5">zł/</span>
           <select value={edit.unit_other || ''}
             onChange={(e) => { setEdit({ ...edit, unit_other: e.target.value }); }}
-            onBlur={save}
-            className="bg-[#1E2A44] border border-[#3D5378] rounded h-6 text-[10px] text-[#9DBC85] px-1 outline-none focus:border-[#D4AF37] w-14"
+            onBlur={() => save()}
+            className="bg-[#1E2A44] border border-[#3D5378] rounded h-6 text-[10px] text-[#9DBC85] px-1 outline-none focus:border-[#D4AF37] w-16"
             data-testid={`labor-unit-other-${item.id}`}>
             <option value="">—</option>
             <option value="mb">mb</option>
@@ -100,7 +119,7 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
       <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_min ?? ''}
           onChange={(e) => setEdit({ ...edit, price_min: e.target.value })}
-          onBlur={save}
+          onBlur={() => save()}
           className={`${inputCls} text-right tabular-nums text-[#FCA5A5]`}
           placeholder="—" title="Cena minimalna - nie da się zejść niżej w trybie negocjacji"
           data-testid={`labor-price-min-${item.id}`} />
@@ -108,7 +127,7 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onDel }) => {
       <td className="border-r border-[#3D5378]/40 p-1">
         <input type="number" step="0.01" value={edit.price_max ?? ''}
           onChange={(e) => setEdit({ ...edit, price_max: e.target.value })}
-          onBlur={save}
+          onBlur={() => save()}
           className={`${inputCls} text-right tabular-nums text-[#FCD34D]`}
           placeholder="—" title="Cena maksymalna (info)"
           data-testid={`labor-price-max-${item.id}`} />

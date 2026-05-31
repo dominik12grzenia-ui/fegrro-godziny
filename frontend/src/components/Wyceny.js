@@ -953,9 +953,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
             <tr>
               <Th w="60" tip="Numer pozycji (auto)">KOD</Th>
               <Th w="110" tip="Typ pozycji: główna lub podpozycja (materiał / robocizna / sprzęt)">RODZAJ</Th>
-              <Th w="240" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
+              <Th w="320" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
               <Th w="80" tip="W pozycji głównej: wpisywane RĘCZNIE (kontraktowa ilość, np. m²). W podpozycjach: ilość zużytego materiału / godzin / m-go.">ILOŚĆ</Th>
-              <Th w="70" tip="Jednostka miary (mb / m² / m³ / szt / kg / godz / dzień ...)">JEDN.</Th>
+              <Th w="85" tip="Jednostka miary (mb / m² / m³ / szt / kg / godz / dzień ...)">JEDN.</Th>
               <Th w="70" tip="W pozycji głównej: BUDŻET ÷ ILOŚĆ (cena za jednostkę kontraktową). W podpozycji: cena jednostkowa netto.">CENA</Th>
               <Th w="80" tip="Narzut na zapas materiału (%) — % doliczany do ceny zakupu na pokrycie strat/odpadów. Wpisywany ręcznie per podpozycja, lub z domyślnego globalnego.">NARZUT %</Th>
               <Th w="80" tip="Marża materiałowa (%) — nasz zysk procentowy. Wpisywana ręcznie per podpozycja, lub z domyślnego globalnego.">MARŻA %</Th>
