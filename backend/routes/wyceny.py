@@ -1514,47 +1514,26 @@ async def export_wycena_xlsx(
 
 
 # iter95ak/95ap: PDF dla klienta - tylko nazwa, ilosc, cena, wartosc + opcjonalne sekcje
-# iter95bh: 3 szablony - classic (zielony), branded (zloty FeGrro), premium (granat + zloty akcent)
+# iter95bk: jedyny szablon "premium" - granat #152033 + akcent zielony FeGrro #9DBC85
+# (poprzednio bylo 3 szablony: classic/branded/premium; uzytkownik wybral premium z zielonym)
 _TEMPLATE_CONFIGS = {
-    "classic": {
-        "primary": "#3F5235",       # zielony FeGrro (header tabeli, ramki)
-        "primary_text": "#3F5235",  # tytul, etapy
-        "accent": "#3F5235",        # akcenty (label addr, podsumowanie)
-        "header_bg_alt": "#F8FAF6", # zebra w tabeli
-        "logo_mm": 32,
-        "tagline": "",              # brak
-        "show_gold_bar": False,
-        "total_bg": "#FFF8DC",
-        "total_text": "#B8860B",
-    },
-    "branded": {
-        "primary": "#D4AF37",       # zloty FeGrro
-        "primary_text": "#8B7500",  # ciemnozloty (ciemniejszy do czytania)
-        "accent": "#D4AF37",
-        "header_bg_alt": "#FFF8E1", # delikatne kremowe zebra
-        "logo_mm": 48,              # duze logo
-        "tagline": "Profesjonalne usługi budowlane · od 2017",
-        "show_gold_bar": True,      # zloty pasek pod headerem
-        "total_bg": "#FFE9A3",
-        "total_text": "#7A5A00",
-    },
     "premium": {
-        "primary": "#152033",       # granat
-        "primary_text": "#152033",
-        "accent": "#D4AF37",        # zloty akcent
+        "primary": "#152033",       # granat (header tabeli, ramki)
+        "primary_text": "#152033",  # tytul, etapy
+        "accent": "#9DBC85",        # zielony FeGrro (akcent — pasek pod headerem, tagline)
         "header_bg_alt": "#F1F4F9", # cool gray zebra
         "logo_mm": 42,
-        "tagline": "PREMIUM CONSTRUCTION SERVICES",
-        "show_gold_bar": True,
+        "tagline": "PROFESJONALNE USŁUGI BUDOWLANE",
+        "show_gold_bar": True,      # zielony pasek pod headerem
         "total_bg": "#152033",      # ciemne tlo total
-        "total_text": "#D4AF37",    # zloty tekst total
+        "total_text": "#C8E4B5",    # jasnozielony tekst total (kontrastowy na granacie)
     },
 }
 
 
-def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, template_style: str = "classic"):
+def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, template_style: str = "premium"):
     opts = opts or {}
-    cfg = _TEMPLATE_CONFIGS.get(template_style) or _TEMPLATE_CONFIGS["classic"]
+    cfg = _TEMPLATE_CONFIGS.get(template_style) or _TEMPLATE_CONFIGS["premium"]
     include_surface = bool(opts.get("include_surface", True))
     include_wskazniki = bool(opts.get("include_wskazniki", True))
     include_notes = bool(opts.get("include_notes", True))
@@ -1896,7 +1875,6 @@ async def export_wycena_pdf(
     include_surface: bool = Query(True),
     include_wskazniki: bool = Query(True),
     include_notes: bool = Query(True),
-    template: str = Query("classic", pattern="^(classic|branded|premium)$"),
     _user: dict = Depends(get_current_admin),
 ):
     data = await _build_wycena_export(wycena_id)
@@ -1906,7 +1884,8 @@ async def export_wycena_pdf(
             "include_wskazniki": include_wskazniki,
             "include_notes": include_notes,
         }
-        content, filename = _generate_wycena_client_pdf_bytes(data, opts, template_style=template)
+        # iter95bk: zawsze szablon "premium" (granat + zielony akcent)
+        content, filename = _generate_wycena_client_pdf_bytes(data, opts, template_style="premium")
     else:
         content, filename = _generate_wycena_pdf_bytes(data, detail)
     disposition = "inline" if inline else "attachment"
