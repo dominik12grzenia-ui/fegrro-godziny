@@ -1,3 +1,30 @@
+## Iteration 95bg (2026-05) — Fix: "RAZEM netto:" wychodzi poza komórkę w XLSX/PDF Wycen
+
+### Problem (zgłoszony przez użytkownika)
+Na zrzutach ekranu z eksportu Wyceny widać że tekst "RAZEM netto:" (font 12pt bold) jest większy niż szerokość komórki (kolumna 5 = 25mm w PDF, kolumna E ~12 znaków w XLSX) i wychodzi poza tę komórkę, nakładając się na kwotę po prawej stronie.
+
+### Naprawa
+**Eksport "positions/client" (mały, portrait PDF + 6-kol XLSX)** — `/app/backend/routes/wyceny.py`:
+- **PDF** `_generate_wycena_pdf_bytes` (~linia 1700): dodano `SPAN (0,idx) → (4,idx)` dla wiersza total + `ALIGN RIGHT` na zakresie 0-4 + `RIGHTPADDING 6`. "RAZEM netto:" zajmuje teraz pierwsze 5 kolumn (165mm zamiast 25mm).
+- **XLSX** `_generate_wycena_xlsx_bytes` (~linia 2006): `ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=5)` → komórka A:E scalona z `alignment=right + vertical=center`, kwota w F z formułą SUM.
+
+**Eksport "full" (landscape PDF + 13-kol XLSX)**:
+- **PDF** (~linia 1460): `SPAN (0,last_row_idx) → (10,last_row_idx)` dla "RAZEM:" + ALIGN RIGHT + background `#FFF8DC` na całym scalonym zakresie.
+- **XLSX** (~linia 1312): `ws.merge_cells(row, 1, row, 11)` → A:K scalone, kwota w L.
+
+### Test
+- Pytest **12/12 PASS** (test_iter95bd_wyceny_price.py — w tym test_export_xlsx)
+- Walidacja openpyxl: 
+  - `client.xlsx`: A25:E25 scalone, alignment=right, formuła F25
+  - `full.xlsx`: A11:K11 scalone, alignment=right
+- Wszystkie 6 wariantów eksportu (positions/full/client × xlsx/pdf) zwracają 200 z sensownymi rozmiarami (29–76 kB)
+
+### Uwaga
+HoursTable: użytkownik potwierdził że kolory budowy z Finanse → Budowy są poprawnie wyświetlane przy nazwach budowy w tabeli godzin. ✅
+
+---
+
+
 ## Iteration 95bf (2026-05) — Split finance_reports.py + regex→pattern + scrollbar fix verified
 
 ### Implementacja

@@ -1309,8 +1309,11 @@ def _generate_wycena_xlsx_bytes(data: dict, detail: str = "positions"):
                         ws.cell(row=r, column=c).font = Font(italic=True, color="555555")
                     r += 1
     r += 1
-    ws.cell(row=r, column=11, value="RAZEM:").font = Font(bold=True, size=12)
-    ws.cell(row=r, column=11).alignment = Alignment(horizontal="right")
+    # iter95bg: scal kolumny 1-11 (A-K) dla "RAZEM:" zeby tekst sie ladnie zmiescil
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=11)
+    razem_cell_full = ws.cell(row=r, column=1, value="RAZEM:")
+    razem_cell_full.font = Font(bold=True, size=12)
+    razem_cell_full.alignment = Alignment(horizontal="right", vertical="center")
     ws.cell(row=r, column=12, value=round(total_budzet, 2)).font = Font(bold=True, size=12, color="B8860B")
     widths = {"A": 12, "B": 38, "C": 10, "D": 8, "E": 12, "F": 9, "G": 9,
               "H": 13, "I": 13, "J": 14, "K": 16, "L": 15, "M": 40}
@@ -1465,6 +1468,12 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
         elif kind == 'pos':
             tbl_styles.append(("BACKGROUND", (11, idx), (11, idx), colors.HexColor("#FFF8DC")))
             tbl_styles.append(("FONT", (11, idx), (11, idx), bold_font, 7))
+    # iter95bg: scal kolumny 0-10 dla "RAZEM:" zeby tekst sie zmiescil w landscape PDF
+    last_row_idx = len(table_data) - 1
+    tbl_styles.append(("SPAN", (0, last_row_idx), (10, last_row_idx)))
+    tbl_styles.append(("ALIGN", (0, last_row_idx), (10, last_row_idx), "RIGHT"))
+    tbl_styles.append(("RIGHTPADDING", (10, last_row_idx), (10, last_row_idx), 6))
+    tbl_styles.append(("BACKGROUND", (0, last_row_idx), (11, last_row_idx), colors.HexColor("#FFF8DC")))
     # iter95av: szerokości zoptymalizowane - więcej miejsca dla kolumn pieniężnych, mniej dla Uwagi
     # Suma: 12+46+12+10+15+13+13+17+17+19+22+22+50 = 268mm (landscape A4 281mm użyt.)
     tbl = Table(table_data, colWidths=[12 * mm, 46 * mm, 12 * mm, 10 * mm, 15 * mm,
@@ -1707,8 +1716,12 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None):
             tbl_styles.append(("LEFTPADDING", (0, idx), (0, idx), 6))
         elif kind == 'total':
             tbl_styles.append(("BACKGROUND", (0, idx), (-1, idx), colors.HexColor("#FFF8DC")))
-            tbl_styles.append(("FONT", (4, idx), (-1, idx), bold_font, 11))
+            # iter95bg: scal kolumny 0-4 dla "RAZEM netto:" zeby dlugi tekst sie zmiescil
+            tbl_styles.append(("SPAN", (0, idx), (4, idx)))
+            tbl_styles.append(("ALIGN", (0, idx), (4, idx), "RIGHT"))
+            tbl_styles.append(("FONT", (0, idx), (-1, idx), bold_font, 11))
             tbl_styles.append(("TEXTCOLOR", (5, idx), (5, idx), colors.HexColor("#B8860B")))
+            tbl_styles.append(("RIGHTPADDING", (4, idx), (4, idx), 6))
             tbl_styles.append(("TOPPADDING", (0, idx), (-1, idx), 8))
             tbl_styles.append(("BOTTOMPADDING", (0, idx), (-1, idx), 8))
 
@@ -2003,8 +2016,12 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
 
     # wiersz sumy z formula
     sum_row = r
-    ws.cell(row=r, column=5, value="RAZEM netto:").font = Font(bold=True, size=12)
-    ws.cell(row=r, column=5).alignment = Alignment(horizontal="right")
+    # iter95bg: scal kolumny A-E (1-5) zeby "RAZEM netto:" zmiescil sie bez wychodzenia poza komorke
+    ws.merge_cells(start_row=r, start_column=1, end_row=r, end_column=5)
+    razem_cell = ws.cell(row=r, column=1, value="RAZEM netto:")
+    razem_cell.font = Font(bold=True, size=12)
+    razem_cell.alignment = Alignment(horizontal="right", vertical="center")
+    razem_cell.fill = PatternFill(start_color="FFF8DC", end_color="FFF8DC", fill_type="solid")
     if first_pos_row and last_pos_row:
         ws.cell(row=r, column=6, value=f"=SUM(F{first_pos_row}:F{last_pos_row})")
     else:
@@ -2012,7 +2029,8 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     ws.cell(row=r, column=6).font = Font(bold=True, size=12, color="B8860B")
     ws.cell(row=r, column=6).number_format = '#,##0.00" zł"'
     ws.cell(row=r, column=6).fill = PatternFill(start_color="FFF8DC", end_color="FFF8DC", fill_type="solid")
-    for col in range(5, 7):
+    # border na wszystkich scalonych komorkach + wartosci
+    for col in range(1, 7):
         ws.cell(row=r, column=col).border = border
     r += 2
 
