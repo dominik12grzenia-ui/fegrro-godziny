@@ -2,6 +2,19 @@
 // Wcześniej inline w /app/frontend/src/components/Wyceny.js — wydzielone w refaktorze.
 import React, { useState, useEffect } from 'react';
 
+// iter95cd: bezpieczny parser float z PL locale, zaokraglenie do 2 miejsc po przecinku.
+// User wpisuje "2648,53" -> parseFloat ucinal do 2648. Plus user chce zeby wszystkie wartosci
+// (ilosc/cena/narzut/marza) byly liczone do max 2 miejsc po przecinku (precyzja groszowa).
+// Centralny helper - zamiast duplikowac fix w kazdym komponencie.
+export const parseFloatPL = (v) => {
+  if (v == null || v === '') return 0;
+  const n = parseFloat(String(v).replace(',', '.'));
+  return Number.isFinite(n) ? n : 0;
+};
+
+// iter95cd: parser z zaokragleniem do 2 miejsc po przecinku (na ilosci/ceny).
+export const parseFloatPL2 = (v) => Math.round(parseFloatPL(v) * 100) / 100;
+
 export const fmtPLN = (v) =>
   new Intl.NumberFormat('pl-PL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(v || 0);
 
@@ -138,7 +151,8 @@ export const evalFormula = (raw) => {
     }
   });
   const unit = dimToUnit(dim);
-  return { value: Math.round(value * 10000) / 10000, unit, error: null };
+  // iter95cd: zaokraglenie wyniku formuly do 2 miejsc po przecinku (zamiast 4)
+  return { value: Math.round(value * 100) / 100, unit, error: null };
 };
 
 export const computeSubRow = (sub, defaults = {}) => {

@@ -1,3 +1,33 @@
+## Iteration 95cd (2026-02) — Wszystkie wartości liczone i zapisywane do 2 miejsc po przecinku
+
+### User request
+*"ZRÓB TEŻ TAK BY WSZYSTKO BYŁO WPISANE I LICZONE TYLKO DO DWÓCH MIEJSC PO PRZECINKU"*
+
+### Fix Frontend (`/app/frontend/src/components/wyceny/_shared.js`)
+- Nowy centralny helper `parseFloatPL(v)` — PL przecinek → kropka + `parseFloat` + null-safe
+- Nowy `parseFloatPL2(v)` — `parseFloatPL` + `Math.round(*100)/100` (2 dp)
+- `evalFormula()` wynik formuły zmieniony z `*10000/10000` (4 dp) na `*100/100` (2 dp)
+
+### Fix Frontend (`SubRow.js`, `PosRow.js`)
+- `SubRow.save()` używa `parseFloatPL2` dla `quantity`, `unit_price_netto`, `narzut_zapas_pct`, `marza_pct`
+- `SubRow.saveQty()` non-formula branch: `parseFloatPL2(v)` (PL przecinek + 2 dp)
+- `PosRow` input quantity onBlur: `parseFloatPL2(edit.quantity)`
+
+### Fix Backend (`/app/backend/routes/wyceny.py`)
+- `create_position`: `round(qty, 2)` + kaucja_gir/dw/koszt_budowy/koszt_prognozowany
+- `update_position`: pętla po polach numerycznych → `round(float(v), 2)`
+- `create_line`: `round(qty, 2)` + `unit_price_netto`, `narzut_zapas_pct`, `marza_pct`
+- `update_line`: pętla po polach numerycznych → `round(float(v), 2)`
+
+### Test
+- POST position `qty=2648.5378` → DB stores `2648.54` ✅
+- POST line `qty=150.999, price=24977.7191` → DB stores `151.0, 24977.72` ✅
+- PATCH line `qty=88.123456` → 200 OK (zaokrąglone) ✅
+- BOM endpoint zachowuje 3 dp (materiały wymagają większej precyzji do zakupów — celowo nie ujednolicone)
+
+---
+
+
 ## Iteration 95cc (2026-02) — Zaokrąglanie ceny pozycji głównej (PRZYWRÓCONE)
 
 ### Problem (user feedback)

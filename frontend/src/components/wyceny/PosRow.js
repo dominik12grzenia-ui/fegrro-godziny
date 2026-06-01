@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
-  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
+  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput, parseFloatPL2,
 } from './_shared';
 
 export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel }) => {
@@ -98,7 +98,7 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
       <Td right>
         <input type="number" step="0.01" min="0" value={edit.quantity ?? ''}
           onChange={(e) => setEdit({ ...edit, quantity: e.target.value })}
-          onBlur={() => save({ quantity: edit.quantity === '' || edit.quantity == null ? null : parseFloat(edit.quantity) || 0 })}
+          onBlur={() => save({ quantity: edit.quantity === '' || edit.quantity == null ? null : parseFloatPL2(edit.quantity) })}
           onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
           placeholder="wpisz"
           className="bg-[#152033] border border-[#5F7552]/60 rounded h-7 text-xs w-full text-right tabular-nums text-[#D4AF37] font-bold px-2 outline-none focus:border-[#D4AF37] focus:bg-[#152033] hover:border-[#9DBC85]"

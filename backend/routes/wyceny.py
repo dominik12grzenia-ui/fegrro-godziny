@@ -433,12 +433,13 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
     doc = {
         "id": pid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "name": payload.name, "order": payload.order,
-        "quantity": payload.quantity,
+        # iter95cd: zaokraglenie do 2 miejsc po przecinku
+        "quantity": round(payload.quantity, 2) if payload.quantity is not None else None,
         "unit": payload.unit,
-        "kaucja_gir_pct": payload.kaucja_gir_pct if payload.kaucja_gir_pct is not None else 2.0,
-        "kaucja_dw_pct": payload.kaucja_dw_pct if payload.kaucja_dw_pct is not None else 2.0,
-        "koszt_budowy_pct": payload.koszt_budowy_pct if payload.koszt_budowy_pct is not None else 2.0,
-        "koszt_prognozowany": payload.koszt_prognozowany,
+        "kaucja_gir_pct": round(payload.kaucja_gir_pct, 2) if payload.kaucja_gir_pct is not None else 2.0,
+        "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else 2.0,
+        "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else 2.0,
+        "koszt_prognozowany": round(payload.koszt_prognozowany, 2) if payload.koszt_prognozowany is not None else None,
         "created_at": datetime.now().isoformat(),
     }
     await db.wyceny_positions.insert_one(doc)
@@ -450,6 +451,13 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
 async def update_position(position_id: str, payload: PositionUpdate, _user: dict = Depends(get_current_admin)):
     raw = payload.dict(exclude_unset=True)
     updates = dict(raw)
+    # iter95cd: zaokraglenie wszystkich pol numerycznych do 2 miejsc po przecinku
+    for _k in ("quantity", "kaucja_gir_pct", "kaucja_dw_pct", "koszt_budowy_pct", "koszt_prognozowany"):
+        if _k in updates and updates[_k] is not None:
+            try:
+                updates[_k] = round(float(updates[_k]), 2)
+            except (TypeError, ValueError):
+                pass
     updates["updated_at"] = datetime.now().isoformat()
     res = await db.wyceny_positions.update_one({"id": position_id}, {"$set": updates})
     if res.matched_count == 0:
@@ -527,10 +535,11 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         "id": lid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "position_id": payload.position_id, "parent_id": payload.parent_id,
         "type": payload.type, "name": payload.name,
-        "unit": payload.unit, "quantity": payload.quantity,
-        "unit_price_netto": payload.unit_price_netto,
-        "narzut_zapas_pct": payload.narzut_zapas_pct,
-        "marza_pct": payload.marza_pct,
+        # iter95cd: zaokraglenie do 2 miejsc po przecinku (precyzja groszowa)
+        "unit": payload.unit, "quantity": round(payload.quantity or 0, 2),
+        "unit_price_netto": round(payload.unit_price_netto or 0, 2),
+        "narzut_zapas_pct": round(payload.narzut_zapas_pct, 2) if payload.narzut_zapas_pct is not None else None,
+        "marza_pct": round(payload.marza_pct, 2) if payload.marza_pct is not None else None,
         "quantity_formula": payload.quantity_formula,
         "price_min": eff_price_min,
         "price_max": eff_price_max,
@@ -554,6 +563,14 @@ async def update_line(line_id: str, payload: LineUpdate, current_user: dict = De
     # uzywamy exclude_unset zeby None mogly byc zapisane explicit dla price_min/max
     clearable = {"price_min", "price_max", "below_min_reason"}
     updates = {k: v for k, v in raw.items() if v is not None or k in clearable}
+
+    # iter95cd: zaokraglenie wartosci float do 2 miejsc po przecinku (precyzja groszowa)
+    for _k in ("quantity", "unit_price_netto", "narzut_zapas_pct", "marza_pct", "price_min", "price_max"):
+        if _k in updates and updates[_k] is not None:
+            try:
+                updates[_k] = round(float(updates[_k]), 2)
+            except (TypeError, ValueError):
+                pass
 
     # iter95bm: gdy zmieniono price_book_id, skopiuj price_min/max z cennika.
     # Materials/Equipment: MAX(istniejacy, book) | Labor: tylko jak brak.
@@ -2263,9 +2280,8 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
             p = pe["position"]
             lp += 1
             qty = float(pe["qty"] or 0)
-            # iter95cc: cena pozycji glownej zaokraglona do PLN, wartosc = formula C*E przeliczy z C*E
+            # iter95cc: cena pozycji glownej zaokraglona do PLN, formula C*E przeliczy wartosc
             cena = round(float(pe["budzet"] or 0) / qty) if qty > 0 else 0
-            wartosc = cena * qty
             ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center", vertical="center")
             name_cell = ws.cell(row=r, column=2, value=p.get("name", ""))
             name_cell.alignment = Alignment(wrap_text=True, vertical="center")

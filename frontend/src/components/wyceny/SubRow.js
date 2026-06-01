@@ -11,7 +11,7 @@ import { PriceBookPicker } from './PriceBookPicker';
 import { Popover, PopoverTrigger, PopoverContent } from '../ui/popover';
 import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
-  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput,
+  UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput, parseFloatPL2,
 } from './_shared';
 
 export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, onLocalUpdate, onDel }) => {
@@ -27,18 +27,17 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
 
   const save = async (override = null) => {
     const src = override || edit;
-    // iter95cb: w PL użytkownik wpisuje "2648,53" (przecinek) - parseFloat ucina to do 2648.
-    // Zamieniamy przecinek na kropkę PRZED parseFloat zeby zachować groszy/dziesiętne.
-    const _num = (v) => parseFloat(String(v ?? '').replace(',', '.')) || 0;
+    // iter95cd: wszystkie wartosci zaokraglane do 2 miejsc po przecinku (precyzja groszowa).
+    // parseFloatPL2 obsluguje PL przecinek + Math.round(*100)/100.
     const payload = {
       name: src.name || '',
-      quantity: _num(src.quantity),
+      quantity: parseFloatPL2(src.quantity),
       unit: src.unit || null,
-      unit_price_netto: _num(src.unit_price_netto),
+      unit_price_netto: parseFloatPL2(src.unit_price_netto),
       narzut_zapas_pct: src.narzut_zapas_pct === '' || src.narzut_zapas_pct == null
-        ? null : _num(src.narzut_zapas_pct),
+        ? null : parseFloatPL2(src.narzut_zapas_pct),
       marza_pct: src.marza_pct === '' || src.marza_pct == null
-        ? null : _num(src.marza_pct),
+        ? null : parseFloatPL2(src.marza_pct),
       quantity_formula: src.quantity_formula || null,
     };
     try {
@@ -79,8 +78,8 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         toast.error('Formuła: ' + (r?.error || 'błąd'));
       }
     } else {
-      // iter95cb: wspieraj polski separator dziesietny (przecinek -> kropka).
-      const num = parseFloat(String(v).replace(',', '.')) || 0;
+      // iter95cd: PL przecinek + zaokraglenie do 2 miejsc po przecinku
+      const num = parseFloatPL2(v);
       const next = { ...edit, quantity: num, quantity_formula: null };
       setEdit(next); save(next);
     }
