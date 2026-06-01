@@ -27,15 +27,18 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
 
   const save = async (override = null) => {
     const src = override || edit;
+    // iter95cb: w PL użytkownik wpisuje "2648,53" (przecinek) - parseFloat ucina to do 2648.
+    // Zamieniamy przecinek na kropkę PRZED parseFloat zeby zachować groszy/dziesiętne.
+    const _num = (v) => parseFloat(String(v ?? '').replace(',', '.')) || 0;
     const payload = {
       name: src.name || '',
-      quantity: parseFloat(src.quantity) || 0,
+      quantity: _num(src.quantity),
       unit: src.unit || null,
-      unit_price_netto: parseFloat(src.unit_price_netto) || 0,
+      unit_price_netto: _num(src.unit_price_netto),
       narzut_zapas_pct: src.narzut_zapas_pct === '' || src.narzut_zapas_pct == null
-        ? null : parseFloat(src.narzut_zapas_pct) || 0,
+        ? null : _num(src.narzut_zapas_pct),
       marza_pct: src.marza_pct === '' || src.marza_pct == null
-        ? null : parseFloat(src.marza_pct) || 0,
+        ? null : _num(src.marza_pct),
       quantity_formula: src.quantity_formula || null,
     };
     try {
@@ -76,7 +79,8 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         toast.error('Formuła: ' + (r?.error || 'błąd'));
       }
     } else {
-      const num = parseFloat(v) || 0;
+      // iter95cb: wspieraj polski separator dziesietny (przecinek -> kropka).
+      const num = parseFloat(String(v).replace(',', '.')) || 0;
       const next = { ...edit, quantity: num, quantity_formula: null };
       setEdit(next); save(next);
     }

@@ -1,3 +1,21 @@
+## Iteration 95cb (2026-02) — Bug fix: SubRow ucinał dziesiętne w qty (PL przecinek)
+
+### Problem (user feedback)
+*"CZEMU W WYCENIE DALEJ ZAOKRĄGLA ILOŚCI?"* — pozycja główna miała `2648,53 m²` (input number z step="0.01" – przeglądarka przyjmuje przecinek w PL locale), ale podpozycje (sub-rows) pokazywały `2648` bez `.53`.
+
+### Root cause
+SubRow.js używa `<input type="text">` (bo wspiera formuły z `=`). User wpisuje po polsku `"2648,53"`, ale `parseFloat("2648,53")` w JS **ucina to do 2648** (przecinek nie jest separatorem dziesiętnym). PosRow ma `type="number"` więc przeglądarka konwertuje przecinek na kropkę przed wysłaniem do JS — dlatego pozycje główne były OK, a sub-rows zaokrąglały.
+
+### Fix `/app/frontend/src/components/wyceny/SubRow.js`
+- `save()`: helper `_num(v) = parseFloat(String(v ?? '').replace(',', '.')) || 0` aplikowany do `quantity`, `unit_price_netto`, `narzut_zapas_pct`, `marza_pct`
+- `saveQty()` non-formula branch: `parseFloat(String(v).replace(',', '.'))`
+
+### Test
+Playwright wpisał `"2648,53"` w sub-qty → po `Tab` input pokazuje `2648.53`, w tabeli 101.1 widoczne `2648.53`. PASS.
+
+---
+
+
 ## Iteration 95ca (2026-02) — Wyłączone zaokrąglanie ceny pozycji do całkowitej
 
 ### Problem (user feedback)
