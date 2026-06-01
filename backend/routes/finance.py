@@ -406,8 +406,9 @@ async def _do_sync_finance_to_sites() -> dict:
     updated = 0
     for b in aktywne:
         is_active = bool(b.get("show_in_hours"))
+        placeholder_col = f"__fb_{b['id'][:8]}"
         existing = await db.construction_sites.find_one(
-            {"finance_budowa_id": b["id"]}, {"_id": 0, "id": 1, "is_active": 1, "name": 1},
+            {"finance_budowa_id": b["id"]}, {"_id": 0, "id": 1, "is_active": 1, "name": 1, "excel_column": 1},
         )
         if existing:
             patch = {}
@@ -415,6 +416,10 @@ async def _do_sync_finance_to_sites() -> dict:
                 patch["is_active"] = is_active
             if existing.get("name") != b["name"]:
                 patch["name"] = b["name"]
+            # iter95cm: jesli site nie ma excel_column, dopisz placeholder zeby
+            # filtry frontendowe (ForemenTab itd.) widzialy go jako "budowe"
+            if not existing.get("excel_column"):
+                patch["excel_column"] = placeholder_col
             if patch:
                 await db.construction_sites.update_one({"id": existing["id"]}, {"$set": patch})
                 updated += 1
@@ -422,12 +427,14 @@ async def _do_sync_finance_to_sites() -> dict:
         # Sprawdz match po nazwie (legacy linked)
         existing_by_name = await db.construction_sites.find_one(
             {"name": b["name"], "finance_budowa_id": {"$exists": False}},
-            {"_id": 0, "id": 1},
+            {"_id": 0, "id": 1, "excel_column": 1},
         )
         if existing_by_name:
+            link_patch = {"finance_budowa_id": b["id"], "is_active": is_active, "visible_to_foremen": True}
+            if not existing_by_name.get("excel_column"):
+                link_patch["excel_column"] = placeholder_col
             await db.construction_sites.update_one(
-                {"id": existing_by_name["id"]},
-                {"$set": {"finance_budowa_id": b["id"], "is_active": is_active, "visible_to_foremen": True}},
+                {"id": existing_by_name["id"]}, {"$set": link_patch},
             )
             updated += 1
             continue
@@ -435,6 +442,7 @@ async def _do_sync_finance_to_sites() -> dict:
             "id": str(uuid.uuid4()),
             "name": b["name"],
             "finance_budowa_id": b["id"],
+            "excel_column": placeholder_col,  # iter95cm
             "is_active": is_active,
             "address": "",
             "category": "budowa",
@@ -634,20 +642,30 @@ async def _sync_to_sites(budowa_id: str, name: str, color: Optional[str] = None,
     iter95cj: is_active kontroluje czy budowa jest widoczna dla brygadzistow.
     Pozwala to ZAWSZE utworzyc rekord (zeby polaczenie istnialo), a kontrolowac
     widocznosc przez `show_in_hours` z finance_budowy.
+
+    iter95cm: ZAWSZE ustawiamy excel_column (placeholder typu `__fb_<8chars>`),
+    bo filtry frontendowe (ForemenTab, AssignmentManager, WorkerDashboard,
+    LocationsButton, AdminDashboard counts) rozrozniaja "budowe" od "lokalizacji"
+    po `s.excel_column`. Bez tego nowo-tworzone sites przez sync NIE pojawiaja sie
+    w panelu brygadzisty/przypisaniach.
     """
+    placeholder_col = f"__fb_{budowa_id[:8]}"
     existing = await db.construction_sites.find_one(
-        {"finance_budowa_id": budowa_id}, {"_id": 0, "id": 1}
+        {"finance_budowa_id": budowa_id}, {"_id": 0, "id": 1, "excel_column": 1}
     )
     if existing:
-        # Update is_active gdy istniał (np. zmiana show_in_hours na false)
+        patch = {"is_active": is_active}
+        if not existing.get("excel_column"):
+            patch["excel_column"] = placeholder_col
         await db.construction_sites.update_one(
-            {"id": existing["id"]}, {"$set": {"is_active": is_active}}
+            {"id": existing["id"]}, {"$set": patch}
         )
         return
     site_doc = {
         "id": str(uuid.uuid4()),
         "name": name,
         "finance_budowa_id": budowa_id,  # link
+        "excel_column": placeholder_col,  # iter95cm: marker "to jest budowa"
         "is_active": is_active,
         "address": "",
         "category": "budowa",

@@ -1,3 +1,33 @@
+## Iteration 95cm (2026-02) — Bug fix: nowe budowy nie pojawiały się w panelu Brygadzisty (filter `excel_column`)
+
+### Problem
+User po wszystkich poprzednich fixach (iter95ci/cj/ck/cl): sync OK 0/0/0, ale **nowe budowy z Finansów nie pojawiają się** w panelu Brygadzisty. Stare są.
+
+### Root cause
+Frontend filtruje sites po `s.excel_column` w **5 miejscach** (`ForemenTab`, `AssignmentManager`, `WorkerDashboard`, `LocationsButton`, `AdminDashboard`, `HoursTable`). To pole rozróżnia „budowe" (z Excel timesheet) od „lokalizacji manualnej". 
+
+`_sync_to_sites` tworzyło sites **bez** `excel_column` → nie były traktowane jako budowy → ukryte przed brygadzistą. Stare budowy (importowane z Excel) miały `excel_column='B', 'C', 'D'` z legacy sync.
+
+### Fix `/app/backend/routes/finance.py`
+- `_sync_to_sites`: zawsze ustawia `excel_column=f"__fb_{budowa_id[:8]}"` (placeholder marker — truthy value)
+- `sync_finance_to_sites`: dla istniejących sites bez `excel_column` dopisuje placeholder (migracja in-place)
+- `update_budowa` przy match-by-name: dopisuje placeholder jeśli brakuje
+
+### Test E2E (preview)
+- Sync: `updated:2` — istniejące LEBA, SASINO dostały `excel_column='__fb_203a3e98'` i `'__fb_5e65333b'`
+- Create new BMI RADIOWA test → site od razu z `excel_column='__fb_5e756342'`
+- Wszystkie sites mają teraz truthy excel_column → przejdą filter w ForemenTab → BRYGADZISTA WIDZI
+
+### Workflow dla użytkownika
+1. **Save to GitHub** → Render deploy
+2. **Finanse → Budowy → 🔄 Sync z panelem Brygadzisty**
+3. Toast: `Sync OK: utworzono X, zaktualizowano Y` (Y = liczba budów które dostały placeholder)
+4. **Panel Brygadzisty → odśwież** (F5) → BMI RADIOWA i wszystkie nowe budowy są widoczne ✅
+5. Od teraz każda nowa budowa automatycznie pojawia się w panelu Brygadzisty (auto-sync cron co 5 min + immediate sync przy create)
+
+---
+
+
 ## Iteration 95cl (2026-02) — Auto-sync periodic (cron co 5 min)
 
 ### Co dodane
