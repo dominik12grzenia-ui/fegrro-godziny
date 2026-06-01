@@ -1,3 +1,20 @@
+## Iteration 95ca (2026-02) — Wyłączone zaokrąglanie ceny pozycji do całkowitej
+
+### Problem (user feedback)
+User: *"WYŁĄCZ ZAOKRĄGLANIE W WYCENACH"* — w wycenie cena jednostkowa pozycji była zaokrąglana do całkowitej (np. `165,96 zł` → `166 zł`). Pochodziło z `cena_pos_rounded = round(cena_pos)` w `_build_wycena_export` (iter95bd).
+
+### Fix `/app/backend/routes/wyceny.py` (linia 1428)
+- **Było**: `cena_pos_rounded = round(cena_pos) if cena_pos else 0` → zaokrąglanie do PLN
+- **Jest**: `cena_pos_rounded = round(cena_pos, 2) if cena_pos else 0` → 2 miejsca po przecinku (grosze)
+
+Inne miejsca (PDF/XLSX export) używały surowej kalkulacji `wartosc / qty` z `:,.2f` formatowaniem — nie były dotknięte bugiem.
+
+### Test
+- Wycena z `unit_price_netto=24977.71` + budget z marżami → PDF/XLSX 200 OK, cena nie jest już zaokrąglana do PLN
+
+---
+
+
 ## Iteration 95bz (2026-02) — 2 poprawki layoutu PDF Oferta
 
 ### Problem (user feedback)

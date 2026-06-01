@@ -1424,8 +1424,9 @@ async def _build_wycena_export(wycena_id: str):
             else:
                 qty_pos = max([sc["qty"] for sc in sub_calcs], default=0)
             cena_pos = budzet / qty_pos if qty_pos > 0 else 0
-            # iter95bd: zaokraglenie ceny jednostkowej finalnej (calkowita)
-            cena_pos_rounded = round(cena_pos) if cena_pos else 0
+            # iter95ca: WYŁĄCZONE zaokraglanie do calkowitej (uzytkownik: "wylacz zaokraglanie")
+            # Wczesniej (iter95bd): round(cena_pos) zaokraglao 165.96 -> 166. Teraz: 2 miejsca po przecinku.
+            cena_pos_rounded = round(cena_pos, 2) if cena_pos else 0
             by_type = {"materials": [], "labor": [], "equipment": []}
             for s in subs:
                 t = s.get("type")
