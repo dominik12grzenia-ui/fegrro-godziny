@@ -119,8 +119,12 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
       <Td right className="text-[#CBD5E1] font-semibold" data-testid={`pos-cena-${position.id}`}>
         {row.cena ? new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(row.cena) : '—'}
       </Td>
-      <Td right className="text-[#94A3B8]">—</Td>
-      <Td right className="text-[#94A3B8]">—</Td>
+      <Td right className="text-[#9DBC85] tabular-nums" title="Suma kwot narzutu z podpozycji">
+        {row.narzutAmount > 0 ? fmtPLN(row.narzutAmount) : '—'}
+      </Td>
+      <Td right className="text-[#D4AF37] tabular-nums" title="Suma kwot marży z podpozycji">
+        {row.marzaAmount > 0 ? fmtPLN(row.marzaAmount) : '—'}
+      </Td>
       <Td right>{fmtPLN(row.kaucjaGir)}</Td>
       <Td right>{fmtPLN(row.kaucjaDw)}</Td>
       <Td right>{fmtPLN(row.kosztBudowy)}</Td>

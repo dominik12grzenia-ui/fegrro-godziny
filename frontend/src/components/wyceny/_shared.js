@@ -181,18 +181,25 @@ export const computeSubRow = (sub, defaults = {}) => {
   const marzaPct = (t === 'materials' || !t)
     ? (parseFloat(sub.marza_pct ?? defaultMarza) || 0)
     : 0;
+  // iter95ch: kwoty narzutu i marzy w PLN (do sumowania w pos i grandTotal)
+  const narzutAmount = qty * cena * narzutPct / 100;
+  const marzaAmount = qty * cena * marzaPct / 100;
   const budzetZwolniony = qty * cena * (1 + narzutPct / 100 + marzaPct / 100);
   const kosztPrognozowany = qty * cena * (1 + narzutPct / 100);
-  return { qty, cena, budzetZwolniony, kosztPrognozowany, narzutPct, marzaPct };
+  return { qty, cena, budzetZwolniony, kosztPrognozowany, narzutPct, marzaPct, narzutAmount, marzaAmount };
 };
 
 export const computePosRow = (p, defaults = {}) => {
   const subs = p.slots || [];
   let budzetZwolniony = 0, kosztPrognozowany = 0;
+  // iter95ch: sumuj kwoty narzutu i marzy w PLN
+  let narzutAmount = 0, marzaAmount = 0;
   subs.forEach((s) => {
     const r = computeSubRow(s, defaults);
     budzetZwolniony += r.budzetZwolniony;
     kosztPrognozowany += r.kosztPrognozowany;
+    narzutAmount += r.narzutAmount;
+    marzaAmount += r.marzaAmount;
   });
   const manualQty = parseFloat(p.quantity);
   const qty = !isNaN(manualQty) && manualQty > 0
@@ -213,7 +220,7 @@ export const computePosRow = (p, defaults = {}) => {
   const budzet = qty * cena;
   const prognozy = budzetZwolniony - kosztPrognozowany;
   const zyskPlusDw = prognozy + kaucjaDw;
-  return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
+  return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw, narzutAmount, marzaAmount };
 };
 
 export const Th = ({ children, w, tip }) => (

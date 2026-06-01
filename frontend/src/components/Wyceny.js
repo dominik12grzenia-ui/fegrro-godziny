@@ -427,16 +427,19 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   };
 
   const grandTotal = useMemo(() => {
-    if (!displayData) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0 };
-    let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0;
+    if (!displayData) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0, narzutAmount: 0, marzaAmount: 0 };
+    let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0, narzutAmount = 0, marzaAmount = 0;
     (displayData.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
       const r = computePosRow(p, defaults);
       qty += r.qty; budzet += r.budzet;
       kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
       kosztBudowy += r.kosztBudowy; budzetZwolniony += r.budzetZwolniony;
       kosztPrognozowany += r.kosztPrognozowany; prognozy += r.prognozy; zyskPlusDw += r.zyskPlusDw;
+      // iter95ch: sumowanie kwot narzutu i marzy
+      narzutAmount += r.narzutAmount || 0;
+      marzaAmount += r.marzaAmount || 0;
     }));
-    return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
+    return { qty, cena: qty > 0 ? budzet / qty : 0, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw, narzutAmount, marzaAmount };
   }, [displayData, defaults]);
 
   // iter95am/an: wskazniki kosztu na m2 PC/PUM + podzial PC na podziemie/nadziemie
@@ -1052,8 +1055,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums">{grandTotal.qty || '—'}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
               <td className="border border-[#3D5378] px-2 py-2 text-center tabular-nums text-[#CBD5E1]">{grandTotal.cena ? new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(grandTotal.cena) : '—'}</td>
-              <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
-              <td className="border border-[#3D5378] px-2 py-2 text-[#CBD5E1] text-center">—</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums text-[#9DBC85]" title="Suma kwot narzutu">{grandTotal.narzutAmount > 0 ? fmtPLN(grandTotal.narzutAmount) : '—'}</td>
+              <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums text-[#D4AF37]" title="Suma kwot marży">{grandTotal.marzaAmount > 0 ? fmtPLN(grandTotal.marzaAmount) : '—'}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaGir)}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kaucjaDw)}</td>
               <td className="border border-[#3D5378] px-2 py-2 text-right tabular-nums">{fmtPLN(grandTotal.kosztBudowy)}</td>

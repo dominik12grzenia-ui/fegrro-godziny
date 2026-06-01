@@ -1,3 +1,27 @@
+## Iteration 95ch (2026-02) — Sumowanie kwot narzutu i marży w pozycji głównej + sumie głównej
+
+### Problem
+Kolumny **NARZUT %** i **MARŻA %** w wierszach `Pozycja główna` i `Σ SUMA` pokazywały `—`. User chce widzieć kwoty narzutu/marży zsumowane z wszystkich sub-rowów.
+
+### Fix
+**`/app/frontend/src/components/wyceny/_shared.js`** (`computeSubRow`):
+- Dodane `narzutAmount = qty × cena × narzut%/100` i `marzaAmount = qty × cena × marża%/100`
+- `computePosRow` sumuje `narzutAmount` i `marzaAmount` ze wszystkich sub-rowów
+
+**`/app/frontend/src/components/wyceny/PosRow.js`** (wiersz pozycji głównej):
+- `—` w kolumnach narzut/marża → `fmtPLN(row.narzutAmount)` (zielony) / `fmtPLN(row.marzaAmount)` (złoty)
+- Tooltip: „Suma kwot narzutu z podpozycji"
+
+**`/app/frontend/src/components/Wyceny.js`** (`grandTotal` + wiersz Σ SUMA):
+- `grandTotal.narzutAmount` i `grandTotal.marzaAmount` agregowane przez wszystkie pozycje
+- Wiersz Σ SUMA pokazuje obie kwoty w odpowiednich kolumnach
+
+### Test (preview)
+Wycena REFAKTOR test → wiersz Σ SUMA pokazuje **NARZUT = 47 805,97 zł** (zielony), w wierszu pozycji 101 „Ławy" identycznie. Wcześniej oba pola były `—`.
+
+---
+
+
 ## Iteration 95cg (2026-02) — Button "Zastosuj kaucje do wszystkich pozycji"
 
 ### Problem
