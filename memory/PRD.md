@@ -1,3 +1,36 @@
+## Iteration 95ce (2026-02) — Bug fix: rozjazd budżetu pos vs cena zaokrąglona
+
+### Problem (user screenshot)
+Po iter95cc cena pozycji głównej jest zaokrąglana do PLN, ale **w UI wyceny** budżet pokazywał ciągle surową wartość (sumę zwolniony + kaucje), nie przeliczoną z zaokrąglonej ceny.
+
+**Konkret ze screenshota** (Pozycja 101):
+- Sub 101.1 (robocizna): qty=2648.53, cena=16, narzut=0, marża=0 → zwolniony=42 376,48 ✅
+- Sub 101.2 (materiał): qty=2648.53, cena=18.75, narzut=8% (default), marża=5% → zwolniony=56 115,73 ✅
+- Suma zwolniony = 98 492,21, kaucje 3×2% × suma = 5 909,52
+- Budżet surowy = 104 401,74, cena_pos = 104 401,74 / 2648.53 = **39,42 → zaokr. 39 zł**
+- **Wzór usera**: budżet_pos = qty × cena_zaokr = `2648.53 × 39 = 103 292,67` ❌ ale UI pokazuje `104 401,74`
+
+### Fix `/app/frontend/src/components/wyceny/_shared.js` (`computePosRow`)
+```js
+const budzetRaw = budzetZwolniony + kaucjaGir + kaucjaDw + kosztBudowy;
+const cenaRaw = qty > 0 ? budzetRaw / qty : 0;
+const cena = Math.round(cenaRaw);             // zaokraglone do PLN
+const budzet = qty * cena;                     // przeliczone z zaokraglonej ceny
+```
+
+Sub-row ratio `subrow_zwolniony / pos_zwolniony` zachowuje proporcję — budżety sub-rows skalują się automatycznie z nowym pos.budzet (suma = 100% pos.budzet).
+
+### Test (matematyczna kontrola dla pos 101)
+- cena_zaokr = 39 zł/m² ✅
+- budzet_display = 2648.53 × 39 = **103 292,67** ✅ (zamiast 104 401,74)
+- Subrow 101.1 budzet = 103 292,67 × 0.4302 = 44 437,86
+- Subrow 101.2 budzet = 103 292,67 × 0.5698 = 58 854,82
+- Suma = 103 292,68 ≈ 103 292,67 ✅
+- Spójne z PDF/XLSX client (iter95cc)
+
+---
+
+
 ## Iteration 95cd (2026-02) — Wszystkie wartości liczone i zapisywane do 2 miejsc po przecinku
 
 ### User request

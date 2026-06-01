@@ -204,8 +204,13 @@ export const computePosRow = (p, defaults = {}) => {
   const kaucjaGir = budzetZwolniony * girPct / 100;
   const kaucjaDw = budzetZwolniony * dwPct / 100;
   const kosztBudowy = budzetZwolniony * kosztPct / 100;
-  const budzet = budzetZwolniony + kaucjaGir + kaucjaDw + kosztBudowy;
-  const cena = qty > 0 ? budzet / qty : 0;
+  const budzetRaw = budzetZwolniony + kaucjaGir + kaucjaDw + kosztBudowy;
+  // iter95ce: cena pozycji glownej zaokraglona do PLN + budzet PRZELICZONY z zaokraglonej ceny.
+  // Wczesniej budzet = surowy (np 104401.74) a cena pokazywana zaokr. (39) - rozjazd 1.1k zł
+  // poniewaz `qty × cena_zaokr ≠ budzet`. Teraz `budzet_display = qty × cena_zaokr` - spojne z PDF/XLSX.
+  const cenaRaw = qty > 0 ? budzetRaw / qty : 0;
+  const cena = Math.round(cenaRaw);
+  const budzet = qty * cena;
   const prognozy = budzetZwolniony - kosztPrognozowany;
   const zyskPlusDw = prognozy + kaucjaDw;
   return { qty, cena, budzet, kaucjaGir, kaucjaDw, kosztBudowy, budzetZwolniony, kosztPrognozowany, prognozy, zyskPlusDw };
