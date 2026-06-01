@@ -215,6 +215,16 @@ export const BudowyPanel = () => {
                 className="accent-[#4F6343]" data-testid="finance-budowa-show-in-hours" />
               <span>Pokaż w liscie godzin (przypisywanie pracownikow)</span>
             </label>
+            {/* iter95cj: ostrzezenie gdy show_in_hours wylaczone */}
+            {!form.show_in_hours && (
+              <div className="text-[11px] text-[#FCA5A5] bg-[#9B2C2C]/15 border border-[#9B2C2C]/40 rounded px-3 py-2 -mt-1 mb-1 flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                <span>
+                  <b>Uwaga:</b> bez tej opcji <b>brygadziści NIE zobaczą tej budowy</b> w panelu i nie będzie można im jej przypisać.
+                  Włącz jeśli chcesz aby ekipa pracowała na tej budowie.
+                </span>
+              </div>
+            )}
             <label className="flex items-center gap-2 text-sm cursor-pointer p-2 hover:bg-[#1E2A44] rounded">
               <input type="checkbox" checked={form.has_budget} onChange={(e) => setForm({...form, has_budget: e.target.checked})}
                 className="accent-[#D4AF37]" data-testid="finance-budowa-has-budget-modal" />

@@ -1,3 +1,30 @@
+## Iteration 95cj (2026-02) — Auto-sync finance_budowy ↔ sites + ostrzeżenie show_in_hours
+
+### Zmiana modelu
+Wcześniej: `_sync_to_sites` wywoływane **tylko** gdy `show_in_hours=true` → budowy bez tego checkboxa NIE istniały w `construction_sites` → panel Brygadzisty ich nie widział nawet po sync.
+
+Teraz: **rekord `construction_sites` istnieje ZAWSZE**, a `show_in_hours` kontroluje flagę `is_active`. Dzięki temu:
+- Brygadziści widzą tylko aktywne budowy (`is_active=True`) — bez zmiany dla nich
+- Linki finance_budowa_id zawsze istnieją (historyczne dane: godziny, sprzęt, przypisania nie tracą referencji)
+- Toggle `show_in_hours` jest **odwracalny bez utraty danych** (przed: remove → ponowne create gubiło ID site)
+
+### Backend (`/app/backend/routes/finance.py`)
+- `_sync_to_sites(budowa_id, name, color, is_active=True)` — nowy parametr; jeśli istnieje, aktualizuje `is_active`
+- `create_budowa`: **zawsze** wywołuje `_sync_to_sites(is_active=show_in_hours)`
+- `update_budowa`: zamiast remove/create wywołuje `_sync_to_sites` z bieżącym `is_active`
+
+### Frontend (`/app/frontend/src/components/finance/BudowyPanel.js`)
+Czerwony banner ostrzegawczy (AlertTriangle) w modal **Dodaj/Edytuj** widoczny gdy `show_in_hours=false`:
+> ⚠ Uwaga: bez tej opcji brygadziści NIE zobaczą tej budowy w panelu i nie będzie można im jej przypisać.
+
+### Test (preview)
+- Create show_in_hours=false → site is_active=False ✅
+- PUT toggle →true → is_active=True ✅
+- PUT toggle →false → is_active=False ✅
+
+---
+
+
 ## Iteration 95ci (2026-02) — Sync Finanse Budowy → Panel Brygadzisty
 
 ### Problem (user feedback)

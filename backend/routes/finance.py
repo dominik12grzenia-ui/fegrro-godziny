@@ -489,9 +489,11 @@ async def create_budowa(payload: BudowaCreate, current_user: dict = Depends(get_
         "created_by": current_user["sub"],
     }
     await db.finance_budowy.insert_one(doc)
-    # Jezeli show_in_hours = True, dodaj do sites collection
-    if payload.show_in_hours:
-        await _sync_to_sites(bid, name, color=payload.color)
+    # iter95cj: ZAWSZE sync do construction_sites (przy show_in_hours=False site jest is_active=False).
+    # Wczesniej (iter95ci): sync tylko gdy show_in_hours=True. To powodowalo ze budowy dodane
+    # bez tego checkboxa nie istnialy w `construction_sites` -> panel Brygadzisty ich nie widzial.
+    # Teraz zawsze tworzymy rekord ale ukrywamy go (is_active=False) gdy show_in_hours=False.
+    await _sync_to_sites(bid, name, color=payload.color, is_active=bool(payload.show_in_hours))
     doc.pop("_id", None)
     await log_audit(entity="finance_budowa", entity_id=bid, action="create", user=current_user, new=doc)
     return doc
@@ -517,19 +519,19 @@ async def update_budowa(
     upd["updated_by"] = current_user["sub"]
     await db.finance_budowy.update_one({"id": budowa_id}, {"$set": upd})
 
-    # Sync z sites collection
+    # iter95cj: zamiast remove/create przy toggle show_in_hours, uzywamy is_active.
+    # Rekord zawsze istnieje (zachowuje polaczenia historyczne: przypisania brygadzistow,
+    # godziny, sprzet) ale jest ukryty przy show_in_hours=False.
     new_show = upd.get("show_in_hours", existing.get("show_in_hours", False))
     old_show = existing.get("show_in_hours", False)
     new_name = upd.get("name", existing.get("name"))
-    if new_show and not old_show:
-        await _sync_to_sites(budowa_id, new_name)
-    elif old_show and not new_show:
-        await _remove_from_sites(budowa_id)
-    elif new_show and "name" in upd:
-        # nazwa sie zmienila - update site
-        await db.construction_sites.update_one(
-            {"finance_budowa_id": budowa_id}, {"$set": {"name": new_name}}
-        )
+    if new_show != old_show or "name" in upd:
+        # Sync z toggle is_active = new_show
+        await _sync_to_sites(budowa_id, new_name, color=upd.get("color", existing.get("color")), is_active=bool(new_show))
+        if "name" in upd:
+            await db.construction_sites.update_one(
+                {"finance_budowa_id": budowa_id}, {"$set": {"name": new_name}}
+            )
     # iter95y: propaguj kolor do sites zeby HoursTable mial dostep
     if "color" in upd:
         await db.construction_sites.update_one(
@@ -594,18 +596,27 @@ async def delete_budowa(budowa_id: str, current_user: dict = Depends(get_current
     return {"message": "Usunieto (mozna przywrocic)"}
 
 
-async def _sync_to_sites(budowa_id: str, name: str, color: Optional[str] = None):
-    """Dodaje budowe do construction_sites jezeli jeszcze nie istnieje (po finance_budowa_id)."""
+async def _sync_to_sites(budowa_id: str, name: str, color: Optional[str] = None, is_active: bool = True):
+    """Dodaje budowe do construction_sites jezeli jeszcze nie istnieje (po finance_budowa_id).
+
+    iter95cj: is_active kontroluje czy budowa jest widoczna dla brygadzistow.
+    Pozwala to ZAWSZE utworzyc rekord (zeby polaczenie istnialo), a kontrolowac
+    widocznosc przez `show_in_hours` z finance_budowy.
+    """
     existing = await db.construction_sites.find_one(
         {"finance_budowa_id": budowa_id}, {"_id": 0, "id": 1}
     )
     if existing:
+        # Update is_active gdy istniał (np. zmiana show_in_hours na false)
+        await db.construction_sites.update_one(
+            {"id": existing["id"]}, {"$set": {"is_active": is_active}}
+        )
         return
     site_doc = {
         "id": str(uuid.uuid4()),
         "name": name,
         "finance_budowa_id": budowa_id,  # link
-        "is_active": True,
+        "is_active": is_active,
         "address": "",
         "category": "budowa",
         "visible_to_foremen": True,
