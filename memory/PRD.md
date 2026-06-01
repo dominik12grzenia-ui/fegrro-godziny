@@ -1,3 +1,31 @@
+## Iteration 95cn (2026-02) — Bug fix: sync nie usuwał LEGACY orphans (budowa „0")
+
+### Problem (user screenshot)
+Po iter95cm BMI RADIOWA pojawiła się ✅, ale budowa **„0"** (nieistniejąca w finance_budowy) dalej była w panelu Brygadzisty. Sync nie usuwał jej bo:
+- Sprawdzało `finance_budowa_id` → invalid
+- Ale „0" jest **legacy site** (importowane ze starego Excela) — **nie ma** `finance_budowa_id` w ogóle
+
+### Fix `/app/backend/routes/finance.py` (`_do_sync_finance_to_sites`)
+Dodana **faza 2b** — usuwa sites które:
+1. Mają `excel_column` truthy (są oznaczone jako budowa, nie lokalizacja manualna)
+2. Nie mają `finance_budowa_id` (legacy import)
+3. Nazwa **nie matchuje** żadnej aktywnej `finance_budowy` (case-insensitive)
+
+Bezpieczne dla lokalizacji manualnych (mają `excel_column=None`).
+
+### Test
+- Wstaw legacy site `name="0", excel_column="Z", finance_budowa_id=None`
+- POST sync → `removed:1` ✅, site zniknął z `/api/sites`
+
+### Workflow
+1. **Save to GitHub** → Render deploy
+2. **Finanse → Budowy → 🔄 Sync z panelem Brygadzisty**
+3. Toast: `Sync OK: usunięto 1` (budowa „0" wyleci)
+4. Panel Brygadzisty → F5 → już nie ma „0"
+
+---
+
+
 ## Iteration 95cm (2026-02) — Bug fix: nowe budowy nie pojawiały się w panelu Brygadzisty (filter `excel_column`)
 
 ### Problem

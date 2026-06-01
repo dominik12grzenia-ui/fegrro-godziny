@@ -452,8 +452,9 @@ async def _do_sync_finance_to_sites() -> dict:
         })
         created += 1
 
-    # 2. Usun orphans - sites ktore wskazuja na nieistniejaca/archived/deleted finance_budowa
+    # 2a. Usun orphans - sites ktore wskazuja na nieistniejaca/archived/deleted finance_budowa
     valid_ids = {b["id"] for b in aktywne}
+    valid_names_lower = {b["name"].strip().lower() for b in aktywne if b.get("name")}
     orphans = await db.construction_sites.find(
         {"finance_budowa_id": {"$exists": True, "$ne": None}},
         {"_id": 0, "id": 1, "finance_budowa_id": 1, "name": 1},
@@ -461,6 +462,26 @@ async def _do_sync_finance_to_sites() -> dict:
     removed = 0
     for site in orphans:
         if site["finance_budowa_id"] not in valid_ids:
+            await db.construction_sites.delete_one({"id": site["id"]})
+            removed += 1
+
+    # 2b. iter95cn: usun LEGACY sites oznaczone jako budowa (`excel_column` truthy)
+    # ale BEZ `finance_budowa_id`, ktorych nazwa nie odpowiada zadnej aktywnej finance_budowa.
+    # Pomija lokalizacje manualne (te maja `excel_column=None`).
+    # Naprawia case usera: budowa "0" w panelu Brygadzisty - rekord legacy bez backlink.
+    legacy_orphans = await db.construction_sites.find(
+        {
+            "excel_column": {"$nin": [None, ""], "$exists": True},
+            "$or": [
+                {"finance_budowa_id": {"$exists": False}},
+                {"finance_budowa_id": None},
+            ],
+        },
+        {"_id": 0, "id": 1, "name": 1},
+    ).to_list(length=None)
+    for site in legacy_orphans:
+        nm = (site.get("name") or "").strip().lower()
+        if nm not in valid_names_lower:
             await db.construction_sites.delete_one({"id": site["id"]})
             removed += 1
 
