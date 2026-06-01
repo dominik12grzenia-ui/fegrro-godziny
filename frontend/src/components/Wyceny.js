@@ -951,6 +951,24 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                 data-testid="wycena-client-address"
               />
             </div>
+            {/* iter95by: krotki marketingowy tytul oferty (PDF override) - dla dlugich nazw firm */}
+            <div className="col-span-12">
+              <label className="text-[10px] text-[#9DBC85] uppercase font-bold">
+                Tytuł oferty (PDF) <span className="text-[#94A3B8] normal-case font-normal">— opcjonalny, krótki marketingowy tytuł zamiast pełnej nazwy wyceny</span>
+              </label>
+              <Input
+                key={`offer-title-${w.id}`}
+                defaultValue={w.offer_title || ''}
+                onBlur={(e) => saveText('offer_title', e.target.value)}
+                placeholder="np. Oferta dla ALLCON 06/2026"
+                maxLength={120}
+                className="bg-[#1E2A44] border-[#3D5378] h-8 text-xs text-white"
+                data-testid="wycena-offer-title"
+              />
+              <div className="text-[9px] text-[#94A3B8] mt-0.5">
+                Jeśli puste, na PDF pojawi się pełna nazwa wyceny.
+              </div>
+            </div>
           </div>
         )}
         {/* iter95w: Zakres oferty - co obejmuje / czego nie obejmuje */}

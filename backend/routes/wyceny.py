@@ -64,6 +64,8 @@ class WycenaUpdate(BaseModel):
     client_name: Optional[str] = None
     client_nip: Optional[str] = None
     client_address: Optional[str] = None
+    # iter95by: krotki marketingowy tytul oferty (PDF/XLSX override) - dla dlugich nazw firm
+    offer_title: Optional[str] = None
     # iter95am: powierzchnie budynku (PC = pow. calkowita, PUM = pow. uzytkowa mieszkalna)
     pc_m2: Optional[float] = None
     pum_m2: Optional[float] = None
@@ -1741,7 +1743,7 @@ _TEMPLATE_CONFIGS = {
         "accent": "#9DBC85",        # zielony FeGrro (akcent — pasek pod headerem, tagline)
         "header_bg_alt": "#F1F4F9", # cool gray zebra
         "logo_mm": 42,
-        "tagline": "PROFESJONALNE USŁUGI BUDOWLANE",
+        "tagline": "USŁUGI BUDOWLANE",
         "show_gold_bar": True,      # zielony pasek pod headerem
         "total_bg": "#152033",      # ciemne tlo total
         "total_text": "#C8E4B5",    # jasnozielony tekst total (kontrastowy na granacie)
@@ -1767,9 +1769,14 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     buf = BytesIO()
     doc = SimpleDocTemplate(buf, pagesize=A4, rightMargin=15 * mm, leftMargin=15 * mm,
                             topMargin=15 * mm, bottomMargin=15 * mm)
+    # iter95by: oblicz nazwe wczesnie - potrzebne do dynamicznego font size
+    wycena_name = (data["wycena"].get("offer_title") or data["wycena"].get("name") or "").strip()
     styles = getSampleStyleSheet()
-    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=18,
-                              textColor=colors.HexColor(cfg["primary_text"]), alignment=0, spaceAfter=2)
+    # iter95by: dynamiczny font tytulu - dla dlugich nazw zmniejszamy zeby zmiescil sie w 1 linii
+    _title_font_size = 18 if len(wycena_name) <= 50 else (14 if len(wycena_name) <= 80 else 12)
+    title_st = ParagraphStyle("title", parent=styles["Title"], fontName=bold_font, fontSize=_title_font_size,
+                              textColor=colors.HexColor(cfg["primary_text"]), alignment=0, spaceAfter=2,
+                              leading=_title_font_size + 2)
     company_st = ParagraphStyle("company", parent=styles["Normal"], fontName=bold_font, fontSize=11,
                                 textColor=colors.HexColor(cfg["primary_text"]), alignment=2)
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9,
@@ -1779,9 +1786,6 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
                               textColor=colors.HexColor(cfg["primary_text"]))
 
     elements = []
-    wycena_name = data["wycena"].get("name", "")
-
-    # iter95w: Naglowek z wiekszym logo + NIP + telefon
     # iter95bh: rozmiar logo i tagline z configu szablonu
     import os as _os
     logo_mm_val = cfg["logo_mm"]
@@ -1854,6 +1858,8 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
         if client_address:
             addr_inner.append(Paragraph(_pdf_text(client_address), addr_body_sub))
         addr_box = Table([[addr_inner]], colWidths=[85 * mm])
+        # iter95by: adresat z lewej strony (zamiast wysrodkowanego)
+        addr_box.hAlign = 'LEFT'
         addr_box.setStyle(TableStyle([
             ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor(cfg["primary"])),
             ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor(cfg["header_bg_alt"])),
@@ -2121,7 +2127,8 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
     wb = Workbook()
     ws = wb.active
     ws.title = "Oferta"
-    wycena_name = data["wycena"].get("name", "")
+    # iter95by: offer_title override - krotszy marketingowy tytul oferty (PDF/XLSX)
+    wycena_name = (data["wycena"].get("offer_title") or data["wycena"].get("name") or "").strip()
     w_full = data["wycena"]
 
     # iter95w: logo + naglowek firmowy z NIP/telefonem

@@ -1,3 +1,21 @@
+## Iteration 95by (2026-02) — 3 poprawki kosmetyczne PDF Oferta
+
+### Zmiany
+1. **Tagline**: `PROFESJONALNE USŁUGI BUDOWLANE` → `USŁUGI BUDOWLANE` (krócej, mniej PR-owo)
+2. **Custom offer_title**: nowe pole `offer_title` w modelu `WycenaUpdate` + input "Tytuł oferty (PDF)" w panelu Dane klienta. User może wpisać krótki marketingowy tytuł (np. „Oferta dla ALLCON 06/2026") zamiast długiej nazwy wyceny korporacyjnej. PDF/XLSX client uzywa `offer_title || name`. Dodatkowo **dynamiczny font size**: 18pt (≤50 znaków) → 14pt (≤80) → 12pt (>80) — chroni przed wylewaniem się tytułu poza margines.
+3. **Adresat z lewej** (zamiast wycentrowanego): `addr_box.hAlign = 'LEFT'` w `_generate_wycena_client_pdf_bytes`.
+
+### Pliki
+- `/app/backend/routes/wyceny.py`: tagline (1744), `WycenaUpdate.offer_title` (67), `wycena_name` w PDF/XLSX client (1771, 2129), dynamiczny font (1772-1775), `addr_box.hAlign='LEFT'` (1860)
+- `/app/frontend/src/components/Wyceny.js`: input `wycena-offer-title` w panelu klienta (linie ~955-975)
+
+### Test
+- Backend: 5/5 PASS (PATCH offer_title 200, PDF z offer_title 200/62kB, PDF bez offer_title fallback do name 200/62kB)
+- Frontend: smoke screenshot — input "TYTUŁ OFERTY (PDF)" widoczny z helper textem, fill+blur działa
+
+---
+
+
 ## Iteration 95bx (2026-02) — Bug fix: HTTP 500 dla wycen z polskimi znakami w nazwie
 
 ### Problem (P0 KRYTYCZNY)
