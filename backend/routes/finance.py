@@ -385,14 +385,17 @@ async def import_budowy_from_sites(current_user: dict = Depends(get_current_admi
 
 @router.post("/finance/sync-to-sites")
 async def sync_finance_to_sites(current_user: dict = Depends(get_current_admin)):
-    """iter95ci/cj/ck: Pelna synchronizacja finance_budowy <-> construction_sites.
+    """iter95ci/cj/ck: Endpoint manualnej synchronizacji (uzytkownik klika 'Sync')."""
+    return await _do_sync_finance_to_sites()
+
+
+async def _do_sync_finance_to_sites() -> dict:
+    """iter95cl: Logika synchronizacji finance_budowy <-> construction_sites.
+    Wydzielona zeby moc wywolac z scheduler-a (cron co 5 min) bez auth dependency.
 
     1. Dla aktywnych finance_budowy: utworz brakujace construction_sites lub zaktualizuj is_active
     2. Dla archiwalnych/usunietych finance_budowy: usun powiazane construction_sites (orphans)
     3. Zwraca licznik: created, updated, removed, total
-
-    Uzywaj kiedy panel Brygadzisty pokazuje budowy ktorych juz nie ma w Finansach,
-    lub brakuje nowo dodanych.
     """
     # 1. Aktywne budowy (nie archived, nie deleted)
     aktywne = await db.finance_budowy.find(

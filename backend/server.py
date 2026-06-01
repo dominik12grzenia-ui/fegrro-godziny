@@ -400,6 +400,24 @@ async def startup_event():
         replace_existing=True,
         misfire_grace_time=3600,
     )
+    # iter95cl: auto-sync finance_budowy <-> construction_sites co 5 minut.
+    # Czysci orphany (usuniete/archived budowy nie wisza w panelu brygadzisty)
+    # i tworzy brakujace sites dla nowo dodanych budow. Admin nie musi klikac "Sync".
+    from routes.finance import _do_sync_finance_to_sites
+    async def _cron_finance_sites_sync():
+        try:
+            r = await _do_sync_finance_to_sites()
+            if r.get("created") or r.get("removed"):
+                logger.info(f"[CRON] finance-sites sync: created={r.get('created')} updated={r.get('updated')} removed={r.get('removed')}")
+        except Exception as e:
+            logger.error(f"[CRON] finance-sites sync failed: {e}")
+    scheduler.add_job(
+        _cron_finance_sites_sync,
+        IntervalTrigger(minutes=5),
+        id="finance_sites_sync_5min",
+        replace_existing=True,
+        misfire_grace_time=300,
+    )
     scheduler.start()
     set_scheduler(scheduler)
     logger.info("[CRON] Scheduler: zapis godzin 2. dnia o 02:00 | sync codzienny o 06:00 | podsumowanie codzienne o 18:00 | Fakturownia co 30 min | Wyplaty codziennie o 03:00 | Powiadomienia dokumentow o 08:00")

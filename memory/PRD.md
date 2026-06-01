@@ -1,3 +1,23 @@
+## Iteration 95cl (2026-02) — Auto-sync periodic (cron co 5 min)
+
+### Co dodane
+- `_do_sync_finance_to_sites()` wydzielone z endpointu (bez auth dependency) — można wywołać z scheduler-a
+- **Cron job** `finance_sites_sync_5min` w `server.py` — `IntervalTrigger(minutes=5)`, misfire_grace=300s
+- Loguje tylko gdy `created>0` lub `removed>0` (żeby nie zaśmiecać logów gdy nie ma zmian)
+- Endpoint `POST /api/finance/sync-to-sites` nadal dostępny do manualnego sync
+
+### Efekt
+- Admin nie musi już klikać „Sync z panelem Brygadzisty" po każdej operacji
+- Maksymalne opóźnienie 5 min między dodaniem/archiwizacją/usunięciem budowy a aktualizacją w panelu Brygadzisty i tabeli godzin
+- Orphany czyszczone automatycznie w tle
+
+### Test
+- Scheduler logi: `Added job "startup_event.<locals>._cron_finance_sites_sync" to job store` ✅
+- Manualny endpoint nadal 200 OK ✅
+
+---
+
+
 ## Iteration 95ck (2026-02) — Pełny life-cycle sync finance_budowy ↔ panel Brygadzisty
 
 ### Co działało po iter95cj
