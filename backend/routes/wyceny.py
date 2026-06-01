@@ -447,6 +447,33 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
     return doc
 
 
+@router.post("/wyceny/{wycena_id}/apply-defaults")
+async def apply_defaults_to_positions(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    """iter95cg: Zastosuj domyslne stawki wyceny (default_gir/dw/koszt_pct) do WSZYSTKICH pozycji.
+
+    Uzywaj kiedy zmienisz domyslne kaucje w panelu wyceny i chcesz zaktualizowac
+    istniejace pozycje ktore maja stare wartosci zapisane jawnie.
+    """
+    w = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
+    if not w:
+        raise HTTPException(404, "Wycena nie istnieje")
+    gir = round(float(w.get("default_gir_pct") or 5.0), 2)
+    dw = round(float(w.get("default_dw_pct") or 5.0), 2)
+    koszt = round(float(w.get("default_koszt_pct") or 5.0), 2)
+    res = await db.wyceny_positions.update_many(
+        {"wycena_id": wycena_id},
+        {"$set": {
+            "kaucja_gir_pct": gir,
+            "kaucja_dw_pct": dw,
+            "koszt_budowy_pct": koszt,
+            "updated_at": datetime.now().isoformat(),
+        }},
+    )
+    return {"ok": True, "updated_positions": res.modified_count, "gir": gir, "dw": dw, "koszt": koszt}
+
+
+
+
 @router.patch("/wyceny/positions/{position_id}")
 async def update_position(position_id: str, payload: PositionUpdate, _user: dict = Depends(get_current_admin)):
     raw = payload.dict(exclude_unset=True)

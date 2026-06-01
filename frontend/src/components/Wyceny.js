@@ -760,6 +760,25 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
           onSave={(v) => saveDefault('default_narzut_labor_pct', v)} />
         <PctInput label="Narzut sprzęt" testId="default-narzut-equipment" value={defaults.narzutEquipment}
           onSave={(v) => saveDefault('default_narzut_equipment_pct', v)} />
+        {/* iter95cg: zastosuj defaultowe kaucje do wszystkich istniejacych pozycji */}
+        <button
+          type="button"
+          onClick={async () => {
+            if (!window.confirm(`Zastosować domyślne stawki kaucji (GIR=${defaults.gir}%, DW=${defaults.dw}%, Koszt=${defaults.koszt}%) do WSZYSTKICH pozycji tej wyceny?\n\nTo nadpisze indywidualne kaucje per pozycja.`)) return;
+            try {
+              const r = await api.post(`/wyceny/${w.id}/apply-defaults`);
+              toast.success(`Zaktualizowano ${r.data.updated_positions} pozycji (GIR/DW/Koszt = ${r.data.gir}/${r.data.dw}/${r.data.koszt}%)`);
+              await fetchData(true);
+            } catch (e) {
+              toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+            }
+          }}
+          className="px-3 py-1.5 text-xs bg-[#3F5235] hover:bg-[#5F7552] text-white rounded border border-[#5F7552] font-semibold transition-colors"
+          data-testid="apply-defaults-btn"
+          title="Nadpisuje kaucje GIR/DW/Koszt budowy we WSZYSTKICH pozycjach tej wyceny domyślnymi stawkami"
+        >
+          ↻ Zastosuj kaucje do wszystkich pozycji
+        </button>
         <div className="text-[10px] text-[#CBD5E1] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>

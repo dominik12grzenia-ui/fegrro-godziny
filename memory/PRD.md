@@ -1,3 +1,38 @@
+## Iteration 95cg (2026-02) — Button "Zastosuj kaucje do wszystkich pozycji"
+
+### Problem
+Po iter95cf zmieniłem **domyślne** kaucje 2% → 5%, ale istniejące pozycje wyceny ALLCON na produkcji mają zapisane **jawnie** `kaucja_*_pct=2.0` w bazie. Sam fix defaults nic nie zmieni dla istniejących pozycji, bo `computePosRow` używa `p.kaucja_gir_pct ?? defaults.gir` — istniejąca jawna wartość nadpisuje default.
+
+### Fix Backend (`/app/backend/routes/wyceny.py`)
+Nowy endpoint `POST /wyceny/{wycena_id}/apply-defaults` — masowy update wszystkich pozycji wyceny do bieżących `default_gir_pct / default_dw_pct / default_koszt_pct` z tabeli `wyceny`.
+
+```py
+gir = round(float(w.get("default_gir_pct") or 5.0), 2)
+db.wyceny_positions.update_many({"wycena_id": wycena_id}, {"$set": {kaucja_gir_pct: gir, ...}})
+return {"ok": True, "updated_positions": N, "gir": gir, ...}
+```
+
+### Fix Frontend (`/app/frontend/src/components/Wyceny.js`)
+Przycisk `↻ Zastosuj kaucje do wszystkich pozycji` w panelu `⚙ Domyślne stawki`:
+- Confirm dialog z bieżącymi defaults
+- POST do endpointu
+- Toast `Zaktualizowano N pozycji (GIR/DW/Koszt = X/Y/Z%)`
+- Auto refresh danych
+
+### Workflow dla użytkownika
+1. Save to GitHub (push iter95cf + cg)
+2. Czekaj na deploy Render+Vercel
+3. Otwórz wycenę ALLCON
+4. Panel `⚙ Domyślne stawki` (góra wyceny) — wpisz `5` w Kaucja GIR/DW/Koszt budowy (już domyślnie 5% dla nowych)
+5. Klik **↻ Zastosuj kaucje do wszystkich pozycji** — confirm
+6. Toast `Zaktualizowano 8 pozycji` → wartości pokazują 2118,82 ✅
+
+### Test
+- POST `/api/wyceny/{id}/apply-defaults` → 200 OK, `updated_positions=1, gir=5.0`
+
+---
+
+
 ## Iteration 95cf (2026-02) — Bug fix: domyślne kaucje 2% → 5% (standard PL budowlany)
 
 ### Problem (user feedback z konkretną matematyką)
