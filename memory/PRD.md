@@ -1,3 +1,43 @@
+## Iteration 95cf (2026-02) — Bug fix: domyślne kaucje 2% → 5% (standard PL budowlany)
+
+### Problem (user feedback z konkretną matematyką)
+User: *"42 376,48 × 5% = 2 118,82 A JEST KWOTA 847,53 I TAK JEST W KAŻDEJ KOMURCE"*
+
+`847,53 = 42 376,48 × **2%**` — system aplikował 2% domyślnej kaucji, ale standard branży budowlanej w Polsce to **5%** dla GIR (Gwarancja Inwestor-Realizator), DW (Dobre Wykonanie) i koszt budowy.
+
+### Fix
+**Backend** `/app/backend/routes/wyceny.py`:
+- `default_gir_pct`, `default_dw_pct`, `default_koszt_pct` → fallback `5.0` (zamiast `2.0`)
+- `kaucja_gir_pct`, `kaucja_dw_pct`, `koszt_budowy_pct` w `create_position` → fallback `5.0`
+- `_build_wycena_export` defaults `gir/dw/koszt` → `5.0`
+
+**Frontend**:
+- `Wyceny.js` defaults state (2 miejsca): fallback `?? 5`
+- `_shared.js` `computePosRow`: girPct/dwPct/kosztPct → fallback `?? 5`
+
+**Migracja danych** (jeden-time MongoDB update):
+- `wyceny_positions` z `kaucja_*_pct=2.0` → `5.0` (8 pozycji × 3 pola)
+- `wyceny` z `default_*_pct=2.0` → `5.0` (6 wycen × 3 pola)
+
+### Co użytkownik widzi po fix-ie
+Sub-row 101.1 (robocizna, qty=2648.53, cena=16, narzut=0, marża=0):
+- Kaucja GIR = 42 376,48 × 5% = **2 118,82** ✅ (zamiast 847,53)
+- Kaucja DW = **2 118,82** ✅
+- Koszt budowy = **2 118,82** ✅
+
+Pozycja 101:
+- Suma zwolniony = 42 376,48 + 56 115,73 = 98 492,21
+- Kaucje 3×5% × 98 492,21 = **14 773,83**
+- Budżet = 98 492,21 + 14 773,83 = **113 266,04**
+- Cena_pos = 113 266,04 / 2648,53 = 42,76 → zaokr. **43 zł/m²**
+- Budżet_display = 2648,53 × 43 = **113 886,79 zł**
+
+### Notatka
+Panel `⚙ Domyślne stawki dla całej wyceny` (góra wyceny) pozwala edytować na żywo Kaucja GIR/DW/Koszt budowy per wycena — jeśli klient zażąda innej stawki (np. 3% albo 7%), wpisz tam.
+
+---
+
+
 ## Iteration 95ce (2026-02) — Bug fix: rozjazd budżetu pos vs cena zaokrąglona
 
 ### Problem (user screenshot)

@@ -306,9 +306,9 @@ async def create_wycena(payload: WycenaCreate, current_user: dict = Depends(get_
         "id": wid,
         "name": payload.name,
         "notes": payload.notes,
-        "default_gir_pct": payload.default_gir_pct if payload.default_gir_pct is not None else 2.0,
-        "default_dw_pct": payload.default_dw_pct if payload.default_dw_pct is not None else 2.0,
-        "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 2.0,
+        "default_gir_pct": payload.default_gir_pct if payload.default_gir_pct is not None else 5.0,
+        "default_dw_pct": payload.default_dw_pct if payload.default_dw_pct is not None else 5.0,
+        "default_koszt_pct": payload.default_koszt_pct if payload.default_koszt_pct is not None else 5.0,
         "default_narzut_pct": payload.default_narzut_pct if payload.default_narzut_pct is not None else 0.0,
         "default_marza_pct": payload.default_marza_pct if payload.default_marza_pct is not None else 0.0,
         # iter95bt: rozdzielone narzuty per typ linii
@@ -436,9 +436,9 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
         # iter95cd: zaokraglenie do 2 miejsc po przecinku
         "quantity": round(payload.quantity, 2) if payload.quantity is not None else None,
         "unit": payload.unit,
-        "kaucja_gir_pct": round(payload.kaucja_gir_pct, 2) if payload.kaucja_gir_pct is not None else 2.0,
-        "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else 2.0,
-        "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else 2.0,
+        "kaucja_gir_pct": round(payload.kaucja_gir_pct, 2) if payload.kaucja_gir_pct is not None else 5.0,
+        "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else 5.0,
+        "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else 5.0,
         "koszt_prognozowany": round(payload.koszt_prognozowany, 2) if payload.koszt_prognozowany is not None else None,
         "created_at": datetime.now().isoformat(),
     }
@@ -1387,9 +1387,9 @@ async def _build_wycena_export(wycena_id: str):
     positions = await db.wyceny_positions.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
     lines = await db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
     defaults = {
-        "gir": float(w.get("default_gir_pct") or 2.0),
-        "dw": float(w.get("default_dw_pct") or 2.0),
-        "koszt": float(w.get("default_koszt_pct") or 2.0),
+        "gir": float(w.get("default_gir_pct") or 5.0),
+        "dw": float(w.get("default_dw_pct") or 5.0),
+        "koszt": float(w.get("default_koszt_pct") or 5.0),
         "narzut": float(w.get("default_narzut_pct") or 0.0),
         "marza": float(w.get("default_marza_pct") or 0.0),
         # iter95bt: rozdzielone narzuty per typ linii
@@ -2695,8 +2695,8 @@ async def convert_wycena_to_budget(
         "has_budget": True,
         "is_gir": False,
         "is_dw": False,
-        "kaucja_gir_pct": float(wycena.get("default_gir_pct") or 2.0),
-        "kaucja_dw_pct": float(wycena.get("default_dw_pct") or 2.0),
+        "kaucja_gir_pct": float(wycena.get("default_gir_pct") or 5.0),
+        "kaucja_dw_pct": float(wycena.get("default_dw_pct") or 5.0),
         "koszt_budowy_pct": float(wycena.get("default_koszt_pct") or 0.0),
         "notes": wycena.get("notes") or "",
         "zamawiajacy": zamawiajacy,

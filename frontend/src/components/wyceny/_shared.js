@@ -198,9 +198,9 @@ export const computePosRow = (p, defaults = {}) => {
   const qty = !isNaN(manualQty) && manualQty > 0
     ? manualQty
     : (subs.length > 0 ? Math.max(...subs.map((s) => parseFloat(s.quantity) || 0)) : 0);
-  const girPct = parseFloat(p.kaucja_gir_pct ?? defaults.gir ?? 2);
-  const dwPct = parseFloat(p.kaucja_dw_pct ?? defaults.dw ?? 2);
-  const kosztPct = parseFloat(p.koszt_budowy_pct ?? defaults.koszt ?? 2);
+  const girPct = parseFloat(p.kaucja_gir_pct ?? defaults.gir ?? 5);
+  const dwPct = parseFloat(p.kaucja_dw_pct ?? defaults.dw ?? 5);
+  const kosztPct = parseFloat(p.koszt_budowy_pct ?? defaults.koszt ?? 5);
   const kaucjaGir = budzetZwolniony * girPct / 100;
   const kaucjaDw = budzetZwolniony * dwPct / 100;
   const kosztBudowy = budzetZwolniony * kosztPct / 100;

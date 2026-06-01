@@ -352,9 +352,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 
   const defaults = useMemo(() => {
     const base = {
-      gir: data?.wycena?.default_gir_pct ?? 2,
-      dw: data?.wycena?.default_dw_pct ?? 2,
-      koszt: data?.wycena?.default_koszt_pct ?? 2,
+      gir: data?.wycena?.default_gir_pct ?? 5,
+      dw: data?.wycena?.default_dw_pct ?? 5,
+      koszt: data?.wycena?.default_koszt_pct ?? 5,
       // iter95bt: rozdzielone defaulty per typ linii
       narzut: data?.wycena?.default_narzut_pct ?? 0,  // narzut materiał
       marza: data?.wycena?.default_marza_pct ?? 0,    // marża materiał
@@ -468,9 +468,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     if (!data || !negotiationOn) return null;
     let budzet = 0, zyskPlusDw = 0;
     const baseDefaults = {
-      gir: data.wycena?.default_gir_pct ?? 2,
-      dw: data.wycena?.default_dw_pct ?? 2,
-      koszt: data.wycena?.default_koszt_pct ?? 2,
+      gir: data.wycena?.default_gir_pct ?? 5,
+      dw: data.wycena?.default_dw_pct ?? 5,
+      koszt: data.wycena?.default_koszt_pct ?? 5,
       narzut: data.wycena?.default_narzut_pct ?? 0,
       marza: data.wycena?.default_marza_pct ?? 0,
     };
