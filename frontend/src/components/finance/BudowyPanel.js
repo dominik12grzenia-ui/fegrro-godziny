@@ -107,6 +107,24 @@ export const BudowyPanel = () => {
               className="accent-[#4F6343] h-4 w-4" data-testid="finance-show-archived" />
             Pokaż archiwalne
           </label>
+          {/* iter95ci: jednoklik sync budow z W godzinach do panelu Brygadzisty */}
+          <Button
+            onClick={async () => {
+              if (!window.confirm('Zsynchronizować budowy z modułu Finanse (z "W godzinach" TAK) do panelu Brygadzisty?\n\nUmożliwi to przypisywanie pracowników do brakujących budów.')) return;
+              try {
+                const r = await api.post('/finance/sync-to-sites');
+                toast.success(`Synchronizacja OK: utworzono ${r.data.created}, istniało ${r.data.skipped_existing} (z ${r.data.total})`);
+              } catch (e) {
+                toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
+              }
+            }}
+            variant="outline"
+            className="border-[#5F7552] text-[#9DBC85] hover:bg-[#5F7552]/10"
+            title="Tworzy brakujące rekordy w `construction_sites` dla budów z `W godzinach=TAK` żeby były widoczne w panelu Brygadzisty"
+            data-testid="finance-sync-to-sites-btn"
+          >
+            <RefreshCw className="h-4 w-4 mr-1" /> Sync z panelem Brygadzisty
+          </Button>
           <Button onClick={() => { setEditing(null); setForm(EMPTY_FORM); setShowAdd(true); }}
             className="bg-[#4F6343] hover:bg-[#5F7552] text-white transition-colors shadow-sm" data-testid="finance-add-budowa">
             <Plus className="h-4 w-4 mr-1" /> Dodaj budowe

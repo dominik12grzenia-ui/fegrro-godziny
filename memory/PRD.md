@@ -1,3 +1,39 @@
+## Iteration 95ci (2026-02) — Sync Finanse Budowy → Panel Brygadzisty
+
+### Problem (user feedback)
+User dodaje budowy w module Finanse → Budowy (np. BMI RADIOWA z `W godzinach = TAK`), ale **panel Brygadzisty nie widzi tych nowych budów** przy przypisywaniu. Brygadzista nie może być przypisany do nowej budowy.
+
+### Root cause
+Dwa źródła „budów" w systemie:
+- `db.finance_budowy` (nowsze, Finanse) — używane przez moduły Budżet/Finanse
+- `db.construction_sites` (legacy) — używane przez panel Brygadzisty (`/api/sites`)
+
+Sync `_sync_to_sites` istnieje w `create_budowa` / `update_budowa`, ale dla budów stworzonych przed wdrożeniem sync (lub przez import/inny kanał) `construction_sites` nie ma odpowiadającego wpisu.
+
+### Fix Backend (`/app/backend/routes/finance.py`)
+Nowy endpoint `POST /api/finance/sync-to-sites`:
+- Iteruje `finance_budowy` z `show_in_hours=true` i `is_archived≠true`
+- Jeśli brak wpisu w `construction_sites` po `finance_budowa_id` — sprawdza match po nazwie, łączy lub tworzy nowy site
+- Zwraca `{created, skipped_existing, total}`
+
+### Fix Frontend (`/app/frontend/src/components/finance/BudowyPanel.js`)
+Przycisk **„Sync z panelem Brygadzisty"** (RefreshCw icon) obok „Dodaj budowe":
+- Confirm dialog
+- POST do `/finance/sync-to-sites`
+- Toast `Synchronizacja OK: utworzono N, istniało M (z X)`
+
+### Workflow dla użytkownika
+1. Otwórz **Finanse → Budowy**
+2. Kliknij **🔄 Sync z panelem Brygadzisty** → confirm
+3. Toast pokaże ile budów zostało dodanych
+4. Wróć do panelu Brygadzisty → przypisz Volodymyrowi BMI RADIOWA — będzie już widoczna ✅
+
+### Test (preview)
+`POST /api/finance/sync-to-sites` → 200 OK, `{created: 12, skipped_existing: 2, total: 14}`
+
+---
+
+
 ## Iteration 95ch (2026-02) — Sumowanie kwot narzutu i marży w pozycji głównej + sumie głównej
 
 ### Problem

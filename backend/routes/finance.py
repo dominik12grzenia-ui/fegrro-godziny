@@ -383,6 +383,61 @@ async def import_budowy_from_sites(current_user: dict = Depends(get_current_admi
     return {"created": created, "skipped": skipped, "total_sites": len(sites)}
 
 
+@router.post("/finance/sync-to-sites")
+async def sync_finance_to_sites(current_user: dict = Depends(get_current_admin)):
+    """iter95ci: Sync finance_budowy -> construction_sites.
+
+    Naprawia case kiedy budowa zostala dodana w panelu Finanse z show_in_hours=true,
+    ale `construction_sites` nie ma odpowiadajacego rekordu (mogla powstac przed
+    `_sync_to_sites` lub blad sync). Panel brygadzisty (przypisywanie budow) nie
+    widzi takiej budowy -> nie da sie przypisac.
+
+    Dla kazdej budowy w finance_budowy ze `show_in_hours=true` i `is_archived=false`,
+    sprawdz czy istnieje wpis w construction_sites o tej finance_budowa_id.
+    Jezeli nie - utworz.
+    """
+    budowy = await db.finance_budowy.find(
+        {"show_in_hours": True, "is_archived": {"$ne": True}},
+        {"_id": 0, "id": 1, "name": 1, "color": 1},
+    ).to_list(length=None)
+    created = 0
+    skipped = 0
+    for b in budowy:
+        existing = await db.construction_sites.find_one(
+            {"finance_budowa_id": b["id"]}, {"_id": 0, "id": 1},
+        )
+        if existing:
+            skipped += 1
+            continue
+        # Czy istnieje site o tej samej nazwie bez link?
+        existing_by_name = await db.construction_sites.find_one(
+            {"name": b["name"], "finance_budowa_id": {"$exists": False}}, {"_id": 0, "id": 1},
+        )
+        if existing_by_name:
+            # Polacz istniejacy site z budowa
+            await db.construction_sites.update_one(
+                {"id": existing_by_name["id"]},
+                {"$set": {"finance_budowa_id": b["id"], "is_active": True, "visible_to_foremen": True}},
+            )
+            skipped += 1
+            continue
+        await db.construction_sites.insert_one({
+            "id": str(uuid.uuid4()),
+            "name": b["name"],
+            "finance_budowa_id": b["id"],
+            "is_active": True,
+            "address": "",
+            "category": "budowa",
+            "visible_to_foremen": True,
+            "color": b.get("color"),
+            "created_at": datetime.now().isoformat(),
+        })
+        created += 1
+    return {"ok": True, "created": created, "skipped_existing": skipped, "total": len(budowy)}
+
+
+
+
 @router.get("/finance/budowy")
 async def list_budowy(
     include_archived: bool = Query(False),
