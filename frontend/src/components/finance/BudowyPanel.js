@@ -110,17 +110,17 @@ export const BudowyPanel = () => {
           {/* iter95ci: jednoklik sync budow z W godzinach do panelu Brygadzisty */}
           <Button
             onClick={async () => {
-              if (!window.confirm('Zsynchronizować budowy z modułu Finanse (z "W godzinach" TAK) do panelu Brygadzisty?\n\nUmożliwi to przypisywanie pracowników do brakujących budów.')) return;
+              if (!window.confirm('Zsynchronizować budowy z modułu Finanse z panelem Brygadzisty?\n\n• Utworzy brakujące budowy\n• Zaktualizuje is_active wg "W godzinach"\n• Usunie nieistniejące/archiwalne budowy z listy brygadzistów')) return;
               try {
                 const r = await api.post('/finance/sync-to-sites');
-                toast.success(`Synchronizacja OK: utworzono ${r.data.created}, istniało ${r.data.skipped_existing} (z ${r.data.total})`);
+                toast.success(`Sync OK: utworzono ${r.data.created}, zaktualizowano ${r.data.updated}, usunięto ${r.data.removed}`);
               } catch (e) {
                 toast.error(e.response?.data?.detail || 'Błąd synchronizacji');
               }
             }}
             variant="outline"
             className="border-[#5F7552] text-[#9DBC85] hover:bg-[#5F7552]/10"
-            title="Tworzy brakujące rekordy w `construction_sites` dla budów z `W godzinach=TAK` żeby były widoczne w panelu Brygadzisty"
+            title="Pełna synchronizacja: tworzy brakujące, aktualizuje status, USUWA nieistniejące/archiwalne budowy z panelu Brygadzisty"
             data-testid="finance-sync-to-sites-btn"
           >
             <RefreshCw className="h-4 w-4 mr-1" /> Sync z panelem Brygadzisty

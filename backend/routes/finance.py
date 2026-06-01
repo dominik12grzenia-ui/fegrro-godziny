@@ -385,47 +385,54 @@ async def import_budowy_from_sites(current_user: dict = Depends(get_current_admi
 
 @router.post("/finance/sync-to-sites")
 async def sync_finance_to_sites(current_user: dict = Depends(get_current_admin)):
-    """iter95ci: Sync finance_budowy -> construction_sites.
+    """iter95ci/cj/ck: Pelna synchronizacja finance_budowy <-> construction_sites.
 
-    Naprawia case kiedy budowa zostala dodana w panelu Finanse z show_in_hours=true,
-    ale `construction_sites` nie ma odpowiadajacego rekordu (mogla powstac przed
-    `_sync_to_sites` lub blad sync). Panel brygadzisty (przypisywanie budow) nie
-    widzi takiej budowy -> nie da sie przypisac.
+    1. Dla aktywnych finance_budowy: utworz brakujace construction_sites lub zaktualizuj is_active
+    2. Dla archiwalnych/usunietych finance_budowy: usun powiazane construction_sites (orphans)
+    3. Zwraca licznik: created, updated, removed, total
 
-    Dla kazdej budowy w finance_budowy ze `show_in_hours=true` i `is_archived=false`,
-    sprawdz czy istnieje wpis w construction_sites o tej finance_budowa_id.
-    Jezeli nie - utworz.
+    Uzywaj kiedy panel Brygadzisty pokazuje budowy ktorych juz nie ma w Finansach,
+    lub brakuje nowo dodanych.
     """
-    budowy = await db.finance_budowy.find(
-        {"show_in_hours": True, "is_archived": {"$ne": True}},
-        {"_id": 0, "id": 1, "name": 1, "color": 1},
+    # 1. Aktywne budowy (nie archived, nie deleted)
+    aktywne = await db.finance_budowy.find(
+        {"is_archived": {"$ne": True}, **soft_delete_filter()},
+        {"_id": 0, "id": 1, "name": 1, "color": 1, "show_in_hours": 1},
     ).to_list(length=None)
     created = 0
-    skipped = 0
-    for b in budowy:
+    updated = 0
+    for b in aktywne:
+        is_active = bool(b.get("show_in_hours"))
         existing = await db.construction_sites.find_one(
-            {"finance_budowa_id": b["id"]}, {"_id": 0, "id": 1},
+            {"finance_budowa_id": b["id"]}, {"_id": 0, "id": 1, "is_active": 1, "name": 1},
         )
         if existing:
-            skipped += 1
+            patch = {}
+            if existing.get("is_active") != is_active:
+                patch["is_active"] = is_active
+            if existing.get("name") != b["name"]:
+                patch["name"] = b["name"]
+            if patch:
+                await db.construction_sites.update_one({"id": existing["id"]}, {"$set": patch})
+                updated += 1
             continue
-        # Czy istnieje site o tej samej nazwie bez link?
+        # Sprawdz match po nazwie (legacy linked)
         existing_by_name = await db.construction_sites.find_one(
-            {"name": b["name"], "finance_budowa_id": {"$exists": False}}, {"_id": 0, "id": 1},
+            {"name": b["name"], "finance_budowa_id": {"$exists": False}},
+            {"_id": 0, "id": 1},
         )
         if existing_by_name:
-            # Polacz istniejacy site z budowa
             await db.construction_sites.update_one(
                 {"id": existing_by_name["id"]},
-                {"$set": {"finance_budowa_id": b["id"], "is_active": True, "visible_to_foremen": True}},
+                {"$set": {"finance_budowa_id": b["id"], "is_active": is_active, "visible_to_foremen": True}},
             )
-            skipped += 1
+            updated += 1
             continue
         await db.construction_sites.insert_one({
             "id": str(uuid.uuid4()),
             "name": b["name"],
             "finance_budowa_id": b["id"],
-            "is_active": True,
+            "is_active": is_active,
             "address": "",
             "category": "budowa",
             "visible_to_foremen": True,
@@ -433,7 +440,20 @@ async def sync_finance_to_sites(current_user: dict = Depends(get_current_admin))
             "created_at": datetime.now().isoformat(),
         })
         created += 1
-    return {"ok": True, "created": created, "skipped_existing": skipped, "total": len(budowy)}
+
+    # 2. Usun orphans - sites ktore wskazuja na nieistniejaca/archived/deleted finance_budowa
+    valid_ids = {b["id"] for b in aktywne}
+    orphans = await db.construction_sites.find(
+        {"finance_budowa_id": {"$exists": True, "$ne": None}},
+        {"_id": 0, "id": 1, "finance_budowa_id": 1, "name": 1},
+    ).to_list(length=None)
+    removed = 0
+    for site in orphans:
+        if site["finance_budowa_id"] not in valid_ids:
+            await db.construction_sites.delete_one({"id": site["id"]})
+            removed += 1
+
+    return {"ok": True, "created": created, "updated": updated, "removed": removed, "total_active": len(aktywne)}
 
 
 
@@ -573,6 +593,15 @@ async def unarchive_budowa(budowa_id: str, current_user: dict = Depends(get_curr
     await db.finance_budowy.update_one(
         {"id": budowa_id},
         {"$set": {"is_archived": False, "archived_at": None}},
+    )
+    # iter95cj: przywroc budowe do construction_sites z is_active = show_in_hours
+    # (archive usuwa rekord, unarchive musi go odtworzyc - inaczej brygadzista nie widzi)
+    show_in_hours = bool(old.get("show_in_hours"))
+    await _sync_to_sites(
+        budowa_id,
+        old.get("name"),
+        color=old.get("color"),
+        is_active=show_in_hours,
     )
     new_doc = await db.finance_budowy.find_one({"id": budowa_id}, {"_id": 0})
     await log_audit(entity="finance_budowa", entity_id=budowa_id, action="update",

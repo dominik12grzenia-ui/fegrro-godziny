@@ -1,3 +1,39 @@
+## Iteration 95ck (2026-02) — Pełny life-cycle sync finance_budowy ↔ panel Brygadzisty
+
+### Co działało po iter95cj
+- ✅ Create budowa → auto-sync (z is_active=show_in_hours)
+- ✅ Toggle show_in_hours → update is_active
+
+### Co NIE działało (zgłoszone przez usera)
+- ❌ Unarchive → site nie wracał (archive go usuwał, unarchive tylko czyścił flag)
+- ❌ Stare/usunięte budowy widoczne w panelu Brygadzisty (orphany w construction_sites)
+- ❌ Lista godzin pokazywała budowy które już nie istnieją
+
+### Fix Backend (`/app/backend/routes/finance.py`)
+1. **`unarchive_budowa`**: dodano `_sync_to_sites()` po update finance_budowy — site jest odtwarzany z `is_active=show_in_hours` (po archive show_in_hours jest reset na False, user musi reaktywować ręcznie)
+2. **`sync_finance_to_sites` rozszerzony**: 
+   - Aktualizuje `is_active` + `name` w istniejących site
+   - **Usuwa orphans**: site z `finance_budowa_id` które wskazują na nieistniejące/archived/deleted finance_budowy → `delete_one`
+   - Zwraca `{created, updated, removed, total_active}`
+
+### Fix Frontend
+Toast pokazuje `Sync OK: utworzono X, zaktualizowano Y, usunięto Z` — user widzi że orphany zostały wyczyszczone.
+
+### Test E2E
+1. Create show_in_hours=true → site is_active=True ✅
+2. Archive → site REMOVED ✅
+3. Unarchive → site RESTORED is_active=False (bo archive resetuje show_in_hours; user przełącza checkbox żeby było widoczne)
+4. Sync → usunięto 12 orphans z poprzednich testów ✅
+
+### Workflow dla użytkownika
+1. Save to GitHub → deploy Render + Vercel
+2. Otwórz Finanse → Budowy → klik **🔄 Sync z panelem Brygadzisty**
+3. Toast pokaże ile orphan-ów (nieistniejących budów) zostało usuniętych z panelu Brygadzisty
+4. Od teraz: dodanie/archiwizacja/przywrócenie budowy = automatyczne odzwierciedlenie u brygadzisty i w tabeli godzin
+
+---
+
+
 ## Iteration 95cj (2026-02) — Auto-sync finance_budowy ↔ sites + ostrzeżenie show_in_hours
 
 ### Zmiana modelu
