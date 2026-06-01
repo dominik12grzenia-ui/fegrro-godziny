@@ -1424,9 +1424,11 @@ async def _build_wycena_export(wycena_id: str):
             else:
                 qty_pos = max([sc["qty"] for sc in sub_calcs], default=0)
             cena_pos = budzet / qty_pos if qty_pos > 0 else 0
-            # iter95ca: WYŁĄCZONE zaokraglanie do calkowitej (uzytkownik: "wylacz zaokraglanie")
-            # Wczesniej (iter95bd): round(cena_pos) zaokraglao 165.96 -> 166. Teraz: 2 miejsca po przecinku.
-            cena_pos_rounded = round(cena_pos, 2) if cena_pos else 0
+            # iter95cc: ZAOKRAGLENIE ceny pozycji glownej do pelnych PLN (user request).
+            # Po zaokragleniu cena jednostkowa "ladnie wyglada" na ofercie (166 zł zamiast 165,96).
+            # NIE rusza sub-rows (te zachowuja grosze). Wartosc (budzet) jest przeliczany
+            # z zaokraglonej ceny zeby suma sie zgadzala: budzet_display = cena_rounded × qty.
+            cena_pos_rounded = round(cena_pos) if cena_pos else 0
             by_type = {"materials": [], "labor": [], "equipment": []}
             for s in subs:
                 t = s.get("type")
@@ -1899,8 +1901,9 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             lp_counter += 1
             qty = pe["qty"]
             # iter95ak: dla klienta uzywamy budzet (cena koncowa zawiera marze + kaucje)
-            wartosc = pe["budzet"]
-            cena = wartosc / qty if qty > 0 else 0
+            # iter95cc: cena pozycji glownej zaokraglona do PLN, wartosc = cena × qty (zgodna)
+            cena = round(pe["budzet"] / qty) if qty > 0 else 0
+            wartosc = cena * qty
             row_styles.append((len(table_data), 'pos'))
             table_data.append([
                 str(lp_counter),
@@ -2260,8 +2263,9 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
             p = pe["position"]
             lp += 1
             qty = float(pe["qty"] or 0)
-            wartosc = float(pe["budzet"] or 0)
-            cena = wartosc / qty if qty > 0 else 0
+            # iter95cc: cena pozycji glownej zaokraglona do PLN, wartosc = formula C*E przeliczy z C*E
+            cena = round(float(pe["budzet"] or 0) / qty) if qty > 0 else 0
+            wartosc = cena * qty
             ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center", vertical="center")
             name_cell = ws.cell(row=r, column=2, value=p.get("name", ""))
             name_cell.alignment = Alignment(wrap_text=True, vertical="center")

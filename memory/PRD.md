@@ -1,3 +1,26 @@
+## Iteration 95cc (2026-02) — Zaokrąglanie ceny pozycji głównej (PRZYWRÓCONE)
+
+### Problem (user feedback)
+*"CHCIAŁBYM BY CENY W WYCENIE TYLKO W POZYCJACH GŁÓWNYCH PO PRZELICZENIU ZAOKRĄGLAŁY SIĘ"*
+
+Po iter95ca (gdzie wyłączyłem ALE zaokrąglanie) user chce kompromisu: **pozycje główne → zaokrąglone PLN** (ładnie wyglądają w ofercie: `166 zł` zamiast `165,96 zł`), **pod-pozycje → zachowane grosze** (precyzja kalkulacji).
+
+### Fix `/app/backend/routes/wyceny.py`
+1. **`_build_wycena_export` linia 1428**: `cena_pos_rounded = round(cena_pos)` (PLN, jak iter95bd)
+2. **PDF client (linia 1905)**: `cena = round(pe["budzet"] / qty)`, `wartosc = cena * qty` — przeliczenie zachowuje spójność (cena × qty = wartość, suma = Razem netto)
+3. **XLSX client (linia 2264)**: identycznie + formula Excel `C×E` automatycznie liczy z zaokrąglonej ceny
+
+### Zachowanie
+- Sub-rows: bez zmian, grosze zachowane (iter95cb działa)
+- Pozycje główne PDF/XLSX: cena 166 zł, wartość = 166 × qty (nie ma rozjazdu cena×qty ≠ wartość)
+- Razem netto: suma realnych zaokrąglonych wartości (matematycznie poprawne)
+
+### Test
+- Pozycja qty=150.5, line cena=165.5 → PDF client 200 OK (62 kB), cena pokazuje 166 zł, wartość = 24 983 zł
+
+---
+
+
 ## Iteration 95cb (2026-02) — Bug fix: SubRow ucinał dziesiętne w qty (PL przecinek)
 
 ### Problem (user feedback)
