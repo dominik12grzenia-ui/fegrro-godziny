@@ -1,3 +1,25 @@
+## Iteration 95bz (2026-02) — 2 poprawki layoutu PDF Oferta
+
+### Problem (user feedback)
+1. **„Oferta obejmuje" oderwana od tabeli** — heading sam na końcu strony, lista bullet points na następnej (orphan). ReportLab rozdzielał `Paragraph(label)` + `Table(box)` bo każdy element był osobnym Flow.
+2. **Kwota RAZEM nie mieści się w komórce** — `766 730,04 zł` przy 11pt bold w 25mm kolumnie wystawała poza prawą krawędź pasa total_bg.
+
+### Fix `/app/backend/routes/wyceny.py` (`_generate_wycena_client_pdf_bytes`)
+
+**Problem 1**: użyto `KeepTogether([label, box])` z `reportlab.platypus` — gwarantuje że label i lista są na tej samej stronie. Jeśli się nie mieszczą, oba przerzucane na następną.
+
+**Problem 2** — 3 zmiany w wierszu total:
+- Label `RAZEM netto:` → `Razem netto:` (mniejszy, mniej dominujący)
+- Label font: 11pt bold → **10pt regular** (mniej dominujący niż wartość)
+- Wartość font: **dynamiczny** (12pt do 13 zn, 11pt do 16, 10pt do 19, 9pt powyżej) — chroni przed wylewaniem dla wszystkich kwot do milionów
+- Kolumna wartości netto: 25mm → **32mm** (kompensowane 102mm→95mm w nazwie pozycji); razem szerokość 190mm bez zmian
+
+### Test
+- PDF client z `Razem netto: 766 730,04 zł` + scope_includes (8 punktów) — 200 OK / 62 kB
+
+---
+
+
 ## Iteration 95by (2026-02) — 3 poprawki kosmetyczne PDF Oferta
 
 ### Zmiany

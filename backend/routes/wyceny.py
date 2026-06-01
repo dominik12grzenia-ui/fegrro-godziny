@@ -1913,8 +1913,19 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
 
     # wiersz sumy
     row_styles.append((len(table_data), 'total'))
-    table_data.append(["", "", "", "", "RAZEM netto:",
-                       f"{total_netto:,.2f}".replace(",", " ").replace(".", ",") + " zł"])
+    # iter95bz: label "Razem netto" malymi literami (less screaming), wartosc duza
+    _total_str = f"{total_netto:,.2f}".replace(",", " ").replace(".", ",") + " zł"
+    table_data.append(["", "", "", "", "Razem netto:", _total_str])
+    # iter95bz: dynamiczny font size dla wartosci total - chroni przed wylewaniem
+    # ("999 999,99 zl" = 13 znakow przy 11pt bold to ~24mm, kolumna ma 32mm - mieści się)
+    if len(_total_str) <= 13:
+        _total_value_size = 12
+    elif len(_total_str) <= 16:
+        _total_value_size = 11
+    elif len(_total_str) <= 19:
+        _total_value_size = 10
+    else:
+        _total_value_size = 9
 
     tbl_styles = [
         ("FONT", (0, 0), (-1, -1), base_font, 9),
@@ -1943,15 +1954,21 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             # iter95bg: scal kolumny 0-4 dla "RAZEM netto:" zeby dlugi tekst sie zmiescil
             tbl_styles.append(("SPAN", (0, idx), (4, idx)))
             tbl_styles.append(("ALIGN", (0, idx), (4, idx), "RIGHT"))
-            tbl_styles.append(("FONT", (0, idx), (-1, idx), bold_font, 11))
+            # iter95bz: label "Razem netto" mniejszy (10pt), wartosc dynamicznie wieksza
+            tbl_styles.append(("FONT", (0, idx), (4, idx), base_font, 10))
+            tbl_styles.append(("FONT", (5, idx), (5, idx), bold_font, _total_value_size))
             tbl_styles.append(("TEXTCOLOR", (0, idx), (-1, idx), colors.HexColor(cfg["total_text"])))
             tbl_styles.append(("RIGHTPADDING", (4, idx), (4, idx), 6))
+            tbl_styles.append(("RIGHTPADDING", (5, idx), (5, idx), 4))
+            tbl_styles.append(("LEFTPADDING", (5, idx), (5, idx), 2))
             tbl_styles.append(("TOPPADDING", (0, idx), (-1, idx), 8))
             tbl_styles.append(("BOTTOMPADDING", (0, idx), (-1, idx), 8))
 
     tbl = Table(
         table_data,
-        colWidths=[10 * mm, 102 * mm, 16 * mm, 12 * mm, 25 * mm, 25 * mm],
+        # iter95bz: kolumna wartości netto z 25mm na 32mm (zeby zmiescic "999 999,99 zł")
+        # kompensowane mniejsza kolumna nazwy 102mm -> 95mm
+        colWidths=[10 * mm, 95 * mm, 16 * mm, 12 * mm, 25 * mm, 32 * mm],
         repeatRows=1,
     )
     tbl.setStyle(TableStyle(tbl_styles))
@@ -2003,6 +2020,9 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             elements.append(surf_tbl)
 
     # iter95w: Sekcje "Oferta obejmuje" / "Oferta nie obejmuje"
+    # iter95bz: KeepTogether - label + box w jednym bloku zeby ReportLab nie rozdzielal
+    # ich miedzy strony (user reportowal "Oferta obejmuje" sama na jednej, lista na nastepnej)
+    from reportlab.platypus import KeepTogether
     w_doc2 = data["wycena"]
     scope_inc = (w_doc2.get("scope_includes") or "").strip()
     scope_exc = (w_doc2.get("scope_excludes") or "").strip()
@@ -2029,7 +2049,6 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             return Paragraph(html, style)
 
         if scope_inc:
-            elements.append(Paragraph("Oferta obejmuje", scope_label_st))
             p = _scope_paragraph(scope_inc, scope_inc_st)
             if p is not None:
                 box = Table([[p]], colWidths=[180 * mm])
@@ -2041,11 +2060,14 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
                     ("TOPPADDING", (0, 0), (-1, -1), 5),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
                 ]))
-                elements.append(box)
+                # iter95bz: KeepTogether laczy label z boxem w 1 bloku - nie rozdzieli stron
+                elements.append(KeepTogether([
+                    Paragraph("Oferta obejmuje", scope_label_st),
+                    box,
+                ]))
                 elements.append(Spacer(1, 3 * mm))
 
         if scope_exc:
-            elements.append(Paragraph("Oferta nie obejmuje", scope_label_st))
             p = _scope_paragraph(scope_exc, scope_exc_st)
             if p is not None:
                 box = Table([[p]], colWidths=[180 * mm])
@@ -2057,7 +2079,10 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
                     ("TOPPADDING", (0, 0), (-1, -1), 5),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
                 ]))
-                elements.append(box)
+                elements.append(KeepTogether([
+                    Paragraph("Oferta nie obejmuje", scope_label_st),
+                    box,
+                ]))
 
     if include_notes:
         elements.append(Spacer(1, 8 * mm))
