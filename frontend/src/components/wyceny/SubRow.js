@@ -15,14 +15,24 @@ import {
 } from './_shared';
 
 export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, onLocalUpdate, onDel }) => {
-  const [edit, setEdit] = useState(sub);
+  // iter95cp: normalizuj wartosci numeryczne przy wczytaniu z bazy.
+  // Stare rekordy moga miec floaty typu 92.14999999999 (legacy + float precision).
+  // Zaokraglamy do 2dp w UI tak aby user nie widzial dlugich liczb.
+  const _norm = (s) => ({
+    ...s,
+    quantity: s?.quantity != null ? parseFloatPL2(s.quantity) : s?.quantity,
+    unit_price_netto: s?.unit_price_netto != null ? parseFloatPL2(s.unit_price_netto) : s?.unit_price_netto,
+    narzut_zapas_pct: s?.narzut_zapas_pct != null ? parseFloatPL2(s.narzut_zapas_pct) : s?.narzut_zapas_pct,
+    marza_pct: s?.marza_pct != null ? parseFloatPL2(s.marza_pct) : s?.marza_pct,
+  });
+  const [edit, setEdit] = useState(_norm(sub));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   // iter95ae: tekst formuly (gdy input zaczyna sie od "=")
-  const [qtyInput, setQtyInput] = useState(sub.quantity_formula || (sub.quantity ?? ''));
+  const [qtyInput, setQtyInput] = useState(sub.quantity_formula || (sub.quantity != null ? parseFloatPL2(sub.quantity) : ''));
   useEffect(() => {
-    setEdit(sub);
-    setQtyInput(sub.quantity_formula || (sub.quantity ?? ''));
+    setEdit(_norm(sub));
+    setQtyInput(sub.quantity_formula || (sub.quantity != null ? parseFloatPL2(sub.quantity) : ''));
   }, [sub]);
 
   const save = async (override = null) => {

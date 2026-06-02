@@ -1,3 +1,39 @@
+## Iteration 95cp (2026-02) — Bug fix: stare floaty typu „92,14999999" w cenniku i wycenach
+
+### Problem (user screenshot)
+W cenniku materiałów ceny pokazywały długie liczby: `92,14999999`, `3,586800000000007`. Float precision errors zapisane w MongoDB jeszcze przed iter95cd (gdzie zacząłem zaokrąglać przy zapisie).
+
+### Fix
+**Frontend** (`SubRow.js`, `PosRow.js`):
+- Helper `_norm(s)` normalizuje wszystkie pola numeryczne przez `parseFloatPL2()` przy inicjalizacji i każdej zmianie props
+- `quantity, unit_price_netto, narzut_zapas_pct, marza_pct, kaucja_*_pct, koszt_*_pct` → max 2dp w UI
+
+**Backend** (`/app/backend/routes/wyceny.py`):
+- Nowy endpoint `POST /wyceny/admin/normalize-decimals` — one-shot migracja:
+  - `wyceny_lines`: qty/cena/narzut/marża/price_min/price_max
+  - `wyceny_positions`: qty/kaucja_*/koszt_*
+  - `wyceny_price_book`: unit_price_netto/price_m2/m3/other/min/max
+- Iteruje wszystkie rekordy, porównuje `round(v, 2) != v`, aktualizuje tylko zmienione
+
+**Frontend** (`Wyceny.js`):
+- Przycisk **↻ Zaokrąglij do 2dp** w panelu Domyślne Stawki (obok ↻ Zastosuj kaucje)
+- Confirm dialog + toast `Zaokrąglono: X linii, Y pozycji, Z z cennika`
+
+### Test E2E (preview)
+- Wstaw price_book record z `unit_price_netto=92.14999999999999`
+- POST `/wyceny/admin/normalize-decimals` → `{lines:0, positions:0, price_book:1}` ✅
+- Read after → `92.15` ✅
+
+### Workflow
+1. **Save to GitHub** → Render+Vercel deploy
+2. **Otwórz dowolną wycenę → panel Domyślne Stawki**
+3. Klik **↻ Zaokrąglij do 2dp** → confirm
+4. Toast pokaże ile rekordów zaokrąglone
+5. **F5** w cenniku/wycenach → wszystkie dziwne floaty znikną
+
+---
+
+
 ## Iteration 95co (2026-02) — Suma netto wyceny zgodna z UI/PDF (po narzucie/marży/kaucji)
 
 ### Problem (user feedback)

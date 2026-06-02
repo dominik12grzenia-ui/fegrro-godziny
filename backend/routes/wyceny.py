@@ -1751,7 +1751,60 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     return buf.getvalue(), filename
 
 
-@router.get("/wyceny/{wycena_id}/export.xlsx")
+@router.post("/wyceny/admin/normalize-decimals")
+async def normalize_decimals(_user: dict = Depends(get_current_admin)):
+    """iter95cp: One-shot migracja - zaokraglij wszystkie float pola w wycenach do 2 dp.
+    Naprawia stare rekordy z floatami typu 92.14999999999.
+    """
+    updated_lines = 0
+    async for ln in db.wyceny_lines.find(
+        {}, {"_id": 0, "id": 1, "quantity": 1, "unit_price_netto": 1, "narzut_zapas_pct": 1, "marza_pct": 1, "price_min": 1, "price_max": 1},
+    ):
+        patch = {}
+        for k in ("quantity", "unit_price_netto", "narzut_zapas_pct", "marza_pct", "price_min", "price_max"):
+            v = ln.get(k)
+            if v is None:
+                continue
+            r = round(float(v), 2)
+            if r != v:
+                patch[k] = r
+        if patch:
+            await db.wyceny_lines.update_one({"id": ln["id"]}, {"$set": patch})
+            updated_lines += 1
+    updated_pos = 0
+    async for p in db.wyceny_positions.find(
+        {}, {"_id": 0, "id": 1, "quantity": 1, "kaucja_gir_pct": 1, "kaucja_dw_pct": 1, "koszt_budowy_pct": 1, "koszt_prognozowany": 1},
+    ):
+        patch = {}
+        for k in ("quantity", "kaucja_gir_pct", "kaucja_dw_pct", "koszt_budowy_pct", "koszt_prognozowany"):
+            v = p.get(k)
+            if v is None:
+                continue
+            r = round(float(v), 2)
+            if r != v:
+                patch[k] = r
+        if patch:
+            await db.wyceny_positions.update_one({"id": p["id"]}, {"$set": patch})
+            updated_pos += 1
+    updated_pb = 0
+    async for pb in db.wyceny_price_book.find(
+        {}, {"_id": 0, "id": 1, "unit_price_netto": 1, "price_m2": 1, "price_m3": 1, "price_other": 1, "price_min": 1, "price_max": 1},
+    ):
+        patch = {}
+        for k in ("unit_price_netto", "price_m2", "price_m3", "price_other", "price_min", "price_max"):
+            v = pb.get(k)
+            if v is None:
+                continue
+            r = round(float(v), 2)
+            if r != v:
+                patch[k] = r
+        if patch:
+            await db.wyceny_price_book.update_one({"id": pb["id"]}, {"$set": patch})
+            updated_pb += 1
+    return {"ok": True, "lines": updated_lines, "positions": updated_pos, "price_book": updated_pb}
+
+
+
 async def export_wycena_xlsx(
     wycena_id: str,
     detail: str = Query("positions", pattern="^(positions|full|client)$"),

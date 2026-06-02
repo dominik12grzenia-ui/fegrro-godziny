@@ -13,8 +13,16 @@ import {
 } from './_shared';
 
 export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel }) => {
-  const [edit, setEdit] = useState(position);
-  useEffect(() => { setEdit(position); }, [position]);
+  // iter95cp: normalizuj quantity/kaucje do 2dp przy wczytaniu (chroni przed legacy floatami)
+  const _norm = (p) => ({
+    ...p,
+    quantity: p?.quantity != null ? parseFloatPL2(p.quantity) : p?.quantity,
+    kaucja_gir_pct: p?.kaucja_gir_pct != null ? parseFloatPL2(p.kaucja_gir_pct) : p?.kaucja_gir_pct,
+    kaucja_dw_pct: p?.kaucja_dw_pct != null ? parseFloatPL2(p.kaucja_dw_pct) : p?.kaucja_dw_pct,
+    koszt_budowy_pct: p?.koszt_budowy_pct != null ? parseFloatPL2(p.koszt_budowy_pct) : p?.koszt_budowy_pct,
+  });
+  const [edit, setEdit] = useState(_norm(position));
+  useEffect(() => { setEdit(_norm(position)); }, [position]);
 
   const save = async (patch) => {
     try {

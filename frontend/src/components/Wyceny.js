@@ -782,6 +782,25 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         >
           ↻ Zastosuj kaucje do wszystkich pozycji
         </button>
+        {/* iter95cp: jednorazowa migracja - zaokraglij wszystkie float pola do 2dp */}
+        <button
+          type="button"
+          onClick={async () => {
+            if (!window.confirm('Zaokrąglić wszystkie wartości (ilości, ceny, narzuty, marże, kaucje) we WSZYSTKICH wycenach do 2 miejsc po przecinku?\n\nNaprawia stare floaty typu 92,14999999.')) return;
+            try {
+              const r = await api.post('/wyceny/admin/normalize-decimals');
+              toast.success(`Zaokrąglono: ${r.data.lines} linii, ${r.data.positions} pozycji, ${r.data.price_book} z cennika`);
+              await fetchData(true);
+            } catch (e) {
+              toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+            }
+          }}
+          className="px-3 py-1.5 text-xs bg-[#3F5235] hover:bg-[#5F7552] text-white rounded border border-[#5F7552] font-semibold transition-colors"
+          data-testid="normalize-decimals-btn"
+          title="Jednorazowa migracja: zaokrąglij wszystkie wartości w bazie (wszystkie wyceny + cennik) do 2 miejsc po przecinku"
+        >
+          ↻ Zaokrąglij do 2dp
+        </button>
         <div className="text-[10px] text-[#CBD5E1] flex-1 text-right">
           Stosowane do wszystkich pozycji które nie mają własnych wartości
         </div>
