@@ -899,9 +899,18 @@ async def export_bom_xlsx(
 
 
 def _get_logo_path() -> Optional[str]:
-    """iter95av: zwraca pierwszą istniejącą ścieżkę do logo firmy (do PDF/Excel)."""
+    """iter95cr: zwraca pierwszą istniejącą ścieżkę do logo firmy (PDF/Excel).
+    PRIORYTET: bundled backend assets (/app/backend/assets/logo/) — działa na każdym
+    deployu (Render itp.) niezależnie od tego, czy frontend jest w tym samym kontenerze.
+    Fallback: frontend/public/ dla dev/lokalnego środowiska.
+    """
     import os as _os
+    _backend_dir = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    _bundled_logo = _os.path.join(_backend_dir, "assets", "logo")
     candidates = [
+        _os.path.join(_bundled_logo, "logo.png"),
+        _os.path.join(_bundled_logo, "logo-192.png"),
+        _os.path.join(_bundled_logo, "apple-touch-icon.png"),
         "/app/frontend/public/icon-512x512.png",
         "/app/frontend/public/icon-192x192.png",
         "/app/frontend/public/apple-touch-icon.png",
@@ -1891,13 +1900,11 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
 
     elements = []
     # iter95bh: rozmiar logo i tagline z configu szablonu
-    import os as _os
+    # iter95cr: użyj helpera _get_logo_path() (priorytet bundled backend assets)
+    # zamiast zahardkodowanej listy frontendowych ścieżek - inaczej na produkcji
+    # (Render: osobne deploye backend/frontend) logo nie istnieje na backendzie.
     logo_mm_val = cfg["logo_mm"]
-    logo_paths = [
-        "/app/frontend/public/icon-192x192.png",
-        "/app/frontend/public/apple-touch-icon.png",
-    ]
-    logo_path = next((p for p in logo_paths if _os.path.exists(p)), None)
+    logo_path = _get_logo_path()
     header_cells = []
     if logo_path:
         try:
