@@ -14,6 +14,12 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95df — Globalny slider „Cała wycena -X%" w trybie negocjacji (P1)
+- Nowy slider w panelu negocjacji nad gridiem 3 kategorii: pomarańczowa karta „🎯 CAŁA WYCENA" z dużym inputem + 5 szybkimi przyciskami (-2, -3, -5, -7, -10%) + przyciskiem `×` (clear).
+- Logika: `negFactors[type] = (1 + neg[type]/100) × (1 + neg.overall/100)` — multiplikatywnie z per-kategorią. Dzięki temu można łączyć np. „cała wycena -3% + robocizna dodatkowo -2% = -4.94% na robociźnie".
+- Reset/wyzeruj/applyNegotiation: uwzględniają nowy `neg.overall`.
+- Sprawdzenie matematyczne: budżet 898 922, slider `-4%` → spadek dokładnie 4.00% (-35 957 zł).
+
 ### 2026-02 — iter95de — Marża/narzut materiał: globalne domyślne + przełącznik 🔒/🔓 per pozycja (P1)
 - **Default**: nowe materiały nie mają wpisanych `marza_pct`/`narzut_zapas_pct` → używają globalnych wartości z pól „Marża materiał" / „Narzut materiał" wyceny.
 - **UI**: w komórkach narzut% i marża% dla materiałów wyświetla się globalna wartość (np. „8% 🔒"). Klik kłódki → zamienia się w edytowalny input (📝 + 🔓). Klik 🔓 → przywraca null (back to global).

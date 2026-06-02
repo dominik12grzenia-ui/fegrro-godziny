@@ -42,6 +42,56 @@ export const NegotiationPanel = ({
       </div>
     </div>
 
+    {/* iter95df: Globalny slider - proporcjonalnie obniza WSZYSTKIE 3 kategorie naraz.
+        Wartosc mnozy sie multiplikatywnie z per-kategoria (np. labor=-2% + overall=-3% = ~-4.94%). */}
+    <div className="border-2 border-[#F59E0B] bg-[#F59E0B]/10 rounded-lg p-3 flex items-center gap-4"
+         data-testid="neg-overall-card">
+      <div className="flex-shrink-0">
+        <div className="text-[10px] uppercase text-[#FCD34D] font-bold tracking-wider">🎯 CAŁA WYCENA</div>
+        <div className="text-[9px] text-[#FBE4B7]/80">obniża wszystkie 3 kategorie proporcjonalnie</div>
+      </div>
+      <div className="flex items-center gap-2 flex-1">
+        <input
+          type="number" step="0.5"
+          value={neg.overall}
+          onChange={(e) => setNeg({ ...neg, overall: e.target.value })}
+          placeholder="0"
+          className="bg-[#1E2A44] border border-[#F59E0B] rounded h-10 w-28 text-lg text-right tabular-nums text-white px-2 outline-none focus:border-[#FCD34D] font-bold"
+          data-testid="neg-overall-input"
+        />
+        <span className="text-lg text-[#FCD34D] font-bold">%</span>
+        <div className="flex gap-1 ml-2">
+          {[-2, -3, -5, -7, -10].map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setNeg({ ...neg, overall: v })}
+              className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#F59E0B] hover:text-[#152033] border border-[#3D5378] rounded text-[#FCD34D] transition-colors"
+              data-testid={`neg-overall-quick-${v}`}
+            >
+              {v}%
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setNeg({ ...neg, overall: '' })}
+            className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#3D5378] border border-[#3D5378] rounded text-[#94A3B8] transition-colors"
+            data-testid="neg-overall-clear"
+            title="Wyzeruj globalny slider"
+          >
+            ×
+          </button>
+        </div>
+      </div>
+      <div className="text-[10px] text-[#FBE4B7]/80 text-right max-w-[200px]">
+        {parseFloat(neg.overall) ? (
+          <>↘ Dotyczy całego budżetu. Łącznie z per-kategorią daje pełną zmianę widoczną w „Budżet" niżej.</>
+        ) : (
+          <>Wpisz wartość lub kliknij szybką (-2%, -3%, ...) aby obniżyć całość.</>
+        )}
+      </div>
+    </div>
+
     <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
       {[
         { key: 'labor', label: '👷 Robocizna', cls: 'border-[#5F4E20]' },
@@ -208,7 +258,7 @@ export const NegotiationPanel = ({
     })()}
 
     <div className="flex gap-2 justify-end pt-1 border-t border-[#F59E0B]/20">
-      <Button onClick={() => setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' })}
+      <Button onClick={() => setNeg({ labor: 0, materials: 0, equipment: 0, overall: '', narzutOverride: '', marzaOverride: '' })}
         variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
         data-testid="neg-reset">
         Wyzeruj

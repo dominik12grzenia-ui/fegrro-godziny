@@ -290,6 +290,8 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     equipment: 0,
     narzutOverride: '',  // pusty = bez zmian, inaczej nowa wartosc default narzutu
     marzaOverride: '',
+    // iter95df: globalny slider - proporcjonalnie obniza WSZYSTKIE 3 kategorie naraz
+    overall: '',  // pusty = nieaktywny; liczba (np. -4) = proporcjonalna zmiana ceny
   });
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [snapshots, setSnapshots] = useState([]);
@@ -318,11 +320,17 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     }
   };
 
-  const negFactors = useMemo(() => ({
-    labor: 1 + (parseFloat(neg.labor) || 0) / 100,
-    materials: 1 + (parseFloat(neg.materials) || 0) / 100,
-    equipment: 1 + (parseFloat(neg.equipment) || 0) / 100,
-  }), [neg.labor, neg.materials, neg.equipment]);
+  // iter95df: globalny slider mnozy sie z per-kategoria (multiplikatywnie).
+  // Np. labor=-2% + overall=-3% -> factor = 0.98 * 0.97 = 0.9506 (~-4.94%).
+  // Pozwala latwo "obnizyc cala wycene o X%" zachowujac strukturalne korekty.
+  const negFactors = useMemo(() => {
+    const overall = 1 + (parseFloat(neg.overall) || 0) / 100;
+    return {
+      labor: (1 + (parseFloat(neg.labor) || 0) / 100) * overall,
+      materials: (1 + (parseFloat(neg.materials) || 0) / 100) * overall,
+      equipment: (1 + (parseFloat(neg.equipment) || 0) / 100) * overall,
+    };
+  }, [neg.labor, neg.materials, neg.equipment, neg.overall]);
 
   // Pre-fill negOverrides z wartosci defaults przy uruchomieniu trybu
   const openNegotiation = () => {
@@ -518,6 +526,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       `Przyjąć negocjację na stałe?\n\n` +
       `Aktualny stan wyceny zostanie zapisany jako wersja "Przed negocjacją" — w każdej chwili możesz wrócić.\n\n` +
       `Zmiany:\n` +
+      (neg.overall !== '' && parseFloat(neg.overall) !== 0 ? `  • Cała wycena: ${parseFloat(neg.overall) > 0 ? '+' : ''}${neg.overall}% (proporcjonalnie na 3 kategorie)\n` : '') +
       (neg.labor !== 0 ? `  • Robocizna: ${neg.labor > 0 ? '+' : ''}${neg.labor}%\n` : '') +
       (neg.materials !== 0 ? `  • Materiały: ${neg.materials > 0 ? '+' : ''}${neg.materials}%\n` : '') +
       (neg.equipment !== 0 ? `  • Sprzęt: ${neg.equipment > 0 ? '+' : ''}${neg.equipment}%\n` : '') +
@@ -536,7 +545,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       const r = await api.post(`/wyceny/${wycenaId}/negotiation/apply`, body);
       toast.success(`Negocjacja przyjęta! Zapisano wersję, ${r.data.lines_modified} linii zmodyfikowano`);
       closeNegotiation();
-      setNeg({ labor: 0, materials: 0, equipment: 0, narzutOverride: '', marzaOverride: '' });
+      setNeg({ labor: 0, materials: 0, equipment: 0, overall: '', narzutOverride: '', marzaOverride: '' });
       fetchData(true);
       loadSnapshots();
     } catch (e) {
