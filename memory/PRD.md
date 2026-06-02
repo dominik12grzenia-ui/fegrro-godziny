@@ -14,6 +14,11 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cz — "Aktualizuj ceny" synchronizuje też `koszt_wykonania` (P1)
+- Endpoint `POST /wyceny/{id}/refresh-prices` (przycisk „🔄 Aktualizuj ceny" w UI) teraz dla każdej linii typu `labor` z `price_book_id` nadpisuje `koszt_wykonania` wartością z cennika.
+- Logika: gdy w cenniku jest `koszt_wykonania` różny od bieżącej linii — aktualizuj. Nie kasujemy ręcznie ustawionych wartości jeśli cennik ma `null` (nie dotykamy pola).
+- Tested curl: linia `kw=150, price=40` + cennik zmieniony na `kw=200, price=75` → po refresh-prices → `kw=200, price=75` ✅.
+
 ### 2026-02 — iter95cy — Diagnostyczny endpoint `/api/wyceny/ai/health` (P0 debug)
 - Publiczny (bez auth) endpoint zwracający `{ ok, configured, length, prefix, expected_prefix, matches_expected_prefix }`.
 - NIE ujawnia samego klucza — tylko length + 11 pierwszych znaków + flagi.

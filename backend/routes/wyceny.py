@@ -2724,6 +2724,17 @@ async def refresh_wycena_prices(
                 new_price = float(pb["unit_price_netto"])
         if new_price is not None and abs((line.get("unit_price_netto") or 0) - new_price) > 1e-9:
             updates["unit_price_netto"] = new_price
+        # iter95cz: sync koszt_wykonania z cennika dla LABOR przy "Aktualizuj ceny".
+        # Nadpisujemy zawsze gdy cennik ma wartosc i rozni sie od bieżącej linii
+        # (user zglosil ze recznie wpisany koszt nie zaciaga sie z cennika).
+        if ltype == "labor":
+            pb_kw = pb.get("koszt_wykonania")
+            if pb_kw is not None:
+                pb_kw_f = round(float(pb_kw), 2)
+                cur_kw = line.get("koszt_wykonania")
+                cur_kw_f = round(float(cur_kw), 2) if cur_kw is not None else None
+                if cur_kw_f != pb_kw_f:
+                    updates["koszt_wykonania"] = pb_kw_f
         if not updates:
             skipped_count += 1
             continue
