@@ -50,6 +50,9 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
       marza_pct: src.marza_pct === '' || src.marza_pct == null
         ? null : parseFloatPL2(src.marza_pct),
       quantity_formula: src.quantity_formula || null,
+      // iter95cw: koszt wykonania elementu (labor) - prognozowany koszt firmowy
+      koszt_wykonania: src.koszt_wykonania === '' || src.koszt_wykonania == null
+        ? null : parseFloatPL2(src.koszt_wykonania),
     };
     try {
       await api.patch(`/wyceny/lines/${sub.id}`, payload);
@@ -105,6 +108,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   };
 
   // iter95x: po wyborze pozycji z cennika - wypelnij nazwe, cene, jednostke (czysc formule)
+  // iter95cw: dla LABOR kopiuj takze koszt_wykonania - prognozowany koszt firmowy per jedn.
   const pickFromBook = (item) => {
     const next = {
       ...edit,
@@ -113,6 +117,9 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
       unit_price_netto: item.unit_price_netto || 0,
       quantity_formula: null,
     };
+    if (sub.type === 'labor' && item.koszt_wykonania != null) {
+      next.koszt_wykonania = parseFloat(item.koszt_wykonania) || 0;
+    }
     setEdit(next);
     setQtyInput(next.quantity ?? '');
     save(next);

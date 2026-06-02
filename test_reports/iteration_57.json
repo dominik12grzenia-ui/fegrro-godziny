@@ -1,0 +1,31 @@
+{
+  "summary": "iter95cw frontend verification — per-type koszt_prognozowany formula + cennik auto-copy of koszt_wykonania for labor. All 3 formulas correct in UI; pick-from-cennik flow updates labor kosztPrognozowany to qty × koszt_wykonania.",
+  "testing_performed": [
+    "Seeded via API: wycena 'TEST_iter95cw_PROGNOZ' with 1 stage, 1 position, 3 lines (labor qty=10/cena=100/narzut=20/kw=null, materials qty=10/cena=5/narzut=20, equipment qty=5/cena=100/narzut=0) + cennik labor item 'TEST_LABOR_kw42' with koszt_wykonania=42.",
+    "Opened wycena in /admin → Wyceny tab → editor. Read 'koszt prognozowany' column (data-testid='sub-row-<id>' td index 13).",
+    "Initial: LAB=1000,00 (fallback qty*cena because kw=null) ✓ ; MAT=60,00 (10*5*1.2) ✓ ; EQ=500,00 (5*100, no markup) ✓",
+    "Clicked data-testid='sub-book-<labor_line_id>' (BookOpen icon), searched 'TEST_LABOR_kw42' in cennik picker, selected item. Toast 'Wybrano: TEST_LABOR_kw42' appeared.",
+    "After pick: LAB kosztPrognozowany = 420,00 (10 × 42) ✓ — confirms cennik koszt_wykonania auto-copied to subrow and per-type labor formula uses kw when set.",
+    "Regression: Cennik labor created with koszt_wykonania=42 persisted (iter95cv column still works). Editor renders normally — no console errors related to the feature (only Google Maps API key warning unrelated).",
+    "Cleanup: deleted test wycena and test cennik item via API."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "No issues with iter95cw implementation. Formula and auto-copy work end-to-end (frontend + backend persistence + recomputation on render).",
+    "Note: koszt_wykonania has no manual input field on the subrow yet — value can only be set via cennik pick. If a user wants to manually adjust it later they must re-pick from cennik or edit via API. Consider exposing an input (informational, not blocking)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (already curl-tested by main agent)", "frontend": "100%"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via /api/auth/admin/login",
+  "seed_data_creation": "Created and deleted: wycena 'TEST_iter95cw_PROGNOZ' (id ed574c6c-319e-49d1-9570-eb544f390b42) and cennik 'TEST_LABOR_kw42' (id f663f311-8ba2-4336-b921-f9cf8f7149fb). No residue.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter95cw: koszt_prognozowany column in wyceny editor uses per-type formula. Labor: qty×(koszt_wykonania ?? cena_sprzedazy). Materials: qty×cena×(1+narzut/100). Equipment: qty×cena. Auto-copy koszt_wykonania from cennik triggers via data-testid='sub-book-<lineId>' BookOpen icon for labor subrows. Subrow td[13] contains koszt_prognozowany cell (read-only)."
+}

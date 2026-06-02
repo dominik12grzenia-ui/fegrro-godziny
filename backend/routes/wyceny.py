@@ -149,6 +149,8 @@ class LineCreate(BaseModel):
     price_max: Optional[float] = None
     # iter95ab: cennik_id - link do CenniK aby propagowac price_min/max
     price_book_id: Optional[str] = None
+    # iter95cw: koszt wykonania elementu (labor) - kopiowany z cennika lub recznie
+    koszt_wykonania: Optional[float] = None
 
 
 class LineUpdate(BaseModel):
@@ -168,6 +170,8 @@ class LineUpdate(BaseModel):
     below_min_accepted: Optional[bool] = None
     below_min_reason: Optional[str] = None
     price_book_id: Optional[str] = None
+    # iter95cw: koszt wykonania elementu (labor)
+    koszt_wykonania: Optional[float] = None
 
 
 class PriceBookCreate(BaseModel):
@@ -558,16 +562,21 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         if candidates:
             eff_price_min = max(candidates)
     # iter95bm: dla labor - przy wybraniu z cennika kopiuje price_min/max z cennika
+    # iter95cw: dla labor - przy wybraniu z cennika kopiuje takze koszt_wykonania
     eff_price_max = payload.price_max
+    eff_koszt_wykonania = payload.koszt_wykonania
     if payload.type == "labor" and payload.price_book_id:
         pb = await db.wyceny_price_book.find_one(
-            {"id": payload.price_book_id}, {"_id": 0, "price_min": 1, "price_max": 1}
+            {"id": payload.price_book_id},
+            {"_id": 0, "price_min": 1, "price_max": 1, "koszt_wykonania": 1},
         )
         if pb:
             if eff_price_min is None and pb.get("price_min") is not None:
                 eff_price_min = float(pb["price_min"])
             if eff_price_max is None and pb.get("price_max") is not None:
                 eff_price_max = float(pb["price_max"])
+            if eff_koszt_wykonania is None and pb.get("koszt_wykonania") is not None:
+                eff_koszt_wykonania = float(pb["koszt_wykonania"])
     doc = {
         "id": lid, "wycena_id": payload.wycena_id, "stage_id": payload.stage_id,
         "position_id": payload.position_id, "parent_id": payload.parent_id,
@@ -581,6 +590,8 @@ async def create_line(payload: LineCreate, _user: dict = Depends(get_current_adm
         "price_min": eff_price_min,
         "price_max": eff_price_max,
         "price_book_id": payload.price_book_id,
+        # iter95cw: koszt wykonania elementu (labor) - prognozowany koszt firmowy
+        "koszt_wykonania": round(eff_koszt_wykonania, 2) if eff_koszt_wykonania is not None else None,
         "order": payload.order,
         "created_at": datetime.now().isoformat(),
     }
@@ -602,7 +613,7 @@ async def update_line(line_id: str, payload: LineUpdate, current_user: dict = De
     updates = {k: v for k, v in raw.items() if v is not None or k in clearable}
 
     # iter95cd: zaokraglenie wartosci float do 2 miejsc po przecinku (precyzja groszowa)
-    for _k in ("quantity", "unit_price_netto", "narzut_zapas_pct", "marza_pct", "price_min", "price_max"):
+    for _k in ("quantity", "unit_price_netto", "narzut_zapas_pct", "marza_pct", "price_min", "price_max", "koszt_wykonania"):
         if _k in updates and updates[_k] is not None:
             try:
                 updates[_k] = round(float(updates[_k]), 2)
@@ -613,7 +624,7 @@ async def update_line(line_id: str, payload: LineUpdate, current_user: dict = De
     # Materials/Equipment: MAX(istniejacy, book) | Labor: tylko jak brak.
     if "price_book_id" in raw and raw.get("price_book_id"):
         pb = await db.wyceny_price_book.find_one(
-            {"id": raw["price_book_id"]}, {"_id": 0, "price_min": 1, "price_max": 1}
+            {"id": raw["price_book_id"]}, {"_id": 0, "price_min": 1, "price_max": 1, "koszt_wykonania": 1}
         )
         if pb:
             ltype = existing.get("type")
@@ -628,6 +639,12 @@ async def update_line(line_id: str, payload: LineUpdate, current_user: dict = De
                     updates["price_min"] = float(book_min)
             if book_max is not None and cur_max is None:
                 updates["price_max"] = float(book_max)
+            # iter95cw: dla labor auto-kopiowanie koszt_wykonania z cennika gdy brak
+            if ltype == "labor":
+                cur_kw = updates.get("koszt_wykonania", existing.get("koszt_wykonania"))
+                book_kw = pb.get("koszt_wykonania")
+                if cur_kw is None and book_kw is not None:
+                    updates["koszt_wykonania"] = round(float(book_kw), 2)
 
     # iter95ab: zapis historii zmian ceny do price_change_history
     new_price = raw.get("unit_price_netto")

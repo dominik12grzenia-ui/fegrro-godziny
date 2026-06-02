@@ -185,7 +185,21 @@ export const computeSubRow = (sub, defaults = {}) => {
   const narzutAmount = qty * cena * narzutPct / 100;
   const marzaAmount = qty * cena * marzaPct / 100;
   const budzetZwolniony = qty * cena * (1 + narzutPct / 100 + marzaPct / 100);
-  const kosztPrognozowany = qty * cena * (1 + narzutPct / 100);
+  // iter95cw: PROGNOZOWANY KOSZT FIRMOWY per typ linii.
+  //  - labor:      qty × koszt_wykonania (stawka firmowa per jedn., kopiowana z cennika).
+  //                Fallback: gdy brak koszt_wykonania -> qty × cena (sama cena bez narzutu).
+  //  - materials:  qty × cena × (1 + narzut/100) - koszt zakupu + narzut firmowy na zapas.
+  //  - equipment:  qty × cena - bez narzutu (czysty koszt wynajmu/zakupu sprzetu).
+  let kosztPrognozowany;
+  if (t === 'labor') {
+    const kw = parseFloat(sub.koszt_wykonania);
+    kosztPrognozowany = qty * (Number.isFinite(kw) && kw > 0 ? kw : cena);
+  } else if (t === 'equipment') {
+    kosztPrognozowany = qty * cena;
+  } else {
+    // materials (lub legacy/null)
+    kosztPrognozowany = qty * cena * (1 + narzutPct / 100);
+  }
   return { qty, cena, budzetZwolniony, kosztPrognozowany, narzutPct, marzaPct, narzutAmount, marzaAmount };
 };
 
