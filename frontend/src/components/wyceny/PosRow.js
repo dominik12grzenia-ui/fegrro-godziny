@@ -11,6 +11,7 @@ import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput, parseFloatPL2,
 } from './_shared';
+import { AiPolishButton } from './AiPolishButton';
 
 export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate, onDel }) => {
   // iter95cp: normalizuj quantity/kaucje do 2dp przy wczytaniu (chroni przed legacy floatami)
@@ -91,17 +92,25 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
         </div>
       </Td>
       <Td>
-        <textarea value={edit.name || ''}
-          onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save({ name: edit.name })}
-          rows={1}
-          title={edit.name || ''}
-          className={`bg-transparent border-0 text-xs w-full focus:bg-[#152033] outline-none text-white font-semibold resize-none overflow-hidden leading-tight py-0.5`}
-          style={{ minHeight: '20px', height: 'auto' }}
-          onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-          onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
-          data-testid={`pos-name-${position.id}`} />
+        <div className="flex items-start gap-1">
+          <textarea value={edit.name || ''}
+            onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+            onBlur={() => save({ name: edit.name })}
+            rows={1}
+            title={edit.name || ''}
+            className={`bg-transparent border-0 text-xs w-full focus:bg-[#152033] outline-none text-white font-semibold resize-none overflow-hidden leading-tight py-0.5`}
+            style={{ minHeight: '20px', height: 'auto' }}
+            onFocus={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+            onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+            data-testid={`pos-name-${position.id}`} />
+          <AiPolishButton
+            text={edit.name}
+            kind="name"
+            onApply={(polished) => { setEdit({ ...edit, name: polished }); save({ name: polished }); }}
+            testId={`pos-name-ai-${position.id}`}
+          />
+        </div>
       </Td>
       <Td right>
         <input type="number" step="0.01" min="0" value={edit.quantity ?? ''}

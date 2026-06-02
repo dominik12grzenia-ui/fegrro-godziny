@@ -13,6 +13,7 @@ import {
   fmtPLN, TYPE_LABEL, TYPE_COLOR, SUB_TYPE_LABEL, SUB_TYPE_COLOR,
   UNITS, evalFormula, computeSubRow, computePosRow, Th, Td, PctInput, parseFloatPL2,
 } from './_shared';
+import { AiPolishButton } from './AiPolishButton';
 
 export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, onLocalUpdate, onDel }) => {
   // iter95cp: normalizuj wartosci numeryczne przy wczytaniu z bazy.
@@ -170,17 +171,25 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         <span className="text-[10px]" style={{ color: SUB_TYPE_COLOR[sub.type] }}>{SUB_TYPE_LABEL[sub.type]}</span>
       </Td>
       <Td>
-        <textarea value={edit.name || ''}
-          onChange={(e) => setEdit({ ...edit, name: e.target.value })}
-          onBlur={() => save()}
-          rows={1}
-          title={edit.name || ''}
-          placeholder="↳ nazwa"
-          className="bg-transparent border-0 text-xs w-full focus:bg-[#152033] outline-none text-[#F1F5F9] resize-none overflow-hidden leading-tight pl-3 py-0.5"
-          style={{ minHeight: '20px', height: 'auto' }}
-          onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-          ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
-          data-testid={`sub-name-${sub.id}`} />
+        <div className="flex items-start gap-1">
+          <textarea value={edit.name || ''}
+            onChange={(e) => setEdit({ ...edit, name: e.target.value })}
+            onBlur={() => save()}
+            rows={1}
+            title={edit.name || ''}
+            placeholder="↳ nazwa"
+            className="bg-transparent border-0 text-xs w-full focus:bg-[#152033] outline-none text-[#F1F5F9] resize-none overflow-hidden leading-tight pl-3 py-0.5"
+            style={{ minHeight: '20px', height: 'auto' }}
+            onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
+            ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+            data-testid={`sub-name-${sub.id}`} />
+          <AiPolishButton
+            text={edit.name}
+            kind="name"
+            onApply={(polished) => { const next = { ...edit, name: polished }; setEdit(next); save(next); }}
+            testId={`sub-name-ai-${sub.id}`}
+          />
+        </div>
       </Td>
       <Td right>
         <div className="relative">

@@ -1,0 +1,39 @@
+{
+  "summary": "iter95cu AI text polish for wyceny (Claude Haiku via emergentintegrations) tested end-to-end. Backend endpoint POST /api/wyceny/ai/polish: 9/9 pytest cases passed (auth, validation, real LLM call returning polished Polish e.g. 'rurka pcv 110 plus studnia rewizyjna fi 400' -> 'Rurka PVC ø 110 oraz studnia rewizyjna ø 400'). Frontend Playwright e2e: admin login -> Wyceny tab -> open existing wycena -> filled pos-name textarea with messy text -> clicked sparkle AI button -> text changed in ~2s to 'Rurka PVC ø 110 plus studnia rewizyjna ø 400' with success toast. Spellcheck regression (iter95ct) verified: email/text inputs get spellcheck='true' + lang='pl' + autocorrect='off' automatically; password inputs are correctly skipped (0 password-with-spellcheck). HTML <html lang='pl'>. Logo PDF export (iter95cs): /api/wyceny/{id}/export.pdf?detail=client returns 200 with %PDF magic and >5KB body.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Admin Dashboard", "issues": ["Push-notification modal ('Włącz powiadomienia') auto-opens on login and overlays the Wyceny tab; users must dismiss it via 'Przypomnij mi jutro' before they can interact with positions. Consider only showing it when user actively requests notifications (not at every login)."]},
+      {"screen": "Console", "issues": ["Google Maps JavaScript API error 'ApiProjectMapError' / 'NoApiKeys' logged on dashboard (unrelated to this iteration but appears on every page load)"]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter95cu_wyceny_ai_polish.py",
+    "/app/test_reports/pytest/iter95cu_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Consider gating the push-notification permission modal behind a user action instead of auto-showing on login — it covers the Wyceny content area and blocks UX testing.",
+    "(Unrelated/pre-existing) Google Maps API key is missing/invalid; console errors on every page load."
+  ],
+  "critical_code_review_comments": [
+    "wyceny_ai.py: clean separation, lazy import of emergentintegrations is correct so startup is resilient. System prompts are well-crafted Polish.",
+    "Endpoint returns plain 500 on LLM exceptions with type+message — fine for now but consider mapping anthropic-specific errors (rate-limit, content blocked) to 429/422 for better UX.",
+    "spellcheck.js MutationObserver is unbounded subtree — fine for a Polish app but high-frequency DOM updates (e.g. virtualized tables) could become a hot path. Consider debouncing in future.",
+    "AiPolishButton.js: good UX (loading spinner, info toast on no-change, error toast on failure). Could add a max length guard symmetric with backend's 2000-char Pydantic limit (currently relies on textarea natural limit)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter95cu_wyceny_ai_polish.py (new pytest file with 9 cases)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (login + spellcheck + AI polish e2e all green)"},
+  "test_credentials": "admin@fegrro.pl / Admin123!",
+  "seed_data_creation": "None — used existing wycena 'Test 2dp' from DB",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "AI polish (POST /api/wyceny/ai/polish) is live and returns real polished Polish text via Claude Haiku 4.5 in ~2-3s. Endpoint requires admin Bearer token. The push-notification modal blocks the wyceny tab on a fresh login — dismiss via 'Przypomnij mi jutro' first. Wycena rows have testid wycena-row-{id}; clicking opens the editor with pos-name-{id} textareas and pos-name-ai-{id} sparkle buttons. Same pattern for sub-name-{id} / sub-name-ai-{id} on subpositions. All text inputs/textareas on the app auto-receive spellcheck=true and lang=pl via /app/frontend/src/lib/spellcheck.js initSpellcheck() (called from index.js). Password and number/code-named fields are correctly skipped.",
+  "rca_of_the_issue": "N/A — no bugs found."
+}

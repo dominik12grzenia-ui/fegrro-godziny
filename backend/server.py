@@ -40,6 +40,7 @@ from routes.payroll import router as payroll_router
 from routes.finance import router as finance_router, cron_fakturownia_sync, cron_payroll_sync
 from routes.budget import router as budget_router
 from routes.wyceny import router as wyceny_router
+from routes.wyceny_ai import router as wyceny_ai_router
 from routes.gus import router as gus_router
 from routes.audit import router as audit_router
 from routes.periods import router as periods_router
@@ -83,6 +84,7 @@ api_router.include_router(payroll_router)
 api_router.include_router(finance_router)
 api_router.include_router(budget_router)
 api_router.include_router(wyceny_router)
+api_router.include_router(wyceny_ai_router)
 api_router.include_router(gus_router)
 api_router.include_router(audit_router)
 api_router.include_router(periods_router)
