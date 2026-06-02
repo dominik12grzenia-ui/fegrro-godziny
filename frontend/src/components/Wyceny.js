@@ -1092,7 +1092,10 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <Th w="100" tip="KOSZT BUDOWY = BUDŻET ZWOLNIONY × koszt budowy % (narzut na koszty ogólne budowy)">KOSZT BUDOWY</Th>
               <Th w="100" tip="BUDŻET (cena dla klienta) = BUDŻET ZWOLNIONY + KAUCJA GIR + KAUCJA DW + KOSZT BUDOWY">BUDŻET</Th>
               <Th w="110" tip="BUDŻET ZWOLNIONY = ilość × cena × (1 + narzut% + marża%) — bazowa kwota, którą faktycznie dostajemy">BUDŻET ZWOLNIONY</Th>
-              <Th w="110" tip="KOSZT PROGNOZOWANY = ilość × cena × (1 + narzut%) — BEZ marży (marża to nasz zysk, nie koszt)">KOSZT PROGNOZOWANY</Th>
+              <Th w="110" tip="KOSZT PROGNOZOWANY (koszt firmowy):
+• materiały:  ilość × cena × (1 + narzut%)
+• robocizna:  ilość × koszt_wykonania (z cennika lub ręcznie); fallback: ilość × cena
+• sprzęt:     ilość × cena (bez narzutu)">KOSZT PROGNOZOWANY</Th>
               <Th w="100" tip="ZYSK PROGNOZOWANY = BUDŻET ZWOLNIONY − KOSZT PROGNOZOWANY">ZYSK PROGNOZOWANY</Th>
               <Th w="110" tip="ZYSK + KAUCJA DW — ile finalnie zarobimy gdy KAUCJA DW zostanie zwolniona po odbiorach">ZYSK + KAUCJA DW</Th>
               <Th w="70">AKCJE</Th>

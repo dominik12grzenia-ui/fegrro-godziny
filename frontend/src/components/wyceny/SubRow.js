@@ -259,34 +259,35 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
         </select>
       </Td>
       <Td right>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setPickerOpen(true)} title="Wybierz z cennika"
-            className="text-[#D4AF37] hover:text-[#FCD34D]" data-testid={`sub-book-${sub.id}`}>
-            <BookOpen className="h-3.5 w-3.5" />
-          </button>
-          <input type="number" step="0.01"
-            min={negotiationOn && effectiveMin != null ? effectiveMin : undefined}
-            value={edit.unit_price_netto ?? ''}
-            onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
-            onBlur={() => save()}
-            className={`${inputCls} text-right tabular-nums ${
-              atMin
-                ? 'text-[#FED7AA] ring-2 ring-orange-400 rounded bg-orange-500/15 font-bold'
-                : belowMin
-                  ? 'text-[#FCA5A5] ring-2 ring-[#DC2626] rounded bg-[#3F1A1A]/40'
-                  : aboveMax
-                    ? 'text-[#FCA5A5]'
-                    : 'text-[#F1F5F9]'
-            }`}
-            title={
-              atMin
-                ? `⚠ MINIMUM (${effectiveMin?.toFixed(2)} zł) — nie można zejść niżej w trybie negocjacji`
-                : (effectiveMin != null || effectiveMax != null)
-                  ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
-                  : undefined
-            }
-            data-testid={`sub-price-${sub.id}`} />
-          {/* iter95bd: warning dot ponizej min (czerwony) + popover z historia */}
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1">
+            <button onClick={() => setPickerOpen(true)} title="Wybierz z cennika"
+              className="text-[#D4AF37] hover:text-[#FCD34D]" data-testid={`sub-book-${sub.id}`}>
+              <BookOpen className="h-3.5 w-3.5" />
+            </button>
+            <input type="number" step="0.01"
+              min={negotiationOn && effectiveMin != null ? effectiveMin : undefined}
+              value={edit.unit_price_netto ?? ''}
+              onChange={(e) => setEdit({ ...edit, unit_price_netto: e.target.value })}
+              onBlur={() => save()}
+              className={`${inputCls} text-right tabular-nums ${
+                atMin
+                  ? 'text-[#FED7AA] ring-2 ring-orange-400 rounded bg-orange-500/15 font-bold'
+                  : belowMin
+                    ? 'text-[#FCA5A5] ring-2 ring-[#DC2626] rounded bg-[#3F1A1A]/40'
+                    : aboveMax
+                      ? 'text-[#FCA5A5]'
+                      : 'text-[#F1F5F9]'
+              }`}
+              title={
+                atMin
+                  ? `⚠ MINIMUM (${effectiveMin?.toFixed(2)} zł) — nie można zejść niżej w trybie negocjacji`
+                  : (effectiveMin != null || effectiveMax != null)
+                    ? `Cena ${effectiveMin != null ? `min: ${effectiveMin.toFixed(2)} zł` : ''}${effectiveMin != null && effectiveMax != null ? ' / ' : ''}${effectiveMax != null ? `max: ${effectiveMax.toFixed(2)} zł` : ''}`
+                    : undefined
+              }
+              data-testid={`sub-price-${sub.id}`} />
+            {/* iter95bd: warning dot ponizej min (czerwony) + popover z historia */}
           {(belowMin || priceHistory.length > 0) && (
             <Popover open={historyOpen} onOpenChange={setHistoryOpen}>
               <PopoverTrigger asChild>
@@ -378,6 +379,21 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           >
             ⓘ
           </button>
+          </div>
+          {/* iter95cx: input koszt_wykonania - tylko dla labor; bez tego kosztPrognozowany fallbackuje do qty*cena */}
+          {sub.type === 'labor' && (
+            <div className="flex items-center gap-1 mt-0.5"
+                 title="Koszt wykonania jednostkowej ilości prac (koszt firmowy). Po pomnożeniu przez ilość daje koszt prognozowany robocizny.">
+              <span className="text-[9px] text-[#F87171] uppercase font-bold tracking-wide pl-4">kw:</span>
+              <input type="number" step="0.01"
+                value={edit.koszt_wykonania ?? ''}
+                onChange={(e) => setEdit({ ...edit, koszt_wykonania: e.target.value })}
+                onBlur={() => save()}
+                placeholder="—"
+                className={`${inputCls} text-right tabular-nums text-[#F87171] font-semibold`}
+                data-testid={`sub-kw-${sub.id}`} />
+            </div>
+          )}
         </div>
         {pickerOpen && (
           <PriceBookPicker category={sub.type} posUnit={posUnit} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />

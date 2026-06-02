@@ -14,6 +14,12 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cx — Widoczny input `kw` (koszt wykonania) w SubRow + AI Polish dla scope (P1)
+- **SubRow.js**: pod inputem ceny pojawia się drugi input `kw:` z czerwoną stawką firmową — **TYLKO dla `sub.type === 'labor'`**. Daje to widoczność pola i możliwość ręcznej korekty (poprzednio koszt_wykonania trafiał do podpozycji tylko z cennika).
+- **Wyceny.js**: AI Polish (✨) obok labeli „✓ Oferta obejmuje" i „✗ Oferta nie obejmuje". Obsługa pól uncontrolled przez `useRef` (zachowuje istniejące `defaultValue`/`onBlur`).
+- **AiPolishButton.js**: nowy prop `getText` (callback) — pozwala czytać tekst z uncontrolled inputu przez ref bez refaktoru.
+- **Tooltip kolumny KOSZT PROGNOZOWANY**: zaktualizowany żeby pokazywał aktualne wzory per type.
+
 ### 2026-02 — iter95cw — Per-type wzory kosztPrognozowany + auto-copy z cennika (P1)
 - **Wzory** w `_shared.js computeSubRow`:
   - `labor`: `qty × (sub.koszt_wykonania ?? cena)` — fallback do ceny gdy brak kosztu.
