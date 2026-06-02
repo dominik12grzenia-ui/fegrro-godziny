@@ -14,6 +14,11 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cy — Diagnostyczny endpoint `/api/wyceny/ai/health` (P0 debug)
+- Publiczny (bez auth) endpoint zwracający `{ ok, configured, length, prefix, expected_prefix, matches_expected_prefix }`.
+- NIE ujawnia samego klucza — tylko length + 11 pierwszych znaków + flagi.
+- Pozwala użytkownikowi zweryfikować w przeglądarce czy `EMERGENT_LLM_KEY` jest faktycznie podpięty na produkcji Render.
+
 ### 2026-02 — iter95cx — Widoczny input `kw` (koszt wykonania) w SubRow + AI Polish dla scope (P1)
 - **SubRow.js**: pod inputem ceny pojawia się drugi input `kw:` z czerwoną stawką firmową — **TYLKO dla `sub.type === 'labor'`**. Daje to widoczność pola i możliwość ręcznej korekty (poprzednio koszt_wykonania trafiał do podpozycji tylko z cennika).
 - **Wyceny.js**: AI Polish (✨) obok labeli „✓ Oferta obejmuje" i „✗ Oferta nie obejmuje". Obsługa pól uncontrolled przez `useRef` (zachowuje istniejące `defaultValue`/`onBlur`).

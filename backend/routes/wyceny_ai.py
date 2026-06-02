@@ -54,6 +54,24 @@ _SYSTEM_PROMPTS = {
 }
 
 
+@router.get("/wyceny/ai/health")
+async def ai_health():
+    """iter95cy: diagnostyczny endpoint - publiczny (bez auth) zwraca status klucza
+    EMERGENT_LLM_KEY na backendzie. NIE ujawnia samej wartosci - tylko fakt jego
+    obecnosci + dlugosc + prefix. Pozwala uzytkownikowi sprawdzic, czy klucz
+    rzeczywiscie zostal podpiety w Render Environment.
+    """
+    key = os.environ.get("EMERGENT_LLM_KEY") or ""
+    return {
+        "ok": bool(key),
+        "configured": bool(key),
+        "length": len(key),
+        "prefix": (key[:11] + "...") if len(key) >= 11 else (key[:3] + "..." if key else None),
+        "expected_prefix": "sk-emergent-",
+        "matches_expected_prefix": key.startswith("sk-emergent-") if key else False,
+    }
+
+
 @router.post("/wyceny/ai/polish", response_model=PolishResponse)
 async def polish_text(body: PolishRequest, _user: dict = Depends(get_current_admin)):
     text = (body.text or "").strip()
