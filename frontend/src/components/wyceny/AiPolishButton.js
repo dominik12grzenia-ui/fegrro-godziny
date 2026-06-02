@@ -7,30 +7,32 @@ import { api } from '../../context/AuthContext';
 
 /**
  * Props:
- *  - text: aktualna wartosc pola
+ *  - text: aktualna wartosc pola (controlled) - opcjonalne
+ *  - getText: () => string - dla uncontrolled pol (defaultValue + ref); jesli podane, ma pierwszenstwo nad `text`
  *  - kind: 'name' | 'description' | 'notes' (kontekst dla AI)
  *  - onApply: (polished:string) => void  — wywolywane po sukcesie z poprawiona wersja
  *  - disabled?: boolean
  *  - title?: string — custom tooltip
  *  - testId?: string
  */
-export const AiPolishButton = ({ text, kind = 'name', onApply, disabled, title, testId }) => {
+export const AiPolishButton = ({ text, getText, kind = 'name', onApply, disabled, title, testId }) => {
   const [loading, setLoading] = useState(false);
 
   const handleClick = useCallback(async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    const t = (text || '').trim();
-    if (!t) {
+    const t = (typeof getText === 'function' ? getText() : text) || '';
+    const trimmed = t.trim();
+    if (!trimmed) {
       toast.error('Pole jest puste — nie ma czego poprawiać');
       return;
     }
-    if (t.length < 2) return;
+    if (trimmed.length < 2) return;
     setLoading(true);
     try {
-      const { data } = await api.post('/wyceny/ai/polish', { text: t, kind });
+      const { data } = await api.post('/wyceny/ai/polish', { text: trimmed, kind });
       const polished = (data?.polished || '').trim();
-      if (!polished || polished === t) {
+      if (!polished || polished === trimmed) {
         toast.info('AI: tekst już wygląda dobrze — bez zmian');
         return;
       }
@@ -42,7 +44,7 @@ export const AiPolishButton = ({ text, kind = 'name', onApply, disabled, title, 
     } finally {
       setLoading(false);
     }
-  }, [text, kind, onApply]);
+  }, [text, getText, kind, onApply]);
 
   return (
     <button

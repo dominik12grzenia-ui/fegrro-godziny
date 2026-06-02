@@ -6,7 +6,7 @@
  *   3. Ceny robocizny
  *   4. Ceny sprzetu
  */
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 import { Input } from './ui/input';
@@ -29,6 +29,7 @@ import { BomDialog } from './wyceny/BomDialog';
 import { NegotiationPanel } from './wyceny/NegotiationPanel';
 import { ExcelImportDialog } from './wyceny/ExcelImportDialog';
 import { ScopeTemplatesDialog } from './wyceny/ScopeTemplatesDialog';
+import { AiPolishButton } from './wyceny/AiPolishButton';
 
 // iter95bc: dalsze subkomponenty wydzielone z Wyceny.js (refaktor)
 import { EquipmentPriceBook } from './wyceny/EquipmentPriceBook';
@@ -405,6 +406,9 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
 
   // iter95av: pobierz dane firmy z Białej Listy MF po NIP
   const [gusLoading, setGusLoading] = useState(false);
+  // iter95cx: refs dla uncontrolled textarea scope_includes/excludes - potrzebne do AI Polish
+  const scopeIncludesRef = useRef(null);
+  const scopeExcludesRef = useRef(null);
   const fetchGusForClient = async () => {
     const nip = (data?.wycena?.client_nip || '').replace(/\D/g, '');
     if (nip.length !== 10) { toast.error('NIP musi zawierać 10 cyfr'); return; }
@@ -1016,8 +1020,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         {clientPanelOpen && (
           <div className="grid grid-cols-12 gap-2 mt-3" data-testid="wycena-scope-block">
             <div className="col-span-12 sm:col-span-6">
-              <label className="text-[10px] text-[#9DBC85] uppercase font-bold">✓ Oferta obejmuje</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-[#9DBC85] uppercase font-bold">✓ Oferta obejmuje</label>
+                <AiPolishButton
+                  kind="description"
+                  getText={() => scopeIncludesRef.current?.value || ''}
+                  onApply={(polished) => {
+                    if (scopeIncludesRef.current) scopeIncludesRef.current.value = polished;
+                    saveText('scope_includes', polished);
+                  }}
+                  title="AI: popraw pisownię i terminologię w sekcji 'Oferta obejmuje'"
+                  testId="scope-includes-ai"
+                />
+              </div>
               <textarea
+                ref={scopeIncludesRef}
                 key={`inc-${w.id}`}
                 defaultValue={w.scope_includes || ''}
                 onBlur={(e) => saveText('scope_includes', e.target.value)}
@@ -1029,8 +1046,21 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
               <div className="text-[10px] text-[#94A3B8] mt-0.5">Jedna pozycja na linię — zostanie wypunktowana w ofercie.</div>
             </div>
             <div className="col-span-12 sm:col-span-6">
-              <label className="text-[10px] text-[#FCA5A5] uppercase font-bold">✗ Oferta nie obejmuje</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-[#FCA5A5] uppercase font-bold">✗ Oferta nie obejmuje</label>
+                <AiPolishButton
+                  kind="description"
+                  getText={() => scopeExcludesRef.current?.value || ''}
+                  onApply={(polished) => {
+                    if (scopeExcludesRef.current) scopeExcludesRef.current.value = polished;
+                    saveText('scope_excludes', polished);
+                  }}
+                  title="AI: popraw pisownię i terminologię w sekcji 'Oferta nie obejmuje'"
+                  testId="scope-excludes-ai"
+                />
+              </div>
               <textarea
+                ref={scopeExcludesRef}
                 key={`exc-${w.id}`}
                 defaultValue={w.scope_excludes || ''}
                 onBlur={(e) => saveText('scope_excludes', e.target.value)}
