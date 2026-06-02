@@ -800,6 +800,25 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
         >
           ↻ Zastosuj kaucje do wszystkich pozycji
         </button>
+        {/* iter95de: wyczysc indywidualne marza/narzut na materialach (uzywaj globalnych) */}
+        <button
+          type="button"
+          onClick={async () => {
+            if (!window.confirm(`Wyczyścić indywidualne marże i narzuty na WSZYSTKICH materiałach w tej wycenie?\n\nMateriały będą używać globalnej wartości z pól "Narzut materiał" (${defaults.narzut}%) i "Marża materiał" (${defaults.marza}%).`)) return;
+            try {
+              const r = await api.post(`/wyceny/${w.id}/reset-material-margins`);
+              toast.success(`Wyczyszczono ${r.data.updated_lines} linii materiałów — używają teraz globalnych ${defaults.narzut}% / ${defaults.marza}%`);
+              await fetchData(true);
+            } catch (e) {
+              toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
+            }
+          }}
+          className="px-3 py-1.5 text-xs bg-[#5F4318] hover:bg-[#7A5520] text-white rounded border border-[#A78540] font-semibold transition-colors"
+          data-testid="reset-material-margins-btn"
+          title="Czyści indywidualne marżę i narzut materiałów - wszystkie używają globalnej wartości"
+        >
+          🔓 Wyczyść indywidualne marże materiałów
+        </button>
         {/* iter95cp: jednorazowa migracja - zaokraglij wszystkie float pola do 2dp */}
         <button
           type="button"

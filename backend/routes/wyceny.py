@@ -486,6 +486,23 @@ async def apply_defaults_to_positions(wycena_id: str, _user: dict = Depends(get_
     return {"ok": True, "updated_positions": res.modified_count, "gir": gir, "dw": dw, "koszt": koszt}
 
 
+@router.post("/wyceny/{wycena_id}/reset-material-margins")
+async def reset_material_margins(wycena_id: str, _user: dict = Depends(get_current_admin)):
+    """iter95de: wyczysc indywidualne marza_pct/narzut_zapas_pct na wszystkich liniach materialow
+    w danej wycenie. Po tym akcji wszystkie materialy uzywaja globalnych wartosci z
+    default_narzut_pct/default_marza_pct wyceny. Uzywaj gdy chcesz przywrocic spojnosc
+    marz na materialach po importach z Excela lub recznym wpisywaniu.
+    """
+    w = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0, "id": 1})
+    if not w:
+        raise HTTPException(404, "Wycena nie istnieje")
+    res = await db.wyceny_lines.update_many(
+        {"wycena_id": wycena_id, "type": "materials"},
+        {"$set": {"marza_pct": None, "narzut_zapas_pct": None, "updated_at": datetime.now().isoformat()}},
+    )
+    return {"ok": True, "updated_lines": res.modified_count}
+
+
 
 
 @router.patch("/wyceny/positions/{position_id}")

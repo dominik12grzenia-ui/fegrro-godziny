@@ -14,6 +14,13 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95de — Marża/narzut materiał: globalne domyślne + przełącznik 🔒/🔓 per pozycja (P1)
+- **Default**: nowe materiały nie mają wpisanych `marza_pct`/`narzut_zapas_pct` → używają globalnych wartości z pól „Marża materiał" / „Narzut materiał" wyceny.
+- **UI**: w komórkach narzut% i marża% dla materiałów wyświetla się globalna wartość (np. „8% 🔒"). Klik kłódki → zamienia się w edytowalny input (📝 + 🔓). Klik 🔓 → przywraca null (back to global).
+- **Backend**: nowy endpoint `POST /wyceny/{id}/reset-material-margins` ustawia `marza_pct=null, narzut_zapas_pct=null` na wszystkich liniach typu `materials`. Nie rusza robocizny/sprzętu.
+- **UI button**: „🔓 Wyczyść indywidualne marże materiałów" w panelu defaults wyceny — jeden klik czyści wszystkie indywidualne marże/narzuty materiałów, wracając do globalnej.
+- Tested curl ✅: 2 materials (8/10 + null) → po reset oba `None/None`, labor z marza=99 nieruszony.
+
 ### 2026-02 — iter95dd — Tryb negocjacji: marża/narzut override wymusza wartość na liniach materiałów (P0)
 - **Bug**: w trybie negocjacji zmiana „Marża materiał" 8%→0% obniżała budżet tylko o ~2680 zł zamiast spodziewanego znacznego spadku.
 - **Przyczyna**: `marzaOverride` zmieniał tylko `default_marza_pct` wyceny. W `computeSubRow` per-line `sub.marza_pct ?? default` — jeśli linia ma własną wartość 8, default 0 jest ignorowany. Ten sam problem dla `narzut_zapas_pct`.

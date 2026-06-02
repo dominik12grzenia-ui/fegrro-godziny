@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, Package, Send, Mail, Eye } from 'lucide-react';
+import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, Package, Send, Mail, Eye, Lock, Unlock } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import { PriceBookPicker } from './PriceBookPicker';
@@ -399,21 +399,99 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
           <PriceBookPicker category={sub.type} posUnit={posUnit} onPick={pickFromBook} onClose={() => setPickerOpen(false)} />
         )}
       </Td>
+      {/* iter95de: narzut + marza dla MATERIALS - domyslnie zablokowane (uzywaja globalnej wartosci);
+          klik kłódki -> odblokowuje pole na rzecz indywidualnej wartosci per pozycja.
+          Stan zablokowany: sub.narzut_zapas_pct/marza_pct === null/undefined.
+          Stan odblokowany: ma konkretna wartosc numeryczna. */}
       <Td right>
-        <input type="number" step="0.1" min="0" value={edit.narzut_zapas_pct ?? ''}
-          onChange={(e) => setEdit({ ...edit, narzut_zapas_pct: e.target.value })}
-          onBlur={() => save()} placeholder={narzutPlaceholder}
-          className={`${inputCls} text-right tabular-nums text-[#9DBC85]`}
-          data-testid={`sub-narzut-${sub.id}`} />
+        {(sub.type === 'materials' || !sub.type) ? (
+          edit.narzut_zapas_pct == null || edit.narzut_zapas_pct === '' ? (
+            <div className="flex items-center justify-end gap-1" title={`Używa globalnej wartości (${defaultNarzutForType}%). Kliknij kłódkę aby ustawić własną.`}>
+              <span className="text-[#9DBC85] text-[10px] opacity-60">{defaultNarzutForType}%</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...edit, narzut_zapas_pct: defaultNarzutForType };
+                  setEdit(next); save(next);
+                }}
+                className="text-[#94A3B8] hover:text-[#9DBC85]"
+                data-testid={`sub-narzut-unlock-${sub.id}`}
+              >
+                <Lock className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-0.5">
+              <input type="number" step="0.1" min="0" value={edit.narzut_zapas_pct ?? ''}
+                onChange={(e) => setEdit({ ...edit, narzut_zapas_pct: e.target.value })}
+                onBlur={() => save()}
+                className={`${inputCls} text-right tabular-nums text-[#9DBC85]`}
+                data-testid={`sub-narzut-${sub.id}`} />
+              <button
+                type="button"
+                onClick={() => {
+                  const next = { ...edit, narzut_zapas_pct: null };
+                  setEdit(next); save(next);
+                }}
+                title="Wróć do globalnej wartości narzutu"
+                className="text-[#D4AF37] hover:text-[#FCD34D]"
+                data-testid={`sub-narzut-lock-${sub.id}`}
+              >
+                <Unlock className="w-3 h-3" />
+              </button>
+            </div>
+          )
+        ) : (
+          <input type="number" step="0.1" min="0" value={edit.narzut_zapas_pct ?? ''}
+            onChange={(e) => setEdit({ ...edit, narzut_zapas_pct: e.target.value })}
+            onBlur={() => save()} placeholder={narzutPlaceholder}
+            className={`${inputCls} text-right tabular-nums text-[#9DBC85]`}
+            data-testid={`sub-narzut-${sub.id}`} />
+        )}
       </Td>
       <Td right>
-        <input type="number" step="0.1" min="0" value={edit.marza_pct ?? ''}
-          onChange={(e) => setEdit({ ...edit, marza_pct: e.target.value })}
-          onBlur={() => save()} placeholder={marzaPlaceholder}
-          disabled={marzaDisabled}
-          title={marzaDisabled ? 'Marża stosowana tylko do materiałów' : undefined}
-          className={`${inputCls} text-right tabular-nums ${marzaDisabled ? 'text-[#475569] cursor-not-allowed opacity-40' : 'text-[#D4AF37]'}`}
-          data-testid={`sub-marza-${sub.id}`} />
+        {marzaDisabled ? (
+          <input type="number" disabled value=""
+            title="Marża stosowana tylko do materiałów"
+            className={`${inputCls} text-right tabular-nums text-[#475569] cursor-not-allowed opacity-40`}
+            placeholder="—"
+            data-testid={`sub-marza-${sub.id}`} />
+        ) : edit.marza_pct == null || edit.marza_pct === '' ? (
+          <div className="flex items-center justify-end gap-1" title={`Używa globalnej wartości (${defaults.marza ?? 0}%). Kliknij kłódkę aby ustawić własną.`}>
+            <span className="text-[#D4AF37] text-[10px] opacity-60">{defaults.marza ?? 0}%</span>
+            <button
+              type="button"
+              onClick={() => {
+                const next = { ...edit, marza_pct: defaults.marza ?? 0 };
+                setEdit(next); save(next);
+              }}
+              className="text-[#94A3B8] hover:text-[#D4AF37]"
+              data-testid={`sub-marza-unlock-${sub.id}`}
+            >
+              <Lock className="w-3 h-3" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-0.5">
+            <input type="number" step="0.1" min="0" value={edit.marza_pct ?? ''}
+              onChange={(e) => setEdit({ ...edit, marza_pct: e.target.value })}
+              onBlur={() => save()}
+              className={`${inputCls} text-right tabular-nums text-[#D4AF37]`}
+              data-testid={`sub-marza-${sub.id}`} />
+            <button
+              type="button"
+              onClick={() => {
+                const next = { ...edit, marza_pct: null };
+                setEdit(next); save(next);
+              }}
+              title="Wróć do globalnej wartości marży"
+              className="text-[#D4AF37] hover:text-[#FCD34D]"
+              data-testid={`sub-marza-lock-${sub.id}`}
+            >
+              <Unlock className="w-3 h-3" />
+            </button>
+          </div>
+        )}
       </Td>
       <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kaucjaGir * ratio)}</Td>
       <Td right className="text-[#CBD5E1]">{fmtPLN(posComputed.kaucjaDw * ratio)}</Td>
