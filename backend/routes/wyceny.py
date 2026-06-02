@@ -2749,7 +2749,31 @@ async def refresh_wycena_prices(
                 new_price = float(pb["price_m3"])
             elif pb.get("unit_other") and pb["unit_other"] == lu and pb.get("price_other") is not None:
                 new_price = float(pb["price_other"])
+        elif ltype == "materials":
+            # iter95db: materialy maja PRZELICZNIK na jednostke wyrobu.
+            # Wzor: (unit_price_netto + koszty_inne_do_jd) * zapotrzebowanie / pkg_qty
+            # Wymaga: zap_unit konczy sie na "/<line.unit>", pkg_qty>0, zapotrzebowanie>0.
+            # Inaczej fallback do surowego unit_price_netto.
+            lu = (line.get("unit") or "").strip()
+            zap_unit = (pb.get("zap_unit") or "").strip()
+            pkg_qty = pb.get("pkg_qty")
+            zap = pb.get("zapotrzebowanie")
+            base_price = pb.get("unit_price_netto")
+            koszty_inne = pb.get("koszty_inne_do_jd") or 0
+            if (
+                lu and zap_unit.endswith("/" + lu)
+                and pkg_qty is not None and float(pkg_qty) > 0
+                and zap is not None and float(zap) > 0
+                and base_price is not None
+            ):
+                new_price = round(
+                    (float(base_price) + float(koszty_inne)) * float(zap) / float(pkg_qty),
+                    2,
+                )
+            elif base_price is not None:
+                new_price = float(base_price)
         else:
+            # equipment + inne
             if pb.get("unit_price_netto") is not None:
                 new_price = float(pb["unit_price_netto"])
         if new_price is not None and abs((line.get("unit_price_netto") or 0) - new_price) > 1e-9:

@@ -14,6 +14,16 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95db — "Aktualizuj ceny" przelicza ceny materiałów na jednostkę wyrobu (P1)
+- W endpointcie `POST /wyceny/{id}/refresh-prices` dla `type=materials` zamiast surowego `unit_price_netto` (np. cena worka cementu) liczona jest cena per jednostka wyrobu w wycenie wg wzoru:
+  ```
+  cena = (unit_price_netto + koszty_inne_do_jd) × zapotrzebowanie / pkg_qty
+  ```
+- Wymaga aby `zap_unit` w cenniku kończył się na `/{line.unit}` (np. `kg/m³` dla linii w m³).
+- Inaczej: fallback do bazowego `unit_price_netto`.
+- Wzór identyczny z frontendowym `computeMaterialPerWorkUnit` w `_shared.js` (spójność UI ↔ refresh).
+- Tested curl ✅: beton 1.19 zł/kg, pkg=25, zap=300 kg/m³, koszt_inne=0.50 → m³=`20.28 zł`, kg=`1.19 zł` (fallback).
+
 ### 2026-02 — iter95da — "Aktualizuj ceny" + auto-link po nazwie/typie (P1)
 - Endpoint `POST /wyceny/{id}/refresh-prices` rozszerzony: dla linii BEZ `price_book_id` (np. dodanych ręcznie lub przez import Excela) automatycznie szuka dopasowania w cenniku po (`type`, `name`) — case-insensitive + normalizacja whitespace.
 - Po dopasowaniu: zapisuje `price_book_id` na linii i propaguje cenę + `koszt_wykonania` + nazwę (znormalizowaną).
