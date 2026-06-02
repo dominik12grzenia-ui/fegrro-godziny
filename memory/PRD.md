@@ -1,3 +1,26 @@
+## Iteration 95cq (2026-02) — Bug fix: kropki budów ignorowały `site.color` (custom)
+
+### Problem (user screenshot)
+W tabeli godzin komórki miały poprawne kolory budów (z `site.color`), ale kropki przy nazwach budów (chips u góry trybu, nagłówki tabeli, legenda) używały **wyłącznie statycznej palety SITE_COLORS_HEX[idx]** ignorując `site.color` z bazy. Po zmianie koloru budowy w Finanse → Budowy kropki się nie aktualizowały.
+
+### Fix Frontend
+**`/app/frontend/src/components/HoursTable.js`** (3 miejsca):
+- Chip „LEBA 0" / „SASINO 0" w pasku trybu: `site.color || SITE_COLORS_HEX[idx]`
+- Header tabeli (kolumna budowy): `site.color || ...`
+- Komórki podsumowania per-site: `site.color || ...`
+
+**`/app/frontend/src/components/WorkerDashboard.js`** (4 miejsca):
+- `getSiteColorHex(siteId)` helper — priorytetowo `site.color`
+- Header tabeli (kolumna budowy)
+- Komórki podsumowania per-site
+- Legenda na dole
+
+### Test (preview)
+Screenshot HoursTable: SASINO kropka ma teraz zielony (z `site.color`) zamiast losowego z palety ✅. Czerwiec 2026, widok admin — chip SASINO i legenda SASINO z poprawnym zielonym kolorem.
+
+---
+
+
 ## Iteration 95cp (2026-02) — Bug fix: stare floaty typu „92,14999999" w cenniku i wycenach
 
 ### Problem (user screenshot)

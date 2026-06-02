@@ -692,7 +692,10 @@ export const HoursTable = () => {
               Edycja godzin
             </Button>
             {sites.map((site, idx) => {
-              const color = SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length];
+              // iter95cq: priorytetowo uzyj koloru z bazy (admin moze go zmienic w Finanse->Budowy),
+              // fallback do palety SITE_COLORS_HEX. Wczesniej kropka brala tylko z palety
+              // i nie aktualizowala sie po zmianie koloru w Finansach.
+              const color = site.color || SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length];
               const isActive = selectedSiteForAssignment === site.id;
               return (
                 <Button
@@ -886,7 +889,7 @@ export const HoursTable = () => {
                       <th
                         key={`sh-${site.id}`}
                         className="border border-[#3D5378] p-1 text-center min-w-[60px]"
-                        style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}
+                        style={{ backgroundColor: (site.color || SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length]) + '55' }}
                       >
                         <div className="text-[#F1F5F9] text-[10px] font-semibold leading-tight">{site.name}</div>
                       </th>
@@ -920,7 +923,7 @@ export const HoursTable = () => {
                         return sum + (hoursBySite[site.id] || 0);
                       }, 0);
                       return (
-                        <td key={`ssum-${site.id}`} className="border border-[#3D5378] p-1 text-center" style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '55' }}>
+                        <td key={`ssum-${site.id}`} className="border border-[#3D5378] p-1 text-center" style={{ backgroundColor: (site.color || SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length]) + '55' }}>
                           <span className="text-white font-bold text-xs">{Math.round(siteTotal * 100) / 100}</span>
                         </td>
                       );
@@ -1103,7 +1106,7 @@ export const HoursTable = () => {
                           <td
                             key={`t-${employee.id}-${site.id}`}
                             className="border border-[#3D5378] p-1 text-center"
-                            style={{ backgroundColor: SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] + '33' }}
+                            style={{ backgroundColor: (site.color || SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length]) + '33' }}
                           >
                             <span className="text-[#F1F5F9] font-semibold text-sm">
                               {hoursBySite[site.id] || 0}

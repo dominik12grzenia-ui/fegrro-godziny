@@ -232,7 +232,10 @@ export const WorkerDashboard = () => {
   }, [user]);
 
   const getSiteColorHex = (siteId) => {
+    // iter95cq: priorytetowo z site.color (custom), fallback do palety
     const allSites = sites.length > 0 ? sites : mySites;
+    const site = allSites.find(s => s.id === siteId);
+    if (site && site.color) return site.color;
     const idx = allSites.findIndex(s => s.id === siteId);
     return idx >= 0 ? SITE_COLORS_HEX[idx % SITE_COLORS_HEX.length] : null;
   };
@@ -791,7 +794,7 @@ export const WorkerDashboard = () => {
                       <th
                         key={`sh-${site.id}`}
                         className="border border-[#3D5378] p-1 text-center min-w-[60px]"
-                        style={{ backgroundColor: SITE_COLORS_HEX[sites.findIndex(s => s.id === site.id) % SITE_COLORS_HEX.length] + '55' }}
+                        style={{ backgroundColor: (site.color || SITE_COLORS_HEX[sites.findIndex(s => s.id === site.id) % SITE_COLORS_HEX.length]) + '55' }}
                       >
                         <div className="text-[#F1F5F9] text-[10px] font-semibold leading-tight">{site.name}</div>
                       </th>
@@ -883,11 +886,12 @@ export const WorkerDashboard = () => {
                         {/* Per-site totals */}
                         {mySites.map((site) => {
                           const siteIdx = sites.findIndex(s => s.id === site.id);
+                          const cellColor = site.color || SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length];
                           return (
                             <td
                               key={`t-${employee.id}-${site.id}`}
                               className="border border-[#3D5378] p-1 text-center"
-                              style={{ backgroundColor: SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length] + '33' }}
+                              style={{ backgroundColor: cellColor + '33' }}
                             >
                               <span className="text-[#F1F5F9] font-semibold text-sm">
                                 {hoursBySite[site.id] || 0}
@@ -920,9 +924,10 @@ export const WorkerDashboard = () => {
                 </div>
                 {mySites.map((site) => {
                   const siteIdx = sites.findIndex(s => s.id === site.id);
+                  const lgColor = site.color || SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length];
                   return (
                     <div key={site.id} className="flex items-center gap-1.5">
-                      <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: SITE_COLORS_HEX[siteIdx % SITE_COLORS_HEX.length] }} />
+                      <span className="inline-block w-4 h-4 rounded-sm" style={{ backgroundColor: lgColor }} />
                       <span className="text-[#CBD5E1]">{site.name}</span>
                     </div>
                   );
