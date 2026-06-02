@@ -1858,6 +1858,9 @@ async def normalize_decimals(_user: dict = Depends(get_current_admin)):
 
 
 
+# iter95dc: endpoint export Excel - poprzednio dekorator brakowal (funkcja istniala,
+# ale nie byla zarejestrowana w routerze - stad 404 Not Found z frontu).
+@router.get("/wyceny/{wycena_id}/export.xlsx")
 async def export_wycena_xlsx(
     wycena_id: str,
     detail: str = Query("positions", pattern="^(positions|full|client)$"),

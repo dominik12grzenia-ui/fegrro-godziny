@@ -14,6 +14,11 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95dc — Naprawa pobierania wyceny w Excelu (P0)
+- `GET /api/wyceny/{id}/export.xlsx` zwracał `404 Not Found` na produkcji — funkcja `export_wycena_xlsx` istniała w kodzie, ale **brakowało dekoratora `@router.get(...)`** (regresja z poprzedniego refactoru).
+- Dodany dekorator. Endpoint teraz działa dla wszystkich 3 wariantów: `positions`, `full`, `client`.
+- Tested ✅: HTTP 200, openpyxl load OK, sheety „Wycena"/„Oferta" z poprawną strukturą.
+
 ### 2026-02 — iter95db — "Aktualizuj ceny" przelicza ceny materiałów na jednostkę wyrobu (P1)
 - W endpointcie `POST /wyceny/{id}/refresh-prices` dla `type=materials` zamiast surowego `unit_price_netto` (np. cena worka cementu) liczona jest cena per jednostka wyrobu w wycenie wg wzoru:
   ```
