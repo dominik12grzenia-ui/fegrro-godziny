@@ -14,6 +14,13 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95dd — Tryb negocjacji: marża/narzut override wymusza wartość na liniach materiałów (P0)
+- **Bug**: w trybie negocjacji zmiana „Marża materiał" 8%→0% obniżała budżet tylko o ~2680 zł zamiast spodziewanego znacznego spadku.
+- **Przyczyna**: `marzaOverride` zmieniał tylko `default_marza_pct` wyceny. W `computeSubRow` per-line `sub.marza_pct ?? default` — jeśli linia ma własną wartość 8, default 0 jest ignorowany. Ten sam problem dla `narzut_zapas_pct`.
+- **Fix UI** (`Wyceny.js` displayData): gdy negocjacja ON i ustawiono override, wymuszamy wartość override na `s.marza_pct` / `s.narzut_zapas_pct` dla wszystkich linii `type=materials`. Robocizna/sprzęt nie używają marży, więc nie ruszamy.
+- **Fix backend** (`apply_negotiation`): po „Przyjmij na stałe" tę samą wartość zapisujemy do bazy (`update_many` na `wyceny_lines` typu `materials`) — spójność UI ↔ trwały zapis.
+- Lint clean ✅.
+
 ### 2026-02 — iter95dc — Naprawa pobierania wyceny w Excelu (P0)
 - `GET /api/wyceny/{id}/export.xlsx` zwracał `404 Not Found` na produkcji — funkcja `export_wycena_xlsx` istniała w kodzie, ale **brakowało dekoratora `@router.get(...)`** (regresja z poprzedniego refactoru).
 - Dodany dekorator. Endpoint teraz działa dla wszystkich 3 wariantów: `positions`, `full`, `client`.

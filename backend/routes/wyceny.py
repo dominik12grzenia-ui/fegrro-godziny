@@ -2833,6 +2833,20 @@ async def apply_negotiation(
     if update:
         await db.wyceny.update_one({"id": wycena_id}, {"$set": update})
 
+    # iter95dd: WYMUS narzut/marza na liniach materialow (zastapuje per-row wartosci).
+    # Spojnie z UI symulacja - bez tego, po "Przyjmij na stale", linie z wlasnym
+    # marza_pct=8 dalej uzywaja 8% zamiast nowego override np. 0%.
+    if payload.narzut_pct is not None or payload.marza_pct is not None:
+        material_force = {}
+        if payload.narzut_pct is not None:
+            material_force["narzut_zapas_pct"] = float(payload.narzut_pct)
+        if payload.marza_pct is not None:
+            material_force["marza_pct"] = float(payload.marza_pct)
+        await db.wyceny_lines.update_many(
+            {"wycena_id": wycena_id, "type": "materials"},
+            {"$set": material_force},
+        )
+
     # 3. Bulk update lines per type (materials/labor/equipment)
     factor_by_type = {
         "labor": payload.labor_factor,

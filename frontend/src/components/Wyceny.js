@@ -371,22 +371,35 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   }, [data, negotiationOn, neg.narzutOverride, neg.marzaOverride]);
 
   // displayData: kopia z przemnozonymi cenami w slotach (jezeli tryb negocjacji aktywny)
+  // iter95dd: w trybie negocjacji, gdy ustawiono marzaOverride/narzutOverride,
+  // WYMUS te wartosci na wszystkich liniach materialow (zastapuje per-row marza_pct/narzut_pct).
+  // Bez tego override zmienial tylko default, ale linie z wlasnym marza_pct=8 ignorowaly zmiane.
   const displayData = useMemo(() => {
     if (!data || !negotiationOn) return data;
+    const forceNarzut = neg.narzutOverride !== '' ? (parseFloat(neg.narzutOverride) || 0) : null;
+    const forceMarza = neg.marzaOverride !== '' ? (parseFloat(neg.marzaOverride) || 0) : null;
     return {
       ...data,
       stages: (data.stages || []).map((st) => ({
         ...st,
         positions: (st.positions || []).map((p) => ({
           ...p,
-          slots: (p.slots || []).map((s) => ({
-            ...s,
-            unit_price_netto: (parseFloat(s.unit_price_netto) || 0) * (negFactors[s.type] ?? 1),
-          })),
+          slots: (p.slots || []).map((s) => {
+            const out = {
+              ...s,
+              unit_price_netto: (parseFloat(s.unit_price_netto) || 0) * (negFactors[s.type] ?? 1),
+            };
+            // Wymus marza/narzut TYLKO dla materialow (labor/equipment ignoruja marza)
+            if (s.type === 'materials' || !s.type) {
+              if (forceNarzut !== null) out.narzut_zapas_pct = forceNarzut;
+              if (forceMarza !== null) out.marza_pct = forceMarza;
+            }
+            return out;
+          }),
         })),
       })),
     };
-  }, [data, negotiationOn, negFactors]);
+  }, [data, negotiationOn, negFactors, neg.narzutOverride, neg.marzaOverride]);
 
   const saveDefault = async (field, value) => {
     const num = value === '' ? null : parseFloat(value);
