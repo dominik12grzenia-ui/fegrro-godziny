@@ -25,6 +25,8 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onCategoryChange,
       // iter95bo: trzecia jednostka (mb/szt/kpl/godz/dzien/kg/t) - dowolna cena + jednostka
       price_other: edit.price_other === '' || edit.price_other == null ? null : parseFloat(edit.price_other),
       unit_other: (edit.unit_other || '').trim() || null,
+      // iter95cv: koszt wykonania elementu (koszt firmowy) - do kalkulacji marzy
+      koszt_wykonania: edit.koszt_wykonania === '' || edit.koszt_wykonania == null ? null : parseFloat(edit.koszt_wykonania),
       // iter95bm: minimum/maximum godzinowe robocizny (kopiowane do wyceny przy wyborze)
       price_min: edit.price_min === '' || edit.price_min == null ? null : parseFloat(edit.price_min),
       price_max: edit.price_max === '' || edit.price_max == null ? null : parseFloat(edit.price_max),
@@ -114,6 +116,17 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onCategoryChange,
             <option value="punkt">punkt</option>
           </select>
         </div>
+      </td>
+      {/* iter95cv: koszt wykonania elementu - wewnetrzny koszt firmowy per jednostka.
+          Po pomnozeniu przez ilosc daje prognozowany koszt robocizny do kalkulacji marzy. */}
+      <td className="border-r border-[#3D5378]/40 p-1">
+        <input type="number" step="0.01" value={edit.koszt_wykonania ?? ''}
+          onChange={(e) => setEdit({ ...edit, koszt_wykonania: e.target.value })}
+          onBlur={() => save()}
+          className={`${inputCls} text-right tabular-nums text-[#F87171] font-semibold`}
+          placeholder="—"
+          title="Koszt wykonania jednostkowej ilości prac (robocizna + koszty firmowe). Po pomnożeniu przez ilość daje prognozowany koszt robocizny."
+          data-testid={`labor-koszt-wykonania-${item.id}`} />
       </td>
       {/* iter95bm: cena min/max - kopiuje sie do wyceny przy wyborze pozycji */}
       <td className="border-r border-[#3D5378]/40 p-1">

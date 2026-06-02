@@ -132,6 +132,10 @@ export const LaborPriceBook = () => {
                     title="Dowolna jednostka: mb, szt, kpl, godz, dzień, kg, t">
                   <span className="text-[#9DBC85]">cena za inną jedn.</span>
                 </th>
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[110px]"
+                    title="Koszt wykonania jednostkowej ilości prac (robocizna + koszty firmowe). Po pomnożeniu przez ilość daje prognozowany koszt robocizny — używany do kalkulacji marży/zysku.">
+                  <span className="text-[#FCA5A5]">koszt wykonania</span>
+                </th>
                 <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[90px]"
                     title="Cena minimalna - blokuje obniżenie w trybie negocjacji">
                   <span className="text-[#FCA5A5]">cena min</span>
@@ -160,7 +164,7 @@ export const LaborPriceBook = () => {
                 return (
                   <React.Fragment key={sc}>
                     <tr className="bg-[#1E2A44]">
-                      <td colSpan="8" className="p-1.5 border-b border-[#3D5378]">
+                      <td colSpan="9" className="p-1.5 border-b border-[#3D5378]">
                         <button onClick={toggle}
                           className="flex items-center gap-2 text-[#D4AF37] font-semibold text-[11px] uppercase hover:text-[#FCD34D]"
                           data-testid={`labor-cat-toggle-${sc}`}>
@@ -180,7 +184,7 @@ export const LaborPriceBook = () => {
                       </td>
                     </tr>
                     {!isCollapsed && (items.length === 0 ? (
-                      <tr><td colSpan="9" className="p-2 text-[#94A3B8] text-center text-[10px]">— brak pozycji —</td></tr>
+                      <tr><td colSpan="10" className="p-2 text-[#94A3B8] text-center text-[10px]">— brak pozycji —</td></tr>
                     ) : (
                       items.map((it) => (
                         <LaborRow key={it.id} item={it}

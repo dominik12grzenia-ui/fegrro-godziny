@@ -1,0 +1,25 @@
+{
+  "summary": "Frontend-only verification of new 'koszt wykonania' column in LaborPriceBook (Wyceny → Ceny robocizny). All 5 sub-tests PASSED: column header visible, input persists after reload, history correctly logs koszt_wykonania changes, existing labor row UI (m2 edit + category dropdown) still works, AI Polish sparkle icon still rendered in wycena editor.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "LaborPriceBook table header (Ceny robocizny)", "issues": ["'koszt wykonania' header wraps to 2 lines because the column is fairly narrow next to 'cena za inną jedn.' — purely cosmetic, header is fully readable. Consider a slightly wider min-width or a non-breaking space."]}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Backend (wyceny.py): koszt_wykonania is Optional[float] with no validation against negative values — consider Field(ge=0) like other prices to prevent negative labor cost entries.",
+    "Frontend LaborRow.js: input uses type='number' which fine, but blur-save logic should debounce/avoid double-PATCH when the user tabs through multiple fields rapidly (existing pattern, not a regression)."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "n/a (skipped per request)", "frontend": "100% (5/5 sub-tests passed)" },
+  "test_credentials": "admin@fegrro.pl / Admin123! via /login (POST /api/auth/admin/login). NOTE: Wyceny is NOT a top-level route; access via wyceny-tab inside /admin/dashboard. Labor pricebook sub-tab text is 'Ceny robocizny' (not 'Robocizna') and there is NO 'Cennik' sub-tab (the four sub-tabs are Wyceny / Ceny materiałów / Ceny robocizny / Ceny sprzętu).",
+  "seed_data_creation": "Added one labor row in POZOSTAŁE category with koszt_wykonania=47.25 and price_m2=120.00 (row id 039316f2-c207-4306-827b-326d2c8d1f44).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Correct navigation: /login -> admin@fegrro.pl/Admin123! -> dismiss 'Przypomnij mi jutro' push modal -> click [data-testid=wyceny-tab] -> click sub-tab text 'Ceny robocizny'. Uncheck [data-testid=labor-hide-empty] (or use category that contains rows) to see existing rows. Field testid: labor-koszt-wykonania-{id}. History testid: labor-history-{id} — shows lines like 'koszt_wykonania: — → 47,25'. PriceBookCreate/PriceBookUpdate now accept koszt_wykonania (Optional[float]).",
+  "rca of the issue": "Initial test attempts failed because (a) login lives at /login not /admin and (b) Wyceny is rendered as a Tab inside /admin/dashboard, not a standalone route /wyceny — the sub-tab name is 'Ceny robocizny', not 'Robocizna' as the review request hinted. After navigating via wyceny-tab → Ceny robocizny, all assertions passed: column header rendered (count=1), value 47.25 persisted after reload, history contained 'koszt_wykonania: — → 47,25', m2 column still editable (returned 120.00), category dropdown still has 12 options, and 4 sparkle SVGs (lucide-sparkles) rendered in the wycena editor."
+}

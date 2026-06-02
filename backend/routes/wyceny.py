@@ -195,6 +195,10 @@ class PriceBookCreate(BaseModel):
     # iter95bo: dodatkowa cena za dowolna jednostke (mb/szt/kpl/godz/dzien/kg/t)
     price_other: Optional[float] = None
     unit_other: Optional[str] = None         # np. "mb", "szt", "kpl", "godz"
+    # iter95cv: KOSZT WYKONANIA ELEMENTU (labor) - wewnetrzny koszt firmowy per
+    # jednostka pracy (robocizna + narzuty firmowe). Po pomnozeniu przez ilosc daje
+    # prognozowany koszt robocizny do kalkulacji marzy. Sprzedaz = price_m2/m3/other.
+    koszt_wykonania: Optional[float] = None
     # iter95n: pola dla EQUIPMENT (sprzet)
     price_hour: Optional[float] = None       # koszt za godzine
     price_day: Optional[float] = None        # koszt za dzien
@@ -228,6 +232,8 @@ class PriceBookUpdate(BaseModel):
     # iter95bo: trzecia jednostka (mb/szt/kpl/godz/dzien/kg/t)
     price_other: Optional[float] = None
     unit_other: Optional[str] = None
+    # iter95cv: koszt wykonania elementu (labor) - wewnetrzny koszt firmowy
+    koszt_wykonania: Optional[float] = None
     # iter95n: equipment
     price_hour: Optional[float] = None
     price_day: Optional[float] = None
@@ -736,6 +742,8 @@ async def create_price_book(payload: PriceBookCreate, current_user: dict = Depen
         # iter95bo: trzecia jednostka labor (mb/szt/kpl/godz/dzien/kg/t)
         "price_other": payload.price_other,
         "unit_other": payload.unit_other,
+        # iter95cv: koszt wykonania elementu (labor) - koszt firmowy per jednostka
+        "koszt_wykonania": payload.koszt_wykonania,
         # iter95n: equipment
         "price_hour": payload.price_hour,
         "price_day": payload.price_day,
@@ -760,10 +768,10 @@ async def update_price_book(item_id: str, payload: PriceBookUpdate, _user: dict 
     raw = payload.dict(exclude_unset=True)
     updates = dict(raw)
     updates["updated_at"] = datetime.now().isoformat()
-    # iter95m: dla labor - sledz zmiany price_m2/price_m3/price_other w price_history
+    # iter95m: dla labor - sledz zmiany price_m2/price_m3/price_other/koszt_wykonania w price_history
     history_entries = []
     if existing.get("category") == "labor":
-        for field in ("price_m2", "price_m3", "price_other", "unit_price_netto"):
+        for field in ("price_m2", "price_m3", "price_other", "unit_price_netto", "koszt_wykonania"):
             if field in raw:
                 old_val = existing.get(field)
                 new_val = raw[field]
