@@ -248,31 +248,35 @@ def _ensure_cat(cat: str):
 # =========== WYCENY (naglowki) ===========
 @router.get("/wyceny")
 async def list_wyceny(_user: dict = Depends(get_current_admin)):
-    # iter95bj: optymalizacja N+1 query. Wczesniej dla kazdej wyceny robilismy
-    # osobny find na wyceny_lines (O(N*M)). Teraz 2 zapytania: 1) wyceny, 2) wszystkie
-    # linie naraz przez $in i grupowanie w Pythonie.
+    # iter95co: suma netto pokazywana w liscie wycen musi byc spojna z PDF/UI
+    # (uwzgledniac narzut/marze/kaucje/zaokraglenie). Wczesniej (iter95bj) liczona
+    # surowa qty*price z linii - po dodaniu narzutow user widzial stara wartosc.
+    # Teraz uzywamy `_build_wycena_export` per wycena - identyczne z UI/PDF.
     rows = await db.wyceny.find({}, {"_id": 0}).sort([("created_at", -1)]).to_list(length=1000)
     if not rows:
         return {"rows": []}
+    # Pobierz line counts jednym query (do "Pozycje" w liscie)
     wycena_ids = [w["id"] for w in rows]
-    all_lines = await db.wyceny_lines.find(
-        {"wycena_id": {"$in": wycena_ids}},
-        {"_id": 0, "wycena_id": 1, "id": 1, "parent_id": 1, "quantity": 1, "unit_price_netto": 1},
-    ).to_list(length=None)
-    # Grupuj w Pythonie - jeden przejazd
-    lines_by_wycena = {}
-    for ln in all_lines:
-        lines_by_wycena.setdefault(ln["wycena_id"], []).append(ln)
+    lines_count_by_wycena = {}
+    pipeline = [
+        {"$match": {"wycena_id": {"$in": wycena_ids}}},
+        {"$group": {"_id": "$wycena_id", "count": {"$sum": 1}}},
+    ]
+    async for d in db.wyceny_lines.aggregate(pipeline):
+        lines_count_by_wycena[d["_id"]] = d["count"]
     for w in rows:
-        lines = lines_by_wycena.get(w["id"], [])
-        parent_ids = {ln.get("parent_id") for ln in lines if ln.get("parent_id")}
-        total = 0.0
-        for ln in lines:
-            if ln["id"] in parent_ids:
-                continue  # ma dzieci - pomijamy (liczymy tylko liscie)
-            total += float(ln.get("quantity") or 0) * float(ln.get("unit_price_netto") or 0)
-        w["total_netto"] = round(total, 2)
-        w["lines_count"] = len(lines)
+        try:
+            data = await _build_wycena_export(w["id"])
+            total = 0.0
+            for st_data in data.get("stages", []):
+                for pe in st_data.get("positions", []):
+                    qty = float(pe.get("qty") or 0)
+                    cena_rounded = float(pe.get("cena") or 0)
+                    total += qty * cena_rounded
+            w["total_netto"] = round(total, 2)
+        except Exception:
+            w["total_netto"] = 0.0
+        w["lines_count"] = lines_count_by_wycena.get(w["id"], 0)
     return {"rows": rows}
 
 

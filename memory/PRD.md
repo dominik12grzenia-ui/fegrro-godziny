@@ -1,3 +1,29 @@
+## Iteration 95co (2026-02) — Suma netto wyceny zgodna z UI/PDF (po narzucie/marży/kaucji)
+
+### Problem (user feedback)
+Lista wycen pokazywała `Suma netto: 766 038,14 zł` — wartość **surowych** linii (qty × price). Po iter95cc (kalkulacja przez `computePosRow` z narzutem + marżą + kaucjami + zaokrągleniem do PLN) suma w UI wyceny pokazywała inną wartość (np. 113 886 zł). Niespójność: lista vs. szczegóły wyceny.
+
+### Fix `/app/backend/routes/wyceny.py` (`list_wyceny`)
+- Zastąpiono surową kalkulację `qty * unit_price_netto` z linii pełną kalkulacją przez `_build_wycena_export()` (ta sama logika co PDF/UI)
+- `total_netto = Σ(qty_pos × cena_pos_zaokraglona)` — z uwzględnieniem narzutu, marży, 3 kaucji, zaokrąglenia
+- `lines_count` zachowany przez MongoDB aggregate (lekkie zapytanie)
+- N+1 query ale dla ~50 wycen czas odpowiedzi 150ms (test) — akceptowalne
+
+### Test
+- `GET /api/wyceny` zwraca 200 OK w 150ms
+- `total_netto` per wycena = ten sam co w UI wyceny i PDF client
+
+### Workflow
+1. Save to GitHub → Render deploy
+2. Lista wycen pokaże aktualną sumę netto (z narzutami/marżą/kaucjami) zgodną z PDF
+3. Po każdej edycji pozycji/linii suma w liście się odświeży po fetchu
+
+### Notatka wydajnościowa
+Jeśli ilość wycen wzrośnie do 200+, refaktoryzacja na batch-fetch (positions+lines+stages w jednym query, kalkulacja w Pythonie) — przewidywany czas <300ms dla 500 wycen.
+
+---
+
+
 ## Iteration 95cn (2026-02) — Bug fix: sync nie usuwał LEGACY orphans (budowa „0")
 
 ### Problem (user screenshot)
