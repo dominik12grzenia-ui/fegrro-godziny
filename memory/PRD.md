@@ -14,6 +14,13 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95da — "Aktualizuj ceny" + auto-link po nazwie/typie (P1)
+- Endpoint `POST /wyceny/{id}/refresh-prices` rozszerzony: dla linii BEZ `price_book_id` (np. dodanych ręcznie lub przez import Excela) automatycznie szuka dopasowania w cenniku po (`type`, `name`) — case-insensitive + normalizacja whitespace.
+- Po dopasowaniu: zapisuje `price_book_id` na linii i propaguje cenę + `koszt_wykonania` + nazwę (znormalizowaną).
+- Response: dodano pole `auto_linked` z liczbą nowych powiązań.
+- Frontend toast pokazuje: „Zaktualizowano N pozycji z cennika (auto-powiązano z cennikiem: M)".
+- Tested curl ✅ (3/4 linii auto-zlinkowane i zsynchronizowane, 1 pominięta jako "nieznana pozycja").
+
 ### 2026-02 — iter95cz — "Aktualizuj ceny" synchronizuje też `koszt_wykonania` (P1)
 - Endpoint `POST /wyceny/{id}/refresh-prices` (przycisk „🔄 Aktualizuj ceny" w UI) teraz dla każdej linii typu `labor` z `price_book_id` nadpisuje `koszt_wykonania` wartością z cennika.
 - Logika: gdy w cenniku jest `koszt_wykonania` różny od bieżącej linii — aktualizuj. Nie kasujemy ręcznie ustawionych wartości jeśli cennik ma `null` (nie dotykamy pola).

@@ -2667,33 +2667,63 @@ class NegotiationApplyRequest(BaseModel):
 
 
 # iter95bs: refresh ceny z cennika dla wszystkich linii w wycenie
+# iter95da: + auto-link po name+type dla linii bez price_book_id
 @router.post("/wyceny/{wycena_id}/refresh-prices")
 async def refresh_wycena_prices(
     wycena_id: str,
     current_user: dict = Depends(get_current_admin),
 ):
-    """Aktualizuje pola (name, unit_price_netto, price_min/max) we wszystkich liniach
-    wyceny ktore maja price_book_id - biorac aktualne wartosci z `wyceny_price_book`.
-    Zwraca licznik zaktualizowanych linii.
+    """Aktualizuje pola (name, unit_price_netto, price_min/max, koszt_wykonania)
+    we wszystkich liniach wyceny - biorac aktualne wartosci z `wyceny_price_book`.
+
+    iter95da: Linie BEZ `price_book_id` (np. dodane recznie lub przez import Excela)
+    sa automatycznie linkowane do cennika po (`type`, `name`) - case-insensitive +
+    normalizacja whitespace. Jesli matched, ustawia `price_book_id` i propaguje cene/kw.
     """
     wycena = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0, "id": 1})
     if not wycena:
         raise HTTPException(404, "Wycena nie istnieje")
-    lines_cursor = db.wyceny_lines.find(
-        {"wycena_id": wycena_id, "price_book_id": {"$ne": None}},
-        {"_id": 0},
-    )
+
+    # iter95da: zbuduj indeks cennika po (category, normalized_name) dla auto-linkowania
+    _CAT_TO_TYPE = {"materials": "materials", "labor": "labor", "equipment": "equipment"}
+    def _norm(s):
+        return " ".join((s or "").lower().split())
+    pb_index = {}
+    async for pb_row in db.wyceny_price_book.find({}, {"_id": 0}):
+        cat = pb_row.get("category")
+        nm = _norm(pb_row.get("name"))
+        if cat and nm:
+            pb_index.setdefault((cat, nm), pb_row)
+
+    # Linie wymagajace synchronizacji: te z price_book_id + te bez (do auto-linkowania)
+    lines_cursor = db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0})
     updated_count = 0
     skipped_count = 0
+    auto_linked_count = 0
     async for line in lines_cursor:
-        pb = await db.wyceny_price_book.find_one(
-            {"id": line["price_book_id"]}, {"_id": 0}
-        )
+        pb = None
+        line_pb_id = line.get("price_book_id")
+        if line_pb_id:
+            pb = await db.wyceny_price_book.find_one(
+                {"id": line_pb_id}, {"_id": 0}
+            )
+        else:
+            # iter95da: probuj auto-link po (type, name)
+            ltype_match = _CAT_TO_TYPE.get(line.get("type"))
+            ln_norm = _norm(line.get("name"))
+            if ltype_match and ln_norm:
+                pb = pb_index.get((ltype_match, ln_norm))
         if not pb:
             skipped_count += 1
             continue
+        # Jesli przyszlismy z auto-linka, zapisz price_book_id na linii
+        if not line_pb_id and pb.get("id"):
+            line["price_book_id"] = pb["id"]
+            auto_linked_count += 1
         ltype = line.get("type")  # materials | labor | equipment
         updates = {}
+        if not line_pb_id and pb.get("id"):
+            updates["price_book_id"] = pb["id"]
         if pb.get("name") and pb["name"] != line.get("name"):
             updates["name"] = pb["name"]
         pb_min = pb.get("price_min")
@@ -2744,6 +2774,7 @@ async def refresh_wycena_prices(
     return {
         "updated": updated_count,
         "skipped": skipped_count,
+        "auto_linked": auto_linked_count,
         "total_linked": updated_count + skipped_count,
     }
 

@@ -301,13 +301,14 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     setRefreshingPrices(true);
     try {
       const r = await api.post(`/wyceny/${wycenaId}/refresh-prices`);
-      const { updated, skipped, total_linked } = r.data || {};
+      const { updated, skipped, auto_linked, total_linked } = r.data || {};
       if (total_linked === 0) {
-        toast.info('Brak pozycji powiązanych z cennikiem (price_book_id).');
+        toast.info('Brak pozycji w wycenie do aktualizacji.');
       } else if (updated === 0) {
-        toast.info(`Wszystkie ${total_linked} powiązanych pozycji już aktualne.`);
+        toast.info(`Wszystkie ${total_linked} pozycji już aktualne. (Pominięto: ${skipped || 0})`);
       } else {
-        toast.success(`Zaktualizowano ${updated} z ${total_linked} pozycji z cennika`);
+        const autoMsg = auto_linked > 0 ? ` (auto-powiązano z cennikiem: ${auto_linked})` : '';
+        toast.success(`Zaktualizowano ${updated} pozycji z cennika${autoMsg}`);
       }
       await fetchData(true);
     } catch (e) {
