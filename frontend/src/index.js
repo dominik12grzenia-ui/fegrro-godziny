@@ -2,6 +2,10 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "@/index.css";
 import App from "@/App";
+import { initSpellcheck } from "@/lib/spellcheck";
+
+// iter95ct: globalny spell-check (PL) dla wszystkich input/textarea/contenteditable
+initSpellcheck();
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 root.render(

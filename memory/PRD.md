@@ -14,6 +14,14 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95ct — Globalny spell-check (PL) w całej aplikacji (P1)
+- `/app/frontend/src/lib/spellcheck.js`: globalny moduł włączający `spellcheck="true"` + `lang="pl"` na wszystkich `input` (typu text/email/search/url/""), `textarea` i `[contenteditable]` w całej aplikacji.
+- `MutationObserver` aktualizuje pola dynamicznie dodawane przez React (formularze wycen, klientów, opisy pozycji, maile, treści ofert).
+- Heurystyczne wykluczenia: pola password/pin/code/token, NIP/PESEL/REGON/IBAN/KRS, kwoty/ceny/VAT, telefony, URL-e, JSON-y (po `name`/`id`/`placeholder`/`aria-label`).
+- Indywidualne wyłączenie per-pole: `data-spellcheck="off"` lub `spellcheck="false"`.
+- `<html lang="en">` → `<html lang="pl">` w `index.html` (Chrome/Firefox/Safari używają polskiego słownika OS).
+- Weryfikacja: ekran logowania → 2/3 inputów ze `spellcheck=true + lang=pl`, password pominięty.
+
 ### 2026-02 — iter95cs — Wyceny logo branding cleanup (P0)
 - Przetworzono dostarczony PNG (`white logo on navy box`) przez PIL: usunięto granatowe tło, wyizolowano sygnetę "F" + napis "FeGrro" w czystej czerni na transparentnym tle (208×158, 5477 B, sprawdzone przez analizator obrazów: "logo is entirely black, background is white, proportions natural").
 - Zaktualizowano `_TEMPLATE_CONFIGS["premium"].logo_mm` 42 → 22 (mniejsze, profesjonalne nagłówki biznesowe).
