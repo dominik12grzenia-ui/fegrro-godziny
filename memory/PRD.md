@@ -14,6 +14,15 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cw — Per-type wzory kosztPrognozowany + auto-copy z cennika (P1)
+- **Wzory** w `_shared.js computeSubRow`:
+  - `labor`: `qty × (sub.koszt_wykonania ?? cena)` — fallback do ceny gdy brak kosztu.
+  - `materials`: `qty × cena × (1 + narzut/100)` (bez zmian).
+  - `equipment`: `qty × cena` (bez narzutu).
+- **Backend** `LineCreate`/`LineUpdate`: pole `koszt_wykonania`. `POST /wyceny/lines` auto-kopiuje z `wyceny_price_book.koszt_wykonania` gdy `type=labor` + `price_book_id`. `PATCH` z nowym `price_book_id` auto-kopiuje gdy linia ma `koszt_wykonania=null`. Round-to-2dp.
+- **Frontend** `pickFromBook`: przy wyborze pozycji `labor` z cennika kopiuje `koszt_wykonania` do podpozycji. `save` payload przesyła pole na backend.
+- Tested 3/3 UI formuł + auto-copy via Playwright (iteration_57).
+
 ### 2026-02 — iter95cv — Cennik robocizny: kolumna „koszt wykonania elementu" (P1)
 - **Backend**: nowe pole `koszt_wykonania` (Optional[float]) w `PriceBookCreate` + `PriceBookUpdate` + `create_price_book` doc dict + history tracking dla `labor`. Zmiany trafiają do `price_history`.
 - **Frontend**: nowy `<th>` „koszt wykonania" w `LaborPriceBook.js` (między „cena za inną jedn." a „cena min"); `<td><input>` w `LaborRow.js` z testidem `labor-koszt-wykonania-{id}` (czerwony tabularnums #F87171).
