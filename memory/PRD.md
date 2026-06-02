@@ -14,11 +14,16 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cs — Wyceny logo branding cleanup (P0)
+- Przetworzono dostarczony PNG (`white logo on navy box`) przez PIL: usunięto granatowe tło, wyizolowano sygnetę "F" + napis "FeGrro" w czystej czerni na transparentnym tle (208×158, 5477 B, sprawdzone przez analizator obrazów: "logo is entirely black, background is white, proportions natural").
+- Zaktualizowano `_TEMPLATE_CONFIGS["premium"].logo_mm` 42 → 22 (mniejsze, profesjonalne nagłówki biznesowe).
+- Wszystkie 3 PDF generatory (`_generate_wycena_client_pdf_bytes`, `_generate_wycena_pdf_bytes`, BOM/zapytanie) + `_xlsx_add_logo` teraz **zachowują proporcje obrazu** odczytane z pliku PNG zamiast wymuszać kwadrat (208/158 ≈ 1.32:1).
+- Source-of-truth: `/app/backend/assets/logo/logo.png`.
+
 ### 2026-02 — iter95cr — Wyceny PDF/XLSX logo fix (P0)
-- Skopiowano `icon-512x512.png` → `/app/backend/assets/logo/logo.png` (plus 192 i apple-touch wariant) — logo jest teraz częścią deployu backendu (analogicznie do `assets/fonts/`).
-- `_get_logo_path()` w `routes/wyceny.py` priorytetuje bundled backend path; `/app/frontend/public/` zostaje jako fallback dla dev.
-- Usunięto zahardkodowaną listę ścieżek frontendowych z `_generate_wycena_client_pdf_bytes` (linie ok. 1903–1909). Cała generacja PDF/XLSX teraz centralnie używa `_get_logo_path()`.
-- Weryfikacja: `GET /api/wyceny/{id}/export.pdf` zwraca 200, PDF zawiera embedded image (24089 B = dokładnie nasz `logo.png`).
+- Zbundlowano logo w `/app/backend/assets/logo/` (analogicznie do `assets/fonts/`) — działa na każdym deployu (Render: osobne frontend/backend).
+- `_get_logo_path()` priorytetuje bundled backend path; `/app/frontend/public/` fallback dla dev.
+- Usunięto duplikat hardcoded paths z `_generate_wycena_client_pdf_bytes`.
 
 ### Wcześniejsze (sesja poprzednia)
 - iter95cq HoursTable/WorkerDashboard kolory kropek z DB.
@@ -28,16 +33,17 @@ Polish (PL).
 - iter95ce Budget formula UI/PDF parity.
 - iter95ca–cd, cp Math precision 2 decimals.
 - iter95by–bz Cosmetic PDF (title, alignment, KeepTogether).
-- iter95bv–bx PDF download Network Error + 500 errors (HTML escape, Content-Disposition, fonty PL).
+- iter95bv–bx PDF download Network Error + 500 errors.
 
 ## Backlog (priority order)
 - 🟡 P2 — "Wymagane zatwierdzenie kierownika": workflow blokady gdy cena < `price_min`.
-- 🟢 P3 — Refactor `routes/wyceny.py` (3257 linii) → `wyceny_exports.py`, `wyceny_pricebooks.py`, etc.
+- 🟢 P3 — Refactor `routes/wyceny.py` (3282 linii) → `wyceny_exports.py`, `wyceny_pricebooks.py`, etc.
 - 🟢 P3 — Centralizacja `getSiteColorHex` (hooks/_shared.js) — duplikat w HoursTable + WorkerDashboard.
 - 🟢 P3 — Google Maps Marker → AdvancedMarkerElement.
 
 ## Critical notes for next agent
-- Render: frontend i backend deployowane osobno — **NIGDY** nie linkuj zasobów backendu do `/app/frontend/public/`. Wszystko co backend ma renderować w PDF/XLSX musi siedzieć w `/app/backend/assets/`.
+- Render: frontend i backend deployowane osobno — wszystko co backend ma renderować w PDF/XLSX musi siedzieć w `/app/backend/assets/`.
 - Zawsze używaj `_pdf_text()` / `_pdf_safe()` / `_safe_content_disposition()` w `routes/wyceny.py` dla polskich znaków.
 - Standard zaokrąglania: `round(val, 2)` w UI i backendzie.
-- Logo source-of-truth: `/app/backend/assets/logo/logo.png` (resolver: `_get_logo_path()`).
+- Logo source-of-truth: `/app/backend/assets/logo/logo.png` (resolver: `_get_logo_path()`). Aktualnie 208×158, ratio 1.32:1, czarne na transparentnym.
+- Przy modyfikowaniu rozmiarów loga w PDF zawsze używaj `width=N*mm, height=N*ratio*mm` (ratio z PIL.Image.size) zamiast wymuszać kwadrat.

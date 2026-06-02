@@ -1046,15 +1046,22 @@ def _safe_content_disposition(disposition: str, filename: str) -> str:
 
 
 def _xlsx_add_logo(ws, anchor: str = "A1", width: int = 110, height: int = 110) -> None:
-    """iter95av: wstawia logo w arkuszu XLSX na danej kotwicy. Cicho ignoruje błąd."""
+    """iter95av: wstawia logo w arkuszu XLSX na danej kotwicy. Cicho ignoruje błąd.
+    iter95cs: zachowuje naturalne proporcje pliku PNG zamiast wymuszać kwadrat -
+    parametr `width` jest brany jako bazowa szerokość, wysokość liczona z aspect ratio.
+    """
     try:
         path = _get_logo_path()
         if not path:
             return
         from openpyxl.drawing.image import Image as XLImage
+        from PIL import Image as PILImage
+        with PILImage.open(path) as _li:
+            _lw, _lh = _li.size
+        _ratio = (_lh / _lw) if _lw else 1.0
         img = XLImage(path)
         img.width = width
-        img.height = height
+        img.height = int(width * _ratio)
         img.anchor = anchor
         ws.add_image(img)
     except Exception:
@@ -1196,8 +1203,14 @@ def _generate_bom_pdf_bytes(data: dict):
     ))
     if logo_path:
         try:
-            img = RLImage(logo_path, width=22 * mm, height=22 * mm)
-            head_tbl = Table([[img, title_cell[0]]], colWidths=[26 * mm, 160 * mm])
+            # iter95cs: zachowaj proporcje (logo prostokątne, nie kwadratowe)
+            from PIL import Image as PILImage
+            with PILImage.open(logo_path) as _li:
+                _lw, _lh = _li.size
+            _ratio = (_lh / _lw) if _lw else 1.0
+            _w_mm = 18
+            img = RLImage(logo_path, width=_w_mm * mm, height=_w_mm * _ratio * mm)
+            head_tbl = Table([[img, title_cell[0]]], colWidths=[22 * mm, 164 * mm])
         except Exception:
             head_tbl = Table([[title_cell[0]]], colWidths=[186 * mm])
     else:
@@ -1644,8 +1657,14 @@ def _generate_wycena_pdf_bytes(data: dict, detail: str = "positions"):
     )
     if logo_path:
         try:
-            img = RLImage(logo_path, width=20 * mm, height=20 * mm)
-            head_tbl = Table([[img, title_para]], colWidths=[24 * mm, 257 * mm])
+            # iter95cs: zachowaj proporcje loga
+            from PIL import Image as PILImage
+            with PILImage.open(logo_path) as _li:
+                _lw, _lh = _li.size
+            _ratio = (_lh / _lw) if _lw else 1.0
+            _w_mm = 18
+            img = RLImage(logo_path, width=_w_mm * mm, height=_w_mm * _ratio * mm)
+            head_tbl = Table([[img, title_para]], colWidths=[22 * mm, 259 * mm])
         except Exception:
             head_tbl = Table([[title_para]], colWidths=[281 * mm])
     else:
@@ -1855,7 +1874,7 @@ _TEMPLATE_CONFIGS = {
         "primary_text": "#152033",  # tytul, etapy
         "accent": "#9DBC85",        # zielony FeGrro (akcent — pasek pod headerem, tagline)
         "header_bg_alt": "#F1F4F9", # cool gray zebra
-        "logo_mm": 42,
+        "logo_mm": 22,
         "tagline": "USŁUGI BUDOWLANE",
         "show_gold_bar": True,      # zielony pasek pod headerem
         "total_bg": "#152033",      # ciemne tlo total
@@ -1903,12 +1922,18 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     # iter95cr: użyj helpera _get_logo_path() (priorytet bundled backend assets)
     # zamiast zahardkodowanej listy frontendowych ścieżek - inaczej na produkcji
     # (Render: osobne deploye backend/frontend) logo nie istnieje na backendzie.
+    # iter95cs: zachowaj proporcje obrazka (logo czarne na transparentnym tle ma
+    # naturalny aspekt ~1.32:1, więc rysowanie kwadratu zniekształcało je).
     logo_mm_val = cfg["logo_mm"]
     logo_path = _get_logo_path()
     header_cells = []
     if logo_path:
         try:
-            img = Image(logo_path, width=logo_mm_val * mm, height=logo_mm_val * mm)
+            from PIL import Image as PILImage
+            with PILImage.open(logo_path) as _li:
+                _lw, _lh = _li.size
+            _ratio = (_lh / _lw) if _lw else 1.0
+            img = Image(logo_path, width=logo_mm_val * mm, height=logo_mm_val * _ratio * mm)
             header_cells.append(img)
         except Exception:
             header_cells.append("")
