@@ -14,6 +14,12 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cv — Cennik robocizny: kolumna „koszt wykonania elementu" (P1)
+- **Backend**: nowe pole `koszt_wykonania` (Optional[float]) w `PriceBookCreate` + `PriceBookUpdate` + `create_price_book` doc dict + history tracking dla `labor`. Zmiany trafiają do `price_history`.
+- **Frontend**: nowy `<th>` „koszt wykonania" w `LaborPriceBook.js` (między „cena za inną jedn." a „cena min"); `<td><input>` w `LaborRow.js` z testidem `labor-koszt-wykonania-{id}` (czerwony tabularnums #F87171).
+- Semantyka: wewnętrzny koszt firmowy per jednostka pracy (robocizna + narzuty firmowe). Po pomnożeniu przez ilość → prognozowany koszt robocizny do kalkulacji marży/zysku. Cena sprzedaży nadal w `price_m2/m3/other`.
+- Tested: 5/5 frontend e2e (iteration_56) — kolumna widoczna, wartość persystuje, historia loguje zmiany, regresje czyste.
+
 ### 2026-02 — iter95cu — AI text polish dla wycen (Claude Haiku 4.5) (P1)
 - **Backend**: `POST /api/wyceny/ai/polish` w `/app/backend/routes/wyceny_ai.py` (3 trybie: `name`, `description`, `notes`) — Claude Haiku 4.5 przez `emergentintegrations` + `EMERGENT_LLM_KEY`. Lazy import biblioteki, system prompts po polsku zachowujące jednostki/wymiary/normy.
 - **Frontend**: `AiPolishButton.js` — mała ikonka ✨ obok nazw pozycji w `PosRow.js` i `SubRow.js`. Klik → AI poprawia ortografię, terminologię budowlaną i stylistykę, zachowując liczby i jednostki. Loading spinner, toasty (sukces/info/błąd).

@@ -132,9 +132,9 @@ export const LaborPriceBook = () => {
                     title="Dowolna jednostka: mb, szt, kpl, godz, dzień, kg, t">
                   <span className="text-[#9DBC85]">cena za inną jedn.</span>
                 </th>
-                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[110px]"
+                <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[140px]"
                     title="Koszt wykonania jednostkowej ilości prac (robocizna + koszty firmowe). Po pomnożeniu przez ilość daje prognozowany koszt robocizny — używany do kalkulacji marży/zysku.">
-                  <span className="text-[#FCA5A5]">koszt wykonania</span>
+                  <span className="text-[#FCA5A5]">koszt&nbsp;wykonania</span>
                 </th>
                 <th className="text-right p-2 border-b border-r border-[#3D5378] min-w-[90px]"
                     title="Cena minimalna - blokuje obniżenie w trybie negocjacji">
