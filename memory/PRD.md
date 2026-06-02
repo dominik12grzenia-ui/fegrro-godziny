@@ -14,6 +14,12 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95cu — AI text polish dla wycen (Claude Haiku 4.5) (P1)
+- **Backend**: `POST /api/wyceny/ai/polish` w `/app/backend/routes/wyceny_ai.py` (3 trybie: `name`, `description`, `notes`) — Claude Haiku 4.5 przez `emergentintegrations` + `EMERGENT_LLM_KEY`. Lazy import biblioteki, system prompts po polsku zachowujące jednostki/wymiary/normy.
+- **Frontend**: `AiPolishButton.js` — mała ikonka ✨ obok nazw pozycji w `PosRow.js` i `SubRow.js`. Klik → AI poprawia ortografię, terminologię budowlaną i stylistykę, zachowując liczby i jednostki. Loading spinner, toasty (sukces/info/błąd).
+- Przykład: `rurka pcv 110 plus studnia rewizyjna fi 400` → `Rurka PVC Ø 110 plus studnia rewizyjna Ø 400`. Czas ~2-3s.
+- Tested 9/9 pytest + e2e Playwright (iteration_55).
+
 ### 2026-02 — iter95ct — Globalny spell-check (PL) w całej aplikacji (P1)
 - `/app/frontend/src/lib/spellcheck.js`: globalny moduł włączający `spellcheck="true"` + `lang="pl"` na wszystkich `input` (typu text/email/search/url/""), `textarea` i `[contenteditable]` w całej aplikacji.
 - `MutationObserver` aktualizuje pola dynamicznie dodawane przez React (formularze wycen, klientów, opisy pozycji, maile, treści ofert).
