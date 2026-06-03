@@ -1118,29 +1118,29 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       </div>
 
       <div className="overflow-x-auto border border-[#3D5378] rounded">
-        <table className="text-xs border-collapse min-w-[2400px]" data-testid="wycena-excel-table">
+        <table className="text-xs border-collapse" style={{ tableLayout: 'fixed', width: '1565px' }} data-testid="wycena-excel-table">
           <thead className="sticky top-0 z-10">
             <tr>
-              <Th w="60" tip="Numer pozycji (auto)">KOD</Th>
-              <Th w="110" tip="Typ pozycji: główna lub podpozycja (materiał / robocizna / sprzęt)">RODZAJ</Th>
-              <Th w="320" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
-              <Th w="80" tip="W pozycji głównej: wpisywane RĘCZNIE (kontraktowa ilość, np. m²). W podpozycjach: ilość zużytego materiału / godzin / m-go.">ILOŚĆ</Th>
-              <Th w="85" tip="Jednostka miary (mb / m² / m³ / szt / kg / godz / dzień ...)">JEDN.</Th>
-              <Th w="70" tip="W pozycji głównej: BUDŻET ÷ ILOŚĆ (cena za jednostkę kontraktową). W podpozycji: cena jednostkowa netto.">CENA</Th>
-              <Th w="80" tip="Narzut na zapas materiału (%) — % doliczany do ceny zakupu na pokrycie strat/odpadów. Wpisywany ręcznie per podpozycja, lub z domyślnego globalnego.">NARZUT %</Th>
-              <Th w="80" tip="Marża materiałowa (%) — nasz zysk procentowy. Wpisywana ręcznie per podpozycja, lub z domyślnego globalnego.">MARŻA %</Th>
-              <Th w="90" tip="KAUCJA GIR = BUDŻET ZWOLNIONY × kaucja GIR % (zatrzymywana przez klienta do końca gwarancji)">KAUCJA GIR</Th>
-              <Th w="90" tip="KAUCJA DW = BUDŻET ZWOLNIONY × kaucja DW % (Dobre Wykonanie — zwracana po odbiorach)">KAUCJA DW</Th>
-              <Th w="100" tip="KOSZT BUDOWY = BUDŻET ZWOLNIONY × koszt budowy % (narzut na koszty ogólne budowy)">KOSZT BUDOWY</Th>
-              <Th w="100" tip="BUDŻET (cena dla klienta) = BUDŻET ZWOLNIONY + KAUCJA GIR + KAUCJA DW + KOSZT BUDOWY">BUDŻET</Th>
-              <Th w="110" tip="BUDŻET ZWOLNIONY = ilość × cena × (1 + narzut% + marża%) — bazowa kwota, którą faktycznie dostajemy">BUDŻET ZWOLNIONY</Th>
-              <Th w="110" tip="KOSZT PROGNOZOWANY (koszt firmowy):
+              <Th w="50" tip="Numer pozycji (auto)">KOD</Th>
+              <Th w="95" tip="Typ pozycji: główna lub podpozycja (materiał / robocizna / sprzęt)">RODZAJ</Th>
+              <Th w="260" tip="Nazwa pozycji lub materiału — edytowalna">NAZWA</Th>
+              <Th w="70" tip="W pozycji głównej: wpisywane RĘCZNIE (kontraktowa ilość, np. m²). W podpozycjach: ilość zużytego materiału / godzin / m-go.">ILOŚĆ</Th>
+              <Th w="65" tip="Jednostka miary (mb / m² / m³ / szt / kg / godz / dzień ...)">JEDN.</Th>
+              <Th w="80" tip="W pozycji głównej: BUDŻET ÷ ILOŚĆ (cena za jednostkę kontraktową). W podpozycji: cena jednostkowa netto.">CENA</Th>
+              <Th w="70" tip="Narzut na zapas materiału (%) — % doliczany do ceny zakupu na pokrycie strat/odpadów. Wpisywany ręcznie per podpozycja, lub z domyślnego globalnego.">NARZUT %</Th>
+              <Th w="70" tip="Marża materiałowa (%) — nasz zysk procentowy. Wpisywana ręcznie per podpozycja, lub z domyślnego globalnego.">MARŻA %</Th>
+              <Th w="85" tip="KAUCJA GIR = BUDŻET ZWOLNIONY × kaucja GIR % (zatrzymywana przez klienta do końca gwarancji)">KAUCJA GIR</Th>
+              <Th w="85" tip="KAUCJA DW = BUDŻET ZWOLNIONY × kaucja DW % (Dobre Wykonanie — zwracana po odbiorach)">KAUCJA DW</Th>
+              <Th w="90" tip="KOSZT BUDOWY = BUDŻET ZWOLNIONY × koszt budowy % (narzut na koszty ogólne budowy)">KOSZT BUDOWY</Th>
+              <Th w="95" tip="BUDŻET (cena dla klienta) = BUDŻET ZWOLNIONY + KAUCJA GIR + KAUCJA DW + KOSZT BUDOWY">BUDŻET</Th>
+              <Th w="100" tip="BUDŻET ZWOLNIONY = ilość × cena × (1 + narzut% + marża%) — bazowa kwota, którą faktycznie dostajemy">BUDŻET ZWOL.</Th>
+              <Th w="100" tip="KOSZT PROGNOZOWANY (koszt firmowy):
 • materiały:  ilość × cena × (1 + narzut%)
 • robocizna:  ilość × koszt_wykonania (z cennika lub ręcznie); fallback: ilość × cena
-• sprzęt:     ilość × cena (bez narzutu)">KOSZT PROGNOZOWANY</Th>
-              <Th w="100" tip="ZYSK PROGNOZOWANY = BUDŻET ZWOLNIONY − KOSZT PROGNOZOWANY">ZYSK PROGNOZOWANY</Th>
-              <Th w="110" tip="ZYSK + KAUCJA DW — ile finalnie zarobimy gdy KAUCJA DW zostanie zwolniona po odbiorach">ZYSK + KAUCJA DW</Th>
-              <Th w="70">AKCJE</Th>
+• sprzęt:     ilość × cena (bez narzutu)">KOSZT PROG.</Th>
+              <Th w="90" tip="ZYSK PROGNOZOWANY = BUDŻET ZWOLNIONY − KOSZT PROGNOZOWANY">ZYSK PROG.</Th>
+              <Th w="100" tip="ZYSK + KAUCJA DW — ile finalnie zarobimy gdy KAUCJA DW zostanie zwolniona po odbiorach">ZYSK+KAUCJA DW</Th>
+              <Th w="60">AKCJE</Th>
             </tr>
             <tr className="bg-[#152033] text-[#D4AF37] font-bold">
               <td className="border border-[#3D5378] px-2 py-2 text-center">Σ SUMA</td>

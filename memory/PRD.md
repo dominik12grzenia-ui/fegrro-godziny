@@ -14,6 +14,14 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95dg — Wąskie czytelne kolumny w tabeli wyceny (P1)
+- **Bug**: tabela miała `min-w-[2400px]` + tylko `minWidth` na `<th>` → kolumny rozciągały się proporcjonalnie do ~250px każda, wymuszając poziome przewijanie.
+- **Fix `Th` w `_shared.js`**: zamiast `minWidth` ustawia `width + minWidth + maxWidth` w pikselach (konwersja `w` z numeru/stringa na `"NNpx"`).
+- **Fix `<table>` w `Wyceny.js`**: `table-layout: fixed` + `width: 1565px` (suma szerokości kolumn) zamiast `min-w-[2400px]`.
+- **Zredukowane szerokości**: KOD 60→50, RODZAJ 110→95, NAZWA 320→260, ILOŚĆ 80→70, JEDN 85→65, CENA 70→80, NARZUT/MARŻA 80→70, KAUCJA 90→85, KOSZT BUDOWY 100→90, BUDŻET 100→95, BUDŻET ZWOLNIONY 110→100, etykiety skrócone (BUDŻET ZWOL., KOSZT PROG., ZYSK PROG., ZYSK+KAUCJA DW).
+- `Td`: padding zmniejszony `px-2 py-1.5` → `px-1.5 py-1` + `overflow-hidden` dla długiej treści.
+- Tested ✅: tabela 1566px (vs 2400+ wcześniej), wszystkie kolumny respektują własną szerokość, brak poziomego scrolla na ekranie 1920px.
+
 ### 2026-02 — iter95df — Globalny slider „Cała wycena -X%" w trybie negocjacji (P1)
 - Nowy slider w panelu negocjacji nad gridiem 3 kategorii: pomarańczowa karta „🎯 CAŁA WYCENA" z dużym inputem + 5 szybkimi przyciskami (-2, -3, -5, -7, -10%) + przyciskiem `×` (clear).
 - Logika: `negFactors[type] = (1 + neg[type]/100) × (1 + neg.overall/100)` — multiplikatywnie z per-kategorią. Dzięki temu można łączyć np. „cała wycena -3% + robocizna dodatkowo -2% = -4.94% na robociźnie".
