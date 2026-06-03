@@ -65,7 +65,7 @@ const DetailsModal = ({ kind, code, back, forward, onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-5xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-5xl w-[95vw] max-h-[90vh] overflow-hidden flex flex-col"
                      data-testid="forecast-details-modal">
         <DialogHeader>
           <DialogTitle className="text-[#D4AF37]">{titles[kind] || 'Szczegóły'}</DialogTitle>
@@ -79,13 +79,13 @@ const DetailsModal = ({ kind, code, back, forward, onClose }) => {
             </div>
           )}
         </DialogHeader>
-        <div className="max-h-[60vh] overflow-y-auto border border-[#3D5378] rounded">
+        <div className="max-h-[60vh] overflow-auto border border-[#3D5378] rounded">
           {loading ? (
             <div className="p-6 text-center text-[#CBD5E1] text-sm">Ładuję…</div>
           ) : !data || data.rows.length === 0 ? (
             <div className="p-6 text-center text-[#CBD5E1] text-sm italic">Brak danych w wybranym okresie.</div>
           ) : kind.startsWith('company') ? (
-            <table className="w-full text-xs" data-testid="details-company-table">
+            <table className="w-full text-xs min-w-[700px]" data-testid="details-company-table">
               <thead className="bg-[#152033] sticky top-0 text-[#CBD5E1] uppercase text-[10px]">
                 <tr>
                   <th className="text-left px-3 py-2">Data</th>
@@ -124,7 +124,7 @@ const DetailsModal = ({ kind, code, back, forward, onClose }) => {
               </tbody>
             </table>
           ) : (
-            <table className="w-full text-xs" data-testid="details-building-table">
+            <table className="w-full text-xs min-w-[900px]" data-testid="details-building-table">
               <thead className="bg-[#152033] sticky top-0 text-[#CBD5E1] uppercase text-[10px]">
                 <tr>
                   <th className="text-left px-3 py-2">Budowa</th>
@@ -281,8 +281,8 @@ export const Forecast = () => {
           {cc.categories.length === 0 ? (
             <div className="text-sm text-[#CBD5E1] italic">Brak danych w wybranym okresie.</div>
           ) : (
-            <div className="border border-[#3D5378] rounded overflow-hidden">
-              <table className="w-full text-xs" data-testid="company-costs-table">
+            <div className="border border-[#3D5378] rounded overflow-x-auto w-full">
+              <table className="w-full text-xs min-w-[640px]" data-testid="company-costs-table">
                 <thead className="bg-[#1E2A44] text-[#CBD5E1] uppercase text-[10px]">
                   <tr>
                     <th className="text-left px-3 py-2">Kategoria</th>
@@ -349,8 +349,8 @@ export const Forecast = () => {
               modułu Budżetowanie aby zobaczyć prognozę.
             </div>
           ) : (
-            <div className="border border-[#3D5378] rounded overflow-hidden">
-              <table className="w-full text-xs" data-testid="building-costs-table">
+            <div className="border border-[#3D5378] rounded overflow-x-auto w-full">
+              <table className="w-full text-xs min-w-[820px]" data-testid="building-costs-table">
                 <thead className="bg-[#1E2A44] text-[#CBD5E1] uppercase text-[10px]">
                   <tr>
                     <th className="text-left px-3 py-2">Miesiąc</th>
@@ -407,8 +407,8 @@ export const Forecast = () => {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="border border-[#3D5378] rounded overflow-hidden">
-            <table className="w-full text-xs" data-testid="balance-table">
+          <div className="border border-[#3D5378] rounded overflow-x-auto w-full">
+            <table className="w-full text-xs min-w-[640px]" data-testid="balance-table">
               <thead className="bg-[#1E2A44] text-[#CBD5E1] uppercase text-[10px]">
                 <tr>
                   <th className="text-left px-3 py-2">Miesiąc</th>

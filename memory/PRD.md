@@ -12,6 +12,20 @@ Polish (PL).
 - DB: MongoDB.
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
+
+### 2026-02 — Mobile overflow fixes (Forecast tables + DetailsModal) (P0 — DONE)
+
+**Plik**: `/app/frontend/src/components/Forecast.js`
+- 3 główne tabele (`company-costs-table`, `building-costs-table`, `balance-table`) — wrapper zmieniony z `overflow-hidden` → `overflow-x-auto w-full`, do tabel dodane `min-w-[640px]` / `min-w-[820px]` / `min-w-[640px]`
+- `DetailsModal` `DialogContent`: dodane `w-[95vw] max-h-[90vh] overflow-hidden flex flex-col`, wewnętrzny scroll zmieniony z `overflow-y-auto` → `overflow-auto` (oba osie), tabele dostały `min-w-[700px]` / `min-w-[900px]`
+
+**Weryfikacja** screenshotem na viewport 375×800:
+- Body scrollWidth = 375px (brak horyzontalnego rozsuwania strony) ✓
+- Tabele scrollowalne wewnątrz kart (parent overflowX='auto', scrollW > clientW) ✓
+- `NegotiationPanel` scrollW = clientW = 289 (brak overflow w panelu negocjacji) ✓
+- `ZapisyPanel` parent scrollW=827, clientW=341 (działa horyzontalny scroll) ✓
+
+
 ## Recent changelog (most recent first)
 
 ### 2026-02 — iter95dj — Soft Dark redesign UI (design tokens + AdminDashboard + tabela wyceny + HoursTable + modale) (P1)
