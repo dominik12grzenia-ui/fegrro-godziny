@@ -624,28 +624,28 @@ export const HoursTable = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-[#1E2A44]">
-      {/* Header */}
-      <div className="bg-[#243049] text-white shadow-lg shrink-0">
-        <div className="max-w-full mx-auto p-2 sm:p-4 flex items-center gap-2 sm:gap-4 flex-wrap">
+      {/* Header — iter95dj soft dark redesign */}
+      <div className="bg-[#222B40] text-slate-100 border-b border-white/10 shadow-sm shrink-0">
+        <div className="max-w-full mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-4 flex-wrap">
           <Button
             onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/worker/dashboard')}
             variant="ghost"
-            className="text-white hover:bg-[#3D5378] p-2"
+            className="text-slate-300 hover:bg-white/10 p-2"
             data-testid="back-btn"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1 sm:gap-3">
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="prev-month">
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-slate-300 hover:bg-white/10 p-1" data-testid="prev-month">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-base sm:text-xl lg:text-2xl font-bold capitalize truncate">{monthLabel}</h1>
-              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="next-month">
+              <h1 className="text-base sm:text-lg lg:text-xl font-bold capitalize truncate" style={{fontFamily: "'Cabinet Grotesk', sans-serif"}}>{monthLabel}</h1>
+              <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-slate-300 hover:bg-white/10 p-1" data-testid="next-month">
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
-            <p className="text-[#CBD5E1] text-[10px] sm:text-sm hidden sm:block">
+            <p className="text-slate-400 text-[10px] sm:text-xs hidden sm:block">
               {isAdmin ? 'Widok administratora' : 'Twoja budowa'}
             </p>
           </div>
@@ -662,7 +662,7 @@ export const HoursTable = () => {
                 }
               }}
               size="sm"
-              className="bg-[#3D5378] text-[#F1F5F9] hover:bg-[#4F6343] hover:text-white"
+              className="bg-[#9DBC85] hover:bg-[#5F7552] text-slate-900 font-medium"
               data-testid="generate-links-btn"
             >
               <Link2 className="h-4 w-4 sm:mr-1" />

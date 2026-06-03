@@ -14,6 +14,43 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95dj — Soft Dark redesign UI (design tokens + AdminDashboard + tabela wyceny + HoursTable + modale) (P1)
+
+**Design blueprint**: `/app/design_guidelines.json` (wygenerowane przez agenta UX/UI z full kontekstem).
+
+**Design tokens w `:root`** (`index.css`):
+- `--bg-app: #181F30`, `--bg-surface-1: #222B40`, `--bg-surface-2: #2D3850`
+- `--border-subtle: rgba(255,255,255,.05)`, `--border-default: rgba(255,255,255,.12)`, `--border-strong: rgba(255,255,255,.20)`
+- `--text-primary: #F8FAFC`, `--text-secondary: #94A3B8`, `--text-muted: #64748B`
+- `--brand-sage: #9DBC85`, `--brand-olive: #5F7552`, `--accent-gold: #FCD34D`, `--accent-orange: #F59E0B`, `--accent-red: #FCA5A5`, `--accent-blue: #60A5FA`
+- Cienie: `--shadow-sm/md/lg/glow` (oparte na czarnej alfie + glow oliwkowy)
+- Font body: `IBM Plex Sans` (zamiast Manrope, bardziej business)
+- Body bg + html bg używają teraz tokenów
+
+**AdminDashboard.js**:
+- Header: logo czarne na białej pigułce `rounded-md p-1.5 bg-slate-100`, sticky `bg-[#181F30]/80 backdrop-blur`
+- KPI cards: `bg-[#222B40] border-l-4 border-l-[brand color]` — lewy akcent na typie informacji (oliwka/złoto/niebieski/CTA)
+- Karta „+ Dodaj zapis" jako wyróżniony call-to-action z `bg-[#9DBC85]/10` + glow hover + rotate ikony
+- Karta „Tabela Godzin": jednolite tło zamiast gradientu, button `bg-[#9DBC85] text-slate-900`
+- Tabs: **pigułki** zamiast bocznego paska — aktywna `bg-[#9DBC85] text-slate-900`, nieaktywne `bg-white/5 text-slate-400`
+- Liczby KPI z `font-family: 'Cabinet Grotesk'` + `tabular-nums`
+
+**HoursTable.js**: header `bg-[#222B40] border-b border-white/10`, button „Linki" zielona oliwka, miesiąc font Cabinet Grotesk
+
+**Tabela wyceny** (`_shared.js`):
+- `Th`: gradient `from-[#2D3850] to-[#222B40]`, border `white/10`, padding `py-2.5`, tracking-wider
+- `Td`: border `white/5` (subtle), padding `py-1.5`
+
+**Modale** (`ui/dialog.jsx`):
+- Overlay: `bg-[#181F30]/85 backdrop-blur-sm` (zamiast `bg-black/80`) — łagodniejsze tło, klimat zachowany
+- DialogContent: już responsive (iter95di) — `w-[95vw] max-h-[90vh] p-4 sm:p-6`
+
+**Tested** mobile 375px + desktop 1440px ✅:
+- Karty 1-kol mobile, 5-kol desktop, lewy akcent widoczny
+- Header skompaktowany na telefonie, logo czytelne
+- Tabs scrollują się jako pigułki
+- Zero overflow
+
 ### 2026-02 — iter95di — Responsive iteracja 2: HoursTable, NegotiationPanel, Modale, ZapisyPanel (P1)
 
 **Co poprawione w tej iteracji**:

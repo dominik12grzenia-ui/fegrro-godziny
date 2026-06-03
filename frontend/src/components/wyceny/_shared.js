@@ -238,14 +238,13 @@ export const computePosRow = (p, defaults = {}) => {
 };
 
 export const Th = ({ children, w, tip }) => {
-  // iter95dg: konwertuj string na px - inaczej CSS odrzuca wartosc bez jednostki.
   const px = w == null ? undefined : (typeof w === 'number' ? `${w}px` : (String(w).match(/\d/) ? (String(w).includes('px') ? String(w) : `${w}px`) : undefined));
   return (
-    <th className="bg-[#3F5235]/80 text-white font-semibold text-[10px] uppercase tracking-wide
-                    border border-[#3D5378] px-1.5 py-2 text-center align-middle cursor-help"
+    <th className="bg-gradient-to-b from-[#2D3850] to-[#222B40] text-slate-100 font-semibold text-[10px] uppercase tracking-wider
+                    border border-white/10 px-2 py-2.5 text-center align-middle cursor-help"
         title={tip || undefined}
         style={px ? { width: px, minWidth: px, maxWidth: px } : undefined}>
-      {children}{tip ? <span className="ml-1 text-[#D4AF37]">ⓘ</span> : null}
+      {children}{tip ? <span className="ml-1 text-[#FCD34D]">ⓘ</span> : null}
     </th>
   );
 };
@@ -253,7 +252,7 @@ export const Th = ({ children, w, tip }) => {
 // iter95bk: Td (wraper na <td>) zostal zgubiony przy refaktoryzacji Wyceny.js → wyceny/*. 
 // Przywrocony zgodnie z oryginalna implementacja (kolory zaktualizowane do nowej palety #3D5378).
 export const Td = ({ children, right = false, className = '' }) => (
-  <td className={`border border-[#3D5378] px-1.5 py-1 overflow-hidden ${right ? 'text-right tabular-nums' : ''} ${className}`}>
+  <td className={`border border-white/5 px-2 py-1.5 overflow-hidden ${right ? 'text-right tabular-nums' : ''} ${className}`}>
     {children}
   </td>
 );
