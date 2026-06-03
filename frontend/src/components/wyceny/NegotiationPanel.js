@@ -42,54 +42,52 @@ export const NegotiationPanel = ({
       </div>
     </div>
 
-    {/* iter95df: Globalny slider - proporcjonalnie obniza WSZYSTKIE 3 kategorie naraz.
-        Wartosc mnozy sie multiplikatywnie z per-kategoria (np. labor=-2% + overall=-3% = ~-4.94%). */}
-    <div className="border-2 border-[#F59E0B] bg-[#F59E0B]/10 rounded-lg p-3 flex items-start sm:items-center gap-3 sm:gap-4 flex-wrap"
+    {/* iter95dk: globalny slider - pelna restrukturyzacja mobile-first.
+        Stack pionowy na mobile: label/desc -> input/quick-buttons -> opis. */}
+    <div className="border-2 border-[#F59E0B] bg-[#F59E0B]/10 rounded-lg p-3 space-y-3"
          data-testid="neg-overall-card">
-      <div className="flex-shrink-0">
-        <div className="text-[10px] uppercase text-[#FCD34D] font-bold tracking-wider">🎯 CAŁA WYCENA</div>
-        <div className="text-[9px] text-[#FBE4B7]/80">obniża wszystkie 3 kategorie proporcjonalnie</div>
-      </div>
-      <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
-        <input
-          type="number" step="0.5"
-          value={neg.overall}
-          onChange={(e) => setNeg({ ...neg, overall: e.target.value })}
-          placeholder="0"
-          className="bg-[#1E2A44] border border-[#F59E0B] rounded h-10 w-28 text-lg text-right tabular-nums text-white px-2 outline-none focus:border-[#FCD34D] font-bold"
-          data-testid="neg-overall-input"
-        />
-        <span className="text-lg text-[#FCD34D] font-bold">%</span>
-        <div className="flex gap-1 ml-2">
-          {[-2, -3, -5, -7, -10].map((v) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setNeg({ ...neg, overall: v })}
-              className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#F59E0B] hover:text-[#152033] border border-[#3D5378] rounded text-[#FCD34D] transition-colors"
-              data-testid={`neg-overall-quick-${v}`}
-            >
-              {v}%
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setNeg({ ...neg, overall: '' })}
-            className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#3D5378] border border-[#3D5378] rounded text-[#94A3B8] transition-colors"
-            data-testid="neg-overall-clear"
-            title="Wyzeruj globalny slider"
-          >
-            ×
-          </button>
+      <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div className="min-w-0">
+          <div className="text-[10px] uppercase text-[#FCD34D] font-bold tracking-wider">🎯 CAŁA WYCENA</div>
+          <div className="text-[9px] text-[#FBE4B7]/80">obniża wszystkie 3 kategorie proporcjonalnie</div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <input
+            type="number" step="0.5"
+            value={neg.overall}
+            onChange={(e) => setNeg({ ...neg, overall: e.target.value })}
+            placeholder="0"
+            className="bg-[#1E2A44] border border-[#F59E0B] rounded h-9 w-20 text-base text-right tabular-nums text-white px-2 outline-none focus:border-[#FCD34D] font-bold"
+            data-testid="neg-overall-input"
+          />
+          <span className="text-base text-[#FCD34D] font-bold">%</span>
         </div>
       </div>
-      <div className="text-[10px] text-[#FBE4B7]/80 text-right max-w-full sm:max-w-[200px] basis-full sm:basis-auto">
-        {parseFloat(neg.overall) ? (
-          <>↘ Dotyczy całego budżetu. Łącznie z per-kategorią daje pełną zmianę widoczną w „Budżet" niżej.</>
-        ) : (
-          <>Wpisz wartość lub kliknij szybką (-2%, -3%, ...) aby obniżyć całość.</>
-        )}
+      <div className="flex gap-1 flex-wrap">
+        {[-2, -3, -5, -7, -10].map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setNeg({ ...neg, overall: v })}
+            className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#F59E0B] hover:text-[#152033] border border-[#3D5378] rounded text-[#FCD34D] transition-colors"
+            data-testid={`neg-overall-quick-${v}`}
+          >
+            {v}%
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setNeg({ ...neg, overall: '' })}
+          className="px-2 py-1 text-xs bg-[#1E2A44] hover:bg-[#3D5378] border border-[#3D5378] rounded text-[#94A3B8] transition-colors"
+          data-testid="neg-overall-clear"
+          title="Wyzeruj globalny slider"
+        >
+          × Wyzeruj
+        </button>
       </div>
+      {parseFloat(neg.overall) ? (
+        <div className="text-[10px] text-[#FBE4B7]/80">↘ Dotyczy całego budżetu. Łącznie z per-kategorią daje pełną zmianę widoczną w „Budżet" niżej.</div>
+      ) : null}
     </div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
