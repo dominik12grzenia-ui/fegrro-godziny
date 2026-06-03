@@ -157,7 +157,8 @@ const WycenyList = ({ onOpen }) => {
             Brak wycen. Wpisz nazwę i kliknij „Utwórz wycenę".
           </div>
         ) : (
-          <table className="w-full text-sm" data-testid="wyceny-list">
+          <div className="scroll-x-wrap">
+          <table className="w-full text-sm min-w-[600px]" data-testid="wyceny-list">
             <thead className="text-[#CBD5E1] border-b border-[#3D5378]">
               <tr>
                 <th className="text-left p-2">Nazwa</th>
@@ -185,6 +186,7 @@ const WycenyList = ({ onOpen }) => {
               ))}
             </tbody>
           </table>
+          </div>
         )}
     </div>
   );

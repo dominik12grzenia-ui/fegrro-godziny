@@ -411,19 +411,19 @@ export const AdminDashboard = () => {
     <div className="min-h-screen bg-[#152033]">
       {/* Sticky Header with Glassmorphism */}
       <div className="sticky top-0 z-50 bg-[#152033]/80 backdrop-blur-xl border-b border-[#3D5378] shadow-sm">
-        <div className="max-w-7xl mx-auto p-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto p-2 sm:p-4 flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
             <img 
               src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg" 
               alt="FeGrro Logo" 
-              className="h-10 sm:h-12"
+              className="h-8 sm:h-10 lg:h-12 shrink-0"
             />
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold font-display text-white tracking-tight">Panel Administratora</h1>
-              <p className="text-[#CBD5E1] text-xs sm:text-sm font-medium">{user?.email}</p>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl lg:text-2xl font-bold font-display text-white tracking-tight truncate">Panel Administratora</h1>
+              <p className="text-[#CBD5E1] text-[10px] sm:text-xs lg:text-sm font-medium truncate">{user?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <PushNotificationButton compact />
             <ActionButton
               onAction={handleLogout}

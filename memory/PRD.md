@@ -14,6 +14,40 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95dh — Responsive foundation: mobile-first base, sticky header, breakpoints (P1)
+
+**Problemy znalezione w aplikacji**:
+1. `html`/`body` nie miały `overflow-x: hidden` — sztywne tabele wyceny powodowały horizontal scroll całej strony.
+2. Header `AdminDashboard`: `gap-4`, `text-xl` zbyt duże na mobile, brak `truncate` na emailu — wychodził poza ekran.
+3. Tabela listy wycen (`wyceny-list`): `w-full` bez `scroll-x-wrap` — kolizja z `min-w-[2400px]` tabeli edytora.
+4. Typografia: fixed `text-xl sm:text-2xl` skacze nieliniowo między breakpointami → użyto `clamp()` w `--fs-*`.
+5. Brak globalnej klasy `.scroll-x-wrap` do owijania szerokich tabel.
+
+**Co zostało poprawione**:
+- **`/app/frontend/src/index.css`** (iter95dh sekcja na końcu):
+  - `html, body { overflow-x: hidden; max-width: 100vw }`
+  - `#root { overflow-x: clip }` (nowoczesna alternatywa, nie tnie sticky)
+  - CSS variables `--fs-h1/h2/h3/body` z `clamp()` — responsywna typografia
+  - Klasa `.scroll-x-wrap` z `overflow-x:auto` + `-webkit-overflow-scrolling: touch` + custom scrollbar
+  - Breakpoint `< 768px`: większe touch-targety (`min-height: 36px`), forms `grid-template-columns: 1fr`, modale `max-h: 95vh`
+  - Breakpoint 768-1024: utility `lg-only` ukrywanie
+  - Touch device (`pointer: coarse`): checkboxy/radio min 18×18px
+- **`AdminDashboard.js` header**:
+  - `p-2 sm:p-4` (mniejsze paddingi mobile)
+  - `flex-wrap` + `gap-2 sm:gap-4`
+  - Logo `h-8 sm:h-10 lg:h-12` (skalowanie)
+  - `truncate min-w-0` na heading/email
+  - `text-base sm:text-xl lg:text-2xl` (3-stopniowa skala)
+- **`Wyceny.js` lista wycen**: owinięta w `.scroll-x-wrap` + `min-w-[600px]` na tabeli (czytelność)
+- **`Wyceny.js` tabela edytora** (już w iter95dg): `tableLayout: fixed`, `width: 1565px`, zwężone kolumny
+- **`_shared.js Th`** (już w iter95dg): konwersja `w` na `"NNpx"` żeby przeglądarka respektowała szerokość
+
+**Test mobile 375px / tablet 768px ✅**:
+- `body.scrollWidth == window.innerWidth` (brak horizontal overflow)
+- `html_overflow_x: hidden`, `body_overflow_x: hidden`
+- Header się układa, karty kpi 2-kolumnowe, zakładki scroll poziomy
+- Mapa pełna szerokość, formularze pełna szerokość
+
 ### 2026-02 — iter95dg — Wąskie czytelne kolumny w tabeli wyceny (P1)
 - **Bug**: tabela miała `min-w-[2400px]` + tylko `minWidth` na `<th>` → kolumny rozciągały się proporcjonalnie do ~250px każda, wymuszając poziome przewijanie.
 - **Fix `Th` w `_shared.js`**: zamiast `minWidth` ustawia `width + minWidth + maxWidth` w pikselach (konwersja `w` z numeru/stringa na `"NNpx"`).
