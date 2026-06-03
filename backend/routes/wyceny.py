@@ -126,6 +126,10 @@ class PositionUpdate(BaseModel):
     # iter95an: podzial PC na podziemie / nadziemie
     include_in_pc_podziemie: Optional[bool] = None
     include_in_pc_nadziemie: Optional[bool] = None
+    # iter95dl: wylacz pozycje z wyceny (klient zrezygnowal z prac).
+    # Excluded pozycje nie sa wliczane do totali, nie eksportowane do PDF/XLSX,
+    # ale widoczne w edytorze (mozna przywrocic).
+    excluded: Optional[bool] = None
 
 
 class LineCreate(BaseModel):
@@ -846,6 +850,14 @@ async def _build_bom(wycena_id: str):
     lines = await db.wyceny_lines.find(
         {"wycena_id": wycena_id, "type": "materials"}, {"_id": 0}
     ).to_list(length=None)
+    # iter95dl: pomin lines z pozycji wylaczonych z wyceny
+    excluded_pos_ids = set()
+    async for p in db.wyceny_positions.find(
+        {"wycena_id": wycena_id, "excluded": True}, {"_id": 0, "id": 1}
+    ):
+        excluded_pos_ids.add(p["id"])
+    if excluded_pos_ids:
+        lines = [ln for ln in lines if ln.get("position_id") not in excluded_pos_ids]
     # Pobierz cennik materialow do dopasowania po nazwie
     cennik = await db.wyceny_price_book.find(
         {"category": "materials"}, {"_id": 0}
@@ -1480,6 +1492,8 @@ async def _build_wycena_export(wycena_id: str):
         raise HTTPException(404, "Wycena nie istnieje")
     stages = await db.wyceny_stages.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
     positions = await db.wyceny_positions.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    # iter95dl: pomin pozycje wylaczone z wyceny — nie wchodza do totali, PDF, XLSX
+    positions = [p for p in positions if not p.get("excluded")]
     lines = await db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
     defaults = {
         "gir": float(w.get("default_gir_pct") or 5.0),
@@ -2971,9 +2985,11 @@ async def convert_wycena_to_budget(
         })
 
     # 4. Skopiuj pozycje glowne + ich subpozycje (lines)
+    # iter95dl: pomin pozycje wylaczone z wyceny — klient z nich zrezygnowal
     src_positions = await db.wyceny_positions.find(
         {"wycena_id": wycena_id}, {"_id": 0}
     ).sort("order", 1).to_list(length=None)
+    src_positions = [p for p in src_positions if not p.get("excluded")]
     pos_count = 0
     line_count = 0
     for p in src_positions:

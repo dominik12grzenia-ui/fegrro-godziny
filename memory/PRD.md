@@ -13,6 +13,28 @@ Polish (PL).
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
 
+### 2026-02 — iter95dl — "Wyłącz z wyceny" toggle (P1 — DONE)
+
+Przełącznik per pozycja główna pozwalający wyłączyć ją z wyceny bez usuwania (klient zrezygnował z prac).
+
+**Backend** (`/app/backend/routes/wyceny.py`):
+- `PositionUpdate.excluded: Optional[bool]` — nowy field w modelu update
+- `_build_wycena_export()` — filtruje `positions` z `excluded=True` przed agregacją → XLSX, PDF (positions/full/client) automatycznie pomijają wyłączone
+- `_build_bom()` — wyłącza lines z pozycji excluded (BOM/zamówienia materiałów)
+- `apply_to_budget` (Zaciągnij do budżetu) — pomija pozycje excluded podczas kopii do `budget_positions`
+
+**Frontend**:
+- `PosRow.js` — przycisk EyeOff/Eye obok kosza (`data-testid="pos-exclude-{id}"`), tło pozycji `bg-[#3a2c1c] text-[#94A3B8]` + badge `WYŁ.` w kolumnie KOD gdy excluded
+- `SubRow.js` — prop `parentExcluded` → `opacity-40 line-through` na wszystkich podpozycjach + tooltip
+- `Wyceny.js` — `grandTotal`, `wskazniki` (PC/PUM), `grandTotalOriginal` (negocjacje) pomijają `p.excluded`
+
+**Weryfikacja**:
+- Curl PATCH `excluded:true` → XLSX export 12324→12160 bytes (pozycja wycięta z dokumentu) ✓
+- UI: kliknięcie EyeOff → row className zmienia się na "bg-[#3a2c1c] text-[#94A3B8]", badge `WYŁ.` widoczny ✓
+- Klik ponownie → przywraca pozycję ✓
+
+
+
 ### 2026-02 — Mobile overflow fixes (Forecast tables + DetailsModal) (P0 — DONE)
 
 **Plik**: `/app/frontend/src/components/Forecast.js`

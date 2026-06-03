@@ -15,7 +15,7 @@ import {
 } from './_shared';
 import { AiPolishButton } from './AiPolishButton';
 
-export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, onLocalUpdate, onDel }) => {
+export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, negotiationOn = false, parentExcluded = false, onLocalUpdate, onDel }) => {
   // iter95cp: normalizuj wartosci numeryczne przy wczytaniu z bazy.
   // Stare rekordy moga miec floaty typu 92.14999999999 (legacy + float precision).
   // Zaokraglamy do 2dp w UI tak aby user nie widzial dlugich liczb.
@@ -166,12 +166,16 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
   return (
     <tr
       className={
-        atMin
+        (atMin
           ? 'bg-orange-500/15 border-l-4 border-l-orange-400 ring-1 ring-orange-400/40 animate-pulse'
-          : 'bg-[#152033]/30'
+          : 'bg-[#152033]/30') + (parentExcluded ? ' opacity-40 line-through' : '')
       }
       data-testid={`sub-row-${sub.id}`}
-      title={atMin ? `⚠ Pozycja na granicy minimum (${effectiveMin?.toFixed(2)} zł). Cena nie może być niższa.` : undefined}
+      title={
+        parentExcluded
+          ? '⚠ Pozycja nadrzędna wyłączona z wyceny — ta podpozycja nie jest liczona.'
+          : (atMin ? `⚠ Pozycja na granicy minimum (${effectiveMin?.toFixed(2)} zł). Cena nie może być niższa.` : undefined)
+      }
     >
       <Td className="text-[#CBD5E1]">{code}</Td>
       <Td>

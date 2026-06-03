@@ -458,6 +458,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     if (!displayData) return { qty: 0, cena: 0, budzet: 0, kaucjaGir: 0, kaucjaDw: 0, kosztBudowy: 0, budzetZwolniony: 0, kosztPrognozowany: 0, prognozy: 0, zyskPlusDw: 0, narzutAmount: 0, marzaAmount: 0 };
     let qty = 0, budzet = 0, kaucjaGir = 0, kaucjaDw = 0, kosztBudowy = 0, budzetZwolniony = 0, kosztPrognozowany = 0, prognozy = 0, zyskPlusDw = 0, narzutAmount = 0, marzaAmount = 0;
     (displayData.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      if (p.excluded) return; // iter95dl: pomin pozycje wylaczone z wyceny
       const r = computePosRow(p, defaults);
       qty += r.qty; budzet += r.budzet;
       kaucjaGir += r.kaucjaGir; kaucjaDw += r.kaucjaDw;
@@ -478,6 +479,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     const pc_nad_m2 = parseFloat(displayData?.wycena?.pc_nadziemie_m2) || 0;
     let sumPC = 0, sumPUM = 0, sumPCpod = 0, sumPCnad = 0;
     (displayData?.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      if (p.excluded) return; // iter95dl: pomin pozycje wylaczone (nie liczymy do wskaznikow)
       const r = computePosRow(p, defaults);
       if (p.include_in_pc) sumPC += r.budzet;
       if (p.include_in_pum) sumPUM += r.budzet;
@@ -506,6 +508,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
       marza: data.wycena?.default_marza_pct ?? 0,
     };
     (data.stages || []).forEach((st) => (st.positions || []).forEach((p) => {
+      if (p.excluded) return; // iter95dl: pomin pozycje wylaczone (oryginal tez bez nich)
       const r = computePosRow(p, baseDefaults);
       budzet += r.budzet;
       zyskPlusDw += r.zyskPlusDw;
@@ -1247,6 +1250,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
                             posComputed={r} defaults={defaults}
                             posUnit={p.unit}
                             negotiationOn={negotiationOn}
+                            parentExcluded={!!p.excluded}
                             onLocalUpdate={updateLineLocal}
                             onDel={() => delSlot(sub.id)} />
                         ))}
