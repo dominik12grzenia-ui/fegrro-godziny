@@ -119,7 +119,7 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-3xl wyceny-no-spin"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-3xl w-[95vw] max-h-[90vh] overflow-y-auto wyceny-no-spin"
         data-testid={`price-picker-${category}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">

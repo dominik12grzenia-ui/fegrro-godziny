@@ -510,7 +510,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       <CardContent className="p-0 overflow-x-auto">
         {loading && rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Ładowanie...</div> :
         rows.length === 0 ? <div className="p-6 text-[#CBD5E1]">Brak zapisow w tym okresie.</div> :
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[800px]">
           <thead className="bg-[#1E2A44] text-[#CBD5E1]">
             <tr>
               <th className="p-2 text-left w-8"></th>
@@ -697,9 +697,9 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       </CardContent>
 
       <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
-        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-2xl" data-testid="finance-zapis-modal">
+        <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto" data-testid="finance-zapis-modal">
           <DialogHeader><DialogTitle className="text-white">{editing ? 'Edytuj zapis' : 'Dodaj zapis ksiegowy'}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="text-sm text-[#CBD5E1] block mb-1">Data</label>
               <Input type="date" value={form.date} onChange={(e) => setForm({...form, date: e.target.value})}

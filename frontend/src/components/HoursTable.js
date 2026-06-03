@@ -626,26 +626,26 @@ export const HoursTable = () => {
     <div className="min-h-screen flex flex-col bg-[#1E2A44]">
       {/* Header */}
       <div className="bg-[#243049] text-white shadow-lg shrink-0">
-        <div className="max-w-full mx-auto p-4 flex items-center gap-4">
+        <div className="max-w-full mx-auto p-2 sm:p-4 flex items-center gap-2 sm:gap-4 flex-wrap">
           <Button
             onClick={() => navigate(isAdmin ? '/admin/dashboard' : '/worker/dashboard')}
             variant="ghost"
-            className="text-white hover:bg-[#3D5378]"
+            className="text-white hover:bg-[#3D5378] p-2"
             data-testid="back-btn"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 sm:gap-3">
               <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() - 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="prev-month">
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-xl sm:text-2xl font-bold capitalize">{monthLabel}</h1>
+              <h1 className="text-base sm:text-xl lg:text-2xl font-bold capitalize truncate">{monthLabel}</h1>
               <Button onClick={() => setSelectedMonth(prev => { const d = new Date(prev); d.setMonth(d.getMonth() + 1); return d; })} variant="ghost" size="sm" className="text-white hover:bg-[#3D5378] p-1" data-testid="next-month">
                 <ChevronRight className="h-5 w-5" />
               </Button>
             </div>
-            <p className="text-[#CBD5E1] text-sm">
+            <p className="text-[#CBD5E1] text-[10px] sm:text-sm hidden sm:block">
               {isAdmin ? 'Widok administratora' : 'Twoja budowa'}
             </p>
           </div>
@@ -665,8 +665,8 @@ export const HoursTable = () => {
               className="bg-[#3D5378] text-[#F1F5F9] hover:bg-[#4F6343] hover:text-white"
               data-testid="generate-links-btn"
             >
-              <Link2 className="h-4 w-4 mr-1" />
-              Linki pracownikow
+              <Link2 className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Linki pracownikow</span>
             </Button>
           )}
           {selectedSiteForAssignment && (
@@ -675,7 +675,7 @@ export const HoursTable = () => {
         </div>
       </div>
 
-      <div className="shrink-0 p-4 pb-0 overflow-x-auto">
+      <div className="shrink-0 p-2 sm:p-4 pb-0 overflow-x-auto">
         {/* Assignment mode selector */}
         {isAdmin && (
           <div className="mb-4 p-3 bg-[#243049] rounded-lg border border-[#3D5378] flex flex-wrap items-center gap-2">

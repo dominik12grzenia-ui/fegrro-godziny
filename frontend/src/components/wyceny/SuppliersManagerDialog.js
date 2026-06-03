@@ -72,7 +72,7 @@ export const SuppliersManagerDialog = ({ onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-4xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-4xl w-[95vw] max-h-[90vh] overflow-y-auto"
                      data-testid="suppliers-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">

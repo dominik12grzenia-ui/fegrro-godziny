@@ -38,7 +38,7 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-xl"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-xl w-[95vw] max-h-[90vh] overflow-y-auto"
                      data-testid="convert-budget-dialog">
         <DialogHeader>
           <DialogTitle className="text-[#9DBC85] flex items-center gap-2">
@@ -72,7 +72,7 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
                 Domyślnie nazwa wyceny. Musi być unikalna.
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <div>
                 <label className="text-[10px] uppercase text-[#CBD5E1]">Kod budowy (opc.)</label>
                 <Input value={code} onChange={(e) => setCode(e.target.value)}

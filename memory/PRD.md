@@ -14,6 +14,41 @@ Polish (PL).
 
 ## Recent changelog (most recent first)
 
+### 2026-02 — iter95di — Responsive iteracja 2: HoursTable, NegotiationPanel, Modale, ZapisyPanel (P1)
+
+**Co poprawione w tej iteracji**:
+
+1. **`HoursTable.js` header**:
+   - `p-2 sm:p-4`, `flex-wrap`, `gap-2 sm:gap-4`
+   - Nawigacja miesiąca: `gap-1 sm:gap-3`, `text-base sm:text-xl lg:text-2xl`
+   - „Widok administratora" ukryty na mobile (`hidden sm:block`)
+   - Button „Linki pracownikow" - tekst tylko na sm+, ikona zawsze widoczna
+   - Container padding `p-2 sm:p-4`
+
+2. **`NegotiationPanel.js`**:
+   - Grid 3 kategorii: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-5` (było `grid-cols-2 lg:grid-cols-5`)
+   - Karta „🎯 CAŁA WYCENA": `flex-wrap`, opis przejście na nową linię na mobile
+   - Akcje: `flex-wrap` żeby Wyzeruj/Anuluj/Przyjmij się układały
+
+3. **`ZapisyPanel.js`**:
+   - Tabela `min-w-[800px]` + już ma `overflow-x-auto`
+   - Modal: `w-[95vw] max-h-[90vh] overflow-y-auto`
+   - Grid w modalu: `grid-cols-1 sm:grid-cols-2`
+
+4. **`ui/dialog.jsx` (BAZOWY KOMPONENT — naprawia wszystkie modale w aplikacji)**:
+   - `w-[95vw]` (zamiast `w-full`)
+   - `max-h-[90vh] overflow-y-auto`
+   - `p-4 sm:p-6` (responsive padding)
+   - Skutek: każdy DialogContent w aplikacji jest teraz automatycznie mobile-friendly, niezależnie od własnego `max-w-*`
+
+5. **Indywidualne modale Wyceny** (`ExportWycenaDialog`, `BomDialog`, `ConvertToBudgetDialog`, `SuppliersManagerDialog`, `PriceBookPicker`): dodano `w-[95vw] max-h-[90vh] overflow-y-auto`.
+
+**Test mobile 375px ✅**:
+- AdminDashboard, HoursTable: `body.scrollWidth == 375 == viewport`, **zero overflow**
+- Header się układa, karty kpi 1-kol na mobile (bez wcześniejszego 2-kol), 2-kol na sm, 5-kol na md+
+- Tabela HoursTable: sticky kolumny + scroll poziomy działa
+- Mapa pełna szerokość, zakładki scrollują się
+
 ### 2026-02 — iter95dh — Responsive foundation: mobile-first base, sticky header, breakpoints (P1)
 
 **Problemy znalezione w aplikacji**:

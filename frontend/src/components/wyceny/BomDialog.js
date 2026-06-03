@@ -179,7 +179,7 @@ export const BomDialog = ({ wycenaId, onClose }) => {
 
   return (
     <Dialog open={true} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-5xl wyceny-no-spin"
+      <DialogContent className="bg-[#1E2A44] border-[#3D5378] text-white max-w-5xl w-[95vw] max-h-[90vh] overflow-y-auto wyceny-no-spin"
         data-testid="bom-dialog">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-[#D4AF37]">

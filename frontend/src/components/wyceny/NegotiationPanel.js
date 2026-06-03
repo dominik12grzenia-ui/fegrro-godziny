@@ -44,13 +44,13 @@ export const NegotiationPanel = ({
 
     {/* iter95df: Globalny slider - proporcjonalnie obniza WSZYSTKIE 3 kategorie naraz.
         Wartosc mnozy sie multiplikatywnie z per-kategoria (np. labor=-2% + overall=-3% = ~-4.94%). */}
-    <div className="border-2 border-[#F59E0B] bg-[#F59E0B]/10 rounded-lg p-3 flex items-center gap-4"
+    <div className="border-2 border-[#F59E0B] bg-[#F59E0B]/10 rounded-lg p-3 flex items-start sm:items-center gap-3 sm:gap-4 flex-wrap"
          data-testid="neg-overall-card">
       <div className="flex-shrink-0">
         <div className="text-[10px] uppercase text-[#FCD34D] font-bold tracking-wider">🎯 CAŁA WYCENA</div>
         <div className="text-[9px] text-[#FBE4B7]/80">obniża wszystkie 3 kategorie proporcjonalnie</div>
       </div>
-      <div className="flex items-center gap-2 flex-1">
+      <div className="flex items-center gap-2 flex-wrap flex-1 min-w-0">
         <input
           type="number" step="0.5"
           value={neg.overall}
@@ -83,7 +83,7 @@ export const NegotiationPanel = ({
           </button>
         </div>
       </div>
-      <div className="text-[10px] text-[#FBE4B7]/80 text-right max-w-[200px]">
+      <div className="text-[10px] text-[#FBE4B7]/80 text-right max-w-full sm:max-w-[200px] basis-full sm:basis-auto">
         {parseFloat(neg.overall) ? (
           <>↘ Dotyczy całego budżetu. Łącznie z per-kategorią daje pełną zmianę widoczną w „Budżet" niżej.</>
         ) : (
@@ -92,7 +92,7 @@ export const NegotiationPanel = ({
       </div>
     </div>
 
-    <div className="grid grid-cols-2 lg:grid-cols-5 gap-2">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
       {[
         { key: 'labor', label: '👷 Robocizna', cls: 'border-[#5F4E20]' },
         { key: 'materials', label: '🧱 Materiały', cls: 'border-[#5F7552]' },
@@ -257,7 +257,7 @@ export const NegotiationPanel = ({
       );
     })()}
 
-    <div className="flex gap-2 justify-end pt-1 border-t border-[#F59E0B]/20">
+    <div className="flex gap-2 justify-end pt-1 border-t border-[#F59E0B]/20 flex-wrap">
       <Button onClick={() => setNeg({ labor: 0, materials: 0, equipment: 0, overall: '', narzutOverride: '', marzaOverride: '' })}
         variant="outline" className="border-[#3D5378] text-[#F1F5F9]"
         data-testid="neg-reset">
