@@ -13,6 +13,35 @@ Polish (PL).
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
 
+### 2026-02 — iter95dm — "Soft refresh" pattern globalny (P0 — DONE)
+
+User feedback: "wszystkie strony po zatwierdzeniu czegoś lub dodaniu się przeładowują — zrób to raz a porządnie".
+
+**Strategia**: usunięto `setLoading(true)` z fetcherów wywoływanych po akcjach. Initial `useState(true)` zostaje — pierwszy render pokazuje loader, ale kolejne refetche (po save/delete/approve) są ciche: dane zostają widoczne, aktualizują się w miejscu.
+
+**Pliki zmienione** (15 fetcherów):
+- `BhpEmployees.js`, `WarehouseAdmin.js`, `PayrollAdmin.js`
+- `Wyceny.js` (list fetcher)
+- `Forecast.js` (główny load — gate `loading && !data`)
+- `wyceny/{LaborPriceBook,EquipmentPriceBook,MaterialsPriceBook,PriceBookPicker,PriceBook,SuppliersManagerDialog}.js`
+- `finance/{AuditPanel,PeriodsPanel,PaymentSummaryPanel,KPIDashboard,SprzedazPanel,RachunekWynikowPanel,BudowyPanel}.js`
+- `budget/{ProgressPanel,SchedulePanel}.js`
+- `admin/ToolsTab.js` (`EmployeeLinksCard`)
+
+**Bonus**: `BudowyPanel` — `archive/unarchive/remove/toggleHasBudget` teraz wołają `fetchData(true)` (silent), nie `fetchData()`. Podobnie `RachunekWynikowPanel` — `renameKod/deleteKod`.
+
+**Pliki celowo POMINIĘTE** (spinner sensowny dla użytkownika):
+- `AdminLogin.js`, `WorkerEntry.js`, `ForemanEntry.js` (submit logowania)
+- `AiPolishButton.js` (generowanie AI), `ExcelImportDialog.js` (upload pliku)
+- `LocationsButton.js` (otwarcie modala — świeżo pobiera lokalizacje)
+
+**Weryfikacja**:
+- Klik "Wyłącz z wyceny" → fetchData(true) → `Loader overlay after click: None` ✓
+- Finanse dashboard → 4 KPI tile loadują się in-place bez splash screen ✓
+- Lint: clean ✓
+
+
+
 ### 2026-02 — iter95dl — "Wyłącz z wyceny" toggle (P1 — DONE)
 
 Przełącznik per pozycja główna pozwalający wyłączyć ją z wyceny bez usuwania (klient zrezygnował z prac).

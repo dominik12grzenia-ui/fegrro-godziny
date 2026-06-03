@@ -25,7 +25,6 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
   };
 
   const fetchData = useCallback(() => {
-    setLoading(true);
     const qs = year ? `?year=${year}` : '';
     api.get(`/finance/payment-summary${qs}`)
       .then((r) => setData(r.data))

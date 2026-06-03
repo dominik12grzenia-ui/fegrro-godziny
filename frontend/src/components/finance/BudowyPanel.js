@@ -84,16 +84,16 @@ export const BudowyPanel = () => {
 
   const archive = async (b) => {
     if (!window.confirm(`Zarchiwizowac "${b.name}"?\n\nDane zapisow zostana w bazie, ale budowa zniknie z listy godzin.`)) return;
-    try { await api.post(`/finance/budowy/${b.id}/archive`); toast.success('Zarchiwizowano'); fetchData(); }
+    try { await api.post(`/finance/budowy/${b.id}/archive`); toast.success('Zarchiwizowano'); fetchData(true); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
   const unarchive = async (b) => {
-    try { await api.post(`/finance/budowy/${b.id}/unarchive`); toast.success('Przywrocono'); fetchData(); }
+    try { await api.post(`/finance/budowy/${b.id}/unarchive`); toast.success('Przywrocono'); fetchData(true); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
   const remove = async (b) => {
     if (!window.confirm(`TRWALE usunac "${b.name}"?\n\nMozliwe tylko gdy brak zapisow finansowych.`)) return;
-    try { await api.delete(`/finance/budowy/${b.id}`); toast.success('Usunieto'); fetchData(); }
+    try { await api.delete(`/finance/budowy/${b.id}`); toast.success('Usunieto'); fetchData(true); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
@@ -161,7 +161,7 @@ export const BudowyPanel = () => {
                       try {
                         await api.put(`/finance/budowy/${b.id}`, { has_budget: newVal });
                         toast.success(newVal ? 'Budowa dodana do modułu Budżet' : 'Budowa ukryta z modułu Budżet');
-                        fetchData();
+                        fetchData(true);
                       } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
                     }}
                     className="text-xs px-2 py-1 rounded transition-colors hover:opacity-80"

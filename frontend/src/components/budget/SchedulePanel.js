@@ -21,7 +21,6 @@ export const SchedulePanel = ({ budowaId, onChange }) => {
 
   const fetchTasks = useCallback(() => {
     if (!budowaId) return;
-    setLoading(true);
     api.get(`/budget/${budowaId}/tasks`)
       .then((r) => setTasks(r.data?.rows || []))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
@@ -71,7 +70,7 @@ export const SchedulePanel = ({ budowaId, onChange }) => {
         </div>
       </CardHeader>
       <CardContent className="overflow-x-auto">
-        {loading ? (
+        {loading && tasks.length === 0 ? (
           <div className="text-[#CBD5E1] text-sm">Ładuję...</div>
         ) : tasks.length === 0 ? (
           <div className="text-[#CBD5E1] text-sm py-6 text-center" data-testid="schedule-empty">

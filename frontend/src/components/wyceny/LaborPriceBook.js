@@ -21,7 +21,6 @@ export const LaborPriceBook = () => {
   const [newCatName, setNewCatName] = useState('');
 
   const fetchRows = useCallback(() => {
-    setLoading(true);
     const params = { category: 'labor' };
     if (search) params.q = search;
     api.get('/wyceny/cennik', { params })

@@ -22,7 +22,6 @@ export const PeriodsPanel = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchPeriods = useCallback(async () => {
-    setLoading(true);
     try {
       const r = await api.get(`/finance/periods?year=${year}`);
       setPeriods(r.data.rows || []);

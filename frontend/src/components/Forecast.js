@@ -200,7 +200,6 @@ export const Forecast = () => {
   const [details, setDetails] = useState(null); // {kind, code?}
 
   const load = useCallback(() => {
-    setLoading(true);
     api.get(`/finance/forecast?back=${back}&forward=${forward}`)
       .then((r) => setData(r.data))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
@@ -209,7 +208,7 @@ export const Forecast = () => {
 
   useEffect(() => { load(); }, [load]);
 
-  if (loading) return <div className="p-6 text-[#CBD5E1]" data-testid="forecast-loading">Ładuję prognozy…</div>;
+  if (loading && !data) return <div className="p-6 text-[#CBD5E1]" data-testid="forecast-loading">Ładuję prognozy…</div>;
   if (!data) return <div className="p-6 text-[#CBD5E1]">Brak danych.</div>;
 
   const cc = data.company_costs;

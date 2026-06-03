@@ -83,7 +83,6 @@ export const BhpEmployees = () => {
   const [alerts, setAlerts] = useState({ employees: [], documents: [] });
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
       const params = new URLSearchParams();
       if (statusFilter === 'archived') params.set('only_archived', 'true');

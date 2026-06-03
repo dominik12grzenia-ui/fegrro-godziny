@@ -47,7 +47,6 @@ export const AuditPanel = () => {
   const [filterDays, setFilterDays] = useState(30);
 
   const fetchHistory = useCallback(async () => {
-    setLoading(true);
     try {
       const params = new URLSearchParams();
       params.set('days', filterDays);
@@ -62,7 +61,6 @@ export const AuditPanel = () => {
   }, [filterEntity, filterAction, filterDays]);
 
   const fetchDeleted = useCallback(async () => {
-    setLoading(true);
     try {
       const r = await api.get('/audit-log/deleted?days=90');
       setDeleted(r.data.rows || []);

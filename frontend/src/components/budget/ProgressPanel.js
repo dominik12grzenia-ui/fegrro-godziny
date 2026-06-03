@@ -21,7 +21,6 @@ export const ProgressPanel = ({ budowaId, year }) => {
 
   const fetchData = useCallback(() => {
     if (!budowaId) return;
-    setLoading(true);
     api.get(`/budget/${budowaId}/protokol-view/${year}/${month}`)
       .then((r) => { setData(r.data); setEdits({}); })
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
@@ -154,7 +153,7 @@ export const ProgressPanel = ({ budowaId, year }) => {
     });
   };
 
-  if (loading) return <div className="text-[#CBD5E1] text-sm">Ładuję...</div>;
+  if (loading && !data) return <div className="text-[#CBD5E1] text-sm">Ładuję...</div>;
   if (!data || data.rows.length === 0) {
     return (
       <Card className="bg-[#1E2A44] border-[#3D5378]">

@@ -30,7 +30,7 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
       await api.put(`/finance/kody/${kodId}`, { name });
       toast.success('Nazwa zaktualizowana');
       setEditingKod(null);
-      fetchRW();
+      fetchRW(true);
       fetchAllKody();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -42,7 +42,7 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     try {
       await api.delete(`/finance/kody/${kodId}`);
       toast.success('Kod usuniety');
-      fetchRW();
+      fetchRW(true);
       fetchAllKody();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Nie można usunac');

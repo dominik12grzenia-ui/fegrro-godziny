@@ -79,7 +79,6 @@ export const WarehouseAdmin = () => {
   const [historyForeman, setHistoryForeman] = useState('');
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
     try {
       const [m, o, f] = await Promise.all([
         api.get('/warehouse/materials?include_inactive=true'),

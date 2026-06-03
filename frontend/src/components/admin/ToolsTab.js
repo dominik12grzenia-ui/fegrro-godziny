@@ -87,7 +87,6 @@ const EmployeeLinksCard = () => {
   const [busy, setBusy] = useState(null);
 
   const fetchEmployees = async () => {
-    setLoading(true);
     try {
       const r = await api.get('/employees?include_archived=false');
       setEmployees(r.data || []);

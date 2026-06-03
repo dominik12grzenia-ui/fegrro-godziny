@@ -21,7 +21,6 @@ export const PriceBook = ({ category }) => {
   const [adding, setAdding] = useState(false);
 
   const fetchRows = useCallback(() => {
-    setLoading(true);
     const params = { category };
     if (search) params.q = search;
     api.get('/wyceny/cennik', { params })

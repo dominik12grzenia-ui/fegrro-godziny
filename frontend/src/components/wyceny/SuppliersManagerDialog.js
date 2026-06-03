@@ -15,7 +15,6 @@ export const SuppliersManagerDialog = ({ onClose }) => {
   const [saving, setSaving] = useState(false);
 
   const reload = useCallback(() => {
-    setLoading(true);
     api.get('/wyceny/suppliers')
       .then((r) => setRows(r.data?.rows || []))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))

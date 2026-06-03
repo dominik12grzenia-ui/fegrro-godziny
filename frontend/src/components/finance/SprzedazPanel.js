@@ -16,7 +16,6 @@ export const SprzedazPanel = ({ year }) => {
   const [month, setMonth] = useState(0); // 0 = caly rok
 
   useEffect(() => {
-    setLoading(true);
     const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
     api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
@@ -24,7 +23,7 @@ export const SprzedazPanel = ({ year }) => {
       .finally(() => setLoading(false));
   }, [year, month]);
 
-  if (loading) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
+  if (loading && !data) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
   if (!data) return null;
 
   const { rows, totals } = data;

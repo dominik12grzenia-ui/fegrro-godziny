@@ -19,7 +19,6 @@ export const EquipmentPriceBook = () => {
   const [search, setSearch] = useState('');
 
   const fetchRows = useCallback(() => {
-    setLoading(true);
     const params = { category: 'equipment' };
     if (search) params.q = search;
     api.get('/wyceny/cennik', { params })

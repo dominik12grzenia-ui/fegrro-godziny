@@ -118,7 +118,6 @@ const WycenyList = ({ onOpen }) => {
   const [scopeMgmtListOpen, setScopeMgmtListOpen] = useState(false);
 
   const fetchRows = useCallback(() => {
-    setLoading(true);
     api.get('/wyceny').then((r) => setRows(r.data?.rows || []))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))
       .finally(() => setLoading(false));

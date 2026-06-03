@@ -138,7 +138,6 @@ export const KPIDashboard = () => {
   const [loading, setLoading] = useState(true);
 
   const fetchAll = useCallback(async () => {
-    setLoading(true);
     try {
       const [k, t, a] = await Promise.all([
         api.get('/dashboard/kpi'),

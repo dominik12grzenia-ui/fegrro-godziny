@@ -21,7 +21,6 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
   const [editRowId, setEditRowId] = useState(null); // iter95ab: szybkie uzupelnienie danych z poziomu pickera
 
   const reload = useCallback(() => {
-    setLoading(true);
     api.get('/wyceny/cennik', { params: { category } })
       .then((r) => setRows(r.data?.rows || []))
       .catch((e) => toast.error('Błąd: ' + (e.response?.data?.detail || e.message)))

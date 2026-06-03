@@ -23,7 +23,6 @@ export const MaterialsPriceBook = () => {
   const [hideEmpty, setHideEmpty] = useState(true);
 
   const fetchRows = useCallback(() => {
-    setLoading(true);
     const params = { category: 'materials' };
     if (search) params.q = search;
     api.get('/wyceny/cennik', { params })

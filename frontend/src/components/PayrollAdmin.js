@@ -41,7 +41,6 @@ export const PayrollAdmin = () => {
   const [diagAuto, setDiagAuto] = useState(null);  // auto-check w tle (tylko liczby) - {mismatch_count, type_issues}
 
   const fetchData = useCallback(async () => {
-    setLoading(true);
     try {
       const res = await api.get(`/payroll?year=${year}&month=${month}`);
       setData(res.data);
