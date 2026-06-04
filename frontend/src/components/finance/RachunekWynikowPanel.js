@@ -4,11 +4,113 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Edit2, FileBarChart, FileDown, FilePlus, FileSpreadsheet, FileText, Loader2, Mail, Pencil, Plus, Receipt, RefreshCw, Save, Search, Send, Trash2, X } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Edit2, FileBarChart, FileDown, FilePlus, FileSpreadsheet, FileText, Loader2, LineChart as LineChartIcon, Mail, Pencil, Plus, Receipt, RefreshCw, Save, Search, Send, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
 import { ActionButton, PL_MONTHS_SHORT, fmtNum } from './_shared';
 import { PaymentSummaryPanel } from './PaymentSummaryPanel';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+
+// iter95dn: wykres liniowy miesieczny dla glownych pozycji rachunku wynikow
+const COST_SERIES = [
+  { key: 'kbb', label: 'KBB · Koszty budowy bezpośrednie', color: '#DC4A3A' },
+  { key: 'ksb', label: 'KSB · Koszty stałe budowy', color: '#D4AF37' },
+  { key: 'ksp', label: 'KSP · Koszty stałe przedsiębiorstwa', color: '#9DBC85' },
+  { key: 'kp',  label: 'KP · Koszty pracy', color: '#60A5FA' },
+  { key: 'suma_kosztow', label: 'SUMA KOSZTÓW', color: '#F8FAFC' },
+  { key: 'przychody_netto', label: 'PRZYCHODY NETTO', color: '#4F6343' },
+];
+
+const RWLineChart = ({ data, year }) => {
+  const [visible, setVisible] = React.useState({
+    kbb: true, ksb: true, ksp: true, kp: true, suma_kosztow: false, przychody_netto: false,
+  });
+  const chartData = React.useMemo(() => {
+    return PL_MONTHS_SHORT.map((m, i) => {
+      const row = { month: m };
+      row.kbb = Math.round(data.groups.kbb.monthly[i] || 0);
+      row.ksb = Math.round(data.groups.ksb.monthly[i] || 0);
+      row.ksp = Math.round(data.groups.ksp.monthly[i] || 0);
+      row.kp  = Math.round(data.groups.kp.monthly[i] || 0);
+      row.suma_kosztow = Math.round(data.summary.suma_kosztow.monthly[i] || 0);
+      row.przychody_netto = Math.round(data.summary.przychody_netto.monthly[i] || 0);
+      return row;
+    });
+  }, [data]);
+
+  const fmt = (v) => Number(v || 0).toLocaleString('pl-PL', { maximumFractionDigits: 0 });
+
+  return (
+    <Card className="bg-[#243049] border-[#3D5378]" data-testid="rw-line-chart-card">
+      <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <LineChartIcon className="h-5 w-5 text-[#D4AF37]" />
+          Trend miesięczny — {year}
+        </CardTitle>
+        <div className="flex flex-wrap gap-1.5">
+          {COST_SERIES.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setVisible((v) => ({ ...v, [s.key]: !v[s.key] }))}
+              className={`text-[11px] px-2 py-1 rounded border transition-colors ${
+                visible[s.key]
+                  ? 'bg-[#1E2A44] border-[#3D5378]'
+                  : 'bg-[#152033] border-[#3D5378] opacity-50 hover:opacity-80'
+              }`}
+              style={{ color: visible[s.key] ? s.color : '#94A3B8' }}
+              data-testid={`rw-chart-toggle-${s.key}`}
+              title={visible[s.key] ? 'Ukryj serię' : 'Pokaż serię'}
+            >
+              <span
+                className="inline-block w-2.5 h-2.5 rounded-full mr-1 align-middle"
+                style={{ backgroundColor: visible[s.key] ? s.color : '#475569' }}
+              />
+              {s.label}
+            </button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="w-full" style={{ height: 340 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#3D5378" />
+              <XAxis dataKey="month" stroke="#94A3B8" tick={{ fontSize: 11 }} />
+              <YAxis
+                stroke="#94A3B8"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : v}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#152033', border: '1px solid #3D5378', borderRadius: 6, fontSize: 12 }}
+                labelStyle={{ color: '#F1F5F9', fontWeight: 600 }}
+                itemStyle={{ padding: '1px 0' }}
+                formatter={(v, name) => [`${fmt(v)} zł`, name]}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
+              {COST_SERIES.filter((s) => visible[s.key]).map((s) => (
+                <Line
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  stroke={s.color}
+                  strokeWidth={2.4}
+                  dot={{ r: 3, fill: s.color, strokeWidth: 0 }}
+                  activeDot={{ r: 5 }}
+                  isAnimationActive={false}
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <p className="text-[10px] text-[#94A3B8] mt-2">
+          Kliknij etykietę powyżej żeby pokazać/ukryć serię. Wartości w PLN netto, zaokrąglone do złotego.
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
 
 export const RachunekWynikowPanel = ({ year, onTileClick }) => {
   const [data, setData] = useState(null);
@@ -111,6 +213,8 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     <>
       {/* Podsumowanie platnosci - tylko w Rachunek wynikow */}
       <PaymentSummaryPanel onTileClick={onTileClick} year={year} />
+      {/* iter95dn: Wykres liniowy trendu miesiecznego */}
+      <RWLineChart data={data} year={year} />
       <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
