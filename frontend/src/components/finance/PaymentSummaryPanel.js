@@ -42,14 +42,20 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
   const syncUnpaid = async () => {
     setSyncing(true);
     try {
-      const r = await api.post('/finance/sync-fakturownia-unpaid');
+      // iter95dr: sync Fakturowni moze pobrac >700 faktur i trwac 30-60s, override globalny 15s timeout
+      const r = await api.post('/finance/sync-fakturownia-unpaid', null, { timeout: 180000 });
       const c = r.data.invoices_created;
       const u = r.data.invoices_updated;
       const mp = r.data.marked_paid || 0;
       toast.success(`Sync OK: ${c} nowych, ${u} zaktualizowanych${mp > 0 ? `, ${mp} oznaczonych jako zapłacone` : ''}`);
       fetchData();
     } catch (e) {
-      toast.error(e.response?.data?.detail || 'Błąd sync');
+      // iter95dr: timeout z frontu != niepowodzenie po stronie backendu
+      if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message || '')) {
+        toast.warning('Synchronizacja trwa dłużej niż zwykle — odśwież listę za chwilę. Backend nadal pracuje.');
+      } else {
+        toast.error(e.response?.data?.detail || 'Błąd sync');
+      }
     } finally {
       setSyncing(false);
     }

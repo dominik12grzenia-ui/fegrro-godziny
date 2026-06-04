@@ -11,6 +11,7 @@ Plus cron job `cron_fakturownia_sync` re-exportowany przez routes.finance.
 """
 import logging
 import uuid
+import calendar
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from datetime import datetime
@@ -65,7 +66,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         )
     yr, mo = year, month
     date_from = f"{yr:04d}-{mo:02d}-01"
-    last_day = 31 if mo in (1, 3, 5, 7, 8, 10, 12) else (30 if mo != 2 else 29)
+    # iter95dr: poprawne obliczenie ostatniego dnia miesiaca (uwzglednia lata przestepne).
+    # Wczesniej hardcoded 29 dla lutego powodowal puste odpowiedzi w lata nieprzestepne (np. 2026).
+    last_day = calendar.monthrange(yr, mo)[1]
     date_to = f"{yr:04d}-{mo:02d}-{last_day:02d}"
 
     base_url = f"https://{domain}.fakturownia.pl/invoices.json"
@@ -882,7 +885,7 @@ async def sync_from_fakturownia(
             y2, m2 = from_year, from_month
             while (y2, m2) <= (now.year, now.month):
                 date_from = f"{y2:04d}-{m2:02d}-01"
-                last_day = 31 if m2 in (1,3,5,7,8,10,12) else (30 if m2 != 2 else 29)
+                last_day = calendar.monthrange(y2, m2)[1]
                 date_to = f"{y2:04d}-{m2:02d}-{last_day:02d}"
                 async with httpx.AsyncClient(timeout=30.0) as client:
                     for inc_mode in ("no", "yes"):
@@ -977,7 +980,7 @@ async def cron_fakturownia_sync():
         async with httpx.AsyncClient(timeout=30.0) as client:
             for y, m in _iter_months(SYNC_FROM_YEAR, SYNC_FROM_MONTH, now.year, now.month):
                 date_from = f"{y:04d}-{m:02d}-01"
-                last_day = 31 if m in (1,3,5,7,8,10,12) else (30 if m != 2 else 29)
+                last_day = calendar.monthrange(y, m)[1]
                 date_to = f"{y:04d}-{m:02d}-{last_day:02d}"
                 for inc_mode in ("no", "yes"):
                     page = 1
