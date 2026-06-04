@@ -175,6 +175,34 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
   const [newKod, setNewKod] = useState({ name: '', category: 'KBB', order: 100 });
   const [editingKod, setEditingKod] = useState(null); // { kod_id, name }
   const [allKody, setAllKody] = useState([]);
+  // iter95dt: wyłączanie miesięcy z sumowania (persist w localStorage per rok)
+  const _disabledKey = `rw-disabled-months-${year}`;
+  const [disabledMonths, setDisabledMonths] = useState(() => {
+    try {
+      const raw = localStorage.getItem(_disabledKey);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch (_e) { return new Set(); }
+  });
+  // Reset gdy rok się zmienia
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(`rw-disabled-months-${year}`);
+      setDisabledMonths(raw ? new Set(JSON.parse(raw)) : new Set());
+    } catch (_e) { setDisabledMonths(new Set()); }
+  }, [year]);
+  const toggleMonth = (idx) => {
+    setDisabledMonths(prev => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      try { localStorage.setItem(`rw-disabled-months-${year}`, JSON.stringify([...next])); } catch (_e) { /* noop */ }
+      return next;
+    });
+  };
+  // Suma miesięcznych z pominięciem wyłączonych
+  const sumIncluded = useCallback((monthly) => {
+    if (!Array.isArray(monthly)) return 0;
+    return monthly.reduce((acc, v, i) => disabledMonths.has(i) ? acc : acc + (Number(v) || 0), 0);
+  }, [disabledMonths]);
 
   const fetchAllKody = () => {
     api.get('/finance/kody').then(r => setAllKody(r.data.rows || []));
@@ -251,18 +279,34 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
   const monthsHeader = PL_MONTHS_SHORT;
   // Renderujemy panel platnosci nad tabela (kontrachenci do zaplaty / my do zaplaty / przeterminowane)
 
-  const renderRow = (label, monthly, total, opts = {}) => (
-    <tr className={`border-t-2 border-[#3D5378] ${opts.bg || ''}`} data-testid={opts.testid}>
-      <td className={`p-2 border-r-2 border-[#3D5378] ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#243049]'} z-10`}>
-        {opts.indent && <span className="ml-4" />}
-        {label}
-      </td>
-      {monthly.map((v, i) => (
-        <td key={i} className={`p-1 text-right text-xs border-r border-[#3D5378] ${opts.valClass || 'text-[#F1F5F9]'}`}>{(opts.numFmt || fmtNum)(v)}</td>
-      ))}
-      <td className={`p-2 text-right font-bold border-l-2 border-[#3D5378] ${opts.totalClass || 'text-white'} bg-[#1E2A44]`}>{total === '-' ? '-' : (opts.numFmt || fmtNum)(total)}</td>
-    </tr>
-  );
+  const renderRow = (label, monthly, total, opts = {}) => {
+    // iter95dt: jeśli są wyłączone miesiące — przelicz SUMA, ale tylko dla wartości liczbowych
+    const isNumericTotal = typeof total === 'number';
+    const displayTotal = (isNumericTotal && disabledMonths.size > 0)
+      ? sumIncluded(monthly)
+      : total;
+    return (
+      <tr className={`border-t-2 border-[#3D5378] ${opts.bg || ''}`} data-testid={opts.testid}>
+        <td className={`p-2 border-r-2 border-[#3D5378] ${opts.labelClass || 'text-white'} sticky left-0 ${opts.bg || 'bg-[#243049]'} z-10`}>
+          {opts.indent && <span className="ml-4" />}
+          {label}
+        </td>
+        {monthly.map((v, i) => {
+          const isDisabled = disabledMonths.has(i);
+          return (
+            <td
+              key={i}
+              className={`p-1 text-right text-xs border-r border-[#3D5378] ${isDisabled ? 'text-[#475569] line-through bg-[#1E2A44]/40' : (opts.valClass || 'text-[#F1F5F9]')}`}
+              title={isDisabled ? 'Ten miesiąc wyłączony z sumowania' : undefined}
+            >
+              {(opts.numFmt || fmtNum)(v)}
+            </td>
+          );
+        })}
+        <td className={`p-2 text-right font-bold border-l-2 border-[#3D5378] ${opts.totalClass || 'text-white'} bg-[#1E2A44]`}>{displayTotal === '-' ? '-' : (opts.numFmt || fmtNum)(displayTotal)}</td>
+      </tr>
+    );
+  };
 
   const toggle = (k) => setExpanded(s => ({ ...s, [k]: !s[k] }));
 
@@ -277,18 +321,59 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
       <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-white">Rachunek wyników {year}</CardTitle>
-          <Button onClick={() => setShowAddKod(true)}
-            className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-btn">
-            <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
-          </Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {disabledMonths.size > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDisabledMonths(new Set());
+                  try { localStorage.removeItem(`rw-disabled-months-${year}`); } catch (_e) { /* noop */ }
+                }}
+                className="text-xs px-2 py-1.5 rounded border border-[#3D5378] bg-[#1E2A44] text-[#D4AF37] hover:bg-[#243049] flex items-center gap-1"
+                data-testid="rw-reset-months"
+                title="Włącz wszystkie miesiące z powrotem"
+              >
+                Włącz wszystkie miesiące ({disabledMonths.size} wyłączonych)
+              </button>
+            )}
+            <Button onClick={() => setShowAddKod(true)}
+              className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="rw-add-kod-btn">
+              <Plus className="h-4 w-4 mr-1" /> Dodaj pozycje kosztowa
+            </Button>
+          </div>
         </CardHeader>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-rw-table">
           <thead className="bg-[#1E2A44] text-[#CBD5E1] sticky top-0">
             <tr>
               <th className="p-2 text-left border-r-2 border-[#3D5378] sticky left-0 bg-[#1E2A44] z-20">Pozycja</th>
-              {monthsHeader.map((m, i) => <th key={i} className="p-1 text-right text-xs min-w-[60px] border-r border-[#3D5378]">{m}</th>)}
-              <th className="p-2 text-right border-l-2 border-[#3D5378]">SUMA</th>
+              {monthsHeader.map((m, i) => {
+                const off = disabledMonths.has(i);
+                return (
+                  <th key={i} className={`p-1 text-right text-xs min-w-[60px] border-r border-[#3D5378] ${off ? 'opacity-50' : ''}`}>
+                    <button
+                      type="button"
+                      onClick={() => toggleMonth(i)}
+                      className={`w-full flex flex-col items-center gap-0.5 hover:bg-[#243049] rounded px-1 py-0.5 transition-colors ${off ? 'text-[#475569]' : 'text-[#CBD5E1]'}`}
+                      title={off ? 'Włącz miesiąc do sumowania' : 'Wyłącz miesiąc z sumowania'}
+                      data-testid={`rw-toggle-month-${i + 1}`}
+                    >
+                      <span className={off ? 'line-through' : ''}>{m}</span>
+                      <span className={`text-[10px] ${off ? 'text-[#DC4A3A]' : 'text-[#4F6343]'}`}>
+                        {off ? '✕' : '✓'}
+                      </span>
+                    </button>
+                  </th>
+                );
+              })}
+              <th className="p-2 text-right border-l-2 border-[#3D5378]">
+                SUMA
+                {disabledMonths.size > 0 && (
+                  <div className="text-[10px] font-normal text-[#D4AF37] mt-0.5" data-testid="rw-sum-active-months">
+                    z {12 - disabledMonths.size}/12 mc
+                  </div>
+                )}
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -323,8 +408,10 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
                     {expanded[g] ? <ChevronDown className="inline h-4 w-4 mr-1" /> : <ChevronRight className="inline h-4 w-4 mr-1" />}
                     {groups[g].label}
                   </td>
-                  {groups[g].monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#F1F5F9] border-r border-[#3D5378]">{fmtNum(v)}</td>)}
-                  <td className="p-2 text-right font-bold text-white bg-[#1E2A44] border-l-2 border-[#3D5378]">{fmtNum(groups[g].total)}</td>
+                  {groups[g].monthly.map((v, i) => (
+                    <td key={i} className={`p-1 text-right text-xs border-r border-[#3D5378] ${disabledMonths.has(i) ? 'text-[#475569] line-through bg-[#1E2A44]/40' : 'text-[#F1F5F9]'}`}>{fmtNum(v)}</td>
+                  ))}
+                  <td className="p-2 text-right font-bold text-white bg-[#1E2A44] border-l-2 border-[#3D5378]">{fmtNum(disabledMonths.size > 0 ? sumIncluded(groups[g].monthly) : groups[g].total)}</td>
                 </tr>
                 {expanded[g] && groups[g].rows.map((r) => {
                   const isEditing = editingKod?.kod_id === r.kod_id;
@@ -365,8 +452,10 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
                         </div>
                       )}
                     </td>
-                    {r.monthly.map((v, i) => <td key={i} className="p-1 text-right text-xs text-[#CBD5E1] border-r border-[#3D5378]">{fmtNum(v)}</td>)}
-                    <td className="p-2 text-right text-xs text-[#F1F5F9] bg-[#1E2A44] border-l-2 border-[#3D5378]">{fmtNum(r.total)}</td>
+                    {r.monthly.map((v, i) => (
+                      <td key={i} className={`p-1 text-right text-xs border-r border-[#3D5378] ${disabledMonths.has(i) ? 'text-[#475569] line-through bg-[#1E2A44]/40' : 'text-[#CBD5E1]'}`}>{fmtNum(v)}</td>
+                    ))}
+                    <td className="p-2 text-right text-xs text-[#F1F5F9] bg-[#1E2A44] border-l-2 border-[#3D5378]">{fmtNum(disabledMonths.size > 0 ? sumIncluded(r.monthly) : r.total)}</td>
                   </tr>
                   );
                 })}
