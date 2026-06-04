@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from datetime import datetime
+import calendar
 import uuid
 import secrets
 
@@ -28,8 +29,8 @@ async def get_employees(
     """
     query = {}
     if month and year:
-        # Granice miesiaca
-        last_day = 31 if month in (1,3,5,7,8,10,12) else (30 if month != 2 else 29)
+        # Granice miesiaca (calendar.monthrange poprawnie obsluguje lata przestepne)
+        last_day = calendar.monthrange(year, month)[1]
         month_start = f"{year:04d}-{month:02d}-01"
         month_end = f"{year:04d}-{month:02d}-{last_day:02d}T23:59:59"
         # Pracownik powinien sie pokazac jezeli:

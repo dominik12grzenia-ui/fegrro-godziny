@@ -13,6 +13,7 @@ trafia na karteczke (tylko sumaryczne pozycje).
 import io
 import logging
 import uuid
+import calendar
 from fastapi import APIRouter, HTTPException, Depends, Query, Body
 from fastapi.responses import StreamingResponse
 from datetime import datetime
@@ -92,7 +93,8 @@ async def list_payroll(
     # - created_at <= ostatni dzien miesiaca (istnial wtedy)
     # - jezeli zarchiwizowany: archived_at musial byc >= 1szy dzien miesiaca (archiwizacja od nast. miesiaca)
     # - is_deleted pracownicy SA wlaczeni (historyczne dane musza sie pojawic w wyplatach)
-    last_day = 31 if month in (1, 3, 5, 7, 8, 10, 12) else (30 if month != 2 else 29)
+    # iter95dr: calendar.monthrange poprawnie obsluguje lata przestepne (zamiast hardcoded 29 dla lutego)
+    last_day = calendar.monthrange(year, month)[1]
     month_start = f"{year:04d}-{month:02d}-01"
     month_end_iso = f"{year:04d}-{month:02d}-{last_day:02d}T23:59:59"
     emps_query = {
