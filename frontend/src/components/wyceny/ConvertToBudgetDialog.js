@@ -28,7 +28,7 @@ export const ConvertToBudgetDialog = ({ wycenaId, wycenaName, clientName, client
         zamawiajacy: zamawiajacy.trim() || undefined,
         umowa_nr: umowaNr.trim() || undefined,
         umowa_data: umowaData.trim() || undefined,
-      });
+      }, { timeout: 120000 });
       setResult(r.data);
       toast.success('Budowa utworzona — wycena zaciągnięta do budżetu');
     } catch (e) {

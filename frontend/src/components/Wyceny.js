@@ -303,7 +303,7 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
     if (!wycenaId) return;
     setRefreshingPrices(true);
     try {
-      const r = await api.post(`/wyceny/${wycenaId}/refresh-prices`);
+      const r = await api.post(`/wyceny/${wycenaId}/refresh-prices`, null, { timeout: 60000 });
       const { updated, skipped, auto_linked, total_linked } = r.data || {};
       if (total_linked === 0) {
         toast.info('Brak pozycji w wycenie do aktualizacji.');

@@ -181,7 +181,7 @@ export const ExcelImportDialog = ({ wycenaId, onClose, onImported }) => {
         rows: Object.entries(rowMap)
           .map(([k, v]) => ({ row_index: parseInt(k, 10), role: v })),
       };
-      const r = await api.post(`/wyceny/${wycenaId}/import/apply`, body);
+      const r = await api.post(`/wyceny/${wycenaId}/import/apply`, body, { timeout: 120000 });
       const d = r.data || {};
       toast.success(`Zaimportowano: ${d.stages_created} etapów, ${d.positions_created} pozycji`);
       setStep(3);

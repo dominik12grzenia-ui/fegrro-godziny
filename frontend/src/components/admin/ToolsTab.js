@@ -31,7 +31,8 @@ const FakturowniaActions = ({ onChange }) => {
   const test = async () => {
     setTesting(true); setTestResult(null);
     try {
-      const r = await api.post('/finance/test-fakturownia');
+      // iter95dr: test moze potrwac do 30s (Fakturownia czasem zwolni przy pierwszym callu)
+      const r = await api.post('/finance/test-fakturownia', null, { timeout: 60000 });
       setTestResult(r.data);
       if (r.data.ok) toast.success(`Polaczenie OK: ${r.data.company_name || r.data.prefix}`);
       else toast.error(r.data.error);
@@ -50,11 +51,18 @@ const FakturowniaActions = ({ onChange }) => {
     )) return;
     setSyncing(true);
     try {
-      const r = await api.post('/finance/sync-from-fakturownia?from_year=2026&from_month=1');
+      // iter95dr: sync 6+ miesiecy z Fakturowni moze trwac 10-60s. Globalny api timeout=15s
+      // powoduje "brak odpowiedzi backendu" mimo ze backend nadal pracuje. Override 5 min.
+      const r = await api.post('/finance/sync-from-fakturownia?from_year=2026&from_month=1', null, { timeout: 300000 });
       toast.success(`Pobrano ${r.data.invoices_fetched} faktur z ${r.data.months_processed} miesiecy: ${r.data.positions_created} nowych + ${r.data.positions_updated} zaktualizowanych`);
       onChange && onChange();
     } catch (e) {
-      toast.error(describeError(e, 'Błąd pobierania'));
+      // iter95dr: timeout w przegladarce != porazka backendu
+      if (e.code === 'ECONNABORTED' || /timeout/i.test(e.message || '')) {
+        toast.warning('Pobieranie trwa dłużej niż zwykle — sprawdź Zapisy za 1-2 minuty. Backend nadal pracuje w tle.');
+      } else {
+        toast.error(describeError(e, 'Błąd pobierania'));
+      }
     } finally { setSyncing(false); }
   };
 

@@ -318,7 +318,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       'Stare auto-zapisy zostana nadpisane, ale reczne wpisy nie sa ruszane.'
     )) return;
     try {
-      const r = await api.post('/finance/sync-current-month');
+      const r = await api.post('/finance/sync-current-month', null, { timeout: 120000 });
       toast.success(`Sync OK: ${r.data.g_zapisy} godzin + ${r.data.kp_zapisy} wypłat (${r.data.total_godziny}h, ${r.data.total_kp?.toFixed(2)} zł)`);
       fetchData(true);
     } catch (e) {
@@ -333,7 +333,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     )) return;
     setSyncingPayroll(true);
     try {
-      const r = await api.post('/finance/sync-all-months?from_year=2026&from_month=1');
+      const r = await api.post('/finance/sync-all-months?from_year=2026&from_month=1', null, { timeout: 300000 });
       toast.success(`Sync OK: ${r.data.months_processed} mc, ${fmtPLN(r.data.total_kp || 0)}`);
       fetchData(true);
     } catch (e) {
@@ -350,7 +350,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       'NAPRAWIA: brakujace alokacje sprzedazy/kosztow w kolumnach budzetu (m.in. Q).'
     )) return;
     try {
-      const r = await api.post('/finance/backfill-invoice-budowa-to-positions');
+      const r = await api.post('/finance/backfill-invoice-budowa-to-positions', null, { timeout: 120000 });
       toast.success(`Propagacja OK: ${r.data.invoices_processed} faktur, ${r.data.positions_updated} pozycji zaktualizowanych`);
       fetchData(true);
     } catch (e) {
