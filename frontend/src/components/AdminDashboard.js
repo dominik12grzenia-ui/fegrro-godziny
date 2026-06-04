@@ -413,13 +413,11 @@ export const AdminDashboard = () => {
       <div className="sticky top-0 z-50 bg-[#181F30]/80 backdrop-blur-xl border-b border-white/10 shadow-sm">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-            <div className="bg-slate-100 rounded-md p-1.5 shrink-0 shadow-sm">
-              <img 
-                src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg" 
-                alt="FeGrro Logo" 
-                className="h-6 sm:h-8 lg:h-10"
-              />
-            </div>
+            <img
+              src="https://fegrro.pl/wp-content/uploads/2020/02/LOGO-4.svg"
+              alt="FeGrro Logo"
+              className="h-8 sm:h-10 lg:h-12 shrink-0"
+            />
             <div className="min-w-0">
               <h1 className="text-base sm:text-lg lg:text-xl font-bold tracking-tight text-slate-100 truncate">Panel Administratora</h1>
               <p className="text-slate-400 text-[10px] sm:text-xs font-medium truncate">{user?.email}</p>
