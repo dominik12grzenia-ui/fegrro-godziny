@@ -26,6 +26,9 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
     date: new Date().toISOString().slice(0, 10),
     kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '',
   });
+  // iter95dp: koszt cykliczny — checkbox + liczba miesiecy
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringMonths, setRecurringMonths] = useState(12);
   // Pozycje budzetu dla aktualnie wybranej budowy (modal)
   const [budgetLines, setBudgetLines] = useState([]);
   // Opcje budzetu (flat) dla inline dropdownow w tabeli - cache per budowa_id
@@ -139,12 +142,20 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       if (editing) {
         await api.put(`/finance/zapisy/${editing.id}`, payload);
         toast.success('Zaktualizowano');
+      } else if (isRecurring) {
+        // iter95dp: koszt cykliczny — backend generuje N wpisow miesiecznych
+        const n = Math.max(1, Math.min(120, parseInt(recurringMonths, 10) || 1));
+        const r = await api.post('/finance/zapisy/recurring', { ...payload, months: n });
+        const c = r.data?.created_count ?? n;
+        const s = r.data?.skipped_count ?? 0;
+        toast.success(`Dodano koszt cykliczny: ${c} mc${s > 0 ? ` (pominięto ${s} zamknięt${s === 1 ? 'y' : 'ych'} okres${s === 1 ? '' : 'ów'})` : ''}`);
       } else {
         await api.post('/finance/zapisy', payload);
         toast.success('Dodano zapis');
       }
       setShowAdd(false); setEditing(null);
       setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
+      setIsRecurring(false); setRecurringMonths(12);
       fetchData(true);
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
@@ -220,7 +231,27 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   };
 
   const remove = async (z) => {
-    if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zł?`)) return;
+    // iter95dp: koszt cykliczny — zapytaj czy usunąć całą grupę
+    if (z.recurring_group_id) {
+      const opt = window.prompt(
+        `Ta pozycja należy do kosztu cyklicznego (rata ${z.recurring_index || '?'} z ${z.recurring_total || '?'}).\n\n` +
+        `Wpisz:\n` +
+        `  1 = usuń TYLKO tę pozycję (jedną ratę)\n` +
+        `  2 = usuń WSZYSTKIE pozostałe raty z tej grupy\n` +
+        `  pusto / Anuluj = nie usuwaj`,
+        '1'
+      );
+      if (opt === '2') {
+        try {
+          const r = await api.delete(`/finance/zapisy/recurring/${z.recurring_group_id}`);
+          toast.success(`Usunięto ${r.data.deleted} rat${r.data.skipped_locked > 0 ? ` (pominięto ${r.data.skipped_locked} z zamkniętych okresów)` : ''}`);
+          fetchData(true);
+        } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
+        return;
+      }
+      if (opt !== '1') return;
+      // fall-through: usun pojedyncza
+    } else if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zł?`)) return;
     try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(true); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
@@ -668,8 +699,17 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
                   <td className="p-2 text-[#F1F5F9] text-xs">
                     <div>{z.kontrahent || '-'}</div>
                     {z.nr_faktury && <div className="text-[#CBD5E1] text-[10px]">{z.nr_faktury}</div>}
-                    {z.source === 'manual' && <span className="inline-block mt-0.5 text-[10px] bg-[#3D5378]/40 text-[#F1F5F9] px-1 rounded">RECZNY</span>}
+                    {z.source === 'manual' && !z.recurring_group_id && <span className="inline-block mt-0.5 text-[10px] bg-[#3D5378]/40 text-[#F1F5F9] px-1 rounded">RECZNY</span>}
                     {z.source && z.source.startsWith('auto_') && <span className="inline-block mt-0.5 text-[10px] bg-[#D4AF37]/20 text-[#D4AF37] px-1 rounded">AUTO</span>}
+                    {z.recurring_group_id && (
+                      <span
+                        className="inline-block mt-0.5 ml-0.5 text-[10px] bg-[#4F6343]/30 text-[#9DBC85] px-1 rounded"
+                        title={`Koszt cykliczny — rata ${z.recurring_index || '?'} z ${z.recurring_total || '?'}`}
+                        data-testid={`finance-zapis-recurring-badge-${z.id}`}
+                      >
+                        🔁 {z.recurring_index || '?'}/{z.recurring_total || '?'}
+                      </span>
+                    )}
                   </td>
                   <td className="p-2 text-[#F1F5F9] text-xs max-w-[200px] truncate" title={z.pozycja_nazwa}>{z.pozycja_nazwa || '-'}</td>
                   <td className="p-2 text-xs">
@@ -696,7 +736,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
         </table>}
       </CardContent>
 
-      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); } }}>
+      <Dialog open={showAdd} onOpenChange={(o) => { if (!o) { setShowAdd(false); setEditing(null); setIsRecurring(false); } }}>
         <DialogContent className="bg-[#243049] border-[#3D5378] text-[#F1F5F9] max-w-2xl w-[95vw] max-h-[90vh] overflow-y-auto" data-testid="finance-zapis-modal">
           <DialogHeader><DialogTitle className="text-white">{editing ? 'Edytuj zapis' : 'Dodaj zapis ksiegowy'}</DialogTitle></DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -787,11 +827,50 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
               <Input value={form.notes} onChange={(e) => setForm({...form, notes: e.target.value})}
                 className="bg-[#1E2A44] border-[#3D5378] text-white" />
             </div>
+            {/* iter95dp: koszt cykliczny — dostepny tylko przy dodawaniu (nie edycji) */}
+            {!editing && (
+              <div className="col-span-2 border border-[#3D5378] rounded-lg p-3 bg-[#1E2A44]/40" data-testid="finance-zapis-recurring-section">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isRecurring}
+                    onChange={(e) => setIsRecurring(e.target.checked)}
+                    className="accent-[#4F6343] h-4 w-4"
+                    data-testid="finance-zapis-recurring-toggle"
+                  />
+                  <span className="text-sm text-[#F1F5F9] font-medium">
+                    Koszt cykliczny — powtarzaj co miesiąc
+                  </span>
+                </label>
+                {isRecurring && (
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 items-end">
+                    <div>
+                      <label className="text-xs text-[#CBD5E1] block mb-1">Liczba miesięcy</label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max="120"
+                        step="1"
+                        value={recurringMonths}
+                        onChange={(e) => setRecurringMonths(e.target.value)}
+                        className="no-spinner bg-[#1E2A44] border-[#3D5378] text-white"
+                        data-testid="finance-zapis-recurring-months"
+                      />
+                    </div>
+                    <div className="sm:col-span-2 text-xs text-[#94A3B8] leading-relaxed">
+                      Powstanie <strong className="text-[#D4AF37]">{Math.max(1, parseInt(recurringMonths, 10) || 0)}</strong> zapisów po <strong className="text-[#D4AF37]">{Number(form.netto || 0).toLocaleString('pl-PL', { maximumFractionDigits: 2 })} zł</strong> netto,
+                      jeden na każdy miesiąc począwszy od {form.date}.
+                      Zamknięte okresy zostaną automatycznie pominięte.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => { setShowAdd(false); setEditing(null); }}
               className="border-[#3D5378] text-[#F1F5F9] hover:bg-[#3D5378] hover:text-white">Anuluj</Button>
-            <ActionButton onAction={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">{editing ? 'Zapisz' : 'Dodaj'}</ActionButton>
+            <ActionButton onAction={submit} className="bg-[#4F6343] hover:bg-[#3F5235] text-white" data-testid="finance-zapis-submit">{editing ? 'Zapisz' : (isRecurring ? `Dodaj ${Math.max(1, parseInt(recurringMonths, 10) || 0)} mc` : 'Dodaj')}</ActionButton>
           </DialogFooter>
         </DialogContent>
       </Dialog>

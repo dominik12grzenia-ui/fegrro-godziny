@@ -228,6 +228,20 @@ class ZapisCreate(BaseModel):
     is_income: Optional[bool] = False
 
 
+# iter95dp: koszty cykliczne — jeden zapis startowy generuje N kolejnych miesiecznych
+class ZapisRecurringCreate(BaseModel):
+    date: str  # YYYY-MM-DD - data startowa (miesiac startowy)
+    kontrahent: Optional[str] = None
+    netto: float  # kwota miesieczna
+    kod_id: str
+    budowa_id: Optional[str] = None
+    budget_line_id: Optional[str] = None
+    nr_faktury: Optional[str] = None  # opcjonalny, do kazdego dolaczone "(M/N)"
+    pozycja_nazwa: Optional[str] = None
+    notes: Optional[str] = None
+    months: int  # ile miesiecy w sumie (>=1, <=120)
+
+
 class ZapisUpdate(BaseModel):
     date: Optional[str] = None
     kontrahent: Optional[str] = None
@@ -778,6 +792,115 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
     doc.pop("_id", None)
     await log_audit(entity="finance_zapis", entity_id=zid, action="create", user=current_user, new=doc)
     return doc
+
+
+# iter95dp: koszty cykliczne — tworzy N zapisow miesiecznych ze wspolnym recurring_group_id
+@router.post("/finance/zapisy/recurring")
+async def create_recurring_zapisy(payload: ZapisRecurringCreate, current_user: dict = Depends(get_current_admin)):
+    try:
+        d0 = datetime.strptime(payload.date, "%Y-%m-%d")
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Nieprawidlowy format daty (YYYY-MM-DD)")
+    if payload.months < 1 or payload.months > 120:
+        raise HTTPException(status_code=400, detail="Liczba miesiecy musi byc 1-120")
+    kod = await db.finance_kody.find_one({"id": payload.kod_id}, {"_id": 0, "id": 1, "category": 1})
+    if not kod:
+        raise HTTPException(status_code=400, detail=f"Nieznany kod kosztu: {payload.kod_id}")
+    if payload.budowa_id:
+        bud = await db.finance_budowy.find_one({"id": payload.budowa_id}, {"_id": 0, "id": 1})
+        if not bud:
+            raise HTTPException(status_code=400, detail="Nieznana budowa")
+    if payload.budget_line_id:
+        bl = await db.budget_lines.find_one({"id": payload.budget_line_id}, {"_id": 0, "id": 1})
+        if not bl:
+            raise HTTPException(status_code=400, detail="Nieznana pozycja budzetu")
+
+    group_id = str(uuid.uuid4())
+    created: list = []
+    skipped: list = []
+    now_iso = datetime.now().isoformat()
+
+    for i in range(payload.months):
+        # Krok miesiac+i z zachowaniem dnia
+        y = d0.year + (d0.month - 1 + i) // 12
+        m = (d0.month - 1 + i) % 12 + 1
+        # Zaclamp dzien na ostatni dzien miesiaca jesli np. 31->luty
+        import calendar as _cal
+        last_day = _cal.monthrange(y, m)[1]
+        day = min(d0.day, last_day)
+        d_str = f"{y:04d}-{m:02d}-{day:02d}"
+        # Pomin miesiac jesli zamkniety (period locked)
+        try:
+            await assert_period_open(y, m, action="dodawac")
+        except HTTPException:
+            skipped.append({"year": y, "month": m, "reason": "period_locked"})
+            continue
+        zid = str(uuid.uuid4())
+        nr = (payload.nr_faktury or "").strip()
+        nr_with_idx = f"{nr} ({i+1}/{payload.months})".strip() if nr else f"({i+1}/{payload.months})"
+        doc = {
+            "id": zid,
+            "date": d_str,
+            "year": y,
+            "month": m,
+            "kontrahent": (payload.kontrahent or "").strip(),
+            "netto": float(payload.netto),
+            "brutto": float(payload.netto),
+            "kod_id": payload.kod_id,
+            "kod_category": kod["category"],
+            "budowa_id": payload.budowa_id,
+            "budget_line_id": payload.budget_line_id,
+            "nr_faktury": nr_with_idx,
+            "pozycja_nazwa": (payload.pozycja_nazwa or "").strip(),
+            "notes": (payload.notes or "").strip(),
+            "source": "manual",
+            "recurring_group_id": group_id,
+            "recurring_index": i + 1,
+            "recurring_total": payload.months,
+            "created_at": now_iso,
+            "created_by": current_user["sub"],
+        }
+        await db.finance_zapisy.insert_one(doc)
+        doc.pop("_id", None)
+        await log_audit(entity="finance_zapis", entity_id=zid, action="create", user=current_user, new=doc)
+        created.append({"id": zid, "year": y, "month": m, "date": d_str})
+
+    return {
+        "recurring_group_id": group_id,
+        "created_count": len(created),
+        "skipped_count": len(skipped),
+        "skipped": skipped,
+        "created": created,
+    }
+
+
+# iter95dp: usun cala grupe cykliczna naraz
+@router.delete("/finance/zapisy/recurring/{group_id}")
+async def delete_recurring_group(group_id: str, current_user: dict = Depends(get_current_admin)):
+    # Wczytaj wszystkie zapisy z tej grupy (tylko nieusuniete)
+    docs = await db.finance_zapisy.find(
+        {"recurring_group_id": group_id, **soft_delete_filter()},
+        {"_id": 0}
+    ).to_list(length=None)
+    if not docs:
+        raise HTTPException(status_code=404, detail="Grupa cykliczna nie istnieje lub juz usunieta")
+    deleted_now = datetime.now().isoformat()
+    deleted = 0
+    skipped_locked = 0
+    for d in docs:
+        # Pomin zamkniete okresy
+        try:
+            await assert_period_open(d["year"], d["month"], action="usuwac")
+        except HTTPException:
+            skipped_locked += 1
+            continue
+        await db.finance_zapisy.update_one(
+            {"id": d["id"]},
+            {"$set": {"deleted_at": deleted_now, "deleted_by": current_user["sub"]}}
+        )
+        await log_audit(entity="finance_zapis", entity_id=d["id"], action="delete", user=current_user, old=d)
+        deleted += 1
+    return {"deleted": deleted, "skipped_locked": skipped_locked}
 
 
 @router.put("/finance/zapisy/{zapis_id}")

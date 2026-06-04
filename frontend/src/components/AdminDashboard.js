@@ -68,6 +68,9 @@ const QuickAddZapisModal = ({ open, onClose }) => {
   const [kody, setKody] = useState([]);
   const [budowy, setBudowy] = useState([]);
   const [saving, setSaving] = useState(false);
+  // iter95dp: koszt cykliczny
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringMonths, setRecurringMonths] = useState(12);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +85,7 @@ const QuickAddZapisModal = ({ open, onClose }) => {
       setBudowy(budowyArr);
     });
     setDate(todayIso); setKontrahent(''); setNotes(''); setNetto(''); setKodId(''); setBudowaId('');
+    setIsRecurring(false); setRecurringMonths(12);
   }, [open, todayIso]);
 
   const handleSave = async () => {
@@ -90,20 +94,31 @@ const QuickAddZapisModal = ({ open, onClose }) => {
     if (!kodId) return toast.error('Wybierz kod kosztu');
     setSaving(true);
     try {
-      const d = new Date(date);
-      await api.post('/finance/zapisy', {
+      const payload = {
         date,
-        year: d.getFullYear(),
-        month: d.getMonth() + 1,
         kontrahent: kontrahent || '',
         kod_id: kodId,
         budowa_id: budowaId || null,
         netto: parseFloat(netto),
-        brutto: parseFloat(netto),
         notes: notes || '',
-        source: 'manual',
-      });
-      toast.success('Zapis dodany');
+      };
+      if (isRecurring) {
+        const n = Math.max(1, Math.min(120, parseInt(recurringMonths, 10) || 1));
+        const r = await api.post('/finance/zapisy/recurring', { ...payload, months: n });
+        const c = r.data?.created_count ?? n;
+        const s = r.data?.skipped_count ?? 0;
+        toast.success(`Dodano koszt cykliczny: ${c} mc${s > 0 ? ` (pominięto ${s} zamknięt${s === 1 ? 'y' : 'ych'} okres${s === 1 ? '' : 'ów'})` : ''}`);
+      } else {
+        const d = new Date(date);
+        await api.post('/finance/zapisy', {
+          ...payload,
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          brutto: parseFloat(netto),
+          source: 'manual',
+        });
+        toast.success('Zapis dodany');
+      }
       onClose();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd zapisu');
@@ -165,6 +180,36 @@ const QuickAddZapisModal = ({ open, onClose }) => {
               placeholder="np. paliwo do koparki"
               className="bg-[#152033] border-[#3D5378] text-white" data-testid="dash-quickadd-notes" />
           </div>
+          {/* iter95dp: koszt cykliczny */}
+          <div className="border border-[#3D5378] rounded p-3 bg-[#243049]/40">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="accent-[#4F6343] h-4 w-4"
+                data-testid="dash-quickadd-recurring-toggle"
+              />
+              <span className="text-sm text-[#F1F5F9] font-medium">Koszt cykliczny — powtarzaj co miesiąc</span>
+            </label>
+            {isRecurring && (
+              <div className="mt-3 flex items-end gap-3">
+                <div className="w-32">
+                  <label className="text-[#CBD5E1] text-[10px] uppercase block mb-1">Liczba mc</label>
+                  <Input
+                    type="number" min="1" max="120" step="1"
+                    value={recurringMonths}
+                    onChange={(e) => setRecurringMonths(e.target.value)}
+                    className="no-spinner bg-[#152033] border-[#3D5378] text-white"
+                    data-testid="dash-quickadd-recurring-months"
+                  />
+                </div>
+                <div className="text-xs text-[#94A3B8] leading-snug flex-1">
+                  Powstanie <strong className="text-[#D4AF37]">{Math.max(1, parseInt(recurringMonths, 10) || 0)}</strong> zapisów po <strong className="text-[#D4AF37]">{Number(netto || 0).toLocaleString('pl-PL', { maximumFractionDigits: 2 })} zł</strong>, jeden na każdy miesiąc od {date}.
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}
@@ -172,7 +217,7 @@ const QuickAddZapisModal = ({ open, onClose }) => {
             data-testid="dash-quickadd-cancel">Anuluj</Button>
           <ActionButton onAction={handleSave} disabled={saving}
             className="bg-[#4F6343] hover:bg-[#3F5235] text-white"
-            data-testid="dash-quickadd-save">{saving ? 'Zapisywanie...' : 'Zapisz'}</ActionButton>
+            data-testid="dash-quickadd-save">{saving ? 'Zapisywanie...' : (isRecurring ? `Zapisz ${Math.max(1, parseInt(recurringMonths, 10) || 0)} mc` : 'Zapisz')}</ActionButton>
         </DialogFooter>
       </DialogContent>
     </Dialog>
