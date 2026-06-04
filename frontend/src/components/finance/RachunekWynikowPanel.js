@@ -11,6 +11,61 @@ import { ActionButton, PL_MONTHS_SHORT, fmtNum } from './_shared';
 import { PaymentSummaryPanel } from './PaymentSummaryPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
+// iter95do: prosty wykres przychody vs koszty
+const RevenueVsCostsChart = ({ data, year }) => {
+  const chartData = React.useMemo(() => {
+    return PL_MONTHS_SHORT.map((m, i) => ({
+      month: m,
+      przychody: Math.round(data.summary.przychody_netto.monthly[i] || 0),
+      koszty: Math.round(data.summary.suma_kosztow.monthly[i] || 0),
+      wynik: Math.round(
+        (data.summary.przychody_netto.monthly[i] || 0)
+        - (data.summary.suma_kosztow.monthly[i] || 0)
+      ),
+    }));
+  }, [data]);
+
+  const fmt = (v) => Number(v || 0).toLocaleString('pl-PL', { maximumFractionDigits: 0 });
+
+  return (
+    <Card className="bg-[#243049] border-[#3D5378]" data-testid="rw-revenue-vs-costs-card">
+      <CardHeader>
+        <CardTitle className="text-white flex items-center gap-2 text-base">
+          <LineChartIcon className="h-5 w-5 text-[#4F6343]" />
+          Przychody vs Koszty — {year}
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="w-full" style={{ height: 340 }}>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: -8 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#3D5378" />
+              <XAxis dataKey="month" stroke="#94A3B8" tick={{ fontSize: 11 }} />
+              <YAxis
+                stroke="#94A3B8"
+                tick={{ fontSize: 11 }}
+                tickFormatter={(v) => v >= 1000000 ? `${(v / 1000000).toFixed(1)}M` : v >= 1000 ? `${Math.round(v / 1000)}k` : v}
+              />
+              <Tooltip
+                contentStyle={{ backgroundColor: '#152033', border: '1px solid #3D5378', borderRadius: 6, fontSize: 12 }}
+                labelStyle={{ color: '#F1F5F9', fontWeight: 600 }}
+                itemStyle={{ padding: '1px 0' }}
+                formatter={(v, name) => [`${fmt(v)} zł`, name]}
+              />
+              <Legend wrapperStyle={{ fontSize: 11, paddingTop: 6 }} />
+              <Line type="monotone" dataKey="przychody" name="Przychody netto" stroke="#4F6343" strokeWidth={2.8}
+                dot={{ r: 3, fill: '#4F6343', strokeWidth: 0 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+              <Line type="monotone" dataKey="koszty" name="Suma kosztów" stroke="#DC4A3A" strokeWidth={2.8}
+                dot={{ r: 3, fill: '#DC4A3A', strokeWidth: 0 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+              <Line type="monotone" dataKey="wynik" name="Wynik netto (P - K)" stroke="#D4AF37" strokeWidth={2}
+                strokeDasharray="6 4" dot={{ r: 2.5, fill: '#D4AF37', strokeWidth: 0 }} activeDot={{ r: 5 }} isAnimationActive={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 // iter95dn: wykres liniowy miesieczny dla glownych pozycji rachunku wynikow
 const COST_SERIES = [
   { key: 'kbb', label: 'KBB · Koszty budowy bezpośrednie', color: '#DC4A3A' },
@@ -213,7 +268,9 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     <>
       {/* Podsumowanie platnosci - tylko w Rachunek wynikow */}
       <PaymentSummaryPanel onTileClick={onTileClick} year={year} />
-      {/* iter95dn: Wykres liniowy trendu miesiecznego */}
+      {/* iter95do: Wykres przychody vs koszty + wynik */}
+      <RevenueVsCostsChart data={data} year={year} />
+      {/* iter95dn: Wykres liniowy trendu miesiecznego per kategoria kosztow */}
       <RWLineChart data={data} year={year} />
       <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
