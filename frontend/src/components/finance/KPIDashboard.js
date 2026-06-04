@@ -4,6 +4,7 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Building2, AlertTriangle, Info, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFinanceRefresh } from './_shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const api = axios.create({ baseURL: API });
@@ -153,6 +154,8 @@ export const KPIDashboard = () => {
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
+  // iter95dq: silent refetch po dodaniu/edycji/usunieciu zapisu w innym panelu
+  useFinanceRefresh(fetchAll);
 
   if (loading && !kpi) return <div className="text-[#CBD5E1] p-4">Ładuję KPI...</div>;
   if (!kpi) return null;

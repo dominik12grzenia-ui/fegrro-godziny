@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Edit2, FileBarChart, FileDown, FilePlus, FileSpreadsheet, FileText, Loader2, LineChart as LineChartIcon, Mail, Pencil, Plus, Receipt, RefreshCw, Save, Search, Send, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { ActionButton, PL_MONTHS_SHORT, fmtNum } from './_shared';
+import { ActionButton, PL_MONTHS_SHORT, fmtNum, useFinanceRefresh, emitFinanceRefresh } from './_shared';
 import { PaymentSummaryPanel } from './PaymentSummaryPanel';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
@@ -241,6 +241,8 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
     fetchAllKody();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(useCallback(() => { fetchRW(true); fetchAllKody(); }, [fetchRW, fetchAllKody]));
 
   if (loading && !data) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
   if (!data) return null;

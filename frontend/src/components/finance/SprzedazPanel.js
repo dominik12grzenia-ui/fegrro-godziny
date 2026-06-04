@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, ChevronLeft, FileBarChart, FilePlus, Receipt, Briefcase, AlertCircle, AlertTriangle, RefreshCw, Loader2, Download, Save, Mail, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { InfoHeader, PL_MONTHS_SHORT, SPRZEDAZ_COL_INFO, fmtNum, fmtPct } from './_shared';
+import { InfoHeader, PL_MONTHS_SHORT, SPRZEDAZ_COL_INFO, fmtNum, fmtPct, useFinanceRefresh } from './_shared';
 
 export const SprzedazPanel = ({ year }) => {
   const [data, setData] = useState(null);
@@ -15,13 +15,17 @@ export const SprzedazPanel = ({ year }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [month, setMonth] = useState(0); // 0 = caly rok
 
-  useEffect(() => {
+  const fetchSprzedaz = useCallback(() => {
     const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
     api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania sprzedaży'))
       .finally(() => setLoading(false));
   }, [year, month]);
+
+  useEffect(() => { fetchSprzedaz(); }, [fetchSprzedaz]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(fetchSprzedaz);
 
   if (loading && !data) return <Card className="bg-[#243049] border-[#3D5378]"><CardContent className="p-6 text-[#CBD5E1]">Ładowanie...</CardContent></Card>;
   if (!data) return null;

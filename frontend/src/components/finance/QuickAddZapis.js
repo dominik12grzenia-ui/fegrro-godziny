@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, ChevronLeft, FileBarChart, FilePlus, Receipt, Briefcase, AlertCircle, AlertTriangle, RefreshCw, Loader2, Download, Save, Mail, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { ActionButton } from './_shared';
+import { ActionButton, emitFinanceRefresh } from './_shared';
 
 export const QuickAddZapis = ({ open, onClose }) => {
   const todayIso = new Date().toISOString().slice(0, 10);
@@ -75,6 +75,7 @@ export const QuickAddZapis = ({ open, onClose }) => {
         });
         toast.success('Zapis dodany');
       }
+      emitFinanceRefresh('quickadd-finance');
       onClose();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd zapisu');

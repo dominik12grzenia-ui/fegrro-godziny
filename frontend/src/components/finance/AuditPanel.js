@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 import { History, Trash2, RotateCcw, Search, User as UserIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFinanceRefresh } from './_shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const api = axios.create({ baseURL: API });
@@ -73,6 +74,11 @@ export const AuditPanel = () => {
     if (activeTab === 'history') fetchHistory();
     else fetchDeleted();
   }, [activeTab, fetchHistory, fetchDeleted]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(useCallback(() => {
+    if (activeTab === 'history') fetchHistory();
+    else fetchDeleted();
+  }, [activeTab, fetchHistory, fetchDeleted]));
 
   const restore = async (entity, entityId) => {
     if (!window.confirm('Przywrócić skasowany rekord?')) return;

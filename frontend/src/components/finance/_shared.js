@@ -6,6 +6,26 @@ import { HelpCircle } from 'lucide-react';
 // Re-export ActionButton dla wygodnego importu w split-plikach
 export { ActionButton } from '../ui/action-button';
 
+
+// iter95dq: global event-bus dla auto-refresh paneli finansowych
+// emit jak zapis sie zmienia (create/update/delete) -> wszystkie panele finanse refetchuja sie w tle
+export const FINANCE_REFRESH_EVENT = 'finance:refresh';
+export const emitFinanceRefresh = (source = 'unknown') => {
+  try {
+    window.dispatchEvent(new CustomEvent(FINANCE_REFRESH_EVENT, { detail: { source, ts: Date.now() } }));
+  } catch (_e) { /* noop */ }
+};
+// React hook — uzywaj w komponencie aby zarejestrowac silent refetch
+export const useFinanceRefresh = (handler) => {
+  React.useEffect(() => {
+    if (typeof handler !== 'function') return undefined;
+    const cb = (e) => handler(e.detail);
+    window.addEventListener(FINANCE_REFRESH_EVENT, cb);
+    return () => window.removeEventListener(FINANCE_REFRESH_EVENT, cb);
+  }, [handler]);
+};
+
+
 export const PL_MONTHS_SHORT = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paz','Lis','Gru'];
 
 // Numerical formatter — usuwa zera po kropce: 0.00→"0", 12.50→"12.5"

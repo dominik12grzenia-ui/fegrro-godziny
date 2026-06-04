@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertCircle, AlertTriangle, Archive, ArchiveRestore, ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Edit2, FileBarChart, FileDown, FilePlus, FileSpreadsheet, FileText, Loader2, Mail, Pencil, Plus, Receipt, RefreshCw, Save, Search, Send, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { ActionButton, fmt } from './_shared';
+import { ActionButton, fmt, useFinanceRefresh, emitFinanceRefresh } from './_shared';
 import { NipLookup } from './NipLookup';
 import { ColorPicker } from '../ui/ColorPicker';
 
@@ -43,6 +43,8 @@ export const BudowyPanel = () => {
   }, [includeArchived]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(useCallback(() => fetchData(true), [fetchData]));
 
   const submit = async () => {
     if (!form.name.trim()) { toast.error('Podaj nazwe'); return; }

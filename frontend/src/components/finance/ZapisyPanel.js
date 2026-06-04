@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { AlertCircle, AlertTriangle, ArrowLeft, BookOpen, Briefcase, Calendar, ChevronDown, ChevronLeft, ChevronRight, Download, Edit2, FileBarChart, FileDown, FilePlus, FileSpreadsheet, FileText, Loader2, Mail, Pencil, Plus, Receipt, RefreshCw, Save, Search, Send, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { ActionButton, PL_MONTHS_SHORT, fmtPLN } from './_shared';
+import { ActionButton, PL_MONTHS_SHORT, fmtPLN, useFinanceRefresh, emitFinanceRefresh } from './_shared';
 
 export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   const [month, setMonth] = useState(0); // 0 = caly rok
@@ -111,6 +111,8 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
   }, [year, month]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(useCallback(() => fetchData(true), [fetchData]));
 
   // Pre-fetch opcji budzetu dla budow widocznych w wierszach (zarowno faktury+pozycje, jak i standalone zapisy)
   useEffect(() => {
@@ -157,6 +159,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       setForm({ date: new Date().toISOString().slice(0, 10), kontrahent: '', netto: '', kod_id: 'PZS', budowa_id: '', budget_line_id: '', nr_faktury: '', pozycja_nazwa: '', notes: '' });
       setIsRecurring(false); setRecurringMonths(12);
       fetchData(true);
+      emitFinanceRefresh('zapisy:submit');
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd');
     }
@@ -246,13 +249,14 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
           const r = await api.delete(`/finance/zapisy/recurring/${z.recurring_group_id}`);
           toast.success(`Usunięto ${r.data.deleted} rat${r.data.skipped_locked > 0 ? ` (pominięto ${r.data.skipped_locked} z zamkniętych okresów)` : ''}`);
           fetchData(true);
+          emitFinanceRefresh('zapisy:delete-recurring');
         } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
         return;
       }
       if (opt !== '1') return;
       // fall-through: usun pojedyncza
     } else if (!window.confirm(`Usunac zapis ${z.kontrahent || ''} ${z.netto}zł?`)) return;
-    try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(true); }
+    try { await api.delete(`/finance/zapisy/${z.id}`); toast.success('Usunieto'); fetchData(true); emitFinanceRefresh('zapisy:delete'); }
     catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 
@@ -262,6 +266,7 @@ export const ZapisyPanel = ({ year, paymentFilter, setPaymentFilter }) => {
       const r = await api.delete(`/finance/invoices/${inv.id}`);
       toast.success(`Usunieto fakture + ${r.data.positions_deleted} pozycji`);
       fetchData(true);
+      emitFinanceRefresh('zapisy:delete-invoice');
     } catch (e) { toast.error(e.response?.data?.detail || 'Błąd'); }
   };
 

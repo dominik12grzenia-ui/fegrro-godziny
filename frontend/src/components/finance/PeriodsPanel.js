@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Lock, Unlock, Calendar, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFinanceRefresh } from './_shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const api = axios.create({ baseURL: API });
@@ -30,6 +31,8 @@ export const PeriodsPanel = () => {
   }, [year]);
 
   useEffect(() => { fetchPeriods(); }, [fetchPeriods]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(fetchPeriods);
 
   const isLocked = (month) => periods.some(p => p.year === year && p.month === month && p.status === 'closed');
   const getPeriod = (month) => periods.find(p => p.year === year && p.month === month);

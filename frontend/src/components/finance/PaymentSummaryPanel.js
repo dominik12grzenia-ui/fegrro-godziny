@@ -7,7 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, ChevronLeft, FileBarChart, FilePlus, Receipt, Briefcase, AlertCircle, AlertTriangle, RefreshCw, Loader2, Download, Save, Mail, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { ActionButton, fmtNum } from './_shared';
+import { ActionButton, fmtNum, useFinanceRefresh } from './_shared';
 import { DiscrepancyDetailsModal } from './DiscrepancyDetailsModal';
 
 export const PaymentSummaryPanel = ({ onTileClick, year }) => {
@@ -36,6 +36,8 @@ export const PaymentSummaryPanel = ({ onTileClick, year }) => {
   }, [year]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+  // iter95dq: auto-refresh po zmianie zapisu w innym panelu
+  useFinanceRefresh(fetchData);
 
   const syncUnpaid = async () => {
     setSyncing(true);

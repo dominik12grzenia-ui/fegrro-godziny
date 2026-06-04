@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Input } from './ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
 import { SitesMap } from './SitesMap';
+import { emitFinanceRefresh } from './finance/_shared';
 
 // Lazy-loaded heavy tabs — code-split away from the main bundle.
 // Each import factory is kept in a const so we can call it directly
@@ -119,6 +120,7 @@ const QuickAddZapisModal = ({ open, onClose }) => {
         });
         toast.success('Zapis dodany');
       }
+      emitFinanceRefresh('quickadd-modal');
       onClose();
     } catch (e) {
       toast.error(e.response?.data?.detail || 'Błąd zapisu');
