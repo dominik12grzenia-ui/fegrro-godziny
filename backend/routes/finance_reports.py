@@ -28,9 +28,12 @@ async def rachunek_wynikow(
     """Buduje tabele Rachunku Wynikow 12 msc x kategorie - identycznie jak w Excelu."""
     from routes.finance import ensure_kody_seed  # late import (cykl)
     await ensure_kody_seed()
+    # iter95dv: ignoruj soft-deleted zapisy/faktury (deleted_at != None).
+    # Wczesniej RW liczyl je dalej -> usuniete pozycje "wracaly" do sum.
+    _not_deleted = {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
     # Pobierz wszystkie zapisy w tym roku
     zapisy = await db.finance_zapisy.find(
-        {"year": year},
+        {"year": year, **_not_deleted},
         {"_id": 0, "month": 1, "kod_id": 1, "kod_category": 1, "netto": 1, "budowa_id": 1,
          "parent_invoice_id": 1},
     ).to_list(length=None)
@@ -38,7 +41,7 @@ async def rachunek_wynikow(
     # Pobierz naglowki faktur z tego roku - dla kazdej faktury z kod_id obliczamy "reszta"
     # = netto faktury - suma przypisanych pozycji tej samej faktury. Reszta wnosi do aggregacji.
     invoices = await db.finance_invoices.find(
-        {"year": year},
+        {"year": year, **_not_deleted},
         {"_id": 0, "id": 1, "month": 1, "netto": 1, "kod_id": 1, "kod_category": 1, "budowa_id": 1},
     ).to_list(length=None)
     # Mapa: invoice_id -> suma przypisanych pozycji
@@ -221,7 +224,9 @@ async def payment_summary(
     Obsluguje czesciowe platnosci - liczy "kwote pozostala" (brutto - paid_amount).
     """
     today = datetime.now().date().isoformat()
-    q = {"paid": {"$ne": True}, "source": "fakturownia"}
+    # iter95dv: pomin soft-deleted faktury w Payment Summary
+    q = {"paid": {"$ne": True}, "source": "fakturownia",
+         "$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
     if year is not None:
         q["year"] = year
     invoices = await db.finance_invoices.find(
@@ -316,16 +321,18 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
     from routes.finance import ensure_kody_seed  # late import (cykl)
     await ensure_kody_seed()
     budowy = await db.finance_budowy.find({}, {"_id": 0}).sort("name", 1).to_list(length=None)
+    # iter95dv: pomin soft-deleted zapisy/faktury w raporcie sprzedazy
+    _not_deleted = {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
     if date_start and date_end:
         # Filtr po zakresie dat (uzywane przez budget)
         date_q = {"$gte": date_start, "$lte": date_end}
-        zap_filter = {"date": date_q}
-        inv_filter = {"date": date_q}
+        zap_filter = {"date": date_q, **_not_deleted}
+        inv_filter = {"date": date_q, **_not_deleted}
     else:
-        zap_filter = {"year": year}
+        zap_filter = {"year": year, **_not_deleted}
         if month is not None:
             zap_filter["month"] = month
-        inv_filter = {"year": year}
+        inv_filter = {"year": year, **_not_deleted}
         if month is not None:
             inv_filter["month"] = month
     zapisy = await db.finance_zapisy.find(

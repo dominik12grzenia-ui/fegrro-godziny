@@ -104,8 +104,10 @@ async def get_finance_forecast(
 
     # Koszty firmowe = kategorie KP, KSB, KSP (BEZ KBB - to budowy)
     company_cats = ("KP", "KSB", "KSP")
+    # iter95dv: pomin soft-deleted zapisy w prognozie
     zapisy = await db.finance_zapisy.find(
-        {"date": {"$gte": start_date, "$lte": end_date}, "is_income": {"$ne": True}},
+        {"date": {"$gte": start_date, "$lte": end_date}, "is_income": {"$ne": True},
+         "$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]},
         {"_id": 0, "kod_id": 1, "netto": 1, "date": 1, "budowa_id": 1},
     ).to_list(length=None)
 
