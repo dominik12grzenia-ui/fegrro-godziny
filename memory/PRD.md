@@ -13,6 +13,30 @@ Polish (PL).
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
 
+### 2026-02 — iter95dv+dw — Tombstone + Refaktor wyceny.py BOM (DONE)
+
+**1) Tombstone dla soft-deleted Fakturowni** (`finance_fakturownia.py`):
+- `existing_by_pos` map teraz zawiera `deleted_at`
+- Branch w sync: `if existing_z.get("deleted_at"): skipped += 1; continue` — nie wskrzeszamy
+- To samo dla naglowkow faktur (existing_inv_by_fid)
+- Efekt: user usuwa zapis -> ponowny sync go pomija (sync update wcześniej zachowywał `deleted_at`, ale dla pewności blokujemy)
+
+**2) Wydzielenie BOM do `wyceny_bom.py`** (480 linii):
+- Funkcje: `_build_bom`, `_generate_bom_xlsx_bytes`, `_generate_bom_pdf_bytes`
+- Endpointy: `/wyceny/{id}/bom`, `/bom.xlsx`, `/bom.pdf`, `/bom/send`, `/bom/history`
+- Suppliers CRUD: `/wyceny/suppliers/*`
+- W `wyceny.py`: `router.include_router(bom_router)` + re-export `_build_bom`
+- `wyceny.py`: 3255 → **2799** linii (-456). Łącznie z helpers (-624 od pierwotnych 3422).
+
+**Weryfikacja**:
+- BOM XLSX: 12104 bytes HTTP 200 ✓
+- BOM PDF: 57664 bytes HTTP 200 ✓
+- Suppliers list: 1 row ✓
+- Wycena XLSX export (poza BOM): 12160 bytes HTTP 200 ✓ (nie zepsuł się)
+- Sync Fakturowni: 127 faktur OK, soft-deleted respektowany ✓
+
+
+
 ### 2026-02 — iter95du — Koszty cykliczne: tylko bieżący miesiąc (P1 — DONE)
 
 **Problem**: Przy zaznaczeniu "Koszt cykliczny" backend tworzył wszystkie N zapisów od razu (włącznie z przyszłymi miesiącami), co fałszowało SUMA KOSZTÓW i WYNIK NETTO w lipcu-grudniu.

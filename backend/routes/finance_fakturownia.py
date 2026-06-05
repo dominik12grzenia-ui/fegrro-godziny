@@ -119,14 +119,14 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     # bo sell_date faktury moze byc w innym miesiacu niz issue_date i przesuwac wpis miedzy miesiacami)
     existing = await db.finance_zapisy.find(
         {"source": "fakturownia"},
-        {"_id": 0, "id": 1, "fakturownia_position_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
+        {"_id": 0, "id": 1, "fakturownia_position_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1, "deleted_at": 1},
     ).to_list(length=None)
     existing_by_pos = {e.get("fakturownia_position_id"): e for e in existing if e.get("fakturownia_position_id")}
 
     # Naglowki faktur - mapa po fakturownia_invoice_id
     existing_invoices = await db.finance_invoices.find(
         {"source": "fakturownia"},
-        {"_id": 0, "id": 1, "fakturownia_invoice_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1},
+        {"_id": 0, "id": 1, "fakturownia_invoice_id": 1, "kod_id": 1, "budowa_id": 1, "notes": 1, "deleted_at": 1},
     ).to_list(length=None)
     existing_inv_by_fid = {e.get("fakturownia_invoice_id"): e for e in existing_invoices}
 
@@ -185,6 +185,12 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
         new_invoice_fids.add(inv_id)
         existing_inv = existing_inv_by_fid.get(inv_id)
         if existing_inv:
+            # iter95dv: jezeli faktura byla soft-deleted przez admina — NIE wskrzeszamy
+            if existing_inv.get("deleted_at"):
+                invoice_internal_id = existing_inv["id"]
+                # Mimo to pamietajmy ID zeby pozycje sie nie tworzyly z parent_invoice_id = None
+                # Ale skoro faktura jest usunieta, pozycje tez maja deleted_at (iter95dv) -> pomijamy
+                continue
             inv_set = {
                 "date": iso_date, "year": year_v, "month": month_v,
                 "kontrahent": kontrahent,
@@ -258,6 +264,11 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
             existing_z = existing_by_pos.get(pos_id)
 
             if existing_z:
+                # iter95dv: jezeli zapis byl soft-deleted przez admina — NIE wskrzeszamy go
+                # (manualne usuniecie z UI to swiadoma decyzja, ponowny sync musi to respektowac)
+                if existing_z.get("deleted_at"):
+                    skipped += 1
+                    continue
                 set_doc = {
                     "date": iso_date, "year": year_v, "month": month_v,
                     "kontrahent": kontrahent, "netto": round(netto, 2),
