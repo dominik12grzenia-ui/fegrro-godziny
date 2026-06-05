@@ -795,10 +795,98 @@ async def create_zapis(payload: ZapisCreate, current_user: dict = Depends(get_cu
 
 
 # iter95dp: koszty cykliczne — tworzy N zapisow miesiecznych ze wspolnym recurring_group_id
+# iter95du: tylko miesiace <= obecny miesiac sa od razu tworzone. Reszta jest "schedule"
+# i materializuje sie pozniej (cron/manual przez /materialize-due lub przy fetchu listy zapisow).
+def _recurring_iter_months(start_date_str: str, months: int):
+    """Generuje liste (year, month, date_str, idx) dla N kolejnych miesiecy od start_date."""
+    import calendar as _cal
+    d0 = datetime.strptime(start_date_str, "%Y-%m-%d")
+    for i in range(months):
+        y = d0.year + (d0.month - 1 + i) // 12
+        m = (d0.month - 1 + i) % 12 + 1
+        last_day = _cal.monthrange(y, m)[1]
+        day = min(d0.day, last_day)
+        yield y, m, f"{y:04d}-{m:02d}-{day:02d}", i
+
+
+async def _materialize_recurring_month(
+    *,
+    group_id: str,
+    payload_data: dict,
+    kod_category: str,
+    y: int,
+    m: int,
+    d_str: str,
+    idx: int,
+    total: int,
+    current_user: dict,
+) -> Optional[dict]:
+    """Tworzy 1 zapis recurring dla miesiaca (y, m). Zwraca doc lub None gdy period locked."""
+    try:
+        await assert_period_open(y, m, action="dodawac")
+    except HTTPException:
+        return None
+    zid = str(uuid.uuid4())
+    nr = (payload_data.get("nr_faktury") or "").strip()
+    nr_with_idx = f"{nr} ({idx+1}/{total})".strip() if nr else f"({idx+1}/{total})"
+    doc = {
+        "id": zid,
+        "date": d_str,
+        "year": y,
+        "month": m,
+        "kontrahent": (payload_data.get("kontrahent") or "").strip(),
+        "netto": float(payload_data["netto"]),
+        "brutto": float(payload_data["netto"]),
+        "kod_id": payload_data["kod_id"],
+        "kod_category": kod_category,
+        "budowa_id": payload_data.get("budowa_id"),
+        "budget_line_id": payload_data.get("budget_line_id"),
+        "nr_faktury": nr_with_idx,
+        "pozycja_nazwa": (payload_data.get("pozycja_nazwa") or "").strip(),
+        "notes": (payload_data.get("notes") or "").strip(),
+        "source": "manual",
+        "recurring_group_id": group_id,
+        "recurring_index": idx + 1,
+        "recurring_total": total,
+        "created_at": datetime.now().isoformat(),
+        "created_by": current_user["sub"],
+    }
+    await db.finance_zapisy.insert_one(doc)
+    doc.pop("_id", None)
+    await log_audit(entity="finance_zapis", entity_id=zid, action="create", user=current_user, new=doc)
+    return doc
+
+
+async def _save_recurring_schedule(
+    *, group_id: str, payload_data: dict, kod_category: str, start_date: str, total: int, current_user: dict
+) -> None:
+    """Zapisuje schedule dla przyszlych miesiecy (do materializacji przez cron/manual)."""
+    await db.finance_recurring_schedules.update_one(
+        {"id": group_id},
+        {"$set": {
+            "id": group_id,
+            "start_date": start_date,
+            "total_months": total,
+            "kontrahent": payload_data.get("kontrahent"),
+            "netto": float(payload_data["netto"]),
+            "kod_id": payload_data["kod_id"],
+            "kod_category": kod_category,
+            "budowa_id": payload_data.get("budowa_id"),
+            "budget_line_id": payload_data.get("budget_line_id"),
+            "nr_faktury": payload_data.get("nr_faktury"),
+            "pozycja_nazwa": payload_data.get("pozycja_nazwa"),
+            "notes": payload_data.get("notes"),
+            "created_at": datetime.now().isoformat(),
+            "created_by": current_user["sub"],
+        }},
+        upsert=True,
+    )
+
+
 @router.post("/finance/zapisy/recurring")
 async def create_recurring_zapisy(payload: ZapisRecurringCreate, current_user: dict = Depends(get_current_admin)):
     try:
-        d0 = datetime.strptime(payload.date, "%Y-%m-%d")
+        datetime.strptime(payload.date, "%Y-%m-%d")
     except ValueError:
         raise HTTPException(status_code=400, detail="Nieprawidlowy format daty (YYYY-MM-DD)")
     if payload.months < 1 or payload.months > 120:
@@ -816,62 +904,176 @@ async def create_recurring_zapisy(payload: ZapisRecurringCreate, current_user: d
             raise HTTPException(status_code=400, detail="Nieznana pozycja budzetu")
 
     group_id = str(uuid.uuid4())
+    payload_data = payload.model_dump() if hasattr(payload, "model_dump") else payload.dict()
+    today = datetime.now()
+    today_y, today_m = today.year, today.month
     created: list = []
     skipped: list = []
-    now_iso = datetime.now().isoformat()
+    scheduled: list = []  # miesiace zaplanowane do materializacji w przyszlosci
 
-    for i in range(payload.months):
-        # Krok miesiac+i z zachowaniem dnia
-        y = d0.year + (d0.month - 1 + i) // 12
-        m = (d0.month - 1 + i) % 12 + 1
-        # Zaclamp dzien na ostatni dzien miesiaca jesli np. 31->luty
-        import calendar as _cal
-        last_day = _cal.monthrange(y, m)[1]
-        day = min(d0.day, last_day)
-        d_str = f"{y:04d}-{m:02d}-{day:02d}"
-        # Pomin miesiac jesli zamkniety (period locked)
-        try:
-            await assert_period_open(y, m, action="dodawac")
-        except HTTPException:
-            skipped.append({"year": y, "month": m, "reason": "period_locked"})
+    for y, m, d_str, i in _recurring_iter_months(payload.date, payload.months):
+        # iter95du: tylko miesiace <= obecny miesiac sa od razu tworzone
+        if (y, m) > (today_y, today_m):
+            scheduled.append({"year": y, "month": m, "date": d_str})
             continue
-        zid = str(uuid.uuid4())
-        nr = (payload.nr_faktury or "").strip()
-        nr_with_idx = f"{nr} ({i+1}/{payload.months})".strip() if nr else f"({i+1}/{payload.months})"
-        doc = {
-            "id": zid,
-            "date": d_str,
-            "year": y,
-            "month": m,
-            "kontrahent": (payload.kontrahent or "").strip(),
-            "netto": float(payload.netto),
-            "brutto": float(payload.netto),
-            "kod_id": payload.kod_id,
-            "kod_category": kod["category"],
-            "budowa_id": payload.budowa_id,
-            "budget_line_id": payload.budget_line_id,
-            "nr_faktury": nr_with_idx,
-            "pozycja_nazwa": (payload.pozycja_nazwa or "").strip(),
-            "notes": (payload.notes or "").strip(),
-            "source": "manual",
-            "recurring_group_id": group_id,
-            "recurring_index": i + 1,
-            "recurring_total": payload.months,
-            "created_at": now_iso,
-            "created_by": current_user["sub"],
-        }
-        await db.finance_zapisy.insert_one(doc)
-        doc.pop("_id", None)
-        await log_audit(entity="finance_zapis", entity_id=zid, action="create", user=current_user, new=doc)
-        created.append({"id": zid, "year": y, "month": m, "date": d_str})
+        doc = await _materialize_recurring_month(
+            group_id=group_id, payload_data=payload_data, kod_category=kod["category"],
+            y=y, m=m, d_str=d_str, idx=i, total=payload.months, current_user=current_user,
+        )
+        if doc is None:
+            skipped.append({"year": y, "month": m, "reason": "period_locked"})
+        else:
+            created.append({"id": doc["id"], "year": y, "month": m, "date": d_str})
+
+    # Jezeli sa zaplanowane przyszle miesiace — zapisz schedule
+    if scheduled:
+        await _save_recurring_schedule(
+            group_id=group_id, payload_data=payload_data, kod_category=kod["category"],
+            start_date=payload.date, total=payload.months, current_user=current_user,
+        )
 
     return {
         "recurring_group_id": group_id,
         "created_count": len(created),
         "skipped_count": len(skipped),
+        "scheduled_count": len(scheduled),
         "skipped": skipped,
+        "scheduled": scheduled,
         "created": created,
     }
+
+
+# iter95du: dotworz brakujace miesiace dla wszystkich aktywnych grup recurring (do dzisiaj)
+@router.post("/finance/zapisy/recurring/materialize-due")
+async def materialize_due_recurring(current_user: dict = Depends(get_current_admin)):
+    """Dla kazdej aktywnej grupy recurring tworzy zapisy dla miesiecy, ktorych jeszcze nie ma w bazie
+    (year, month) <= obecny miesiac. Wywolywany manualnie z UI albo z crona codziennie."""
+    today = datetime.now()
+    today_y, today_m = today.year, today.month
+    schedules = await db.finance_recurring_schedules.find({}, {"_id": 0}).to_list(length=None)
+    created_total = 0
+    cleaned_schedules = 0
+    by_group: list = []
+    for sch in schedules:
+        group_id = sch["id"]
+        kod = await db.finance_kody.find_one({"id": sch["kod_id"]}, {"_id": 0, "category": 1})
+        if not kod:
+            continue
+        # Sprawdz ktore miesiace juz istnieja w bazie dla tej grupy
+        existing = await db.finance_zapisy.find(
+            {"recurring_group_id": group_id, **soft_delete_filter()},
+            {"_id": 0, "year": 1, "month": 1, "recurring_index": 1},
+        ).to_list(length=None)
+        existing_set = {(e["year"], e["month"]) for e in existing}
+        existing_indices = {e.get("recurring_index") for e in existing if e.get("recurring_index")}
+        created_for_group = 0
+        for y, m, d_str, i in _recurring_iter_months(sch["start_date"], sch["total_months"]):
+            if (y, m) > (today_y, today_m):
+                continue  # przyszlosc — zostaw na nastepny tick
+            if (y, m) in existing_set or (i + 1) in existing_indices:
+                continue  # juz istnieje
+            doc = await _materialize_recurring_month(
+                group_id=group_id, payload_data=sch, kod_category=kod["category"],
+                y=y, m=m, d_str=d_str, idx=i, total=sch["total_months"], current_user=current_user,
+            )
+            if doc is not None:
+                created_for_group += 1
+        if created_for_group:
+            by_group.append({"group_id": group_id, "created": created_for_group})
+            created_total += created_for_group
+        # Faktyczne sprawdzenie: czy ostatni miesiac (najpozniejszy) juz minal
+        last_y, last_m, _, _ = list(_recurring_iter_months(sch["start_date"], sch["total_months"]))[-1]
+        if (last_y, last_m) <= (today_y, today_m):
+            await db.finance_recurring_schedules.delete_one({"id": group_id})
+            cleaned_schedules += 1
+    return {
+        "materialized_count": created_total,
+        "groups_processed": len(schedules),
+        "schedules_cleaned": cleaned_schedules,
+        "by_group": by_group,
+    }
+
+
+# iter95du: usun przyszle zapisy z istniejacych grup recurring + utworz dla nich schedules
+@router.post("/finance/zapisy/recurring/cleanup-future")
+async def cleanup_future_recurring(current_user: dict = Depends(get_current_admin)):
+    """Soft-deletuje wszystkie zapisy recurring ktore maja date > today (przyszle miesiace)
+    i tworzy odpowiednie schedules zeby moglo byc auto-materializowane w przyszlosci."""
+    today = datetime.now()
+    today_y, today_m = today.year, today.month
+    # Znajdz wszystkie aktywne zapisy recurring z przyszla data
+    future = await db.finance_zapisy.find(
+        {"recurring_group_id": {"$ne": None}, **soft_delete_filter()},
+        {"_id": 0},
+    ).to_list(length=None)
+    future = [z for z in future if (z.get("year"), z.get("month")) > (today_y, today_m)]
+    if not future:
+        return {"deleted": 0, "groups": 0, "schedules_created": 0}
+
+    # Pogrupuj po group_id zeby utworzyc schedule
+    groups: dict = {}
+    for z in future:
+        gid = z["recurring_group_id"]
+        groups.setdefault(gid, []).append(z)
+
+    deleted_now = datetime.now().isoformat()
+    deleted_count = 0
+    schedules_created = 0
+    for gid, items in groups.items():
+        # Sprawdz czy schedule juz istnieje
+        existing_schedule = await db.finance_recurring_schedules.find_one({"id": gid}, {"_id": 0, "id": 1})
+        if not existing_schedule:
+            # Pobierz wzor z pierwszego zapisu w grupie (zeby znalezc start_date i total)
+            first = await db.finance_zapisy.find_one(
+                {"recurring_group_id": gid},
+                {"_id": 0},
+                sort=[("recurring_index", 1)],
+            )
+            if first:
+                # Odtworz start_date z najwczesniejszego miesiaca grupy + dnia z pierwszego doc
+                total = first.get("recurring_total") or len(items)
+                idx1 = first.get("recurring_index") or 1
+                # Cofamy o (idx1-1) miesiecy od first.date zeby uzyskac prawdziwy start
+                import calendar as _cal
+                from datetime import datetime as _dt
+                d1 = _dt.strptime(first["date"], "%Y-%m-%d")
+                steps_back = idx1 - 1
+                sy = d1.year - (steps_back // 12) - (1 if (d1.month - 1 - (steps_back % 12)) < 0 else 0)
+                sm = ((d1.month - 1 - (steps_back % 12)) % 12) + 1
+                # Lepiej liczyc od (sy, sm), zaklamp dzien
+                sd_last = _cal.monthrange(sy, sm)[1]
+                start_date = f"{sy:04d}-{sm:02d}-{min(d1.day, sd_last):02d}"
+                await db.finance_recurring_schedules.update_one(
+                    {"id": gid},
+                    {"$set": {
+                        "id": gid,
+                        "start_date": start_date,
+                        "total_months": total,
+                        "kontrahent": first.get("kontrahent"),
+                        "netto": first.get("netto"),
+                        "kod_id": first.get("kod_id"),
+                        "kod_category": first.get("kod_category"),
+                        "budowa_id": first.get("budowa_id"),
+                        "budget_line_id": first.get("budget_line_id"),
+                        "nr_faktury": (first.get("nr_faktury") or "").rsplit(" (", 1)[0],  # usun "(N/M)"
+                        "pozycja_nazwa": first.get("pozycja_nazwa"),
+                        "notes": first.get("notes"),
+                        "created_at": datetime.now().isoformat(),
+                        "created_by": current_user["sub"],
+                    }},
+                    upsert=True,
+                )
+                schedules_created += 1
+        # Soft-deletuj przyszle zapisy
+        for z in items:
+            await db.finance_zapisy.update_one(
+                {"id": z["id"]},
+                {"$set": {"deleted_at": deleted_now, "deleted_by": current_user["sub"]}},
+            )
+            await log_audit(entity="finance_zapis", entity_id=z["id"], action="delete_future_recurring", user=current_user, old=z)
+            deleted_count += 1
+
+    return {"deleted": deleted_count, "groups": len(groups), "schedules_created": schedules_created}
 
 
 # iter95dp: usun cala grupe cykliczna naraz

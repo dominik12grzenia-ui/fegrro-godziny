@@ -13,6 +13,31 @@ Polish (PL).
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
 
+### 2026-02 — iter95du — Koszty cykliczne: tylko bieżący miesiąc (P1 — DONE)
+
+**Problem**: Przy zaznaczeniu "Koszt cykliczny" backend tworzył wszystkie N zapisów od razu (włącznie z przyszłymi miesiącami), co fałszowało SUMA KOSZTÓW i WYNIK NETTO w lipcu-grudniu.
+
+**Fix backend** (`/app/backend/routes/finance.py`):
+- Nowa kolekcja `finance_recurring_schedules` — przechowuje "obietnice" przyszłych miesięcy.
+- `POST /api/finance/zapisy/recurring`:
+  - Tworzy zapisy tylko dla miesięcy <= bieżący (created_count)
+  - Resztę zapisuje jako schedule (scheduled_count) do późniejszej materializacji
+- `POST /api/finance/zapisy/recurring/materialize-due` — cron-friendly: tworzy zaległe zapisy gdy ich miesiąc nastąpi; usuwa zakończone schedules
+- `POST /api/finance/zapisy/recurring/cleanup-future` — soft-delete istniejących przyszłych zapisów (migracja danych)
+- Wydzielone funkcje pomocnicze: `_recurring_iter_months`, `_materialize_recurring_month`, `_save_recurring_schedule`
+
+**Frontend** (`/app/frontend/src/components/admin/ToolsTab.js`):
+- Nowa sekcja "Koszty cykliczne" w karcie Fakturowni z 2 przyciskami:
+  - "Materializuj zaległości" — manualne uruchomienie cron'a
+  - "Usuń przyszłe zapisy" — cleanup migracyjny (jeden raz)
+
+**Weryfikacja**:
+- E2E test: 12-mc recurring od stycznia → `created:6, scheduled:6` w czerwcu 2026 ✓
+- `cleanup-future` przeniósł istniejące przyszłe wpisy do schedules ✓
+- Rachunek wyników 2026: Lip-Gru = 0,00 (wcześniej 22 942,06 zł błędnie) ✓
+
+
+
 ### 2026-02 — iter95dm — "Soft refresh" pattern globalny (P0 — DONE)
 
 User feedback: "wszystkie strony po zatwierdzeniu czegoś lub dodaniu się przeładowują — zrób to raz a porządnie".

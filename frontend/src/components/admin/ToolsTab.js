@@ -88,6 +88,52 @@ const FakturowniaActions = ({ onChange }) => {
   );
 };
 
+// iter95du: koszty cykliczne — manualne uruchomienie materializacji + cleanup przyszlych zapisow
+const RecurringTools = () => {
+  const [running, setRunning] = useState(false);
+
+  const materialize = async () => {
+    setRunning(true);
+    try {
+      const r = await api.post('/finance/zapisy/recurring/materialize-due', null, { timeout: 60000 });
+      const c = r.data.materialized_count;
+      const g = r.data.groups_processed;
+      const cl = r.data.schedules_cleaned;
+      toast.success(`Materializacja: ${c} nowych zapisow z ${g} aktywnych subskrypcji${cl > 0 ? ` (${cl} zakonczonych)` : ''}`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad materializacji');
+    } finally { setRunning(false); }
+  };
+
+  const cleanup = async () => {
+    if (!window.confirm('Usunac WSZYSTKIE przyszle zapisy z subskrypcji (recurring)? Pozostana w schedule i beda materialowane gdy ich miesiac nastapi.')) return;
+    setRunning(true);
+    try {
+      const r = await api.post('/finance/zapisy/recurring/cleanup-future', null, { timeout: 60000 });
+      toast.success(`Usunieto ${r.data.deleted} przyszlych zapisow z ${r.data.groups} grup. Utworzono ${r.data.schedules_created} schedules.`);
+    } catch (e) {
+      toast.error(e.response?.data?.detail || 'Blad cleanup');
+    } finally { setRunning(false); }
+  };
+
+  return (
+    <div className="flex flex-wrap gap-2 items-center pt-2 border-t border-[#3D5378]">
+      <div className="text-xs text-[#CBD5E1] mr-2">Koszty cykliczne:</div>
+      <Button onClick={materialize} disabled={running}
+        className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs h-8" data-testid="recurring-materialize-btn">
+        {running ? 'Pracuje...' : 'Materializuj zaleglosci'}
+      </Button>
+      <Button onClick={cleanup} disabled={running} variant="outline"
+        className="border-[#3D5378] bg-transparent text-[#F1F5F9] hover:bg-[#243049] text-xs h-8" data-testid="recurring-cleanup-btn">
+        Usun przyszle zapisy
+      </Button>
+      <span className="text-[10px] text-[#94A3B8]">
+        Auto: zapisy tworza sie tylko do biezacego miesiaca. Reszta materializuje sie z miesiacem.
+      </span>
+    </div>
+  );
+};
+
 const EmployeeLinksCard = () => {
   const [employees, setEmployees] = useState([]);
   const [showOnlyWithToken, setShowOnlyWithToken] = useState(false);
@@ -377,6 +423,7 @@ const FakturowniaApiCard = () => {
             Ostatni auto-sync z Fakturowni: <span className="text-[#F1F5F9]">{settings.last_fakturownia_sync_at.slice(0, 16).replace('T', ' ')}</span>
           </p>
         )}
+        <RecurringTools />
       </CardContent>
     </Card>
   );
