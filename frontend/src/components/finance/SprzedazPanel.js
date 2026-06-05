@@ -122,7 +122,7 @@ export const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-right text-[#DC4A3A] font-semibold">{fmtNum(r.visible.koszt)}</td>
                 <td className="p-2 text-right text-xs text-[#CBD5E1]">{fmtNum(r.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-xs text-[#CBD5E1]">{fmtNum(r.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(r.visible.różnica)}</td>
+                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(r.visible.roznica)}</td>
                 <td className="p-2 text-right text-xs">{fmtPct(r.visible.zysk_pct)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.godziny)}</td>
                 <td className="p-2 text-right text-xs">{fmtNum(r.visible.przychod_rg)}</td>
@@ -136,7 +136,7 @@ export const SprzedazPanel = ({ year }) => {
               <tr className="border-t-2 border-[#4F6343] bg-[#1E2A44]" data-testid="sprzedaz-totals-row">
                 <td className="p-2 text-white font-bold" colSpan={2}>SUMA</td>
                 {showDetails && totals.details && <>
-                  <td className="p-2 text-right text-[#F1F5F9] font-semibold bg-[#1E2A44]">{fmtNum(totals.details.sprzedaż)}</td>
+                  <td className="p-2 text-right text-[#F1F5F9] font-semibold bg-[#1E2A44]">{fmtNum(totals.details.sprzedaz)}</td>
                   <td className="p-2 text-right text-[#F1F5F9] font-semibold bg-[#1E2A44]">{fmtNum(totals.details.kp)}</td>
                   <td className="p-2 text-right text-[#CBD5E1] font-semibold bg-[#1E2A44]">{fmtNum(totals.details.kp_aloc)}</td>
                   <td className="p-2 text-right text-[#F1F5F9] font-semibold bg-[#1E2A44]">{fmtNum(totals.details.kbb)}</td>
@@ -158,7 +158,7 @@ export const SprzedazPanel = ({ year }) => {
                 <td className="p-2 text-right text-[#DC4A3A] font-bold">{fmtNum(totals.visible.koszt)}</td>
                 <td className="p-2 text-right text-[#CBD5E1]">{fmtNum(totals.visible.kaucja_gir)}</td>
                 <td className="p-2 text-right text-[#CBD5E1]">{fmtNum(totals.visible.kaucja_dw)}</td>
-                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(totals.visible.różnica)}</td>
+                <td className="p-2 text-right text-[#D4AF37] font-bold">{fmtNum(totals.visible.roznica)}</td>
                 <td className="p-2 text-right">{fmtPct(totals.visible.zysk_pct)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.godziny)}</td>
                 <td className="p-2 text-right">{fmtNum(totals.visible.przychod_rg)}</td>
