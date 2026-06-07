@@ -237,12 +237,27 @@ async def list_equipment(
         {"$group": {"_id": "$equipment_id", "total": {"$sum": "$quantity"}}},
     ]
     sums = {row["_id"]: row["total"] async for row in db.equipment_assignments.aggregate(pipeline)}
+    # iter93: include pending transfers (from warehouse) in availability calc.
+    # Without this, a pending transfer "reserves" stock in the backend validation
+    # but the UI still showed available > 0, causing user confusion ("dropped to 0
+    # but not assigned").
+    pending_pipeline = [
+        {"$match": {"equipment_id": {"$in": eq_ids}, "status": "pending"}},
+        {"$group": {"_id": "$equipment_id", "total": {"$sum": "$quantity"}}},
+    ]
+    pending_sums = {row["_id"]: row["total"]
+                    async for row in db.equipment_transfers.aggregate(pending_pipeline)}
     result = []
     for item in items:
         total_assigned = sums.get(item["id"], 0)
+        pending_qty = pending_sums.get(item["id"], 0)
         broken = item.get("broken_quantity", 0) or 0
         lost = item.get("lost_quantity", 0) or 0
         total = item.get("total_quantity", 0)
+        # Real available = total - assigned - broken - lost - pending transfers
+        real_available = total - total_assigned - broken - lost - pending_qty
+        # Over-assignment detection: if assigned+broken+lost > total, data is inconsistent
+        is_overassigned = (total_assigned + broken + lost) > total
         # Return thumbnail in 'photo' field for list view (fallback to full photo
         # for items uploaded before thumbnail migration). Saves ~150-300 KB per item.
         photo_for_list = item.get("photo_thumb") or item.get("photo")
@@ -254,7 +269,9 @@ async def list_equipment(
             "broken_quantity": broken,
             "lost_quantity": lost,
             "assigned_quantity": total_assigned,
-            "available_quantity": max(0, total - total_assigned - broken - lost)
+            "pending_transfer_quantity": pending_qty,
+            "available_quantity": max(0, real_available),
+            "is_overassigned": is_overassigned,
         })
     return result
 
@@ -369,16 +386,24 @@ async def get_equipment_single(equipment_id: str,
     if not eq:
         raise HTTPException(status_code=404, detail="Sprzet nie znaleziony")
     total_assigned = await _get_total_assigned(equipment_id)
+    pending_qty_doc = await db.equipment_transfers.aggregate([
+        {"$match": {"equipment_id": equipment_id, "status": "pending"}},
+        {"$group": {"_id": None, "total": {"$sum": "$quantity"}}}
+    ]).to_list(1)
+    pending_qty = pending_qty_doc[0]["total"] if pending_qty_doc else 0
     broken = eq.get("broken_quantity", 0) or 0
     lost = eq.get("lost_quantity", 0) or 0
     total = eq.get("total_quantity", 0)
+    is_overassigned = (total_assigned + broken + lost) > total
     # Keep both fields available: photo (full) and photo_thumb
     return {**eq,
             "category": eq.get("category") or "electronics",
             "broken_quantity": broken,
             "lost_quantity": lost,
             "assigned_quantity": total_assigned,
-            "available_quantity": max(0, total - total_assigned - broken - lost)}
+            "pending_transfer_quantity": pending_qty,
+            "is_overassigned": is_overassigned,
+            "available_quantity": max(0, total - total_assigned - broken - lost - pending_qty)}
 
 
 @router.delete("/equipment/{equipment_id}")
@@ -437,13 +462,21 @@ async def set_assignment(payload: AssignmentSet,
     other_sum = others[0]["total"] if others else 0
     broken = eq.get("broken_quantity", 0) or 0
     lost = eq.get("lost_quantity", 0) or 0
+    # iter93: pending transfers also reserve stock
+    pending_docs = await db.equipment_transfers.find({
+        "equipment_id": equipment_id,
+        "status": "pending"
+    }).to_list(500)
+    pending_qty = sum(int(t.get("quantity") or 0) for t in pending_docs)
 
-    if other_sum + payload.quantity + broken + lost > eq["total_quantity"]:
-        available = eq["total_quantity"] - other_sum - broken - lost
-        raise HTTPException(
-            status_code=400,
-            detail=f"Brak wystarczajacej ilosci. Dostepne w magazynie: {max(0, available)} szt."
+    if other_sum + payload.quantity + broken + lost + pending_qty > eq["total_quantity"]:
+        available = eq["total_quantity"] - other_sum - broken - lost - pending_qty
+        msg = (
+            f"Brak wystarczajacej ilosci. Dostepne w magazynie: {max(0, available)} szt. "
+            f"(calkowita: {eq['total_quantity']}, przypisane innym: {other_sum}, "
+            f"w naprawie: {broken}, zaginione: {lost}, oczekujace przekazania: {pending_qty})"
         )
+        raise HTTPException(status_code=400, detail=msg)
 
     if payload.quantity == 0:
         await db.equipment_assignments.delete_one({
@@ -646,10 +679,15 @@ async def transfer_from_warehouse(payload: TransferCreate,
     pending_qty = sum(t.get("quantity", 0) for t in pending)
     available = eq["total_quantity"] - assigned - broken - lost - pending_qty
     if available < payload.quantity:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Brak ilosci w magazynie. Dostepne: {max(0, available)} szt."
+        # iter93: include pending breakdown so admin understands the math
+        msg = (
+            f"Brak ilosci w magazynie. Dostepne: {max(0, available)} szt. "
+            f"(calkowita: {eq['total_quantity']}, przypisane: {assigned}, "
+            f"w naprawie: {broken}, zaginione: {lost}, oczekujace przekazania: {pending_qty})."
         )
+        if pending_qty > 0:
+            msg += " Anuluj zalegajace przekazania w sekcji 'Oczekujace przekazania' aby zwolnic stan."
+        raise HTTPException(status_code=400, detail=msg)
 
     transfer_id = str(uuid.uuid4())
     actor_name = await _get_user_name(current_user["sub"])
@@ -918,6 +956,181 @@ async def reject_transfer(transfer_id: str,
         logger.warning(f"Push (transfer reject) failed: {e}")
 
     return {"message": "Przekazanie odrzucone"}
+
+@router.post("/equipment/transfers/{transfer_id}/cancel")
+async def cancel_transfer(transfer_id: str,
+                           current_user: dict = Depends(get_current_admin_or_warehouse)):
+    """iter93: Admin/magazynier anuluje wlasne 'pending' przekazanie z magazynu.
+    Zwalnia rezerwacje stanu - sprzet wraca do dostepnych w magazynie.
+    Wlasciciel transferu (brygadzista zrodlowy) tez moze odwolac wlasna prosbe.
+    """
+    transfer = await db.equipment_transfers.find_one({"id": transfer_id})
+    if not transfer:
+        raise HTTPException(status_code=404, detail="Przekazanie nie znalezione")
+    if transfer["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Przekazanie juz rozpatrzone")
+
+    actor_name = await _get_user_name(current_user["sub"])
+    await db.equipment_transfers.update_one(
+        {"id": transfer_id},
+        {"$set": {
+            "status": "cancelled",
+            "cancelled_by": current_user["sub"],
+            "cancelled_by_name": actor_name,
+            "cancelled_at": datetime.now().isoformat(),
+        }}
+    )
+    await _add_history(
+        transfer["equipment_id"], "transfer_cancelled", current_user["sub"], actor_name,
+        {"from_foreman_name": transfer.get("from_foreman_name"),
+         "to_foreman_name": transfer.get("to_foreman_name"),
+         "quantity": transfer.get("quantity"), "transfer_id": transfer_id}
+    )
+    # Push do odbiorcy: wiedzial ze zostalo przekazane, teraz nie
+    try:
+        from routes.push import send_push
+        await send_push(
+            user_id=transfer.get("to_foreman_id"),
+            title="Przekazanie anulowane",
+            body=f"{transfer.get('equipment_name','Sprzet')} x{transfer.get('quantity')}",
+            url="/foreman/equipment",
+            tag=f"transfer-cancel-{transfer_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Push (transfer cancel) failed: {e}")
+
+    return {"message": "Przekazanie anulowane, stan zwolniony"}
+
+
+@router.get("/equipment/integrity")
+async def equipment_integrity(current_user: dict = Depends(get_current_admin)):
+    """iter93: Diagnostyka stanu magazynu - wykrywa nieprawidlowosci:
+    - over-assigned: assigned > total (np. po zmniejszeniu calkowitej ilosci)
+    - orphan-assignments: przypisania bez uzytkownika lub bez sprzetu
+    - stuck-transfers: pending transfers starsze niz 48h
+    """
+    from datetime import timedelta as _td
+    issues = {"over_assigned": [], "orphan_assignments": [], "stuck_transfers": []}
+
+    # OVER-ASSIGNED
+    eqs = await db.equipment.find({}, {"_id": 0, "id": 1, "name": 1, "total_quantity": 1,
+                                         "broken_quantity": 1, "lost_quantity": 1}).to_list(5000)
+    eq_map = {e["id"]: e for e in eqs}
+    if eqs:
+        pipeline = [
+            {"$match": {"equipment_id": {"$in": list(eq_map.keys())}}},
+            {"$group": {"_id": "$equipment_id", "total": {"$sum": "$quantity"}}},
+        ]
+        async for row in db.equipment_assignments.aggregate(pipeline):
+            eq = eq_map.get(row["_id"])
+            if not eq:
+                continue
+            assigned = int(row["total"] or 0)
+            broken = int(eq.get("broken_quantity") or 0)
+            lost = int(eq.get("lost_quantity") or 0)
+            total = int(eq.get("total_quantity") or 0)
+            if assigned + broken + lost > total:
+                issues["over_assigned"].append({
+                    "equipment_id": eq["id"],
+                    "equipment_name": eq.get("name"),
+                    "total_quantity": total,
+                    "assigned_quantity": assigned,
+                    "broken_quantity": broken,
+                    "lost_quantity": lost,
+                    "excess": (assigned + broken + lost) - total,
+                })
+
+    # ORPHAN ASSIGNMENTS (no equipment OR no user OR qty <= 0)
+    all_users = await db.users.find({}, {"_id": 0, "id": 1, "full_name": 1}).to_list(5000)
+    user_map = {u["id"]: u.get("full_name") for u in all_users}
+    cursor = db.equipment_assignments.find({}, {"_id": 0})
+    async for a in cursor:
+        if int(a.get("quantity") or 0) <= 0:
+            issues["orphan_assignments"].append({**a, "reason": "quantity<=0"})
+            continue
+        if a.get("equipment_id") not in eq_map:
+            issues["orphan_assignments"].append({**a, "reason": "missing_equipment"})
+            continue
+        if a.get("foreman_id") not in user_map:
+            issues["orphan_assignments"].append({**a, "reason": "missing_user"})
+
+    # STUCK TRANSFERS (pending > 48h)
+    cutoff = (datetime.now() - _td(hours=48)).isoformat()
+    stuck = await db.equipment_transfers.find(
+        {"status": "pending", "created_at": {"$lt": cutoff}},
+        {"_id": 0}
+    ).sort("created_at", 1).to_list(500)
+    issues["stuck_transfers"] = stuck
+
+    issues["summary"] = {
+        "over_assigned_count": len(issues["over_assigned"]),
+        "orphan_assignments_count": len(issues["orphan_assignments"]),
+        "stuck_transfers_count": len(issues["stuck_transfers"]),
+    }
+    return issues
+
+
+class IntegrityRepairPayload(BaseModel):
+    cleanup_orphans: bool = True  # delete orphan assignments
+    cancel_stuck_transfers: bool = False  # cancel pending transfers older than 48h
+
+
+@router.post("/equipment/integrity/repair")
+async def equipment_integrity_repair(payload: IntegrityRepairPayload,
+                                       current_user: dict = Depends(get_current_admin)):
+    """iter93: Automatyczna naprawa danych:
+    - cleanup_orphans: usuwa przypisania z quantity<=0, nieistniejacym sprzetem
+      lub nieistniejacym uzytkownikiem
+    - cancel_stuck_transfers: anuluje pending transfers starsze niz 48h
+    NIE rusza over-assignment (admin musi sam zdecydowac komu zabrac).
+    """
+    from datetime import timedelta as _td
+    actor_name = await _get_user_name(current_user["sub"])
+    deleted_orphans = 0
+    cancelled_transfers = 0
+
+    if payload.cleanup_orphans:
+        eqs = await db.equipment.find({}, {"_id": 0, "id": 1}).to_list(5000)
+        eq_ids = {e["id"] for e in eqs}
+        users = await db.users.find({}, {"_id": 0, "id": 1}).to_list(5000)
+        user_ids = {u["id"] for u in users}
+        # qty <= 0
+        r1 = await db.equipment_assignments.delete_many({"quantity": {"$lte": 0}})
+        # missing eq
+        r2 = await db.equipment_assignments.delete_many({"equipment_id": {"$nin": list(eq_ids)}})
+        # missing user
+        r3 = await db.equipment_assignments.delete_many({"foreman_id": {"$nin": list(user_ids)}})
+        deleted_orphans = r1.deleted_count + r2.deleted_count + r3.deleted_count
+
+    if payload.cancel_stuck_transfers:
+        cutoff = (datetime.now() - _td(hours=48)).isoformat()
+        stuck = await db.equipment_transfers.find(
+            {"status": "pending", "created_at": {"$lt": cutoff}}
+        ).to_list(500)
+        for t in stuck:
+            await db.equipment_transfers.update_one(
+                {"id": t["id"]},
+                {"$set": {
+                    "status": "cancelled",
+                    "cancelled_by": current_user["sub"],
+                    "cancelled_by_name": actor_name,
+                    "cancelled_at": datetime.now().isoformat(),
+                    "cancel_reason": "stuck>48h",
+                }}
+            )
+            cancelled_transfers += 1
+
+    await _add_history(
+        "system", "integrity_repair", current_user["sub"], actor_name,
+        {"deleted_orphans": deleted_orphans, "cancelled_transfers": cancelled_transfers}
+    )
+    return {
+        "message": "Naprawa zakonczona",
+        "deleted_orphans": deleted_orphans,
+        "cancelled_transfers": cancelled_transfers,
+    }
+
+
 
 
 # ============= Defect / return reporting (foreman) =============

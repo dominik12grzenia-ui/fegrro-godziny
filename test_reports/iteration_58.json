@@ -1,0 +1,40 @@
+{
+  "summary": "iter93 backend testing - pending-transfer-aware availability + cancel-transfer + integrity endpoints. All 15 tests passed (100%). Fix correctly addresses the original bug: pending transfers now reserve stock in availability calculation, admin can cancel stale pending transfers, integrity diagnostic exposes over-assigned/orphan/stuck-transfer issues.",
+  "testing_performed": [
+    "GET /api/equipment now returns pending_transfer_quantity (int) and is_overassigned (bool) for every item. Verified field presence + types on the full inventory.",
+    "Pre-existing 'Drabina aluminiowa 3m' (id 3343c176-...) correctly flagged is_overassigned=true (assigned 8 > total 6).",
+    "Reservation math: created TEST eq total=3, then pending transfer of 1 to FOREMAN_A -> available_quantity=2, pending_transfer_quantity=1.",
+    "GET /api/equipment/single/{id} also returns pending_transfer_quantity & is_overassigned.",
+    "POST /api/equipment/transfer-from-warehouse rejects with 400 + breakdown message containing keywords: 'calkowita', 'przypisane', 'w naprawie', 'zaginione', 'oczekujace przekazania'.",
+    "POST /api/equipment/transfers/{id}/cancel (admin) flips pending -> cancelled, freed reserved stock (pending_transfer_quantity decreased, available_quantity rose by the cancelled qty).",
+    "Cancelling an already-cancelled transfer -> 400 'Przekazanie juz rozpatrzone'.",
+    "Cancelling a non-existent transfer id -> 404.",
+    "GET /api/equipment/integrity returns object {summary, over_assigned[], orphan_assignments[], stuck_transfers[]} with summary counts matching list lengths. Known over-assigned eq present with excess>0 and all required keys (equipment_id, equipment_name, total_quantity, assigned_quantity, broken_quantity, lost_quantity, excess). Endpoint is admin-only (401/403 without token).",
+    "POST /api/equipment/integrity/repair with {cleanup_orphans:true, cancel_stuck_transfers:false} returns deleted_orphans (int) and cancelled_transfers=0.",
+    "POST /api/equipment/integrity/repair with {cancel_stuck_transfers:true} returns cancelled_transfers (int) and deleted_orphans=0.",
+    "POST /api/equipment/assign validation now subtracts pending transfers. With eq total=2 + pending=1, direct-assign 2 to another foreman rejected with 400 ('oczekujace przekazania' + 'przypisane innym'); assign 1 succeeds.",
+    "Accept flow end-to-end: warehouse -> pending -> foreman A accepts (via POST /api/auth/foreman/login then /accept) -> assigned_quantity += qty AND pending_transfer_quantity drops to 0. Used TEST_Foreman_A_a8b95c / Test1234! for foreman token."
+  ],
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter93_equipment_integrity.py",
+    "/app/test_reports/pytest/iter93_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "set_assignment validation uses pending_qty for ALL pending transfers including ones whose to_foreman_id equals the same foreman being assigned. This is intentionally strict (forces admin to cancel/accept the pending first) but could surprise admins changing an existing assignment for a foreman who also has a pending transfer for that same equipment. Worth a UI hint, not a blocker.",
+    "cancel_transfer uses get_current_admin_or_warehouse so warehouse keepers can cancel any pending transfer (not just their own). The docstring claims 'wlasciciel transferu... tez moze odwolac' but there is no check for owner foreman; foreman cannot call this. That matches the request (admin/warehouse only) so acceptable, but the docstring is slightly misleading.",
+    "integrity_repair has no audit-trail of WHICH assignments/transfers were deleted - only counts. For destructive operations consider logging the deleted ids to equipment_history for forensic recovery."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter93_equipment_integrity.py (new)"
+  ],
+  "success_rate": {"backend": "100% (15/15)", "frontend": "skipped (backend-only request)"},
+  "test_credentials": "admin@fegrro.pl / Admin123! via /api/auth/admin/login; foreman TEST_Foreman_A_a8b95c / Test1234! via /api/auth/foreman/login (email=full_name).",
+  "seed_data_creation": "Created TEST_iter93_* equipment items per test; all cleaned up in fixture teardown / try-finally. No DB residue. The pre-existing over-assigned 'Drabina aluminiowa 3m' (id 3343c176-01f8-402f-8e29-15fb9a172cdc, total=6, assigned=8) was preserved as instructed.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "iter93: list_equipment / single_equipment expose pending_transfer_quantity and is_overassigned. Cancel-transfer endpoint POST /api/equipment/transfers/{id}/cancel is admin/warehouse only. Integrity diagnostics under /api/equipment/integrity (GET, admin) and /api/equipment/integrity/repair (POST, admin) with payload {cleanup_orphans:bool, cancel_stuck_transfers:bool}. Pending transfers now reserve stock in BOTH transfer-from-warehouse and set_assignment validators with the same Polish breakdown message keywords. Backend test fixture pattern (admin_headers, test_equipment) reusable.",
+  "rca of the issue": "Root cause: list_equipment formerly subtracted only assigned+broken+lost from total_quantity, ignoring pending transfers. transfer-from-warehouse already reserved stock via its own pending lookup, so when admin transferred all units the next list query still showed available based on assignments (which were 0 until acceptance) BUT the validator rejected new transfers because it counted pending. UI thus showed available=0 while the equipment was not actually assigned. Fix: include pending transfers in availability computation everywhere (list, single, set_assignment) and add a cancel endpoint for admins to release reservations of stale pending transfers. Diagnostic endpoint exposes the inconsistencies so admin can repair historical data. Tests verify the math end-to-end including the accept flow that should transition pending -> assigned without double-counting."
+}

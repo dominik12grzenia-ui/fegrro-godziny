@@ -51,6 +51,9 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
   const [transferQty, setTransferQty] = useState('');
   // iter89: spory przypisan sprzetu
   const [disputes, setDisputes] = useState([]);
+  // iter93: integrity check (over-assigned, orphans, stuck transfers)
+  const [integrity, setIntegrity] = useState(null);
+  const [integrityRepairing, setIntegrityRepairing] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
@@ -68,7 +71,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
       setLoading(false);
 
       // SECONDARY fetches - same cache-first strategy
-      const [hisData, defData, trData, wkData, retData, scrData, invData, shData, dispData] = await Promise.all([
+      const [hisData, defData, trData, wkData, retData, scrData, invData, shData, dispData, intData] = await Promise.all([
         prefetch('/equipment/history'),
         prefetch('/equipment/defects'),
         prefetch('/equipment/transfers/all'),
@@ -78,6 +81,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
         prefetch('/equipment/inventory/list'),
         prefetch('/equipment/inventory/shortages?status=open'),
         prefetch('/equipment/confirmations/disputes'),
+        prefetch('/equipment/integrity').catch(() => null),
       ]);
       if (hisData) setHistory(hisData);
       if (defData) setDefects(defData);
@@ -88,6 +92,7 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
       if (invData) setActiveInventory((invData || []).filter((c) => c.category === category && c.status === 'active'));
       if (shData) setShortages((shData || []).filter((s) => s.category === category));
       if (dispData) setDisputes(dispData?.rows || []);
+      if (intData) setIntegrity(intData);
     } catch (e) {
       toast.error('BÅ‚Ä…d pobierania danych sprzÄ™tu');
       setLoading(false);
@@ -412,6 +417,78 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
 
   return (
     <div className="space-y-4" data-testid="equipment-admin">
+      {/* iter93: Integrity warning banner */}
+      {integrity && (integrity.summary?.over_assigned_count > 0 ||
+                     integrity.summary?.orphan_assignments_count > 0 ||
+                     integrity.summary?.stuck_transfers_count > 0) && (
+        <Card className="bg-[#3B1F1F] border-[#DC4A3A]" data-testid="integrity-warning">
+          <CardHeader>
+            <CardTitle className="text-[#FCA5A5] flex items-center gap-2 text-base">
+              <AlertTriangle className="h-5 w-5" /> Wykryto nieprawidlowosci stanu magazynu
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 text-sm">
+              {integrity.summary.over_assigned_count > 0 && (
+                <div className="text-[#F1F5F9]">
+                  <b className="text-[#FCA5A5]">{integrity.summary.over_assigned_count}</b> pozycji ma <b>wiecej przypisanych sztuk niz calkowita ilosc</b>:
+                  <ul className="ml-5 mt-1 list-disc">
+                    {(integrity.over_assigned || []).map((x) => (
+                      <li key={x.equipment_id} className="text-[#CBD5E1]">
+                        <span className="text-[#FCA5A5] font-semibold">{x.equipment_name}</span>:
+                        calkowita {x.total_quantity}, przypisane {x.assigned_quantity}
+                        {x.broken_quantity > 0 && `, naprawa ${x.broken_quantity}`}
+                        {x.lost_quantity > 0 && `, zaginione ${x.lost_quantity}`}
+                        {' '}<span className="text-[#DC4A3A] font-semibold">(nadmiar: {x.excess})</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-[#CBD5E1] mt-1">
+                    Aby naprawic: zwieksz <b>calkowita ilosc sprzetu</b> (kliknij w nazwe) lub wycofaj przypisanie ktoremus z brygadzistow (kolumna brygadzisty - kliknij komorke i ustaw 0).
+                  </p>
+                </div>
+              )}
+              {integrity.summary.orphan_assignments_count > 0 && (
+                <div className="text-[#F1F5F9]">
+                  <b className="text-[#FCA5A5]">{integrity.summary.orphan_assignments_count}</b> osieroconych przypisan (brakujacy sprzet lub uzytkownik, lub quantity = 0).
+                </div>
+              )}
+              {integrity.summary.stuck_transfers_count > 0 && (
+                <div className="text-[#F1F5F9]">
+                  <b className="text-[#FCA5A5]">{integrity.summary.stuck_transfers_count}</b> oczekujacych przekazan starszych niz 48h (rezerwuja stan).
+                </div>
+              )}
+              <div className="flex gap-2 pt-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    if (!window.confirm('Wykonac automatyczna naprawe?\n\n- Usunie osierocone przypisania (brakujacy sprzet/uzytkownik, qty=0)\n- Anuluje oczekujace przekazania starsze niz 48h (zwolni stan)\n\nNad over-assignment nadal musisz zadecydowac recznie.')) return;
+                    setIntegrityRepairing(true);
+                    try {
+                      const r = await api.post('/equipment/integrity/repair', {
+                        cleanup_orphans: true,
+                        cancel_stuck_transfers: true,
+                      });
+                      toast.success(`Naprawiono: ${r.data.deleted_orphans} osieroconych, ${r.data.cancelled_transfers} anulowanych transferow`);
+                      refreshAll();
+                    } catch (err) {
+                      toast.error(err.response?.data?.detail || 'Blad naprawy');
+                    } finally {
+                      setIntegrityRepairing(false);
+                    }
+                  }}
+                  disabled={integrityRepairing || (integrity.summary.orphan_assignments_count === 0 && integrity.summary.stuck_transfers_count === 0)}
+                  className="bg-[#4F6343] hover:bg-[#3F5235] text-white text-xs disabled:opacity-50"
+                  data-testid="integrity-repair-btn"
+                >
+                  {integrityRepairing ? 'Naprawianie...' : 'Auto-naprawa osieroconych + zalegajacych'}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main table */}
       <Card className="bg-[#243049] border-[#3D5378]">
         <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
@@ -620,16 +697,36 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
                         </span>
                       </td>
                       <td className="border border-[#3D5378] p-2 text-center">
-                        <span
-                          className={
-                            eq.available_quantity > 0
-                              ? 'text-[#4F6343] font-bold text-base'
-                              : 'text-[#DC4A3A] font-bold text-base'
-                          }
-                          data-testid={`available-${eq.id}`}
-                        >
-                          {eq.available_quantity}
-                        </span>
+                        <div className="flex flex-col items-center">
+                          <span
+                            className={
+                              eq.available_quantity > 0
+                                ? 'text-[#4F6343] font-bold text-base'
+                                : 'text-[#DC4A3A] font-bold text-base'
+                            }
+                            data-testid={`available-${eq.id}`}
+                          >
+                            {eq.available_quantity}
+                          </span>
+                          {(eq.pending_transfer_quantity || 0) > 0 && (
+                            <span
+                              className="text-[10px] text-[#D4AF37] mt-0.5"
+                              title={`${eq.pending_transfer_quantity} szt. zarezerwowane w oczekujacych przekazaniach`}
+                              data-testid={`pending-info-${eq.id}`}
+                            >
+                              +{eq.pending_transfer_quantity} oczek.
+                            </span>
+                          )}
+                          {eq.is_overassigned && (
+                            <span
+                              className="text-[10px] text-[#DC4A3A] font-bold mt-0.5"
+                              title={`Przypisane ${eq.assigned_quantity} szt. przewyzsza ilosc calkowita ${eq.total_quantity}. Uruchom diagnostyke.`}
+                              data-testid={`overassigned-${eq.id}`}
+                            >
+                              âš  NIESPÃ“JNE
+                            </span>
+                          )}
+                        </div>
                       </td>
                       {visibleForemen.map((f) => {
                         const current = getAssigned(eq.id, f.id);
@@ -984,24 +1081,48 @@ export const EquipmentAdmin = ({ category = 'electronics', title = 'ElektronarzÄ
         <Card className="bg-[#243049] border-[#3D5378]">
           <CardHeader>
             <CardTitle className="text-[#F1F5F9]">Oczekujace przekazania</CardTitle>
+            <p className="text-xs text-[#CBD5E1] mt-1">
+              Te przekazania <b>rezerwuja stan</b> w magazynie do momentu akceptacji przez brygadziste.
+              Jezeli sprzet nie zostal faktycznie przekazany - kliknij <b>Anuluj</b> aby zwolnic stan.
+            </p>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
               {pendingTransfers.map((t) => (
                 <div
                   key={t.id}
-                  className="text-sm p-2 bg-[#1E2A44] rounded border border-[#3D5378]"
+                  className="text-sm p-2 bg-[#1E2A44] rounded border border-[#3D5378] flex items-center justify-between gap-2 flex-wrap"
                   data-testid={`pending-transfer-${t.id}`}
                 >
-                  <span className="text-[#F1F5F9]">{t.from_foreman_name}</span>
-                  <span className="text-[#CBD5E1]"> -&gt; </span>
-                  <span className="text-[#F1F5F9]">{t.to_foreman_name}</span>
-                  <span className="text-[#CBD5E1]">: </span>
-                  <span className="text-[#4F6343] font-semibold">{t.equipment_name}</span>
-                  <span className="text-[#CBD5E1]"> x {t.quantity} szt. </span>
-                  <span className="text-[#94A3B8] text-xs">
-                    {new Date(t.created_at).toLocaleString('pl-PL')}
-                  </span>
+                  <div>
+                    <span className="text-[#F1F5F9]">{t.from_foreman_name}</span>
+                    <span className="text-[#CBD5E1]"> -&gt; </span>
+                    <span className="text-[#F1F5F9]">{t.to_foreman_name}</span>
+                    <span className="text-[#CBD5E1]">: </span>
+                    <span className="text-[#4F6343] font-semibold">{t.equipment_name}</span>
+                    <span className="text-[#CBD5E1]"> x {t.quantity} szt. </span>
+                    <span className="text-[#94A3B8] text-xs">
+                      {new Date(t.created_at).toLocaleString('pl-PL')}
+                    </span>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={async () => {
+                      if (!window.confirm(`Anulowac przekazanie "${t.equipment_name}" do ${t.to_foreman_name}? Stan wroci do magazynu dostepnego.`)) return;
+                      try {
+                        await api.post(`/equipment/transfers/${t.id}/cancel`);
+                        toast.success('Przekazanie anulowane, stan zwolniony');
+                        refreshAll();
+                      } catch (err) {
+                        toast.error(err.response?.data?.detail || 'Blad anulowania');
+                      }
+                    }}
+                    className="text-[#DC4A3A] hover:bg-[#9B2C2C]/20 text-xs h-7"
+                    data-testid={`cancel-transfer-${t.id}`}
+                  >
+                    <X className="h-3 w-3 mr-1" /> Anuluj
+                  </Button>
                 </div>
               ))}
             </div>
