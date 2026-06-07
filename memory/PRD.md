@@ -13,6 +13,24 @@ Polish (PL).
 - 3rd party: Fakturownia, VAPID push, MS Graph, Resend, GUS, Google Maps.
 
 
+### 2026-02 — iter93 — Equipment Availability & Inventory Integrity (DONE)
+
+**Issue (P0)**: User reported equipment transfers caused `available_quantity` to drop to 0 while equipment wasn't actually assigned to the foreman. Happened for multiple items.
+
+**Root cause**: `list_equipment` only subtracted `assigned + broken + lost` from `total_quantity`. Pending transfers (status=pending) reserved stock in `transfer-from-warehouse` validation BUT were not reflected in the displayed `available_quantity`. This caused inconsistency: UI showed stock > 0, but new transfers got rejected silently / the user mis-interpreted as "lost stock".
+
+**Fixes** (`backend/routes/equipment.py`, `frontend/components/EquipmentAdmin.js`):
+1. `list_equipment` + `get_equipment_single`: added `pending_transfer_quantity` and `is_overassigned` fields. `available_quantity = max(0, total - assigned - broken - lost - pending_transfer_quantity)`.
+2. `set_assignment` validation also subtracts pending transfers. Error messages enriched with breakdown.
+3. `transfer-from-warehouse` error message includes "calkowita / przypisane / w naprawie / zaginione / oczekujace przekazania".
+4. NEW `POST /equipment/transfers/{id}/cancel` (admin/warehouse): cancels pending transfer and frees stock.
+5. NEW `GET /equipment/integrity` (admin): returns over_assigned[], orphan_assignments[], stuck_transfers[] (pending > 48h).
+6. NEW `POST /equipment/integrity/repair` (admin): cleans orphans + cancels stuck transfers.
+7. Frontend: integrity banner + Anuluj button per pending transfer + overassigned warning badge.
+
+**Tests**: 15/15 backend tests passed (iteration_58.json).
+
+
 ### 2026-02 — iter95dv+dw — Tombstone + Refaktor wyceny.py BOM (DONE)
 
 **1) Tombstone dla soft-deleted Fakturowni** (`finance_fakturownia.py`):
