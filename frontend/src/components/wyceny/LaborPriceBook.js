@@ -143,7 +143,7 @@ export const LaborPriceBook = () => {
                     title="Cena maksymalna (informacja)">
                   <span className="text-[#FCD34D]">cena max</span>
                 </th>
-                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[240px]">Historia zmian</th>
+                <th className="text-left p-2 border-b border-r border-[#3D5378] min-w-[110px]">Ostatnia zmiana</th>
                 <th className="p-2 border-b border-[#3D5378] w-8"></th>
               </tr>
             </thead>

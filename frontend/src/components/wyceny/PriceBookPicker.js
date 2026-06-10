@@ -40,6 +40,32 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
     );
   }, [rows, q]);
 
+  // iter94: grupowanie po sub_category - jak w LaborPriceBook/MaterialsPriceBook.
+  // Bez kategorii -> bucket "(bez kategorii)" na koncu listy.
+  const [collapsedCats, setCollapsedCats] = useState(() => new Set());
+  const grouped = useMemo(() => {
+    const m = new Map();
+    for (const it of filtered) {
+      const cat = (it.sub_category || '').trim() || '(bez kategorii)';
+      if (!m.has(cat)) m.set(cat, []);
+      m.get(cat).push(it);
+    }
+    // Sortuj kategorie alfabetycznie, "(bez kategorii)" na koncu
+    const sortedKeys = Array.from(m.keys()).sort((a, b) => {
+      if (a === '(bez kategorii)') return 1;
+      if (b === '(bez kategorii)') return -1;
+      return a.localeCompare(b, 'pl');
+    });
+    return sortedKeys.map((k) => [k, m.get(k)]);
+  }, [filtered]);
+  const toggleCat = (cat) => {
+    setCollapsedCats((prev) => {
+      const n = new Set(prev);
+      if (n.has(cat)) n.delete(cat); else n.add(cat);
+      return n;
+    });
+  };
+
   // iter95z: oblicz "efektywna" cene + jednostke uwzgledniajaca posUnit
   // iter95ac: jezeli posUnit nie pasuje, ale material MA wlasna norme (np. kg/m²) - uzyj jej i pokaz ostrzezenie
   // Zwraca { price, unit, source } gdzie source = "computed" | "computed-mismatch" | "m2"/"m3"/"hour"/.. | "raw"
@@ -155,7 +181,24 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((it) => {
+                {grouped.map(([cat, items]) => {
+                  const isCollapsed = collapsedCats.has(cat);
+                  return (
+                    <React.Fragment key={cat}>
+                      <tr className="bg-[#1E2A44] sticky" data-testid={`picker-cat-${cat}`}>
+                        <td colSpan="4" className="px-2 py-1 border-t border-[#3D5378]">
+                          <button onClick={() => toggleCat(cat)}
+                            className="flex items-center gap-1.5 text-[#D4AF37] font-semibold text-[10px] uppercase hover:text-[#FCD34D]"
+                            data-testid={`picker-cat-toggle-${cat}`}>
+                            {isCollapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                            📁 {cat}
+                            <span className="text-[9px] text-[#CBD5E1] font-normal normal-case ml-1">
+                              ({items.length} {items.length === 1 ? 'pozycja' : items.length < 5 ? 'pozycje' : 'pozycji'})
+                            </span>
+                          </button>
+                        </td>
+                      </tr>
+                      {!isCollapsed && items.map((it) => {
                   const eff = getEffective(it);
                   // iter95ab/ac: tylko gdy material nie ma ZADNEJ normy -> wymaga uzupelnienia
                   const needsCompletion = category === 'materials' && posUnit && eff.source === 'raw';
@@ -205,6 +248,9 @@ export const PriceBookPicker = ({ category, posUnit = null, onPick, onClose }) =
                           onSaved={(updated) => { setEditRowId(null); reload(); toast.success('Cennik zaktualizowany'); }}
                           onCancel={() => setEditRowId(null)} />
                       )}
+                    </React.Fragment>
+                  );
+                      })}
                     </React.Fragment>
                   );
                 })}

@@ -15,6 +15,7 @@ import {
 
 export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onCategoryChange, customCategories = [], onDel }) => {
   const [edit, setEdit] = useState(item);
+  const [historyOpen, setHistoryOpen] = useState(false);
   useEffect(() => { setEdit(item); }, [item]);
 
   const save = async (extra = {}) => {
@@ -148,26 +149,73 @@ export const LaborRow = ({ item, onLocalUpdate, onPriceChange, onCategoryChange,
       <td className="border-r border-[#3D5378]/40 p-1">
         {history.length === 0 ? (
           <span className="text-[10px] text-[#94A3B8]">— brak zmian —</span>
-        ) : (
-          <div className="space-y-0.5 max-h-32 overflow-y-auto" data-testid={`labor-history-${item.id}`}>
-            {history.slice().reverse().map((h, i) => (
-              <div key={i} className="text-[10px] flex gap-1.5 items-baseline">
-                <span className="text-[#94A3B8] tabular-nums">{(h.date || '').slice(0, 10)}</span>
-                <span className="text-[#CBD5E1]">
-                  {h.field === 'price_m2' ? 'm²' : h.field === 'price_m3' ? 'm³' : h.field === 'price_other' ? (item.unit_other || 'inna') : h.field}:
-                </span>
-                <span className="text-[#FCA5A5] tabular-nums line-through">{fmtPrice(h.old)}</span>
+        ) : (() => {
+          // iter94: pokaz TYLKO ostatnia zmiane inline + przycisk do pelnej historii w modal
+          const last = history[history.length - 1];
+          const fieldLabel = last.field === 'price_m2' ? 'm²'
+            : last.field === 'price_m3' ? 'm³'
+            : last.field === 'price_other' ? (item.unit_other || 'inna')
+            : last.field;
+          return (
+            <div className="flex items-center gap-1.5" data-testid={`labor-history-${item.id}`}>
+              <div className="text-[10px] flex gap-1 items-baseline whitespace-nowrap flex-1 min-w-0">
+                <span className="text-[#94A3B8] tabular-nums">{(last.date || '').slice(0, 10)}</span>
+                <span className="text-[#CBD5E1]">{fieldLabel}:</span>
+                <span className="text-[#FCA5A5] tabular-nums line-through">{fmtPrice(last.old)}</span>
                 <span className="text-[#94A3B8]">→</span>
-                <span className="text-[#9DBC85] tabular-nums font-semibold">{fmtPrice(h.new)}</span>
+                <span className="text-[#9DBC85] tabular-nums font-semibold">{fmtPrice(last.new)}</span>
               </div>
-            ))}
-          </div>
-        )}
+              {history.length > 1 && (
+                <button onClick={() => setHistoryOpen(true)}
+                  className="text-[10px] text-[#D4AF37] hover:text-[#FCD34D] underline whitespace-nowrap shrink-0"
+                  title={`Pelna historia (${history.length} zmian)`}
+                  data-testid={`labor-history-btn-${item.id}`}>
+                  ({history.length})
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </td>
       <td className="text-right pr-1 pt-1">
         <button onClick={onDel} className="text-[#CBD5E1] hover:text-[#FCA5A5]" data-testid={`labor-del-${item.id}`}>
           <Trash2 className="h-3 w-3" />
         </button>
+        {/* iter94: Dialog z pelna historia zmian. Radix Dialog renderuje przez portal do document.body,
+            wiec umieszczenie wewnatrz <td> jest bezpieczne (nie wplywa na layout tabeli). */}
+        <Dialog open={historyOpen} onOpenChange={setHistoryOpen}>
+          <DialogContent className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] max-w-lg"
+            data-testid={`labor-history-dialog-${item.id}`}>
+            <DialogHeader>
+              <DialogTitle className="text-[#D4AF37] text-base">
+                Historia zmian: <span className="text-[#F1F5F9]">{item.name || '—'}</span>
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+              {history.slice().reverse().map((h, i) => {
+                const fieldLabel = h.field === 'price_m2' ? 'cena za m²'
+                  : h.field === 'price_m3' ? 'cena za m³'
+                  : h.field === 'price_other' ? (`cena za ${item.unit_other || 'inna jedn.'}`)
+                  : h.field;
+                return (
+                  <div key={i} className="text-xs flex flex-wrap gap-2 items-baseline border-b border-[#3D5378]/40 pb-1.5">
+                    <span className="text-[#94A3B8] tabular-nums w-28">{(h.date || '').slice(0, 16).replace('T', ' ')}</span>
+                    <span className="text-[#CBD5E1] flex-1 text-left">{fieldLabel}</span>
+                    <span className="text-[#FCA5A5] tabular-nums line-through">{fmtPrice(h.old)}</span>
+                    <span className="text-[#94A3B8]">→</span>
+                    <span className="text-[#9DBC85] tabular-nums font-semibold">{fmtPrice(h.new)}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setHistoryOpen(false)}
+                className="border-[#3D5378] text-[#CBD5E1]">
+                <X className="h-4 w-4 mr-1" /> Zamknij
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </td>
     </tr>
   );
