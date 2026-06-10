@@ -7,7 +7,7 @@ from tests.test_config import TEST_ADMIN_EMAIL, TEST_ADMIN_PASSWORD
 import requests
 import os
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://nostalgic-visvesvaraya-4.preview.emergentagent.com')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://equipment-payroll.preview.emergentagent.com')
 
 class TestGoogleMapsIntegration:
     """Tests for Google Maps integration features"""

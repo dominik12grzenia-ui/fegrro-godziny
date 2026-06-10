@@ -17,7 +17,7 @@
   "critical_code_review_comments": [
     "Two collections track sites: finance_budowy (used everywhere) vs construction_sites (used for budowa_name lookup in /budget/my-schedule). If a finance_budowa exists but no matching construction_sites doc, budowa_name will be null. Consider unifying or falling back to finance_budowy when name missing.",
     "/app/backend/routes/budget.py exceeds 1500+ lines - should be split (lines/positions/progress/tasks/schedule submodules) per >700-line guideline.",
-    "Pre-existing test-data issue (noted by main agent): Roman.assigned_sites IDs (67c1465e-c4be-4d29-b08b-37094d04b193, 33fc3748-7bbf-4c7e-a193-cbf4b1d9e6f7) do NOT match real construction_sites IDs (Castorama=67c1465e-5f53-4c03-837a-e0d536517cc8, LEBA=33fc3748-2a2e-4715-bd21-22e00af824de). Tests still pass because admin can create tasks directly on those orphan IDs, but production foreman won't see real-site tasks. Not iter95t bug, but fix the seed data so foreman testing works realistically."
+    "Pre-existing test-data issue (noted by main agent): Roman.assigned_sites IDs (67c1465e-c4be-4d29-b08b-37094d04b193, 33fc3748-7bbf-4c7e-a193-cbf4b1d9e6f7) do NOT match real construction_sites IDs (Castorama=equipment-payroll, LEBA=equipment-payroll). Tests still pass because admin can create tasks directly on those orphan IDs, but production foreman won't see real-site tasks. Not iter95t bug, but fix the seed data so foreman testing works realistically."
   ],
   "updated_files": [
     "/app/backend/tests/test_iter95t_schedule.py"
