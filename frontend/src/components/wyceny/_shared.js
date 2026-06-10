@@ -49,13 +49,13 @@ export const PKG_UNITS = ['', 'kg', 'l', 'm²', 'm³', 'mb', 'szt', 'kpl', 't', 
 // jd. do jd. = norma zuzycia (np. kg na 1 m2 ulozonej posadzki)
 export const ZAP_UNITS = [
   '',
-  'kg/m²', 'kg/m³', 'kg/mb', 'kg/szt', 'kg/kpl',
+  'kg/m²', 'kg/m³', 'kg/mb', 'kg/szt', 'kg/kpl', 'kg/kg', 'kg/t',
   'l/m²', 'l/m³', 'l/mb', 'l/szt',
   'm²/m²', 'm²/m³', 'm²/mb', 'm²/szt',
   'm³/m²', 'm³/m³', 'm³/mb', 'm³/szt',
   'mb/m²', 'mb/m³', 'mb/mb', 'mb/szt',
   'szt/m²', 'szt/m³', 'szt/mb', 'szt/szt', 'szt/kpl',
-  't/m³',
+  't/m²', 't/m³', 't/mb', 't/szt', 't/kpl', 't/t', 't/kg',
 ];
 
 // ile kosztuje material na 1 jednostke wyrobu (np. m² sciany).
