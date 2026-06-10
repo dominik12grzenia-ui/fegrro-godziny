@@ -157,8 +157,18 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
           <DialogContent className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] max-w-lg"
             data-testid={`pos-notes-dialog-${position.id}`}>
             <DialogHeader>
-              <DialogTitle className="text-[#D4AF37] text-base">
-                Uwagi do pozycji: <span className="text-[#F1F5F9]">{position.name || '—'}</span>
+              <DialogTitle className="text-[#D4AF37] text-base flex items-center justify-between gap-2">
+                <span>
+                  Uwagi do pozycji: <span className="text-[#F1F5F9]">{position.name || '—'}</span>
+                </span>
+                {/* iter94: AI polish dla uwag — wyrownuje literowki i terminologie */}
+                <AiPolishButton
+                  text={notesDraft}
+                  kind="notes"
+                  onApply={(polished) => setNotesDraft(polished)}
+                  title="AI: popraw pisownię i terminologię w uwagach"
+                  testId={`pos-notes-ai-${position.id}`}
+                />
               </DialogTitle>
               <p className="text-xs text-[#94A3B8] mt-1">
                 Te uwagi pojawią się <b>pod nazwą pozycji</b> w pobranej ofercie (PDF + Excel) widzianej przez klienta.
