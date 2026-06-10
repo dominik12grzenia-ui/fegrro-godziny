@@ -109,6 +109,8 @@ class PositionCreate(BaseModel):
     kaucja_dw_pct: Optional[float] = None     # %, domyslnie 2.0
     koszt_budowy_pct: Optional[float] = None  # %, domyslnie 2.0
     koszt_prognozowany: Optional[float] = None  # kwota wpisywana recznie
+    # iter94: uwagi do pozycji glownej - widoczne w PDF/XLSX
+    notes: Optional[str] = None
 
 
 class PositionUpdate(BaseModel):
@@ -130,6 +132,8 @@ class PositionUpdate(BaseModel):
     # Excluded pozycje nie sa wliczane do totali, nie eksportowane do PDF/XLSX,
     # ale widoczne w edytorze (mozna przywrocic).
     excluded: Optional[bool] = None
+    # iter94: uwagi do pozycji glownej - widoczne w PDF/XLSX
+    notes: Optional[str] = None
 
 
 class LineCreate(BaseModel):
@@ -458,6 +462,7 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
         "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else 5.0,
         "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else 5.0,
         "koszt_prognozowany": round(payload.koszt_prognozowany, 2) if payload.koszt_prognozowany is not None else None,
+        "notes": (payload.notes or "").strip() or None,
         "created_at": datetime.now().isoformat(),
     }
     await db.wyceny_positions.insert_one(doc)
@@ -940,6 +945,10 @@ async def _build_wycena_export(wycena_id: str):
                     by_type[t].append(nm)
             label_map = {"materials": "Materiały", "labor": "Robocizna", "equipment": "Sprzęt"}
             uwagi_parts = []
+            # iter94: uwagi z pozycji glownej (wpisane przez uzytkownika) na poczatku
+            user_notes = (p.get("notes") or "").strip()
+            if user_notes:
+                uwagi_parts.append(user_notes)
             for t in ("materials", "labor", "equipment"):
                 if by_type[t]:
                     uwagi_parts.append(f"{label_map[t]}: " + ", ".join(by_type[t]))
@@ -1350,6 +1359,9 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
     sub_st = ParagraphStyle("sub", parent=styles["Normal"], fontName=base_font, fontSize=9,
                             textColor=colors.grey)
     name_st = ParagraphStyle("name", parent=styles["Normal"], fontName=base_font, fontSize=9, leading=11)
+    # iter94: styl uwag do pozycji glownej - mniejszy, italic, w kolorze niebieskim cfg
+    pos_notes_st = ParagraphStyle("posnotes", parent=styles["Normal"], fontName=base_font, fontSize=8,
+                                   leading=10, textColor=colors.HexColor("#5A6470"), spaceBefore=2)
     stage_st = ParagraphStyle("stage", parent=styles["Normal"], fontName=bold_font, fontSize=10,
                               textColor=colors.HexColor(cfg["primary_text"]))
 
@@ -1474,9 +1486,18 @@ def _generate_wycena_client_pdf_bytes(data: dict, opts: Optional[dict] = None, t
             cena = round(pe["budzet"] / qty) if qty > 0 else 0
             wartosc = cena * qty
             row_styles.append((len(table_data), 'pos'))
+            # iter94: jezeli uzytkownik dodal uwagi do pozycji glownej - pokaz pod nazwa
+            pos_notes = (p.get("notes") or "").strip()
+            if pos_notes:
+                name_para = [
+                    Paragraph(_pdf_text(p.get("name", "")), name_st),
+                    Paragraph(_pdf_text("ⓘ " + pos_notes), pos_notes_st),
+                ]
+            else:
+                name_para = Paragraph(_pdf_text(p.get("name", "")), name_st)
             table_data.append([
                 str(lp_counter),
-                Paragraph(_pdf_text(p.get("name", "")), name_st),
+                name_para,
                 f"{qty:.2f}".replace(".", ","),
                 p.get("unit") or "",
                 f"{cena:,.2f}".replace(",", " ").replace(".", ",") + " zł",
@@ -1835,7 +1856,11 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
             # iter95cc: cena pozycji glownej zaokraglona do PLN, formula C*E przeliczy wartosc
             cena = round(float(pe["budzet"] or 0) / qty) if qty > 0 else 0
             ws.cell(row=r, column=1, value=lp).alignment = Alignment(horizontal="center", vertical="center")
-            name_cell = ws.cell(row=r, column=2, value=p.get("name", ""))
+            # iter94: jezeli uzytkownik dodal uwagi do pozycji glownej - pokaz pod nazwa
+            pos_name = p.get("name", "") or ""
+            pos_notes = (p.get("notes") or "").strip()
+            cell_value = f"{pos_name}\nⓘ {pos_notes}" if pos_notes else pos_name
+            name_cell = ws.cell(row=r, column=2, value=cell_value)
             name_cell.alignment = Alignment(wrap_text=True, vertical="center")
             ws.cell(row=r, column=3, value=qty).number_format = '#,##0.00'
             ws.cell(row=r, column=3).alignment = Alignment(horizontal="right", vertical="center")
@@ -1850,8 +1875,13 @@ def _generate_wycena_client_xlsx_bytes(data: dict, opts: Optional[dict] = None):
                 ws.cell(row=r, column=col).border = border
             # iter95w: auto-rozmiar wiersza dla dlugich nazw
             name_len = len(p.get("name", "") or "")
-            if name_len > 50:
-                ws.row_dimensions[r].height = min(60, 18 + (name_len // 40) * 12)
+            # iter94: zwieksz wysokosc gdy notatki sa pokazywane
+            pos_notes_len = len((p.get("notes") or "").strip())
+            if name_len > 50 or pos_notes_len > 0:
+                base_h = 18 + (name_len // 40) * 12
+                if pos_notes_len > 0:
+                    base_h += 14 + (pos_notes_len // 60) * 10
+                ws.row_dimensions[r].height = min(120, base_h)
             if first_pos_row is None:
                 first_pos_row = r
             last_pos_row = r

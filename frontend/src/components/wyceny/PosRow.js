@@ -24,6 +24,10 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
   });
   const [edit, setEdit] = useState(_norm(position));
   useEffect(() => { setEdit(_norm(position)); }, [position]);
+  // iter94: dialog uwag do pozycji glownej (widoczne w eksporcie PDF/XLSX)
+  const [notesOpen, setNotesOpen] = useState(false);
+  const [notesDraft, setNotesDraft] = useState('');
+  useEffect(() => { setNotesDraft(position.notes || ''); }, [position.notes]);
 
   const save = async (patch) => {
     try {
@@ -122,7 +126,67 @@ export const PosRow = ({ code, position, row, collapsed, onToggle, onLocalUpdate
             onApply={(polished) => { setEdit({ ...edit, name: polished }); save({ name: polished }); }}
             testId={`pos-name-ai-${position.id}`}
           />
+          {/* iter94: Uwagi do pozycji glownej (widoczne w PDF/XLSX dla klienta) */}
+          <button
+            type="button"
+            onClick={() => setNotesOpen(true)}
+            title={(position.notes || '').trim()
+              ? `Uwagi do pozycji (widoczne w ofercie):\n${position.notes}`
+              : 'Dodaj uwagi do pozycji — pojawią się w pobranej ofercie PDF/XLSX pod nazwą'}
+            className={`shrink-0 mt-0.5 transition ${
+              (position.notes || '').trim()
+                ? 'text-[#D4AF37] hover:text-[#FCD34D]'
+                : 'text-[#5F7552] hover:text-[#9DBC85]'
+            }`}
+            data-testid={`pos-notes-btn-${position.id}`}
+          >
+            <FileText className="h-3.5 w-3.5" />
+          </button>
         </div>
+        {/* iter94: preview uwag inline (jezeli sa) - dyskretny, jasnoszary */}
+        {(position.notes || '').trim() && (
+          <div
+            className="text-[10px] text-[#9DBC85]/80 italic mt-0.5 truncate"
+            title={position.notes}
+            data-testid={`pos-notes-preview-${position.id}`}
+          >
+            ⓘ {position.notes}
+          </div>
+        )}
+        <Dialog open={notesOpen} onOpenChange={setNotesOpen}>
+          <DialogContent className="bg-[#152033] border-[#3D5378] text-[#F1F5F9] max-w-lg"
+            data-testid={`pos-notes-dialog-${position.id}`}>
+            <DialogHeader>
+              <DialogTitle className="text-[#D4AF37] text-base">
+                Uwagi do pozycji: <span className="text-[#F1F5F9]">{position.name || '—'}</span>
+              </DialogTitle>
+              <p className="text-xs text-[#94A3B8] mt-1">
+                Te uwagi pojawią się <b>pod nazwą pozycji</b> w pobranej ofercie (PDF + Excel) widzianej przez klienta.
+              </p>
+            </DialogHeader>
+            <textarea value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              rows={5}
+              placeholder="np. Cena zawiera transport. Termin realizacji: 30 dni. Wymaga zatwierdzenia projektu wykonawczego."
+              className="bg-[#0F1828] border border-[#3D5378] rounded p-2 text-sm w-full outline-none focus:border-[#D4AF37] resize-vertical text-[#F1F5F9]"
+              data-testid={`pos-notes-textarea-${position.id}`} />
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setNotesDraft(position.notes || ''); setNotesOpen(false); }}
+                className="border-[#3D5378] text-[#CBD5E1]">
+                Anuluj
+              </Button>
+              <Button onClick={async () => {
+                const v = (notesDraft || '').trim();
+                await save({ notes: v || null });
+                setNotesOpen(false);
+                toast.success(v ? 'Uwagi zapisane' : 'Uwagi usunięte');
+              }} className="bg-[#9DBC85] hover:bg-[#C8E4B5] text-[#152033]"
+                data-testid={`pos-notes-save-${position.id}`}>
+                Zapisz
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </Td>
       <Td right>
         <input type="number" step="0.01" min="0" value={edit.quantity ?? ''}
