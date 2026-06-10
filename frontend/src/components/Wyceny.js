@@ -627,9 +627,25 @@ const WycenaEditor = ({ wycenaId, onBack }) => {
   };
   const addSlot = async (posId, stageId, type) => {
     try {
+      // iter94: auto-zaciaganie ilosci z pozycji glownej przy tworzeniu podpozycji.
+      // Domyslnie: quantity = parent.quantity, unit = parent.unit. Po edycji uzytkownik
+      // moze swobodnie zmienic - nie ma juz wiazania.
+      let initialQty = 0;
+      let initialUnit = '';
+      if (data) {
+        const stage = (data.stages || []).find((s) => s.id === stageId);
+        const parent = stage && (stage.positions || []).find((p) => p.id === posId);
+        if (parent) {
+          const pq = parseFloat(parent.quantity);
+          if (!isNaN(pq) && pq > 0) initialQty = pq;
+          initialUnit = parent.unit || '';
+        }
+      }
       const r = await api.post('/wyceny/lines', {
         wycena_id: wycenaId, stage_id: stageId, position_id: posId,
-        type, name: SUB_TYPE_LABEL[type], quantity: 0, unit_price_netto: 0, order: 0,
+        type, name: SUB_TYPE_LABEL[type],
+        quantity: initialQty, unit: initialUnit,
+        unit_price_netto: 0, order: 0,
       });
       setData((prev) => {
         if (!prev) return prev;
