@@ -32,24 +32,64 @@ class PolishResponse(BaseModel):
     original: str
 
 
+# iter94: bezpieczna konwersja czeskich/slowackich/wegierskich diakrytykow na polskie
+# Ten mapping jest hard-guarantee na wypadek gdyby LLM mimo system promptu uzyl
+# "chudý" zamiast "chudy" albo "móžeš" zamiast "możesz".
+# Mapujemy obce znaki ktore NIE wystepuja w polskim alfabecie. Polskie zostawiamy.
+_NON_POLISH_TO_POLISH = {
+    # Czeskie / slowackie z hacek nad spolgloskami
+    "ď": "d", "Ď": "D", "ť": "t", "Ť": "T", "ň": "n", "Ň": "N",
+    "ě": "e", "Ě": "E", "š": "s", "Š": "S", "č": "c", "Č": "C", "ž": "z", "Ž": "Z",
+    "ř": "r", "Ř": "R", "ů": "ó", "Ů": "Ó",
+    # Akcent ostry nad samogloskami (czeski/slowacki/wegierski) — w polskim nie wystepuje
+    # poza "ó" ktore zostawiamy.
+    "á": "a", "Á": "A",
+    "é": "e", "É": "E",
+    "í": "i", "Í": "I",
+    "ý": "y", "Ý": "Y",
+    "ú": "u", "Ú": "U",
+    # Wegierskie umlauty i podwojne akcenty
+    "ä": "a", "Ä": "A", "ö": "o", "Ö": "O", "ü": "u", "Ü": "U",
+    "ő": "o", "Ő": "O", "ű": "u", "Ű": "U",
+    # Inne slowianskie
+    "ô": "o", "Ô": "O", "õ": "o", "Õ": "O",
+    "ĺ": "l", "Ĺ": "L", "ŕ": "r", "Ŕ": "R",
+}
+
+
+def _force_polish_diacritics(text: str) -> str:
+    """Zamienia czeskie/slowackie/wegierskie znaki na ich polskie odpowiedniki.
+    Zachowuje polskie: a c e l n o s z (i wersje z ogonkiem/kropka/akcentem)."""
+    return text.translate(str.maketrans(_NON_POLISH_TO_POLISH))
+
+
 _SYSTEM_PROMPTS = {
     "name": (
         "Jesteś ekspertem terminologii budowlanej. Otrzymujesz krótką nazwę pozycji wyceny "
-        "budowlanej w języku polskim — często ze skrótami, literówkami lub potocznym językiem. "
-        "Zwróć tę nazwę poprawioną: profesjonalna polska budowlana terminologia, poprawna ortografia "
-        "i interpunkcja, zachowane jednostki (mm, m², m³, mb, szt.) i wymiary (ø, średnice, klasy). "
-        "Maksymalnie 1 zdanie. NIE dodawaj komentarzy, opisów, kontekstu — tylko poprawiony tekst. "
-        "Nie zmieniaj sensu ani liczb. Jeśli wejście jest już poprawne, zwróć je bez zmian."
+        "budowlanej WYŁĄCZNIE w języku polskim — często ze skrótami, literówkami lub potocznym "
+        "językiem. Zwróć tę nazwę poprawioną: profesjonalna polska budowlana terminologia, "
+        "poprawna ortografia i interpunkcja, zachowane jednostki (mm, m², m³, mb, szt.) i "
+        "wymiary (ø, średnice, klasy). Maksymalnie 1 zdanie. NIE dodawaj komentarzy, opisów, "
+        "kontekstu — tylko poprawiony tekst. Nie zmieniaj sensu ani liczb. Jeśli wejście jest "
+        "już poprawne, zwróć je bez zmian.\n\n"
+        "KRYTYCZNA ZASADA — DIAKRYTYKI: używaj WYŁĄCZNIE polskich znaków diakrytycznych: "
+        "ą ć ę ł ń ó ś ź ż (oraz ich wersji wielkich). NIGDY nie używaj znaków z innych "
+        "języków słowiańskich: NIE pisz á é í ó ú ý ď ť ň ě š č ž — to nie jest polski. "
+        "Przykład: 'chudý' → 'chudy', 'béton' → 'beton', 'fundamentová' → 'fundamentowa'."
     ),
     "description": (
-        "Jesteś ekspertem terminologii budowlanej. Otrzymujesz opis pozycji wyceny budowlanej w PL. "
-        "Popraw: ortografia, interpunkcja, profesjonalna stylistyka i terminologia. Zachowaj wszystkie "
-        "liczby, jednostki, normy i odniesienia techniczne. Maksymalnie 2-3 zdania. NIE dodawaj treści "
-        "spoza oryginału. Zwróć wyłącznie poprawiony tekst."
+        "Jesteś ekspertem terminologii budowlanej. Otrzymujesz opis pozycji wyceny budowlanej w "
+        "języku polskim. Popraw: ortografia, interpunkcja, profesjonalna stylistyka i terminologia. "
+        "Zachowaj wszystkie liczby, jednostki, normy i odniesienia techniczne. Maksymalnie 2-3 "
+        "zdania. NIE dodawaj treści spoza oryginału. Zwróć wyłącznie poprawiony tekst.\n\n"
+        "KRYTYCZNA ZASADA — DIAKRYTYKI: używaj WYŁĄCZNIE polskich znaków: ą ć ę ł ń ó ś ź ż. "
+        "NIGDY nie używaj czeskich/słowackich/węgierskich (á é í ý ď ť ň ě š č ž ô õ)."
     ),
     "notes": (
         "Popraw poniższą notatkę w języku polskim: ortografia, interpunkcja, profesjonalny ton. "
-        "Zachowaj wszystkie fakty, liczby i odniesienia. Zwróć wyłącznie poprawioną treść."
+        "Zachowaj wszystkie fakty, liczby i odniesienia. Zwróć wyłącznie poprawioną treść.\n\n"
+        "KRYTYCZNA ZASADA — DIAKRYTYKI: używaj WYŁĄCZNIE polskich znaków: ą ć ę ł ń ó ś ź ż. "
+        "NIGDY nie używaj czeskich/słowackich/węgierskich (á é í ý ď ť ň ě š č ž ô õ)."
     ),
 }
 
@@ -125,6 +165,9 @@ async def polish_text(body: PolishRequest, _user: dict = Depends(get_current_adm
         # Niektore modele potrafia opakowac odpowiedz w cudzyslowy — strip
         if len(polished) >= 2 and polished[0] in ('"', "'", "„") and polished[-1] in ('"', "'", "”"):
             polished = polished[1:-1].strip()
+        # iter94: hard-guarantee na polskie diakrytyki — czyscimy ewentualne
+        # czeskie/slowackie/wegierskie znaki (np. 'chudý' -> 'chudy')
+        polished = _force_polish_diacritics(polished)
         if not polished:
             polished = text
         return PolishResponse(polished=polished, original=text)
