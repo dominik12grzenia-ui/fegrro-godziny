@@ -71,3 +71,9 @@ typing_extensions==4.14.1
 click==8.1.7
 pyotp==2.9.0
 qrcode==8.2
+
+# AI - Emergent LLM integration (Claude/OpenAI/Gemini via EMERGENT_LLM_KEY).
+# Custom Emergent index — supports pip native --extra-index-url in requirements.
+# Bez tej linii produkcyjny build (Render) wywala "No module named 'emergentintegrations'".
+--extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/
+emergentintegrations==0.1.0

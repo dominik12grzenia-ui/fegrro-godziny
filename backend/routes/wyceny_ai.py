@@ -60,15 +60,26 @@ async def ai_health():
     EMERGENT_LLM_KEY na backendzie. NIE ujawnia samej wartosci - tylko fakt jego
     obecnosci + dlugosc + prefix. Pozwala uzytkownikowi sprawdzic, czy klucz
     rzeczywiscie zostal podpiety w Render Environment.
+
+    iter94: dodatkowo raportuje czy biblioteka emergentintegrations jest zainstalowana.
     """
     key = os.environ.get("EMERGENT_LLM_KEY") or ""
+    lib_ok = False
+    lib_error: Optional[str] = None
+    try:
+        from emergentintegrations.llm.chat import LlmChat as _LlmChat  # noqa: F401
+        lib_ok = True
+    except Exception as e:
+        lib_error = f"{type(e).__name__}: {e}"
     return {
-        "ok": bool(key),
+        "ok": bool(key) and lib_ok,
         "configured": bool(key),
         "length": len(key),
         "prefix": (key[:11] + "...") if len(key) >= 11 else (key[:3] + "..." if key else None),
         "expected_prefix": "sk-emergent-",
         "matches_expected_prefix": key.startswith("sk-emergent-") if key else False,
+        "lib_installed": lib_ok,
+        "lib_error": lib_error,
     }
 
 
@@ -89,7 +100,16 @@ async def polish_text(body: PolishRequest, _user: dict = Depends(get_current_adm
         from emergentintegrations.llm.chat import LlmChat, UserMessage  # type: ignore
     except Exception as e:
         logger.exception("emergentintegrations import failed")
-        raise HTTPException(status_code=503, detail=f"LLM lib brak: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Biblioteka AI 'emergentintegrations' nie jest zainstalowana na serwerze. "
+                "Zaktualizuj wdrozenie - dodaj do requirements.txt:\n"
+                "  --extra-index-url https://d33sy5i8bnduwe.cloudfront.net/simple/\n"
+                "  emergentintegrations==0.1.0\n"
+                f"(blad importu: {type(e).__name__}: {e})"
+            ),
+        )
 
     system_prompt = _SYSTEM_PROMPTS.get(body.kind, _SYSTEM_PROMPTS["name"])
     session_id = f"polish-{uuid.uuid4().hex[:12]}"
