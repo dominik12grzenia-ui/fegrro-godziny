@@ -40,7 +40,7 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
     const src = override || edit;
     // iter95cd: wszystkie wartosci zaokraglane do 2 miejsc po przecinku (precyzja groszowa).
     // parseFloatPL2 obsluguje PL przecinek + Math.round(*100)/100.
-    const payload = {
+    const basePayload = {
       name: src.name || '',
       quantity: parseFloatPL2(src.quantity),
       unit: src.unit || null,
@@ -54,10 +54,38 @@ export const SubRow = ({ code, sub, posComputed, defaults = {}, posUnit = null, 
       koszt_wykonania: src.koszt_wykonania === '' || src.koszt_wykonania == null
         ? null : parseFloatPL2(src.koszt_wykonania),
     };
-    try {
+    const tryPatch = async (payload) => {
       await api.patch(`/wyceny/lines/${sub.id}`, payload);
       onLocalUpdate(sub.id, payload);
-    } catch (e) { toast.error('Błąd: ' + (e.response?.data?.detail || e.message)); }
+    };
+    try {
+      await tryPatch(basePayload);
+    } catch (e) {
+      const detail = e.response?.data?.detail || e.message || '';
+      // iter94: gdy backend odrzucil bo cena < price_min w trybie negocjacji,
+      // pytamy uzytkownika czy chce mimo wszystko zaakceptowac (override admina).
+      const isNegoBlock = typeof detail === 'string' && /Tryb negocjacji/i.test(detail) && /< minimum/i.test(detail);
+      if (isNegoBlock) {
+        const ok = window.confirm(
+          detail + '\n\nCzy mimo wszystko zaakceptować tę cenę?\n' +
+          '(zostanie zapisana jako manualny override poniżej minimum)'
+        );
+        if (!ok) return;
+        const reason = window.prompt('Krótki powód (opcjonalnie) — np. "klient zaakceptował zniżkę 10% po negocjacji":', '');
+        try {
+          await tryPatch({
+            ...basePayload,
+            below_min_accepted: true,
+            below_min_reason: reason || null,
+          });
+          toast.success('Zapisano manualny override (cena poniżej minimum)');
+        } catch (e2) {
+          toast.error('Błąd: ' + (e2.response?.data?.detail || e2.message));
+        }
+        return;
+      }
+      toast.error('Błąd: ' + detail);
+    }
   };
 
   // iter95ae: ewaluuj formule przy edycji
