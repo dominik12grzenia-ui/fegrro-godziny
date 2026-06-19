@@ -458,9 +458,11 @@ async def create_position(payload: PositionCreate, _user: dict = Depends(get_cur
         # iter95cd: zaokraglenie do 2 miejsc po przecinku
         "quantity": round(payload.quantity, 2) if payload.quantity is not None else None,
         "unit": payload.unit,
-        "kaucja_gir_pct": round(payload.kaucja_gir_pct, 2) if payload.kaucja_gir_pct is not None else 5.0,
-        "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else 5.0,
-        "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else 5.0,
+        # iter94: zapisuj 0 jako 0 (nie podmieniaj na 5 jak wczesniej). Gdy uzytkownik
+        # nie podal wartosci - zostawiamy None i compute uzyje wartosci domyslnej wyceny.
+        "kaucja_gir_pct": round(payload.kaucja_gir_pct, 2) if payload.kaucja_gir_pct is not None else None,
+        "kaucja_dw_pct": round(payload.kaucja_dw_pct, 2) if payload.kaucja_dw_pct is not None else None,
+        "koszt_budowy_pct": round(payload.koszt_budowy_pct, 2) if payload.koszt_budowy_pct is not None else None,
         "koszt_prognozowany": round(payload.koszt_prognozowany, 2) if payload.koszt_prognozowany is not None else None,
         "notes": (payload.notes or "").strip() or None,
         "created_at": datetime.now().isoformat(),
@@ -480,9 +482,14 @@ async def apply_defaults_to_positions(wycena_id: str, _user: dict = Depends(get_
     w = await db.wyceny.find_one({"id": wycena_id}, {"_id": 0})
     if not w:
         raise HTTPException(404, "Wycena nie istnieje")
-    gir = round(float(w.get("default_gir_pct") or 5.0), 2)
-    dw = round(float(w.get("default_dw_pct") or 5.0), 2)
-    koszt = round(float(w.get("default_koszt_pct") or 5.0), 2)
+    gir_raw = w.get("default_gir_pct")
+    dw_raw = w.get("default_dw_pct")
+    koszt_raw = w.get("default_koszt_pct")
+    # iter94: respect explicit 0 — uzytkownik moze celowo ustawic 0% kaucji/kosztu.
+    # Wczesniej 'or 5.0' zamienial 0 na 5.0 (falsy fallback).
+    gir = round(float(gir_raw) if gir_raw is not None else 5.0, 2)
+    dw = round(float(dw_raw) if dw_raw is not None else 5.0, 2)
+    koszt = round(float(koszt_raw) if koszt_raw is not None else 5.0, 2)
     res = await db.wyceny_positions.update_many(
         {"wycena_id": wycena_id},
         {"$set": {
@@ -877,15 +884,18 @@ async def _build_wycena_export(wycena_id: str):
     # iter95dl: pomin pozycje wylaczone z wyceny — nie wchodza do totali, PDF, XLSX
     positions = [p for p in positions if not p.get("excluded")]
     lines = await db.wyceny_lines.find({"wycena_id": wycena_id}, {"_id": 0}).sort("order", 1).to_list(length=None)
+    # iter94: helper - traktuje None jako brak, ale ZERO jako wartosc swiadoma
+    def _pct_or(v, fallback):
+        return float(v) if v is not None else float(fallback)
     defaults = {
-        "gir": float(w.get("default_gir_pct") or 5.0),
-        "dw": float(w.get("default_dw_pct") or 5.0),
-        "koszt": float(w.get("default_koszt_pct") or 5.0),
-        "narzut": float(w.get("default_narzut_pct") or 0.0),
-        "marza": float(w.get("default_marza_pct") or 0.0),
+        "gir": _pct_or(w.get("default_gir_pct"), 5.0),
+        "dw": _pct_or(w.get("default_dw_pct"), 5.0),
+        "koszt": _pct_or(w.get("default_koszt_pct"), 5.0),
+        "narzut": _pct_or(w.get("default_narzut_pct"), 0.0),
+        "marza": _pct_or(w.get("default_marza_pct"), 0.0),
         # iter95bt: rozdzielone narzuty per typ linii
-        "narzut_labor": float(w.get("default_narzut_labor_pct") or 0.0),
-        "narzut_equipment": float(w.get("default_narzut_equipment_pct") or 0.0),
+        "narzut_labor": _pct_or(w.get("default_narzut_labor_pct"), 0.0),
+        "narzut_equipment": _pct_or(w.get("default_narzut_equipment_pct"), 0.0),
     }
     enriched_stages = []
     for st in stages:
@@ -2357,9 +2367,9 @@ async def convert_wycena_to_budget(
         "has_budget": True,
         "is_gir": False,
         "is_dw": False,
-        "kaucja_gir_pct": float(wycena.get("default_gir_pct") or 5.0),
-        "kaucja_dw_pct": float(wycena.get("default_dw_pct") or 5.0),
-        "koszt_budowy_pct": float(wycena.get("default_koszt_pct") or 0.0),
+        "kaucja_gir_pct": float(wycena.get("default_gir_pct") if wycena.get("default_gir_pct") is not None else 5.0),
+        "kaucja_dw_pct": float(wycena.get("default_dw_pct") if wycena.get("default_dw_pct") is not None else 5.0),
+        "koszt_budowy_pct": float(wycena.get("default_koszt_pct") if wycena.get("default_koszt_pct") is not None else 0.0),
         "notes": wycena.get("notes") or "",
         "zamawiajacy": zamawiajacy,
         "umowa_nr": payload.umowa_nr or "",
