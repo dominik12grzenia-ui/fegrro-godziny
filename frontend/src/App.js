@@ -69,7 +69,10 @@ const ProtectedWorkerRoute = ({ children }) => {
   return <PushPermissionGate>{children}</PushPermissionGate>;
 };
 
-const Home = () => <Navigate to="/foreman" replace />;
+// iter94: glowna strona ma prowadzic do logowania admina.
+// Brygadzisci nie loguja sie z glownego URL - dostaja spersonalizowane linki
+// z tokenami wysylane przez admina (/hours/:token lub /foreman-entry token).
+const Home = () => <Navigate to="/login" replace />;
 
 /**
  * Stare/legacy linki publiczne dla pracownikow (np. /worker/:token,
