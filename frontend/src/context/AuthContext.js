@@ -28,7 +28,16 @@ export const AuthProvider = ({ children }) => {
     }
     return null;
   });
-  const [loading, setLoading] = useState(true);
+  // iter94: gdy mamy cached_user - startujemy z loading=false (natychmiastowy render).
+  // fetchCurrentUser wciaz zawoluje w tle, ale nie blokuje UI. Efekt: aplikacja
+  // otwiera sie ~1s zamiast czekac 3-5s na /auth/me.
+  const [loading, setLoading] = useState(() => {
+    try {
+      return !localStorage.getItem('cached_user');
+    } catch (_e) {
+      return true;
+    }
+  });
   const [token, setToken] = useState(() => localStorage.getItem('token'));
 
   useEffect(() => {
@@ -51,8 +60,17 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('cached_user', JSON.stringify(response.data));
       } catch (_e) { /* ignore */ }
     } catch (error) {
-      console.error('Failed to fetch user:', error);
-      logout();
+      // iter94: logout TYLKO gdy backend odrzucil token (401/403).
+      // Timeout, brak sieci, 5xx -> zostawiamy uzytkownika zalogowanego z cached_user.
+      // Dzieki temu aplikacja nie wylogowuje sie przy chwilowej utracie sieci ani
+      // przy cold-startach backendu.
+      const status = error?.response?.status;
+      if (status === 401 || status === 403) {
+        console.warn('Token odrzucony przez backend, wylogowuje.', status);
+        logout();
+      } else {
+        console.warn('fetchCurrentUser blad sieciowy - zostawiam cached_user:', error.message);
+      }
     } finally {
       setLoading(false);
     }
@@ -212,6 +230,38 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// iter94: globalny handler 401 - gdy backend odrzuci token (wygasl, uniewazniony),
+// czyscimy localStorage i przekierowujemy na /login. NIE reagujemy na inne bledy
+// (timeout, brak sieci, 5xx) - wtedy zostawiamy usera zalogowanego z cached_user.
+let _redirecting401 = false;
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status;
+    // Wywoluj logout tylko dla 401 (wygasly/nieprawidlowy token) i tylko gdy
+    // aktualnie posiadamy token. Bez tokena 401 = normalne, ekran logowania to
+    // obsluzy sam.
+    if (status === 401 && localStorage.getItem('token') && !_redirecting401) {
+      _redirecting401 = true;
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('cached_user');
+        sessionStorage.removeItem('admin_backup_token');
+        sessionStorage.removeItem('admin_backup_user');
+      } catch (_e) { /* ignore */ }
+      // Delikatne przekierowanie zeby uzytkownik zobaczyl ekran logowania.
+      // setTimeout aby error zdazyl sie propagowac do komponentu (np. dla toast).
+      setTimeout(() => {
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+        _redirecting401 = false;
+      }, 100);
+    }
+    return Promise.reject(error);
+  }
+);
 
 /* =========================================================================
  *  FAST-PATH: in-memory cache + request deduplication for read-only GETs.
