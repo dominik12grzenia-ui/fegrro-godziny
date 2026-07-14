@@ -19,6 +19,7 @@ import { QuickAddZapis } from './finance/QuickAddZapis';
 import { RachunekWynikowPanel } from './finance/RachunekWynikowPanel';
 import { SprzedazPanel } from './finance/SprzedazPanel';
 import { ZapisyPanel } from './finance/ZapisyPanel';
+import { BezKategoriiPanel } from './finance/BezKategoriiPanel';
 import { AuditPanel } from './finance/AuditPanel';
 import { PeriodsPanel } from './finance/PeriodsPanel';
 import { KPIDashboard } from './finance/KPIDashboard';
@@ -60,6 +61,7 @@ const SUBTABS = [
   { id: 'sprzedaz', label: 'Sprzedaż' },
   { id: 'budowy', label: 'Budowy' },
   { id: 'zapisy', label: 'Zapisy' },
+  { id: 'bezkat', label: 'Bez kategorii' },
   { id: 'periods', label: 'Okresy' },
   { id: 'audit', label: 'Audyt' },
 ];
@@ -315,6 +317,7 @@ export const Finance = () => {
 
       {active === 'budowy' && <BudowyPanel />}
       {active === 'zapisy' && <ZapisyPanel year={year} paymentFilter={paymentFilter} setPaymentFilter={setPaymentFilter} />}
+      {active === 'bezkat' && <BezKategoriiPanel year={year} />}
       {active === 'kpi' && <KPIDashboard />}
       {active === 'audit' && <AuditPanel />}
       {active === 'periods' && <PeriodsPanel />}

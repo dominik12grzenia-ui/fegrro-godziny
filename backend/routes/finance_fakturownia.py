@@ -49,6 +49,25 @@ async def _record_fakturownia_sync_error(msg: str):
         logger.exception("[fakturownia] nie udalo sie zapisac stanu bledu")
 
 
+async def _build_kontrahent_kod_map() -> dict:
+    """iter96: Mapa znormalizowany kontrahent -> (kod_id, kod_category) na podstawie
+    najczesciej uzywanego kodu w skategoryzowanych fakturach KOSZTOWYCH.
+    Uzywana przy imporcie z Fakturowni do auto-przypisania kategorii nowym fakturom."""
+    invs = await db.finance_invoices.find(
+        {"kod_id": {"$nin": [None, ""]}, "is_income": {"$ne": True}},
+        {"_id": 0, "kontrahent": 1, "kod_id": 1, "kod_category": 1},
+    ).to_list(length=None)
+    counter: dict = {}
+    for i in invs:
+        k = (i.get("kontrahent") or "").strip().lower()
+        if not k:
+            continue
+        key = (i["kod_id"], i.get("kod_category") or "")
+        counter.setdefault(k, {})
+        counter[k][key] = counter[k].get(key, 0) + 1
+    return {k: max(v.items(), key=lambda x: x[1])[0] for k, v in counter.items()}
+
+
 async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_system",
                                  skip_removal: bool = False) -> dict:
     """Logika pobierania faktur z Fakturowni - wywolywalna z endpointu i crona.
@@ -130,6 +149,9 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
     ).to_list(length=None)
     existing_inv_by_fid = {e.get("fakturownia_invoice_id"): e for e in existing_invoices}
 
+    # iter96: auto-kod dla faktur kosztowych po historii kontrahenta
+    kontrahent_kod_map = await _build_kontrahent_kod_map()
+
     created = 0
     updated = 0
     skipped = 0
@@ -158,9 +180,12 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
             iso_date = date_from
             year_v, month_v = yr, mo
 
-        # Auto-kod dla sprzedazowych
-        auto_kod_id = "PZS" if is_income else None
-        auto_kod_category = "PZS" if is_income else None
+        # Auto-kod: sprzedazowe -> PZS; kosztowe -> najczestszy kod tego kontrahenta (iter96)
+        if is_income:
+            auto_kod_id, auto_kod_category = "PZS", "PZS"
+        else:
+            auto_kod_id, auto_kod_category = kontrahent_kod_map.get(
+                kontrahent.strip().lower(), (None, None))
 
         # Status platnosci - Fakturownia zwraca:
         #   status: "paid" / "new" / "sent" / "partial" / "overdue" / "cancelled"
@@ -206,7 +231,7 @@ async def _do_fakturownia_sync(year: int, month: int, user_id: str = "cron_syste
                 "updated_at": datetime.now().isoformat(),
                 "updated_by": user_id,
             }
-            # Jezeli sprzedazowa i jeszcze nie ma kodu - ustaw PZS
+            # Jezeli faktura nie ma jeszcze kodu - ustaw auto-kod (PZS / kod kontrahenta)
             if auto_kod_id and not existing_inv.get("kod_id"):
                 inv_set["kod_id"] = auto_kod_id
                 inv_set["kod_category"] = auto_kod_category
@@ -407,6 +432,9 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
     ).to_list(length=None)
     existing_by_fid = {e.get("fakturownia_invoice_id"): e for e in existing}
 
+    # iter96: auto-kod dla faktur kosztowych po historii kontrahenta
+    kontrahent_kod_map = await _build_kontrahent_kod_map()
+
     created = 0
     updated = 0
     marked_paid = 0  # ilosc faktur, ktore istnialy w bazie jako unpaid, ale w Fakturowni byly paid -> teraz zaktualizowane na paid
@@ -472,8 +500,12 @@ async def _do_fakturownia_unpaid_sync_global(user_id: str = "cron_system") -> di
             # (chyba zeby unpaid - wtedy musimy je utworzyc by user wiedzial o dlugu)
             if is_paid_in_fak:
                 continue
-            auto_kod_id = "PZS" if is_income else None
-            auto_kod_category = "PZS" if is_income else None
+            # iter96: sprzedazowe -> PZS; kosztowe -> najczestszy kod tego kontrahenta
+            if is_income:
+                auto_kod_id, auto_kod_category = "PZS", "PZS"
+            else:
+                auto_kod_id, auto_kod_category = kontrahent_kod_map.get(
+                    kontrahent.strip().lower(), (None, None))
             doc = {
                 "id": str(uuid.uuid4()),
                 "date": issue_date,

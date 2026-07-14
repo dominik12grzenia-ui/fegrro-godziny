@@ -146,6 +146,16 @@ Przełącznik per pozycja główna pozwalający wyłączyć ją z wyceny bez usu
 
 ## Recent changelog (most recent first)
 
+### 2026-06 — iter96 — Faktury bez kategorii (kod_id) → Rachunek Wyników (P0 — DONE)
+Problem: 445+ faktur kosztowych bez `kod_id` na nagłówku → niewidoczne w RW/Sprzedaży/Dashboard (~2,2 mln zł).
+- `POST /api/finance/backfill-invoice-kod-from-positions` — przenosi kod z pozycji (największy udział netto) na nagłówek faktury.
+- `GET /api/finance/invoices-no-kod?year=` — pełna lista faktur bez kodu + sugestie: (1) z pozycji faktury, (2) najczęstszy kod historii kontrahenta.
+- `POST /api/finance/invoices/batch-kod` — masowe przypisanie (przycisk "Zastosuj sugestie").
+- Nowa zakładka Finanse → **"Bez kategorii"** (`BezKategoriiPanel.js`): lista, szukajka, inline kod+budowa selecty, przyciski "Przenieś kody z pozycji" i "Zastosuj sugestie (N)". Optymistyczne usuwanie wierszy + `emitFinanceRefresh`.
+- Import Fakturownia (`_do_fakturownia_sync` + `_do_fakturownia_unpaid_sync_global`): kosztowe faktury dostają auto-kod z `_build_kontrahent_kod_map()` (najczęstszy kod kontrahenta); sprzedażowe nadal PZS. Działa też dla istniejących faktur bez kodu przy kolejnym syncu.
+- Zweryfikowano curl+Playwright: po przypisaniu kodu faktury trafiają do pipeline'u RW (virtual remainders). UWAGA: użytkownik musi kliknąć Deploy, a na produkcji użyć "Przenieś kody z pozycji" + ręcznie skategoryzować resztę.
+- LEKCJA: równoległe search_replace na TYM SAMYM pliku mogą się nadpisać (2 edycje "successful" zniknęły) — edytuj jeden plik sekwencyjnie.
+
 ### 2026-02 — iter95dj — Soft Dark redesign UI (design tokens + AdminDashboard + tabela wyceny + HoursTable + modale) (P1)
 
 **Design blueprint**: `/app/design_guidelines.json` (wygenerowane przez agenta UX/UI z full kontekstem).

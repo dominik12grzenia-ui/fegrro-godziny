@@ -9,9 +9,10 @@ Plus helper `_compute_sprzedaz_data` re-eksportowany przez routes.finance
 (uzywany przez routes/budget.py).
 """
 import logging
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
+from pydantic import BaseModel
 
 from database import db
 from auth import get_current_admin
@@ -848,6 +849,154 @@ async def sprzedaz(
     data = await _compute_sprzedaz_data(year, month, months_list=months_list)
     return {"year": data["year"], "rows": data["rows"], "totals": data["totals"],
              "unassigned": data.get("unassigned", {})}
+
+
+# ============= FAKTURY BEZ KATEGORII (kod_id) =============
+_ND_FILTER = {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
+_NO_KOD_FILTER = {"$or": [{"kod_id": None}, {"kod_id": {"$exists": False}}, {"kod_id": ""}]}
+
+
+def _norm_kontrahent(s: Optional[str]) -> str:
+    return (s or "").strip().lower()
+
+
+async def _kod_category_map() -> dict:
+    kody = await db.finance_kody.find({}, {"_id": 0, "id": 1, "category": 1, "name": 1}).to_list(length=None)
+    return {k["id"]: k for k in kody}
+
+
+@router.post("/finance/backfill-invoice-kod-from-positions")
+async def backfill_invoice_kod_from_positions(current_user: dict = Depends(get_current_admin)):
+    """iter96: Dla faktur BEZ kod_id, ktorych pozycje (finance_zapisy) MAJA kod_id -
+    przenosi kod z pozycji na naglowek (kod najwiekszego udzialu netto).
+    Dzieki temu reszta faktury (virtual zapis) trafia do Rachunku Wynikow."""
+    invoices = await db.finance_invoices.find(
+        {"$and": [_ND_FILTER, _NO_KOD_FILTER]}, {"_id": 0, "id": 1}
+    ).to_list(length=None)
+    inv_ids = [i["id"] for i in invoices]
+    if not inv_ids:
+        return {"invoices_scanned": 0, "invoices_updated": 0}
+    zapisy = await db.finance_zapisy.find(
+        {"$and": [_ND_FILTER, {"parent_invoice_id": {"$in": inv_ids},
+                                "kod_id": {"$nin": [None, ""]}}]},
+        {"_id": 0, "parent_invoice_id": 1, "kod_id": 1, "kod_category": 1, "netto": 1},
+    ).to_list(length=None)
+    shares: dict = {}  # inv_id -> {kod_id: suma netto}
+    for z in zapisy:
+        pid = z["parent_invoice_id"]
+        shares.setdefault(pid, {})
+        shares[pid][z["kod_id"]] = shares[pid].get(z["kod_id"], 0.0) + abs(float(z.get("netto") or 0))
+    kmap = await _kod_category_map()
+    updated = 0
+    now = datetime.now().isoformat()
+    for pid, kod_shares in shares.items():
+        best_kod = max(kod_shares.items(), key=lambda x: x[1])[0]
+        cat = (kmap.get(best_kod) or {}).get("category") or ""
+        await db.finance_invoices.update_one(
+            {"id": pid},
+            {"$set": {"kod_id": best_kod, "kod_category": cat,
+                       "updated_at": now, "updated_by": current_user["sub"]}},
+        )
+        updated += 1
+    logger.info(f"[finance] backfill kod z pozycji: {updated}/{len(inv_ids)} faktur")
+    return {"invoices_scanned": len(inv_ids), "invoices_updated": updated}
+
+
+@router.get("/finance/invoices-no-kod")
+async def invoices_no_kod(
+    year: int = Query(...),
+    current_user: dict = Depends(get_current_admin),
+):
+    """iter96: Pelna lista faktur bez kategorii (kod_id) w danym roku + sugestie kodu.
+
+    Sugestia: (1) kod z skategoryzowanych pozycji tej faktury (najwiekszy udzial),
+    (2) najczestszy kod uzywany przy fakturach tego samego kontrahenta."""
+    invs = await db.finance_invoices.find(
+        {"$and": [_ND_FILTER, _NO_KOD_FILTER, {"year": year}]},
+        {"_id": 0, "id": 1, "date": 1, "month": 1, "kontrahent": 1, "nr_faktury": 1,
+         "netto": 1, "brutto": 1, "budowa_id": 1, "is_income": 1, "paid": 1},
+    ).to_list(length=None)
+    kmap = await _kod_category_map()
+    # Sugestia (1): pozycje-dzieci z kodem
+    inv_ids = [i["id"] for i in invs]
+    child_kod: dict = {}
+    if inv_ids:
+        zs = await db.finance_zapisy.find(
+            {"$and": [_ND_FILTER, {"parent_invoice_id": {"$in": inv_ids},
+                                     "kod_id": {"$nin": [None, ""]}}]},
+            {"_id": 0, "parent_invoice_id": 1, "kod_id": 1, "netto": 1},
+        ).to_list(length=None)
+        tmp: dict = {}
+        for z in zs:
+            pid = z["parent_invoice_id"]
+            tmp.setdefault(pid, {})
+            tmp[pid][z["kod_id"]] = tmp[pid].get(z["kod_id"], 0.0) + abs(float(z.get("netto") or 0))
+        child_kod = {pid: max(v.items(), key=lambda x: x[1])[0] for pid, v in tmp.items()}
+    # Sugestia (2): historia kontrahenta (skategoryzowane faktury kosztowe)
+    hist = await db.finance_invoices.find(
+        {"$and": [_ND_FILTER, {"kod_id": {"$nin": [None, ""]}, "is_income": {"$ne": True}}]},
+        {"_id": 0, "kontrahent": 1, "kod_id": 1},
+    ).to_list(length=None)
+    hist_counter: dict = {}
+    for h in hist:
+        k = _norm_kontrahent(h.get("kontrahent"))
+        if not k:
+            continue
+        hist_counter.setdefault(k, {})
+        hist_counter[k][h["kod_id"]] = hist_counter[k].get(h["kod_id"], 0) + 1
+    kontrahent_kod = {k: max(v.items(), key=lambda x: x[1])[0] for k, v in hist_counter.items()}
+
+    rows = []
+    for i in invs:
+        sug, src = None, None
+        if i["id"] in child_kod:
+            sug, src = child_kod[i["id"]], "pozycje"
+        elif _norm_kontrahent(i.get("kontrahent")) in kontrahent_kod:
+            sug, src = kontrahent_kod[_norm_kontrahent(i.get("kontrahent"))], "kontrahent"
+        rows.append({
+            "id": i["id"], "date": i.get("date"), "month": i.get("month"),
+            "kontrahent": i.get("kontrahent") or "", "nr_faktury": i.get("nr_faktury") or "",
+            "netto": round(float(i.get("netto") or 0), 2),
+            "budowa_id": i.get("budowa_id"),
+            "is_income": bool(i.get("is_income")), "paid": bool(i.get("paid")),
+            "suggested_kod_id": sug,
+            "suggested_kod_name": (kmap.get(sug) or {}).get("name") if sug else None,
+            "suggestion_source": src,
+        })
+    rows.sort(key=lambda r: r["netto"], reverse=True)
+    return {
+        "rows": rows,
+        "totals": {"count": len(rows), "netto_sum": round(sum(r["netto"] for r in rows), 2),
+                    "with_suggestion": sum(1 for r in rows if r["suggested_kod_id"])},
+    }
+
+
+class _KodAssignment(BaseModel):
+    invoice_id: str
+    kod_id: str
+
+
+class _BatchKodPayload(BaseModel):
+    assignments: List[_KodAssignment]
+
+
+@router.post("/finance/invoices/batch-kod")
+async def batch_assign_kod(payload: _BatchKodPayload, current_user: dict = Depends(get_current_admin)):
+    """iter96: Masowe przypisanie kod_id do faktur (np. 'Zastosuj wszystkie sugestie')."""
+    kmap = await _kod_category_map()
+    updated = 0
+    now = datetime.now().isoformat()
+    for a in payload.assignments:
+        if a.kod_id not in kmap:
+            raise HTTPException(status_code=400, detail=f"Nieznany kod: {a.kod_id}")
+    for a in payload.assignments:
+        res = await db.finance_invoices.update_one(
+            {"id": a.invoice_id, **_ND_FILTER},
+            {"$set": {"kod_id": a.kod_id, "kod_category": kmap[a.kod_id].get("category") or "",
+                       "updated_at": now, "updated_by": current_user["sub"]}},
+        )
+        updated += res.modified_count
+    return {"updated": updated}
 
 
 
