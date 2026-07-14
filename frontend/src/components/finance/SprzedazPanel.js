@@ -7,45 +7,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Plus, Trash2, Pencil, ChevronDown, ChevronRight, FileText, ArrowLeft, BookOpen, Search, FileSpreadsheet, FileDown, Calendar, X, ChevronLeft, FileBarChart, FilePlus, Receipt, Briefcase, AlertCircle, AlertTriangle, RefreshCw, Loader2, Download, Save, Mail, Send } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../../context/AuthContext';
-import { InfoHeader, PL_MONTHS_SHORT, SPRZEDAZ_COL_INFO, fmtNum, fmtPct, useFinanceRefresh } from './_shared';
+import { InfoHeader, PL_MONTHS_SHORT, SPRZEDAZ_COL_INFO, fmtNum, fmtPct, useFinanceRefresh, useMonthsFilter, MonthsBar } from './_shared';
 
 export const SprzedazPanel = ({ year }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
-  // iter94: multi-month filter. Wybor miesiecy do zsumowania. Domyslnie wszystkie 12.
-  // localStorage per rok, zeby wybor przechodzil miedzy sesjami.
-  const storageKey = `sprzedaz_months_${year}`;
-  const [selectedMonths, setSelectedMonths] = useState(() => {
-    try {
-      const cached = localStorage.getItem(storageKey);
-      if (cached) return new Set(JSON.parse(cached));
-    } catch (_e) { /* ignore */ }
-    return new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-  });
-  useEffect(() => {
-    try { localStorage.setItem(storageKey, JSON.stringify([...selectedMonths])); } catch (_e) { /* ignore */ }
-  }, [selectedMonths, storageKey]);
+  // iter94: multi-month filter (przez wspoldzielony hook)
+  const { selectedMonths, toggleMonth, selectAll, selectNone, monthsQueryParam } = useMonthsFilter(`sprzedaz_months_${year}`);
 
   const fetchSprzedaz = useCallback(() => {
-    const monthsArr = [...selectedMonths].sort((a, b) => a - b);
-    const isAll = monthsArr.length === 12;
-    const qs = isAll ? `?year=${year}` : `?year=${year}&months=${monthsArr.join(',')}`;
+    const qs = monthsQueryParam ? `?year=${year}&${monthsQueryParam}` : `?year=${year}`;
     api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania sprzedaży'))
       .finally(() => setLoading(false));
-  }, [year, selectedMonths]);
-
-  const toggleMonth = (m) => {
-    setSelectedMonths((prev) => {
-      const next = new Set(prev);
-      if (next.has(m)) next.delete(m); else next.add(m);
-      return next;
-    });
-  };
-  const selectAll = () => setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
-  const selectNone = () => setSelectedMonths(new Set());
+  }, [year, monthsQueryParam]);
 
   useEffect(() => { fetchSprzedaz(); }, [fetchSprzedaz]);
   // iter95dq: auto-refresh po zmianie zapisu w innym panelu
@@ -74,43 +51,14 @@ export const SprzedazPanel = ({ year }) => {
         </div>
       </CardHeader>
       {/* iter94: pasek miesiecy - klik toggluje wliczanie do sumy */}
-      <div className="px-4 pb-3 border-b border-[#3D5378]/60 flex flex-wrap items-center gap-1.5"
-           data-testid="sprzedaz-months-bar">
-        <span className="text-[10px] uppercase tracking-wide text-[#94A3B8] mr-1">
-          Miesiące wliczane do sum:
-        </span>
-        {PL_MONTHS_SHORT.map((label, i) => {
-          const m = i + 1;
-          const active = selectedMonths.has(m);
-          return (
-            <button
-              key={m}
-              onClick={() => toggleMonth(m)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition border ${
-                active
-                  ? 'bg-[#4F6343] border-[#4F6343] text-white'
-                  : 'bg-[#1E2A44] border-[#3D5378] text-[#94A3B8] hover:bg-[#2A3654] line-through'
-              }`}
-              title={active ? `Wyłącz ${label} z sumy` : `Włącz ${label} do sumy`}
-              data-testid={`sprzedaz-month-${m}${active ? '-on' : '-off'}`}
-            >
-              {label}
-            </button>
-          );
-        })}
-        <div className="flex gap-1 ml-2">
-          <button onClick={selectAll}
-            className="text-[10px] text-[#D4AF37] hover:text-[#FCD34D] underline"
-            data-testid="sprzedaz-months-all">
-            Wszystkie
-          </button>
-          <span className="text-[#3D5378]">·</span>
-          <button onClick={selectNone}
-            className="text-[10px] text-[#94A3B8] hover:text-[#F1F5F9] underline"
-            data-testid="sprzedaz-months-none">
-            Żaden
-          </button>
-        </div>
+      <div className="px-4 pb-3 border-b border-[#3D5378]/60">
+        <MonthsBar
+          selectedMonths={selectedMonths}
+          toggleMonth={toggleMonth}
+          selectAll={selectAll}
+          selectNone={selectNone}
+          testIdPrefix="sprzedaz-months"
+        />
       </div>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-sprzedaz-table">

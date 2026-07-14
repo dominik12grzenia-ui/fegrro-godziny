@@ -22,19 +22,33 @@ router = APIRouter()
 async def dashboard_kpi(
     year: int = Query(None),
     month: int = Query(None),
+    months: Optional[str] = Query(None, description="CSV numery miesiecy do wliczania do YTD, np. '1,2,3,7'."),
     _user: dict = Depends(get_current_finance_reader),
 ):
     """KPI dashboard:
     - cash_flow_mtd: wplywy - wydatki w biezacym miesiacu
-    - cash_flow_ytd: wplywy - wydatki year-to-date
+    - cash_flow_ytd: wplywy - wydatki year-to-date (lub tylko wybrane miesiace)
     - revenue_mtd, costs_mtd
     - revenue_ytd, costs_ytd
     - active_sites_count
     - margin_avg_pct
+
+    iter94: `months` filtr wybieranych miesiacy dla YTD. Gdy podane, YTD sumuje
+    TYLKO wybrane miesiace (uzywane w SprzedazPanel do wykluczania sezonu urlopowego).
     """
     now = datetime.now()
     y = year or now.year
     m = month or now.month
+
+    # Parse months list
+    months_list: Optional[list] = None
+    if months:
+        try:
+            months_list = sorted({int(x.strip()) for x in months.split(",") if x.strip() and 1 <= int(x.strip()) <= 12})
+            if not months_list:
+                months_list = None
+        except (ValueError, TypeError):
+            months_list = None
 
     # MTD range
     start_mtd = f"{y:04d}-{m:02d}-01"
@@ -45,12 +59,16 @@ async def dashboard_kpi(
 
     sd_filter = soft_delete_filter()
 
-    async def _aggregate(start, end):
-        """Agreguje przychody/koszty z finance_zapisy w okresie."""
+    async def _aggregate(start, end, filter_months: Optional[list] = None):
+        """Agreguje przychody/koszty z finance_zapisy w okresie.
+        Opcjonalny filter_months - lista miesiecy do wliczania (poza zakresem dat)."""
         revenue = 0.0
         costs = 0.0
+        match = {**sd_filter, "date": {"$gte": start, "$lte": end}}
+        if filter_months:
+            match["month"] = {"$in": filter_months}
         pipe = [
-            {"$match": {**sd_filter, "date": {"$gte": start, "$lte": end}}},
+            {"$match": match},
             {"$group": {"_id": "$kod_category", "total": {"$sum": "$netto"}}},
         ]
         async for r in db.finance_zapisy.aggregate(pipe):
@@ -63,7 +81,7 @@ async def dashboard_kpi(
         return round(revenue, 2), round(costs, 2)
 
     rev_mtd, cost_mtd = await _aggregate(start_mtd, end_mtd)
-    rev_ytd, cost_ytd = await _aggregate(start_ytd, end_ytd)
+    rev_ytd, cost_ytd = await _aggregate(start_ytd, end_ytd, months_list)
     cash_mtd = round(rev_mtd - cost_mtd, 2)
     cash_ytd = round(rev_ytd - cost_ytd, 2)
 

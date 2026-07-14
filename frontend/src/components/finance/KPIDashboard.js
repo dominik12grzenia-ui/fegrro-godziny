@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Building2, AlertTriangle, Info, Download } from 'lucide-react';
 import { toast } from 'sonner';
-import { useFinanceRefresh } from './_shared';
+import { useFinanceRefresh, useMonthsFilter, MonthsBar } from './_shared';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const api = axios.create({ baseURL: API });
@@ -137,11 +137,15 @@ export const KPIDashboard = () => {
   const [topCosts, setTopCosts] = useState({ rows: [], period: { year: new Date().getFullYear(), month: new Date().getMonth() + 1 } });
   const [alerts, setAlerts] = useState([]);
   const [loading, setLoading] = useState(true);
+  // iter94: multi-month filter (dla YTD w KPI)
+  const currentYear = new Date().getFullYear();
+  const { selectedMonths, toggleMonth, selectAll, selectNone, monthsQueryParam } = useMonthsFilter(`kpi_months_${currentYear}`);
 
   const fetchAll = useCallback(async () => {
     try {
+      const kpiUrl = monthsQueryParam ? `/dashboard/kpi?${monthsQueryParam}` : '/dashboard/kpi';
       const [k, t, a] = await Promise.all([
-        api.get('/dashboard/kpi'),
+        api.get(kpiUrl),
         api.get('/dashboard/top-costs'),
         api.get('/dashboard/alerts'),
       ]);
@@ -151,7 +155,7 @@ export const KPIDashboard = () => {
     } catch (e) {
       toast.error('Błąd: ' + (e.response?.data?.detail || e.message));
     } finally { setLoading(false); }
-  }, []);
+  }, [monthsQueryParam]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
   // iter95dq: silent refetch po dodaniu/edycji/usunieciu zapisu w innym panelu
@@ -213,6 +217,18 @@ export const KPIDashboard = () => {
         >
           <Download className="h-3 w-3" /> Podsumowanie budów (YTD)
         </a>
+      </div>
+
+      {/* iter94: pasek miesiecy - wpływa na YTD w KPI */}
+      <div className="bg-[#243049] border border-[#3D5378] rounded-lg px-3 py-2" data-testid="kpi-months-bar-wrap">
+        <MonthsBar
+          selectedMonths={selectedMonths}
+          toggleMonth={toggleMonth}
+          selectAll={selectAll}
+          selectNone={selectNone}
+          testIdPrefix="kpi-months"
+          label="Miesiące wliczane do YTD (Cash Flow rocznie / Sprzedaż YTD):"
+        />
       </div>
 
       {/* 4 KPI cards */}

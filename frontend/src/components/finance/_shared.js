@@ -137,3 +137,79 @@ export const InfoHeader = ({ label, info, className = '', align = 'right' }) => 
     </th>
   );
 };
+
+
+// iter94: reużywalny pasek miesięcy do włączania/wyłączania z sumy.
+// Stan trzymany w localStorage per klucz. Zwraca:
+//  - selectedMonths: Set<number 1..12>
+//  - toggleMonth, selectAll, selectNone: metody
+//  - monthsQueryParam: 'months=1,2,3' albo pusty string (gdy wszystkie 12)
+//  - isAll: bool czy wszystkie zaznaczone
+export const useMonthsFilter = (storageKey) => {
+  const [selectedMonths, setSelectedMonths] = React.useState(() => {
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) return new Set(JSON.parse(cached));
+    } catch (_e) { /* ignore */ }
+    return new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+  React.useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify([...selectedMonths])); } catch (_e) { /* ignore */ }
+  }, [selectedMonths, storageKey]);
+  const toggleMonth = React.useCallback((m) => {
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  }, []);
+  const selectAll = React.useCallback(() => setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])), []);
+  const selectNone = React.useCallback(() => setSelectedMonths(new Set()), []);
+  const monthsArr = [...selectedMonths].sort((a, b) => a - b);
+  const isAll = monthsArr.length === 12;
+  const monthsQueryParam = isAll ? '' : `months=${monthsArr.join(',')}`;
+  return { selectedMonths, toggleMonth, selectAll, selectNone, monthsQueryParam, isAll, monthsArr };
+};
+
+export const MonthsBar = ({ selectedMonths, toggleMonth, selectAll, selectNone, testIdPrefix = 'months-bar', label = 'Miesiące wliczane do sum:' }) => {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 px-1 py-2"
+         data-testid={`${testIdPrefix}-container`}>
+      <span className="text-[10px] uppercase tracking-wide text-[#94A3B8] mr-1">
+        {label}
+      </span>
+      {PL_MONTHS_SHORT.map((label, i) => {
+        const m = i + 1;
+        const active = selectedMonths.has(m);
+        return (
+          <button
+            key={m}
+            onClick={() => toggleMonth(m)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition border ${
+              active
+                ? 'bg-[#4F6343] border-[#4F6343] text-white'
+                : 'bg-[#1E2A44] border-[#3D5378] text-[#94A3B8] hover:bg-[#2A3654] line-through'
+            }`}
+            title={active ? `Wyłącz ${label} z sumy` : `Włącz ${label} do sumy`}
+            data-testid={`${testIdPrefix}-month-${m}${active ? '-on' : '-off'}`}
+          >
+            {label}
+          </button>
+        );
+      })}
+      <div className="flex gap-1 ml-2">
+        <button onClick={selectAll}
+          className="text-[10px] text-[#D4AF37] hover:text-[#FCD34D] underline"
+          data-testid={`${testIdPrefix}-all`}>
+          Wszystkie
+        </button>
+        <span className="text-[#3D5378]">·</span>
+        <button onClick={selectNone}
+          className="text-[10px] text-[#94A3B8] hover:text-[#F1F5F9] underline"
+          data-testid={`${testIdPrefix}-none`}>
+          Żaden
+        </button>
+      </div>
+    </div>
+  );
+};
