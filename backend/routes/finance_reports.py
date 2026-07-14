@@ -307,13 +307,17 @@ async def payment_summary(
 # ============= SPRZEDAZ per budowa =============
 async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
                                   date_start: Optional[str] = None,
-                                  date_end: Optional[str] = None) -> dict:
+                                  date_end: Optional[str] = None,
+                                  months_list: Optional[list] = None) -> dict:
     """Wewnetrzna funkcja - liczy tabele Sprzedaz per budowa.
     Uzywana przez endpoint /finance/sprzedaz oraz przez budget allocations
     (zeby zachowac IDENTYCZNA logike rozdziau kosztow nieprzypisanych).
 
     `date_start`/`date_end` - opcjonalne, format YYYY-MM-DD - nadpisuja filtr year/month
     (uzywane przez budget gdy ograniczamy zakres do aktywnosci budowy).
+
+    iter94: `months_list` - opcjonalna lista miesiecy (1-12) do zsumowania.
+    Priorytet: date_start/end > months_list > month > caly rok.
 
     Zwraca: {year, rows, totals, helper}
     helper zawiera surowe pule i sumy uzywane do alokacji.
@@ -330,10 +334,13 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         inv_filter = {"date": date_q, **_not_deleted}
     else:
         zap_filter = {"year": year, **_not_deleted}
-        if month is not None:
-            zap_filter["month"] = month
         inv_filter = {"year": year, **_not_deleted}
-        if month is not None:
+        # iter94: months_list ma priorytet nad month
+        if months_list:
+            zap_filter["month"] = {"$in": months_list}
+            inv_filter["month"] = {"$in": months_list}
+        elif month is not None:
+            zap_filter["month"] = month
             inv_filter["month"] = month
     zapisy = await db.finance_zapisy.find(
         zap_filter,
@@ -525,10 +532,23 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
 async def sprzedaz(
     year: int = Query(...),
     month: Optional[int] = Query(None, ge=1, le=12),
+    months: Optional[str] = Query(None, description="CSV list of months to include, np. '1,2,3,7'. Nadpisuje 'month' gdy podane."),
     current_user: dict = Depends(get_current_admin),
 ):
-    """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż."""
-    data = await _compute_sprzedaz_data(year, month)
+    """Buduje tabele Sprzedaz per budowa - identycznie jak w Excelu Sprzedaż.
+
+    iter94: 'months' pozwala wybrac konkretne miesiace do zsumowania
+    (np. wyklucz sierpien-listopad urlopowe). Priorytet: months > month > caly rok.
+    """
+    months_list: Optional[list] = None
+    if months:
+        try:
+            months_list = sorted({int(m.strip()) for m in months.split(",") if m.strip() and 1 <= int(m.strip()) <= 12})
+            if not months_list:
+                months_list = None
+        except (ValueError, TypeError):
+            months_list = None
+    data = await _compute_sprzedaz_data(year, month, months_list=months_list)
     return {"year": data["year"], "rows": data["rows"], "totals": data["totals"]}
 
 

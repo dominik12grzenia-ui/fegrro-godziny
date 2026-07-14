@@ -13,15 +13,39 @@ export const SprzedazPanel = ({ year }) => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
-  const [month, setMonth] = useState(0); // 0 = caly rok
+  // iter94: multi-month filter. Wybor miesiecy do zsumowania. Domyslnie wszystkie 12.
+  // localStorage per rok, zeby wybor przechodzil miedzy sesjami.
+  const storageKey = `sprzedaz_months_${year}`;
+  const [selectedMonths, setSelectedMonths] = useState(() => {
+    try {
+      const cached = localStorage.getItem(storageKey);
+      if (cached) return new Set(JSON.parse(cached));
+    } catch (_e) { /* ignore */ }
+    return new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  });
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify([...selectedMonths])); } catch (_e) { /* ignore */ }
+  }, [selectedMonths, storageKey]);
 
   const fetchSprzedaz = useCallback(() => {
-    const qs = month > 0 ? `?year=${year}&month=${month}` : `?year=${year}`;
+    const monthsArr = [...selectedMonths].sort((a, b) => a - b);
+    const isAll = monthsArr.length === 12;
+    const qs = isAll ? `?year=${year}` : `?year=${year}&months=${monthsArr.join(',')}`;
     api.get(`/finance/sprzedaz${qs}`)
       .then(r => setData(r.data))
       .catch(() => toast.error('Błąd pobierania sprzedaży'))
       .finally(() => setLoading(false));
-  }, [year, month]);
+  }, [year, selectedMonths]);
+
+  const toggleMonth = (m) => {
+    setSelectedMonths((prev) => {
+      const next = new Set(prev);
+      if (next.has(m)) next.delete(m); else next.add(m);
+      return next;
+    });
+  };
+  const selectAll = () => setSelectedMonths(new Set([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]));
+  const selectNone = () => setSelectedMonths(new Set());
 
   useEffect(() => { fetchSprzedaz(); }, [fetchSprzedaz]);
   // iter95dq: auto-refresh po zmianie zapisu w innym panelu
@@ -36,15 +60,12 @@ export const SprzedazPanel = ({ year }) => {
     <Card className="bg-[#243049] border-[#3D5378]">
       <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-2">
         <CardTitle className="text-white">
-          Sprzedaż per budowa {year}{month > 0 ? ` - ${PL_MONTHS_SHORT[month-1]}` : ' (caly rok)'}
+          Sprzedaż per budowa {year}
+          {selectedMonths.size === 12 ? ' (cały rok)'
+            : selectedMonths.size === 0 ? ' (brak — wybierz miesiące)'
+            : ` (wybrane: ${selectedMonths.size}/12)`}
         </CardTitle>
         <div className="flex items-center gap-2">
-          <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
-            className="bg-[#1E2A44] border border-[#3D5378] text-white rounded px-2 py-1 text-sm"
-            data-testid="finance-sprzedaz-month">
-            <option value="0">Caly rok</option>
-            {PL_MONTHS_SHORT.map((m, i) => <option key={i+1} value={i+1}>{m}</option>)}
-          </select>
           <Button variant="outline" onClick={() => setShowDetails(!showDetails)}
             className="border-[#4F6343] text-[#4F6343] hover:bg-[#3D5378] hover:text-[#4F6343]"
             data-testid="sprzedaz-toggle-details">
@@ -52,6 +73,45 @@ export const SprzedazPanel = ({ year }) => {
           </Button>
         </div>
       </CardHeader>
+      {/* iter94: pasek miesiecy - klik toggluje wliczanie do sumy */}
+      <div className="px-4 pb-3 border-b border-[#3D5378]/60 flex flex-wrap items-center gap-1.5"
+           data-testid="sprzedaz-months-bar">
+        <span className="text-[10px] uppercase tracking-wide text-[#94A3B8] mr-1">
+          Miesiące wliczane do sum:
+        </span>
+        {PL_MONTHS_SHORT.map((label, i) => {
+          const m = i + 1;
+          const active = selectedMonths.has(m);
+          return (
+            <button
+              key={m}
+              onClick={() => toggleMonth(m)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition border ${
+                active
+                  ? 'bg-[#4F6343] border-[#4F6343] text-white'
+                  : 'bg-[#1E2A44] border-[#3D5378] text-[#94A3B8] hover:bg-[#2A3654] line-through'
+              }`}
+              title={active ? `Wyłącz ${label} z sumy` : `Włącz ${label} do sumy`}
+              data-testid={`sprzedaz-month-${m}${active ? '-on' : '-off'}`}
+            >
+              {label}
+            </button>
+          );
+        })}
+        <div className="flex gap-1 ml-2">
+          <button onClick={selectAll}
+            className="text-[10px] text-[#D4AF37] hover:text-[#FCD34D] underline"
+            data-testid="sprzedaz-months-all">
+            Wszystkie
+          </button>
+          <span className="text-[#3D5378]">·</span>
+          <button onClick={selectNone}
+            className="text-[10px] text-[#94A3B8] hover:text-[#F1F5F9] underline"
+            data-testid="sprzedaz-months-none">
+            Żaden
+          </button>
+        </div>
+      </div>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-sprzedaz-table">
           <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs">
