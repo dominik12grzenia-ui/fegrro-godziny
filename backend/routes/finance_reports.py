@@ -402,6 +402,20 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         for z in zapisy
         if z.get("kod_id") == "KSP_UKLADY" and not z.get("budowa_id")
     )
+    # iter94: koszty budowy (KBB) i koszty stale bezposrednie (KSB) bez przypisania
+    # do budowy - wczesniej byly ignorowane w Sprzedazy, przez co suma kosztow
+    # rozjezdzala sie z Rachunkiem Wynikow. Teraz alokujemy je proporcjonalnie
+    # do udzialu KP danej budowy (analogicznie do kp_stawki_unassigned przez H).
+    kbb_unassigned = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_category") == "KBB" and not z.get("budowa_id")
+    )
+    ksb_unassigned = sum(
+        float(z.get("netto") or 0)
+        for z in zapisy
+        if z.get("kod_category") == "KSB" and not z.get("budowa_id")
+    )
     assigned_kp_sum = sum(
         float(z.get("netto") or 0)
         for z in zapisy
@@ -427,10 +441,15 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         H = kp_stawki_unassigned * G
         J = safe_div(F + Ib, assigned_kbb_sum + assigned_kp_sum)
         K = ksp_stawki_unassigned * J
-        L_brutto = E - (F + H + Ib + K)
+        # iter94: alokacja unassigned KBB i KSB proporcjonalnie do udzialu KP
+        kbb_unass_aloc = kbb_unassigned * G
+        ksb_unass_aloc = ksb_unassigned * G
+        # Marza brutto = Przychody - KP (F+H) - KBB (Ib+K) - unassigned KBB
+        L_brutto = E - (F + H + Ib + K + kbb_unass_aloc)
         M_pct = safe_div(L_brutto, E)
         O_aloc = ksp_uklady_unassigned * G
-        P_marza1 = L_brutto - N - O_aloc
+        # Marza 1 = brutto - KSB (assigned + unassigned) - KSP_UKLADY unassigned
+        P_marza1 = L_brutto - N - ksb_unass_aloc - O_aloc
         Q_pct = safe_div(P_marza1, E)
         ksp_other = total_ksp - ksp_stawki_unassigned - ksp_uklady_unassigned
         R_aloc = ksp_other * G
@@ -440,7 +459,7 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         V_marza3 = S_marza2 - U_aloc
         W_pct = safe_div(V_marza3, E)
         Y = E
-        Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
+        Z = F + H + Ib + K + N + kbb_unass_aloc + ksb_unass_aloc + O_aloc + R_aloc + U_aloc
         AA = E * (float(b.get("kaucja_gir_pct") or 2.0) / 100.0) if b.get("is_gir") else 0.0
         AB = E * (float(b.get("kaucja_dw_pct") or 2.0) / 100.0) if b.get("is_dw") else 0.0
         AC = Y - Z - AA - AB
@@ -466,6 +485,9 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
                 "kbb": round(Ib, 2),
                 "kbb_kp_udzial": round(J, 4),
                 "kbb_aloc": round(K, 2),
+                # iter94: nowe alokacje - koszty budowy/stale bezposrednie nieprzypisane
+                "kbb_unass_aloc": round(kbb_unass_aloc, 2),
+                "ksb_unass_aloc": round(ksb_unass_aloc, 2),
                 "marza_brutto": round(L_brutto, 2),
                 "marza_brutto_pct": round(M_pct, 4),
                 "ksb": round(N, 2),
@@ -501,7 +523,9 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
     sum_visible["zysk_rg"] = round(safe_div(sum_visible["roznica"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
     sum_visible["koszt_rg"] = round(safe_div(sum_visible["koszt"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
 
-    sum_details_keys = ["sprzedaz", "kp", "kp_aloc", "kbb", "kbb_aloc", "marza_brutto",
+    sum_details_keys = ["sprzedaz", "kp", "kp_aloc", "kbb", "kbb_aloc",
+                        "kbb_unass_aloc", "ksb_unass_aloc",
+                        "marza_brutto",
                         "ksb", "ksp_uklady_aloc", "marza1", "ksp_aloc", "marza2",
                         "podatek_aloc", "marza3"]
     sum_details = {k: round(sum(r["details"][k] for r in rows), 2) for k in sum_details_keys}
@@ -526,6 +550,92 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
             "assigned_kbb_sum": assigned_kbb_sum,
         },
     }
+
+
+async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list] = None) -> dict:
+    """iter94b: Zwraca sumy roczne z Rachunku Wynikow zgodne z logiką RW.
+    Uzywane przez dashboard KPI dla spojnosci.
+
+    Zwraca dict: przychody / koszty_full / kp/kbb/ksb/ksp / kaucja_gir/dw / koszty_operacyjne.
+    """
+    from routes.finance import ensure_kody_seed
+    await ensure_kody_seed()
+    _not_deleted = {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
+    q = {"year": year, **_not_deleted}
+    if months_list:
+        q["month"] = {"$in": months_list}
+    zapisy = await db.finance_zapisy.find(
+        q, {"_id": 0, "month": 1, "kod_id": 1, "kod_category": 1, "netto": 1,
+             "budowa_id": 1, "parent_invoice_id": 1}
+    ).to_list(length=None)
+    invoices = await db.finance_invoices.find(
+        q, {"_id": 0, "id": 1, "month": 1, "netto": 1, "kod_id": 1,
+             "kod_category": 1, "budowa_id": 1}
+    ).to_list(length=None)
+    # Virtual zapisy z resztami faktur (identycznie jak w rachunek_wynikow)
+    assigned_pos_by_inv: dict = {}
+    for z in zapisy:
+        if z.get("kod_id") and z.get("parent_invoice_id"):
+            assigned_pos_by_inv[z["parent_invoice_id"]] = (
+                assigned_pos_by_inv.get(z["parent_invoice_id"], 0.0)
+                + float(z.get("netto") or 0)
+            )
+    virtual_zapisy = []
+    for inv in invoices:
+        if not inv.get("kod_id"):
+            continue
+        remainder = float(inv.get("netto") or 0) - assigned_pos_by_inv.get(inv["id"], 0.0)
+        if remainder <= 0:
+            continue
+        virtual_zapisy.append({
+            "month": inv["month"],
+            "kod_id": inv["kod_id"],
+            "kod_category": inv.get("kod_category") or "",
+            "netto": round(remainder, 2),
+            "budowa_id": inv.get("budowa_id"),
+        })
+    zapisy_all = zapisy + virtual_zapisy
+    totals = {"PZS": 0.0, "PPE": 0.0, "KP": 0.0, "KBB": 0.0, "KSB": 0.0, "KSP": 0.0}
+    for z in zapisy_all:
+        if not z.get("kod_id"):
+            continue
+        cat = z.get("kod_category") or ""
+        v = float(z.get("netto") or 0)
+        if cat in totals:
+            totals[cat] += v
+    gir_budowy = await db.finance_budowy.find(
+        {"is_gir": True}, {"_id": 0, "id": 1, "kaucja_gir_pct": 1}
+    ).to_list(length=None)
+    dw_budowy = await db.finance_budowy.find(
+        {"is_dw": True}, {"_id": 0, "id": 1, "kaucja_dw_pct": 1}
+    ).to_list(length=None)
+    gir_pct = {b["id"]: float(b.get("kaucja_gir_pct") or 2.0) / 100.0 for b in gir_budowy}
+    dw_pct = {b["id"]: float(b.get("kaucja_dw_pct") or 2.0) / 100.0 for b in dw_budowy}
+    kaucja_gir_sum = 0.0
+    kaucja_dw_sum = 0.0
+    for z in zapisy_all:
+        if z.get("kod_id") == "PZS":
+            v = float(z.get("netto") or 0)
+            bid = z.get("budowa_id")
+            if bid in gir_pct:
+                kaucja_gir_sum += v * gir_pct[bid]
+            if bid in dw_pct:
+                kaucja_dw_sum += v * dw_pct[bid]
+    koszty_operacyjne = totals["KP"] + totals["KBB"] + totals["KSB"] + totals["KSP"]
+    koszty_full = koszty_operacyjne + totals["PPE"] + kaucja_gir_sum + kaucja_dw_sum
+    return {
+        "przychody": round(totals["PZS"], 2),
+        "podatek": round(totals["PPE"], 2),
+        "kp": round(totals["KP"], 2),
+        "kbb": round(totals["KBB"], 2),
+        "ksb": round(totals["KSB"], 2),
+        "ksp": round(totals["KSP"], 2),
+        "kaucja_gir": round(kaucja_gir_sum, 2),
+        "kaucja_dw": round(kaucja_dw_sum, 2),
+        "koszty_operacyjne": round(koszty_operacyjne, 2),
+        "koszty_full": round(koszty_full, 2),
+    }
+
 
 
 @router.get("/finance/sprzedaz")

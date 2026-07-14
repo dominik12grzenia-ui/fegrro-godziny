@@ -25,17 +25,17 @@ async def dashboard_kpi(
     months: Optional[str] = Query(None, description="CSV numery miesiecy do wliczania do YTD, np. '1,2,3,7'."),
     _user: dict = Depends(get_current_finance_reader),
 ):
-    """KPI dashboard:
-    - cash_flow_mtd: wplywy - wydatki w biezacym miesiacu
-    - cash_flow_ytd: wplywy - wydatki year-to-date (lub tylko wybrane miesiace)
-    - revenue_mtd, costs_mtd
-    - revenue_ytd, costs_ytd
-    - active_sites_count
-    - margin_avg_pct
+    """KPI dashboard - dokladnie te same sumy co Rachunek Wynikow.
 
-    iter94: `months` filtr wybieranych miesiacy dla YTD. Gdy podane, YTD sumuje
-    TYLKO wybrane miesiace (uzywane w SprzedazPanel do wykluczania sezonu urlopowego).
+    iter94b: dashboard i Rachunek Wynikow ciagna z _compute_rachunek_wynikow_data
+    (nowa funkcja pomocnicza). Sprzedaz per budowa moze pokazywac inne sumy —
+    ona jest per-budowa i nie widzi kosztow bez przypisania do budowy.
+
+    Parametry:
+    - `year`, `month` (opcjonalne, domyslnie: obecne)
+    - `months` (CSV) — jesli podane, YTD sumuje tylko wybrane miesiace
     """
+    from routes.finance_reports import _compute_rachunek_wynikow_totals  # late import
     now = datetime.now()
     y = year or now.year
     m = month or now.month
@@ -50,40 +50,19 @@ async def dashboard_kpi(
         except (ValueError, TypeError):
             months_list = None
 
-    # MTD range
-    start_mtd = f"{y:04d}-{m:02d}-01"
-    end_mtd = f"{y:04d}-{m:02d}-31"
-    # YTD range
-    start_ytd = f"{y:04d}-01-01"
-    end_ytd = f"{y:04d}-12-31"
+    # MTD - tylko biezacy miesiac (jak RW dla tego miesiaca)
+    mtd = await _compute_rachunek_wynikow_totals(y, months_list=[m])
+    rev_mtd = mtd["przychody"]
+    cost_mtd_full = mtd["koszty_full"]
+    cash_mtd = round(rev_mtd - cost_mtd_full, 2)
+
+    # YTD - caly rok lub wybrane miesiace
+    ytd = await _compute_rachunek_wynikow_totals(y, months_list=months_list)
+    rev_ytd = ytd["przychody"]
+    cost_ytd_full = ytd["koszty_full"]
+    cash_ytd = round(rev_ytd - cost_ytd_full, 2)
 
     sd_filter = soft_delete_filter()
-
-    async def _aggregate(start, end, filter_months: Optional[list] = None):
-        """Agreguje przychody/koszty z finance_zapisy w okresie.
-        Opcjonalny filter_months - lista miesiecy do wliczania (poza zakresem dat)."""
-        revenue = 0.0
-        costs = 0.0
-        match = {**sd_filter, "date": {"$gte": start, "$lte": end}}
-        if filter_months:
-            match["month"] = {"$in": filter_months}
-        pipe = [
-            {"$match": match},
-            {"$group": {"_id": "$kod_category", "total": {"$sum": "$netto"}}},
-        ]
-        async for r in db.finance_zapisy.aggregate(pipe):
-            cat = r["_id"] or "OTHER"
-            total = float(r.get("total") or 0)
-            if cat in ("PZS", "PRZ", "REVENUE", "SPRZ"):
-                revenue += total
-            else:
-                costs += total
-        return round(revenue, 2), round(costs, 2)
-
-    rev_mtd, cost_mtd = await _aggregate(start_mtd, end_mtd)
-    rev_ytd, cost_ytd = await _aggregate(start_ytd, end_ytd, months_list)
-    cash_mtd = round(rev_mtd - cost_mtd, 2)
-    cash_ytd = round(rev_ytd - cost_ytd, 2)
 
     # Active sites
     active_sites = await db.finance_budowy.count_documents({
@@ -91,19 +70,19 @@ async def dashboard_kpi(
         "$or": [{"is_archived": {"$exists": False}}, {"is_archived": False}],
     })
 
-    # Margin avg (revenue / costs) gdy costs > 0
+    # Margin avg (zysk / przychod * 100) — zeby zgadzalo sie z 'Zysk%' w Sprzedazy
     margin_avg_pct = 0.0
-    if cost_ytd > 0:
-        margin_avg_pct = round((rev_ytd - cost_ytd) / cost_ytd * 100, 1)
+    if rev_ytd > 0:
+        margin_avg_pct = round((rev_ytd - cost_ytd_full) / rev_ytd * 100, 1)
 
     return {
         "period": {"year": y, "month": m},
         "cash_flow_mtd": cash_mtd,
         "cash_flow_ytd": cash_ytd,
-        "revenue_mtd": rev_mtd,
-        "revenue_ytd": rev_ytd,
-        "costs_mtd": cost_mtd,
-        "costs_ytd": cost_ytd,
+        "revenue_mtd": round(rev_mtd, 2),
+        "revenue_ytd": round(rev_ytd, 2),
+        "costs_mtd": round(cost_mtd_full, 2),
+        "costs_ytd": round(cost_ytd_full, 2),
         "active_sites_count": active_sites,
         "margin_avg_pct": margin_avg_pct,
     }
