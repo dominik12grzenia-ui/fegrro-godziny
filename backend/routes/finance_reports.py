@@ -465,12 +465,14 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         F = sum_by_cat("KP", bid)
         Ib = sum_by_cat("KBB", bid)
         N = sum_by_cat("KSB", bid)
+        # iter94c: dodatkowe kategorie liczone tylko dla tej budowy (nie z puli globalnej)
+        KSP_bid = sum_by_cat("KSP", bid)
+        PPE_bid = sum_by_cat("PPE", bid)
         G = safe_div(F, assigned_kp_sum)
-        H = kp_stawki_unassigned * G
+        H = kp_stawki_unassigned * G  # pokazane w kolumnie 'KP-alok' (info, nie w Z)
         J = safe_div(F + Ib, assigned_kbb_sum + assigned_kp_sum)
-        K = ksp_stawki_unassigned * J
-        # iter94c: NIE alokujemy juz KBB/KSB unassigned - liczymy tylko przypisane,
-        # nieprzypisane zwracane osobno jako 'unassigned' (informacyjnie).
+        K = ksp_stawki_unassigned * J  # pokazane w kolumnie 'KBB-alok' (info)
+        # Marze pokazywane w szczegolach - liczone jak wczesniej dla kompatybilnosci widoku.
         L_brutto = E - (F + H + Ib + K)
         M_pct = safe_div(L_brutto, E)
         O_aloc = ksp_uklady_unassigned * G
@@ -484,7 +486,9 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         V_marza3 = S_marza2 - U_aloc
         W_pct = safe_div(V_marza3, E)
         Y = E
-        Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
+        # iter94c: kolumna 'Koszt' (visible) - TYLKO koszty przypisane do tej budowy
+        # (bez re-alokacji nieprzypisanych). Dzieki temu SUM(Koszt) w Sprzedazy = SUMA KOSZTOW w RW.
+        Z = F + Ib + N + KSP_bid + PPE_bid
         AA = E * (float(b.get("kaucja_gir_pct") or 2.0) / 100.0) if b.get("is_gir") else 0.0
         AB = E * (float(b.get("kaucja_dw_pct") or 2.0) / 100.0) if b.get("is_dw") else 0.0
         AC = Y - Z - AA - AB
