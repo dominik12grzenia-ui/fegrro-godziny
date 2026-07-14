@@ -731,6 +731,100 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
 
 
 
+@router.get("/finance/rw-audit")
+async def rw_audit(
+    year: int = Query(...),
+    month: Optional[int] = Query(None, ge=1, le=12),
+    current_user: dict = Depends(get_current_admin),
+):
+    """iter94e: Diagnostyczny audyt Rachunku Wynikow.
+
+    Zwraca per kategorie:
+      - `invoices_with_kod`: liczba i suma netto faktur z kod_id (te są bazą do virtual zapisów)
+      - `invoices_no_kod`: LICZBA i SUMA netto faktur bez kod_id (te NIE trafiaja do RW!)
+      - `zapisy_with_kod`: liczba i suma netto zapisów z kod_id
+      - `zapisy_no_kod`: liczba i suma netto zapisów bez kod_id (NIE trafiaja do RW)
+      - `virtual_remainders`: suma reszt faktur zaliczonych do RW jako 'virtual zapisy'
+      - `assigned_total`: suma trafiajaca do RW (przypisane do budowy)
+      - `unassigned_total`: nieprzypisane do budowy (informacyjnie, nie w RW)
+      - `top_invoices_no_kod`: lista 20 najwiekszych faktur bez kategorii (do przypisania)
+      - `top_zapisy_no_kod`: lista 20 najwiekszych zapisów bez kategorii
+    """
+    _nd = {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
+    q = {"year": year, **_nd}
+    if month:
+        q["month"] = month
+
+    invoices = await db.finance_invoices.find(q, {"_id": 0}).to_list(length=None)
+    zapisy = await db.finance_zapisy.find(q, {"_id": 0}).to_list(length=None)
+
+    def cat_of(x):
+        return x.get("kod_category") or ""
+
+    result = {"period": {"year": year, "month": month}, "by_category": {}}
+    for cat in ["PZS", "KP", "KBB", "KSB", "KSP", "PPE"]:
+        # Faktury
+        inv_kod = [i for i in invoices if i.get("kod_id") and cat_of(i) == cat]
+        inv_no_kod = [i for i in invoices if not i.get("kod_id") and cat_of(i) == cat]
+        # Zapisy
+        z_kod = [z for z in zapisy if z.get("kod_id") and cat_of(z) == cat]
+        z_no_kod = [z for z in zapisy if not z.get("kod_id") and cat_of(z) == cat]
+        # Suma virtual remainders dla tej kategorii
+        z_by_inv: dict = {}
+        for z in zapisy:
+            pid = z.get("parent_invoice_id")
+            if pid and z.get("kod_id"):
+                z_by_inv[pid] = z_by_inv.get(pid, 0.0) + float(z.get("netto") or 0)
+        virt = 0.0
+        for i in inv_kod:
+            rem = float(i.get("netto") or 0) - z_by_inv.get(i["id"], 0.0)
+            if rem > 0:
+                virt += rem
+        # Przypisane vs nieprzypisane (assigned_total = to co trafia do RW)
+        assigned_from_zapisy = sum(float(z.get("netto") or 0) for z in z_kod if z.get("budowa_id"))
+        unassigned_from_zapisy = sum(float(z.get("netto") or 0) for z in z_kod if not z.get("budowa_id"))
+        result["by_category"][cat] = {
+            "invoices_with_kod": {"count": len(inv_kod),
+                                    "netto_sum": round(sum(float(i.get("netto") or 0) for i in inv_kod), 2)},
+            "invoices_no_kod": {"count": len(inv_no_kod),
+                                  "netto_sum": round(sum(float(i.get("netto") or 0) for i in inv_no_kod), 2)},
+            "zapisy_with_kod": {"count": len(z_kod),
+                                  "netto_sum": round(sum(float(z.get("netto") or 0) for z in z_kod), 2)},
+            "zapisy_no_kod": {"count": len(z_no_kod),
+                                "netto_sum": round(sum(float(z.get("netto") or 0) for z in z_no_kod), 2)},
+            "virtual_remainders": round(virt, 2),
+            "assigned_to_budowa": round(assigned_from_zapisy, 2),
+            "unassigned_to_budowa": round(unassigned_from_zapisy, 2),
+        }
+
+    # Faktury bez kod_id (top 20) - te NIE trafiaja do RW bo nie maja kategorii!
+    invs_no_kod_all = [i for i in invoices if not i.get("kod_id")]
+    invs_no_kod_all.sort(key=lambda x: float(x.get("netto") or 0), reverse=True)
+    result["top_invoices_no_kod"] = [
+        {"id": i.get("id"), "number": i.get("number") or i.get("invoice_number"),
+         "date": i.get("date"), "netto": float(i.get("netto") or 0),
+         "seller": i.get("seller_name") or i.get("supplier_name") or "",
+         "budowa_id": i.get("budowa_id")}
+        for i in invs_no_kod_all[:20]
+    ]
+    result["totals_no_kod"] = {
+        "invoices_count": len(invs_no_kod_all),
+        "invoices_netto_sum": round(sum(float(i.get("netto") or 0) for i in invs_no_kod_all), 2),
+    }
+    # Zapisy bez kod_id
+    z_no_kod_all = [z for z in zapisy if not z.get("kod_id")]
+    z_no_kod_all.sort(key=lambda x: float(x.get("netto") or 0), reverse=True)
+    result["top_zapisy_no_kod"] = [
+        {"id": z.get("id"), "opis": z.get("opis"), "date": z.get("date"),
+         "netto": float(z.get("netto") or 0), "budowa_id": z.get("budowa_id"),
+         "parent_invoice_id": z.get("parent_invoice_id")}
+        for z in z_no_kod_all[:20]
+    ]
+
+    return result
+
+
+
 @router.get("/finance/sprzedaz")
 async def sprzedaz(
     year: int = Query(...),
