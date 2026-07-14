@@ -52,6 +52,14 @@ async def rachunek_wynikow(
                 assigned_pos_by_inv.get(z["parent_invoice_id"], 0.0) + float(z.get("netto") or 0)
             )
     # Wirtualne zapisy z resztami faktur
+    # iter94d: gdy naglówek faktury nie ma budowa_id ale ma pozycje-dzieci przypisane
+    # do budowy - dziedziczymy budowa_id do reszty faktury (najwiekszy udzial dzieci).
+    children_by_inv: dict = {}
+    for z in zapisy:
+        pid = z.get("parent_invoice_id")
+        if pid and z.get("budowa_id"):
+            children_by_inv.setdefault(pid, {}).setdefault(z["budowa_id"], 0.0)
+            children_by_inv[pid][z["budowa_id"]] += float(z.get("netto") or 0)
     virtual_zapisy = []
     for inv in invoices:
         if not inv.get("kod_id"):
@@ -59,12 +67,17 @@ async def rachunek_wynikow(
         remainder = float(inv.get("netto") or 0) - assigned_pos_by_inv.get(inv["id"], 0.0)
         if remainder <= 0:
             continue
+        eff_budowa_id = inv.get("budowa_id")
+        if not eff_budowa_id:
+            child_shares = children_by_inv.get(inv["id"], {})
+            if child_shares:
+                eff_budowa_id = max(child_shares.items(), key=lambda x: x[1])[0]
         virtual_zapisy.append({
             "month": inv["month"],
             "kod_id": inv["kod_id"],
             "kod_category": inv.get("kod_category") or "",
             "netto": round(remainder, 2),
-            "budowa_id": inv.get("budowa_id"),
+            "budowa_id": eff_budowa_id,
         })
     zapisy_all = zapisy + virtual_zapisy
 
@@ -620,13 +633,18 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
              "kod_category": 1, "budowa_id": 1}
     ).to_list(length=None)
     # Virtual zapisy z reszt faktur — dziedziczą budowa_id z faktury.
+    # iter94d: gdy naglowek faktury nie ma budowa_id ale pozycje-dzieci sa przypisane -
+    # dziedziczymy budowa najwiekszego udzialu (typowy przypadek gdy uzytkownik
+    # przypisuje pozycje na fakturze zamiast samego naglowka).
     assigned_pos_by_inv: dict = {}
+    children_by_inv: dict = {}
     for z in zapisy:
         if z.get("kod_id") and z.get("parent_invoice_id"):
-            assigned_pos_by_inv[z["parent_invoice_id"]] = (
-                assigned_pos_by_inv.get(z["parent_invoice_id"], 0.0)
-                + float(z.get("netto") or 0)
-            )
+            pid = z["parent_invoice_id"]
+            assigned_pos_by_inv[pid] = assigned_pos_by_inv.get(pid, 0.0) + float(z.get("netto") or 0)
+            if z.get("budowa_id"):
+                children_by_inv.setdefault(pid, {}).setdefault(z["budowa_id"], 0.0)
+                children_by_inv[pid][z["budowa_id"]] += float(z.get("netto") or 0)
     virtual_zapisy = []
     for inv in invoices:
         if not inv.get("kod_id"):
@@ -634,12 +652,17 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
         remainder = float(inv.get("netto") or 0) - assigned_pos_by_inv.get(inv["id"], 0.0)
         if remainder <= 0:
             continue
+        eff_budowa_id = inv.get("budowa_id")
+        if not eff_budowa_id:
+            child_shares = children_by_inv.get(inv["id"], {})
+            if child_shares:
+                eff_budowa_id = max(child_shares.items(), key=lambda x: x[1])[0]
         virtual_zapisy.append({
             "month": inv["month"],
             "kod_id": inv["kod_id"],
             "kod_category": inv.get("kod_category") or "",
             "netto": round(remainder, 2),
-            "budowa_id": inv.get("budowa_id"),
+            "budowa_id": eff_budowa_id,
         })
     zapisy_all = zapisy + virtual_zapisy
 
