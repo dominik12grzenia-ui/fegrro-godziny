@@ -69,8 +69,11 @@ async def rachunek_wynikow(
     zapisy_all = zapisy + virtual_zapisy
 
     # Agregacja: sum_by_kod[kod_id][month] = netto
+    # iter94c: liczymy TYLKO zapisy przypisane do budów (budowa_id != null).
+    # Nieprzypisane sumujemy osobno do sekcji "unassigned" dla informacji.
     sum_by_kod: dict = {}
     sum_by_cat: dict = {}  # category -> {month: netto}
+    unassigned_by_cat: dict = {}  # nieprzypisane per kategoria + miesiąc
     for z in zapisy_all:
         if not z.get("kod_id"):
             continue
@@ -78,10 +81,14 @@ async def rachunek_wynikow(
         kod = z["kod_id"]
         cat = z.get("kod_category") or ""
         v = float(z.get("netto") or 0)
-        sum_by_kod.setdefault(kod, {}).setdefault(m, 0.0)
-        sum_by_kod[kod][m] += v
-        sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
-        sum_by_cat[cat][m] += v
+        if z.get("budowa_id"):
+            sum_by_kod.setdefault(kod, {}).setdefault(m, 0.0)
+            sum_by_kod[kod][m] += v
+            sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
+            sum_by_cat[cat][m] += v
+        else:
+            unassigned_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
+            unassigned_by_cat[cat][m] += v
 
     # Kaucje: GIR i DW = % per-budowa z przychodu PZS dla budow z is_gir/is_dw
     gir_budowy = await db.finance_budowy.find(
@@ -95,7 +102,7 @@ async def rachunek_wynikow(
     kaucja_gir = {m: 0.0 for m in range(1, 13)}
     kaucja_dw = {m: 0.0 for m in range(1, 13)}
     for z in zapisy_all:
-        if z.get("kod_id") == "PZS":
+        if z.get("kod_id") == "PZS" and z.get("budowa_id"):
             m = z["month"]
             v = float(z.get("netto") or 0)
             bid = z.get("budowa_id")
@@ -202,6 +209,27 @@ async def rachunek_wynikow(
                 "total": sum_arr(ksp_total),
                 "rows": ksp_rows,
             },
+        },
+        # iter94c: nieprzypisane koszty/przychody — informacyjnie, nie wliczane do wyniku
+        "unassigned": {
+            "pzs": {"monthly": month_arr(unassigned_by_cat.get("PZS", {})),
+                     "total": round(sum(unassigned_by_cat.get("PZS", {}).values()), 2),
+                     "label": "Przychody nieprzypisane"},
+            "kp": {"monthly": month_arr(unassigned_by_cat.get("KP", {})),
+                    "total": round(sum(unassigned_by_cat.get("KP", {}).values()), 2),
+                    "label": "Koszty pracowników nieprzypisane"},
+            "kbb": {"monthly": month_arr(unassigned_by_cat.get("KBB", {})),
+                     "total": round(sum(unassigned_by_cat.get("KBB", {}).values()), 2),
+                     "label": "Koszty budowy nieprzypisane"},
+            "ksb": {"monthly": month_arr(unassigned_by_cat.get("KSB", {})),
+                     "total": round(sum(unassigned_by_cat.get("KSB", {}).values()), 2),
+                     "label": "Koszty stałe bezpośrednie nieprzypisane"},
+            "ksp": {"monthly": month_arr(unassigned_by_cat.get("KSP", {})),
+                     "total": round(sum(unassigned_by_cat.get("KSP", {}).values()), 2),
+                     "label": "Koszty stałe pośrednie nieprzypisane"},
+            "ppe": {"monthly": month_arr(unassigned_by_cat.get("PPE", {})),
+                     "total": round(sum(unassigned_by_cat.get("PPE", {}).values()), 2),
+                     "label": "Podatek PPE nieprzypisany"},
         },
     }
 
@@ -553,10 +581,12 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
 
 
 async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list] = None) -> dict:
-    """iter94b: Zwraca sumy roczne z Rachunku Wynikow zgodne z logiką RW.
-    Uzywane przez dashboard KPI dla spojnosci.
+    """iter94b/94c: Zwraca sumy roczne z Rachunku Wynikow — LICZONE TYLKO Z POZYCJI
+    PRZYPISANYCH DO BUDOWY (budowa_id != null). Nieprzypisane sumowane osobno
+    jako pole `unassigned_*` — informacyjnie, nie wliczane do wyniku.
 
-    Zwraca dict: przychody / koszty_full / kp/kbb/ksb/ksp / kaucja_gir/dw / koszty_operacyjne.
+    Efekt: Dashboard / Sprzedaz per budowa / Rachunek Wynikow pokazują IDENTYCZNE
+    sumy (bo wszystkie liczą tylko przypisane do budów).
     """
     from routes.finance import ensure_kody_seed
     await ensure_kody_seed()
@@ -572,7 +602,7 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
         q, {"_id": 0, "id": 1, "month": 1, "netto": 1, "kod_id": 1,
              "kod_category": 1, "budowa_id": 1}
     ).to_list(length=None)
-    # Virtual zapisy z resztami faktur (identycznie jak w rachunek_wynikow)
+    # Virtual zapisy z reszt faktur — dziedziczą budowa_id z faktury.
     assigned_pos_by_inv: dict = {}
     for z in zapisy:
         if z.get("kod_id") and z.get("parent_invoice_id"):
@@ -595,14 +625,24 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
             "budowa_id": inv.get("budowa_id"),
         })
     zapisy_all = zapisy + virtual_zapisy
+
+    # PRZYPISANE (budowa_id != null) — trafiaja do totals
     totals = {"PZS": 0.0, "PPE": 0.0, "KP": 0.0, "KBB": 0.0, "KSB": 0.0, "KSP": 0.0}
+    # NIEPRZYPISANE (budowa_id == null) — do informacji, nie wliczane
+    unassigned = {"PZS": 0.0, "PPE": 0.0, "KP": 0.0, "KBB": 0.0, "KSB": 0.0, "KSP": 0.0}
     for z in zapisy_all:
         if not z.get("kod_id"):
             continue
         cat = z.get("kod_category") or ""
+        if cat not in totals:
+            continue
         v = float(z.get("netto") or 0)
-        if cat in totals:
+        if z.get("budowa_id"):
             totals[cat] += v
+        else:
+            unassigned[cat] += v
+
+    # Kaucje GIR/DW — % z PZS dla budów z is_gir/is_dw (dotyczy tylko przypisanych)
     gir_budowy = await db.finance_budowy.find(
         {"is_gir": True}, {"_id": 0, "id": 1, "kaucja_gir_pct": 1}
     ).to_list(length=None)
@@ -614,15 +654,17 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
     kaucja_gir_sum = 0.0
     kaucja_dw_sum = 0.0
     for z in zapisy_all:
-        if z.get("kod_id") == "PZS":
+        if z.get("kod_id") == "PZS" and z.get("budowa_id"):
             v = float(z.get("netto") or 0)
-            bid = z.get("budowa_id")
+            bid = z["budowa_id"]
             if bid in gir_pct:
                 kaucja_gir_sum += v * gir_pct[bid]
             if bid in dw_pct:
                 kaucja_dw_sum += v * dw_pct[bid]
+
     koszty_operacyjne = totals["KP"] + totals["KBB"] + totals["KSB"] + totals["KSP"]
     koszty_full = koszty_operacyjne + totals["PPE"] + kaucja_gir_sum + kaucja_dw_sum
+    unass_koszty = unassigned["KP"] + unassigned["KBB"] + unassigned["KSB"] + unassigned["KSP"] + unassigned["PPE"]
     return {
         "przychody": round(totals["PZS"], 2),
         "podatek": round(totals["PPE"], 2),
@@ -634,6 +676,17 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
         "kaucja_dw": round(kaucja_dw_sum, 2),
         "koszty_operacyjne": round(koszty_operacyjne, 2),
         "koszty_full": round(koszty_full, 2),
+        # iter94c: informacyjnie - nie wliczane do wyniku
+        "unassigned_revenue": round(unassigned["PZS"], 2),
+        "unassigned_costs": round(unass_koszty, 2),
+        "unassigned_by_category": {
+            "PZS": round(unassigned["PZS"], 2),
+            "KP": round(unassigned["KP"], 2),
+            "KBB": round(unassigned["KBB"], 2),
+            "KSB": round(unassigned["KSB"], 2),
+            "KSP": round(unassigned["KSP"], 2),
+            "PPE": round(unassigned["PPE"], 2),
+        },
     }
 
 

@@ -85,6 +85,12 @@ async def dashboard_kpi(
         "costs_ytd": round(cost_ytd_full, 2),
         "active_sites_count": active_sites,
         "margin_avg_pct": margin_avg_pct,
+        # iter94c: nieprzypisane koszty/przychody — nie wliczane do wyniku, tylko info
+        "unassigned_revenue_ytd": ytd.get("unassigned_revenue", 0),
+        "unassigned_costs_ytd": ytd.get("unassigned_costs", 0),
+        "unassigned_by_category_ytd": ytd.get("unassigned_by_category", {}),
+        "unassigned_revenue_mtd": mtd.get("unassigned_revenue", 0),
+        "unassigned_costs_mtd": mtd.get("unassigned_costs", 0),
     }
 
 
