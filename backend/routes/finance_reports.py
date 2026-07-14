@@ -469,15 +469,12 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         H = kp_stawki_unassigned * G
         J = safe_div(F + Ib, assigned_kbb_sum + assigned_kp_sum)
         K = ksp_stawki_unassigned * J
-        # iter94: alokacja unassigned KBB i KSB proporcjonalnie do udzialu KP
-        kbb_unass_aloc = kbb_unassigned * G
-        ksb_unass_aloc = ksb_unassigned * G
-        # Marza brutto = Przychody - KP (F+H) - KBB (Ib+K) - unassigned KBB
-        L_brutto = E - (F + H + Ib + K + kbb_unass_aloc)
+        # iter94c: NIE alokujemy juz KBB/KSB unassigned - liczymy tylko przypisane,
+        # nieprzypisane zwracane osobno jako 'unassigned' (informacyjnie).
+        L_brutto = E - (F + H + Ib + K)
         M_pct = safe_div(L_brutto, E)
         O_aloc = ksp_uklady_unassigned * G
-        # Marza 1 = brutto - KSB (assigned + unassigned) - KSP_UKLADY unassigned
-        P_marza1 = L_brutto - N - ksb_unass_aloc - O_aloc
+        P_marza1 = L_brutto - N - O_aloc
         Q_pct = safe_div(P_marza1, E)
         ksp_other = total_ksp - ksp_stawki_unassigned - ksp_uklady_unassigned
         R_aloc = ksp_other * G
@@ -487,7 +484,7 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
         V_marza3 = S_marza2 - U_aloc
         W_pct = safe_div(V_marza3, E)
         Y = E
-        Z = F + H + Ib + K + N + kbb_unass_aloc + ksb_unass_aloc + O_aloc + R_aloc + U_aloc
+        Z = F + H + Ib + K + N + O_aloc + R_aloc + U_aloc
         AA = E * (float(b.get("kaucja_gir_pct") or 2.0) / 100.0) if b.get("is_gir") else 0.0
         AB = E * (float(b.get("kaucja_dw_pct") or 2.0) / 100.0) if b.get("is_dw") else 0.0
         AC = Y - Z - AA - AB
@@ -513,9 +510,6 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
                 "kbb": round(Ib, 2),
                 "kbb_kp_udzial": round(J, 4),
                 "kbb_aloc": round(K, 2),
-                # iter94: nowe alokacje - koszty budowy/stale bezposrednie nieprzypisane
-                "kbb_unass_aloc": round(kbb_unass_aloc, 2),
-                "ksb_unass_aloc": round(ksb_unass_aloc, 2),
                 "marza_brutto": round(L_brutto, 2),
                 "marza_brutto_pct": round(M_pct, 4),
                 "ksb": round(N, 2),
@@ -552,7 +546,6 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
     sum_visible["koszt_rg"] = round(safe_div(sum_visible["koszt"], sum_visible["godziny"]), 2) if sum_visible["godziny"] > 0 else 0
 
     sum_details_keys = ["sprzedaz", "kp", "kp_aloc", "kbb", "kbb_aloc",
-                        "kbb_unass_aloc", "ksb_unass_aloc",
                         "marza_brutto",
                         "ksb", "ksp_uklady_aloc", "marza1", "ksp_aloc", "marza2",
                         "podatek_aloc", "marza3"]
@@ -563,10 +556,30 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
     sum_details["marza2_pct"] = round(safe_div(sum_details["marza2"], sd_sprzedaz), 4)
     sum_details["marza3_pct"] = round(safe_div(sum_details["marza3"], sd_sprzedaz), 4)
 
+    # iter94c: sekcja "unassigned" — kwoty NIEPRZYPISANE do zadnej budowy (nie wliczane do totali).
+    unass_pzs = sum(float(z.get("netto") or 0) for z in zapisy
+                    if z.get("kod_category") == "PZS" and not z.get("budowa_id"))
+    unass_kp = kp_stawki_unassigned
+    unass_kbb = kbb_unassigned
+    unass_ksb = ksb_unassigned
+    unass_ksp = sum(float(z.get("netto") or 0) for z in zapisy
+                     if z.get("kod_category") == "KSP" and not z.get("budowa_id"))
+    unass_ppe = sum(float(z.get("netto") or 0) for z in zapisy
+                     if z.get("kod_category") == "PPE" and not z.get("budowa_id"))
+
     return {
         "year": year,
         "rows": rows,
         "totals": {"visible": sum_visible, "details": sum_details},
+        "unassigned": {
+            "przychody": round(unass_pzs, 2),
+            "kp": round(unass_kp, 2),
+            "kbb": round(unass_kbb, 2),
+            "ksb": round(unass_ksb, 2),
+            "ksp": round(unass_ksp, 2),
+            "ppe": round(unass_ppe, 2),
+            "suma_kosztow": round(unass_kp + unass_kbb + unass_ksb + unass_ksp + unass_ppe, 2),
+        },
         "helper": {
             "total_pzs": total_pzs,
             "total_ksp": total_ksp,
@@ -712,7 +725,8 @@ async def sprzedaz(
         except (ValueError, TypeError):
             months_list = None
     data = await _compute_sprzedaz_data(year, month, months_list=months_list)
-    return {"year": data["year"], "rows": data["rows"], "totals": data["totals"]}
+    return {"year": data["year"], "rows": data["rows"], "totals": data["totals"],
+             "unassigned": data.get("unassigned", {})}
 
 
 

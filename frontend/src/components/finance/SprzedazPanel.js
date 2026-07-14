@@ -60,6 +60,38 @@ export const SprzedazPanel = ({ year }) => {
           testIdPrefix="sprzedaz-months"
         />
       </div>
+      {/* iter94c: nieprzypisane - info, nie wliczane do sum */}
+      {data?.unassigned && (data.unassigned.przychody > 0.01 || data.unassigned.suma_kosztow > 0.01) && (
+        <div className="mx-4 mb-3 mt-3 bg-[#3B2F1F] border border-[#D4AF37]/60 rounded-md p-2.5"
+             data-testid="sprzedaz-unassigned-banner">
+          <div className="text-[11px] text-[#D4AF37] font-semibold mb-1.5">
+            ⚠ Nieprzypisane do żadnej budowy — nie wliczone w SUMA powyżej
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-[10px]">
+            {data.unassigned.przychody > 0.01 && (
+              <div><span className="text-[#94A3B8]">Sprzedaż:</span> <span className="text-[#9DBC85] font-semibold tabular-nums">{data.unassigned.przychody.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+            {data.unassigned.kp > 0.01 && (
+              <div><span className="text-[#94A3B8]">Prac.:</span> <span className="text-[#FCA5A5] tabular-nums">{data.unassigned.kp.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+            {data.unassigned.kbb > 0.01 && (
+              <div><span className="text-[#94A3B8]">Budowa:</span> <span className="text-[#FCA5A5] tabular-nums">{data.unassigned.kbb.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+            {data.unassigned.ksb > 0.01 && (
+              <div><span className="text-[#94A3B8]">Stałe bezp.:</span> <span className="text-[#FCA5A5] tabular-nums">{data.unassigned.ksb.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+            {data.unassigned.ksp > 0.01 && (
+              <div><span className="text-[#94A3B8]">Stałe pośr.:</span> <span className="text-[#FCA5A5] tabular-nums">{data.unassigned.ksp.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+            {data.unassigned.ppe > 0.01 && (
+              <div><span className="text-[#94A3B8]">Podatek:</span> <span className="text-[#FCA5A5] tabular-nums">{data.unassigned.ppe.toLocaleString('pl-PL',{minimumFractionDigits:2,maximumFractionDigits:2})} zł</span></div>
+            )}
+          </div>
+          <div className="text-[9px] text-[#CBD5E1] italic mt-1.5">
+            Aby wliczyć — otwórz "Zapisy" i przypisz brakującą budowę do rekordów.
+          </div>
+        </div>
+      )}
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full text-sm finance-grid-table" data-testid="finance-sprzedaz-table">
           <thead className="bg-[#1E2A44] text-[#CBD5E1] text-xs">
