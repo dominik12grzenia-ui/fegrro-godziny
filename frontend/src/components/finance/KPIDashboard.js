@@ -231,14 +231,14 @@ export const KPIDashboard = () => {
         />
       </div>
 
-      {/* iter94c: banner informacyjny - koszty/przychody bez przypisanej budowy */}
+      {/* iter96b: banner informacyjny - koszty/przychody bez przypisanej budowy (wliczone w sumy) */}
       {(kpi.unassigned_revenue_ytd > 0.01 || kpi.unassigned_costs_ytd > 0.01) && (
         <div className="bg-[#3B2F1F] border border-[#D4AF37]/60 rounded-lg p-3 space-y-2"
              data-testid="kpi-unassigned-banner">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-[#D4AF37]" />
             <span className="text-[#D4AF37] font-semibold text-sm">
-              Nieprzypisane do budów — nie wliczone do sum powyżej
+              Nieprzypisane do budów — wliczone do sum powyżej
             </span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -273,7 +273,7 @@ export const KPIDashboard = () => {
               })}
           </div>
           <div className="text-[10px] text-[#CBD5E1] italic pt-1 border-t border-[#3D5378]/60">
-            Wskazówka: aby wliczyć te kwoty do sum — otwórz "Zapisy" i przypisz brakującą budowę do rekordów bez przypisania.
+            Wskazówka: te kwoty są wliczone do sum. Aby widzieć je per budowa — otwórz "Zapisy" i przypisz budowę do rekordów.
           </div>
         </div>
       )}

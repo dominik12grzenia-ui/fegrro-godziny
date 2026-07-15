@@ -146,6 +146,15 @@ Przełącznik per pozycja główna pozwalający wyłączyć ją z wyceny bez usu
 
 ## Recent changelog (most recent first)
 
+### 2026-06 — iter96b — RW/Sprzedaż/Dashboard liczą WSZYSTKIE rekordy (P0 — DONE)
+Zmiana filozofii (na prośbę usera): rekordy bez przypisanej budowy SĄ wliczane do sum (wcześniej iter94c wykluczał je z totali).
+- `rachunek_wynikow` + `_compute_rachunek_wynikow_totals`: sumy zawierają wszystkie skategoryzowane zapisy/faktury; `unassigned` nadal zwracane (informacyjnie, już wliczone).
+- `_compute_sprzedaz_data`: syntetyczny wiersz "— Nieprzypisane do budowy —" (`is_unassigned: true`, budowa_id null) WLICZANY do SUMA → Sprzedaż == RW == Dashboard (zweryfikowano diff 0,00).
+- RachunekWynikowPanel: nowa sekcja "Nieprzypisane do budowy — wliczone w sumy powyżej" (wiersze per kategoria, testid `rw-unassigned-*`).
+- SprzedazPanel: baner zmieniony na informacyjny ("wliczone w SUMA jako wiersz Nieprzypisane"), wiersz syntetyczny stylowany na złoto (testid `sprzedaz-row-unassigned`).
+- KPIDashboard: baner "wliczone do sum powyżej".
+- Kaucje GIR/DW nadal liczone tylko z przypisanych PZS (wymagają budowy do %).
+
 ### 2026-06 — iter96 — Faktury bez kategorii (kod_id) → Rachunek Wyników (P0 — DONE)
 Problem: 445+ faktur kosztowych bez `kod_id` na nagłówku → niewidoczne w RW/Sprzedaży/Dashboard (~2,2 mln zł).
 - `POST /api/finance/backfill-invoice-kod-from-positions` — przenosi kod z pozycji (największy udział netto) na nagłówek faktury.

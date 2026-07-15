@@ -83,11 +83,12 @@ async def rachunek_wynikow(
     zapisy_all = zapisy + virtual_zapisy
 
     # Agregacja: sum_by_kod[kod_id][month] = netto
-    # iter94c: liczymy TYLKO zapisy przypisane do budów (budowa_id != null).
-    # Nieprzypisane sumujemy osobno do sekcji "unassigned" dla informacji.
+    # iter96b: liczymy WSZYSTKIE skategoryzowane zapisy — z budową i bez.
+    # Nieprzypisane do budowy dodatkowo trafiają do sekcji "unassigned"
+    # (osobne wiersze w RW), ale SĄ wliczone w sumy.
     sum_by_kod: dict = {}
     sum_by_cat: dict = {}  # category -> {month: netto}
-    unassigned_by_cat: dict = {}  # nieprzypisane per kategoria + miesiąc
+    unassigned_by_cat: dict = {}  # nieprzypisane per kategoria + miesiąc (wliczone w sumy)
     for z in zapisy_all:
         if not z.get("kod_id"):
             continue
@@ -95,12 +96,11 @@ async def rachunek_wynikow(
         kod = z["kod_id"]
         cat = z.get("kod_category") or ""
         v = float(z.get("netto") or 0)
-        if z.get("budowa_id"):
-            sum_by_kod.setdefault(kod, {}).setdefault(m, 0.0)
-            sum_by_kod[kod][m] += v
-            sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
-            sum_by_cat[cat][m] += v
-        else:
+        sum_by_kod.setdefault(kod, {}).setdefault(m, 0.0)
+        sum_by_kod[kod][m] += v
+        sum_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
+        sum_by_cat[cat][m] += v
+        if not z.get("budowa_id"):
             unassigned_by_cat.setdefault(cat, {}).setdefault(m, 0.0)
             unassigned_by_cat[cat][m] += v
 
@@ -224,7 +224,7 @@ async def rachunek_wynikow(
                 "rows": ksp_rows,
             },
         },
-        # iter94c: nieprzypisane koszty/przychody — informacyjnie, nie wliczane do wyniku
+        # iter96b: nieprzypisane koszty/przychody — WLICZONE w sumy, tu pokazane osobno
         "unassigned": {
             "pzs": {"monthly": month_arr(unassigned_by_cat.get("PZS", {})),
                      "total": round(sum(unassigned_by_cat.get("PZS", {}).values()), 2),
@@ -556,6 +556,58 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
             },
         })
 
+    # iter96b: syntetyczny wiersz "Nieprzypisane do budowy" — WLICZANY do SUMA.
+    # Dzieki temu Sprzedaz SUMA == Rachunek Wynikow == Dashboard (komplet rekordów).
+    unass_pzs = sum(float(z.get("netto") or 0) for z in zapisy
+                    if z.get("kod_category") == "PZS" and not z.get("budowa_id"))
+    unass_kp = kp_stawki_unassigned
+    unass_kbb = kbb_unassigned
+    unass_ksb = ksb_unassigned
+    unass_ksp = sum(float(z.get("netto") or 0) for z in zapisy
+                     if z.get("kod_category") == "KSP" and not z.get("budowa_id"))
+    unass_ppe = sum(float(z.get("netto") or 0) for z in zapisy
+                     if z.get("kod_category") == "PPE" and not z.get("budowa_id"))
+    unass_g = sum(float(z.get("netto") or 0) for z in zapisy
+                   if z.get("kod_id") == "G" and not z.get("budowa_id"))
+    unass_koszt = unass_kp + unass_kbb + unass_ksb + unass_ksp + unass_ppe
+    if abs(unass_pzs) > 0.005 or abs(unass_koszt) > 0.005:
+        u_mb = unass_pzs - (unass_kp + unass_kbb)
+        u_m1 = u_mb - unass_ksb
+        u_m2 = u_m1 - unass_ksp
+        u_m3 = u_m2 - unass_ppe
+        u_roznica = unass_pzs - unass_koszt
+        rows.append({
+            "nr": len(rows) + 1,
+            "budowa_id": None,
+            "name": "— Nieprzypisane do budowy —",
+            "is_archived": False, "is_gir": False, "is_dw": False,
+            "is_unassigned": True,
+            "details": {
+                "sprzedaz": round(unass_pzs, 2), "kp": round(unass_kp, 2),
+                "kp_udzial": 0, "kp_aloc": 0,
+                "kbb": round(unass_kbb, 2), "kbb_kp_udzial": 0, "kbb_aloc": 0,
+                "marza_brutto": round(u_mb, 2), "marza_brutto_pct": round(safe_div(u_mb, unass_pzs), 4),
+                "ksb": round(unass_ksb, 2), "ksp_uklady_aloc": 0,
+                "marza1": round(u_m1, 2), "marza1_pct": round(safe_div(u_m1, unass_pzs), 4),
+                "ksp_aloc": 0,
+                "marza2": round(u_m2, 2), "marza2_pct": round(safe_div(u_m2, unass_pzs), 4),
+                "podatek_aloc": 0,
+                "marza3": round(u_m3, 2), "marza3_pct": round(safe_div(u_m3, unass_pzs), 4),
+            },
+            "visible": {
+                "przychod": round(unass_pzs, 2),
+                "koszt": round(unass_koszt, 2),
+                "kaucja_gir": 0.0, "kaucja_dw": 0.0,
+                "roznica": round(u_roznica, 2),
+                "zysk_pct": round(safe_div(u_roznica, unass_pzs), 4),
+                "godziny": round(unass_g, 2),
+                "przychod_rg": round(safe_div(unass_pzs, unass_g), 2) if unass_g > 0 else 0,
+                "zysk_rg": round(safe_div(u_roznica, unass_g), 2) if unass_g > 0 else 0,
+                "koszt_rg": round(safe_div(unass_koszt, unass_g), 2) if unass_g > 0 else 0,
+                "koszt_zmienny": round(unass_kp + unass_kbb, 2),
+            },
+        })
+
     sum_visible = {k: round(sum(r["visible"][k] for r in rows), 2) for k in
                    ["przychod", "koszt", "kaucja_gir", "kaucja_dw", "roznica", "godziny", "koszt_zmienny"]}
     sum_visible["zysk_pct"] = round(safe_div(sum_visible["roznica"], sum_visible["przychod"]), 4)
@@ -574,16 +626,8 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
     sum_details["marza2_pct"] = round(safe_div(sum_details["marza2"], sd_sprzedaz), 4)
     sum_details["marza3_pct"] = round(safe_div(sum_details["marza3"], sd_sprzedaz), 4)
 
-    # iter94c: sekcja "unassigned" — kwoty NIEPRZYPISANE do zadnej budowy (nie wliczane do totali).
-    unass_pzs = sum(float(z.get("netto") or 0) for z in zapisy
-                    if z.get("kod_category") == "PZS" and not z.get("budowa_id"))
-    unass_kp = kp_stawki_unassigned
-    unass_kbb = kbb_unassigned
-    unass_ksb = ksb_unassigned
-    unass_ksp = sum(float(z.get("netto") or 0) for z in zapisy
-                     if z.get("kod_category") == "KSP" and not z.get("budowa_id"))
-    unass_ppe = sum(float(z.get("netto") or 0) for z in zapisy
-                     if z.get("kod_category") == "PPE" and not z.get("budowa_id"))
+    # iter96b: sekcja "unassigned" — informacyjnie; te kwoty SĄ wliczone w SUMA
+    # (jako syntetyczny wiersz "Nieprzypisane do budowy" powyżej).
 
     return {
         "year": year,
@@ -612,12 +656,12 @@ async def _compute_sprzedaz_data(year: int, month: Optional[int] = None,
 
 
 async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list] = None) -> dict:
-    """iter94b/94c: Zwraca sumy roczne z Rachunku Wynikow — LICZONE TYLKO Z POZYCJI
-    PRZYPISANYCH DO BUDOWY (budowa_id != null). Nieprzypisane sumowane osobno
-    jako pole `unassigned_*` — informacyjnie, nie wliczane do wyniku.
+    """iter96b: Zwraca sumy roczne z Rachunku Wynikow — LICZONE ZE WSZYSTKICH
+    SKATEGORYZOWANYCH POZYCJI (z budową i bez). Nieprzypisane do budowy sumowane
+    dodatkowo jako pole `unassigned_*` — informacyjnie (są już wliczone w totals).
 
     Efekt: Dashboard / Sprzedaz per budowa / Rachunek Wynikow pokazują IDENTYCZNE
-    sumy (bo wszystkie liczą tylko przypisane do budów).
+    sumy (wszystkie liczą komplet rekordów; nieprzypisane widoczne osobno).
     """
     from routes.finance import ensure_kody_seed
     await ensure_kody_seed()
@@ -667,9 +711,9 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
         })
     zapisy_all = zapisy + virtual_zapisy
 
-    # PRZYPISANE (budowa_id != null) — trafiaja do totals
+    # WSZYSTKIE skategoryzowane trafiaja do totals (iter96b);
+    # nieprzypisane do budowy dodatkowo do `unassigned` (informacyjnie)
     totals = {"PZS": 0.0, "PPE": 0.0, "KP": 0.0, "KBB": 0.0, "KSB": 0.0, "KSP": 0.0}
-    # NIEPRZYPISANE (budowa_id == null) — do informacji, nie wliczane
     unassigned = {"PZS": 0.0, "PPE": 0.0, "KP": 0.0, "KBB": 0.0, "KSB": 0.0, "KSP": 0.0}
     for z in zapisy_all:
         if not z.get("kod_id"):
@@ -678,9 +722,8 @@ async def _compute_rachunek_wynikow_totals(year: int, months_list: Optional[list
         if cat not in totals:
             continue
         v = float(z.get("netto") or 0)
-        if z.get("budowa_id"):
-            totals[cat] += v
-        else:
+        totals[cat] += v
+        if not z.get("budowa_id"):
             unassigned[cat] += v
 
     # Kaucje GIR/DW — % z PZS dla budów z is_gir/is_dw (dotyczy tylko przypisanych)

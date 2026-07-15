@@ -392,6 +392,26 @@ export const RachunekWynikowPanel = ({ year, onTileClick }) => {
             {renderRow('ILOSC GODZIN', summary.godziny.monthly, summary.godziny.total,
               { labelClass: 'text-[#CBD5E1]' })}
 
+            {/* iter96b: Nieprzypisane do budowy — osobna sekcja, wliczone w sumy powyżej */}
+            {data.unassigned && ['pzs', 'kp', 'kbb', 'ksb', 'ksp', 'ppe'].some(k => Math.abs(data.unassigned[k]?.total || 0) > 0.005) && (
+              <>
+                <tr data-testid="rw-unassigned-header">
+                  <td colSpan={14} className="p-1.5 bg-[#3B2F1F] text-[#D4AF37] text-xs uppercase border-y-2 border-[#D4AF37]/50 font-semibold">
+                    Nieprzypisane do budowy — wliczone w sumy powyżej (przypisz budowę w Zapisach, aby widzieć per budowa)
+                  </td>
+                </tr>
+                {['pzs', 'kp', 'kbb', 'ksb', 'ksp', 'ppe']
+                  .filter(k => Math.abs(data.unassigned[k]?.total || 0) > 0.005)
+                  .map(k => (
+                    <React.Fragment key={k}>
+                      {renderRow(data.unassigned[k].label, data.unassigned[k].monthly, data.unassigned[k].total,
+                        { labelClass: 'text-[#D4AF37] text-xs', valClass: 'text-[#D4AF37] text-xs',
+                          totalClass: 'text-[#D4AF37]', testid: `rw-unassigned-${k}` })}
+                    </React.Fragment>
+                  ))}
+              </>
+            )}
+
             {/* Wskaźniki */}
             <tr><td colSpan={14} className="p-1 bg-[#1E2A44] text-[#CBD5E1] text-xs uppercase border-y-2 border-[#3D5378]">Wskaźniki / R-G</td></tr>
             {renderRow('Koszt R-G (firma + pracownik)', ratios.koszt_rg_firma_pracownik, '-', { labelClass: 'text-[#CBD5E1] italic', valClass: 'text-[#F1F5F9] text-xs italic' })}

@@ -65,7 +65,7 @@ export const SprzedazPanel = ({ year }) => {
         <div className="mx-4 mb-3 mt-3 bg-[#3B2F1F] border border-[#D4AF37]/60 rounded-md p-2.5"
              data-testid="sprzedaz-unassigned-banner">
           <div className="text-[11px] text-[#D4AF37] font-semibold mb-1.5">
-            ⚠ Nieprzypisane do żadnej budowy — nie wliczone w SUMA powyżej
+            ℹ Nieprzypisane do żadnej budowy — wliczone w SUMA jako wiersz „Nieprzypisane"
           </div>
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 text-[10px]">
             {data.unassigned.przychody > 0.01 && (
@@ -88,7 +88,7 @@ export const SprzedazPanel = ({ year }) => {
             )}
           </div>
           <div className="text-[9px] text-[#CBD5E1] italic mt-1.5">
-            Aby wliczyć — otwórz "Zapisy" i przypisz brakującą budowę do rekordów.
+            Aby przypisać do konkretnej budowy — otwórz "Zapisy" i ustaw budowę na rekordach.
           </div>
         </div>
       )}
@@ -136,9 +136,11 @@ export const SprzedazPanel = ({ year }) => {
               <tr><td colSpan={showDetails ? 30 : 13} className="p-6 text-center text-[#CBD5E1]">Brak budow. Dodaj w zakladce Budowy.</td></tr>
             )}
             {rows.map((r) => (
-              <tr key={r.budowa_id} className="border-t border-[#3D5378] hover:bg-[#1E2A44]/50" data-testid={`sprzedaz-row-${r.budowa_id}`}>
+              <tr key={r.budowa_id || 'unassigned'}
+                className={`border-t border-[#3D5378] hover:bg-[#1E2A44]/50 ${r.is_unassigned ? 'bg-[#3B2F1F]/40' : ''}`}
+                data-testid={r.is_unassigned ? 'sprzedaz-row-unassigned' : `sprzedaz-row-${r.budowa_id}`}>
                 <td className="p-2 text-[#CBD5E1]">{r.nr}</td>
-                <td className="p-2 text-white font-medium">{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#CBD5E1]">(arch)</span>}</td>
+                <td className={`p-2 font-medium ${r.is_unassigned ? 'text-[#D4AF37] italic' : 'text-white'}`}>{r.name}{r.is_archived && <span className="ml-1 text-xs text-[#CBD5E1]">(arch)</span>}</td>
                 {showDetails && <>
                   <td className="p-2 text-right text-xs text-[#F1F5F9] bg-[#1E2A44]/30">{fmtNum(r.details.sprzedaz)}</td>
                   <td className="p-2 text-right text-xs text-[#F1F5F9] bg-[#1E2A44]/30">{fmtNum(r.details.kp)}</td>
